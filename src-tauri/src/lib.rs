@@ -8,6 +8,7 @@ mod runtime;
 mod store;
 mod super_json;
 mod tools;
+#[allow(unused_imports)]
 use commands::{
     context_usage, execute_tool, fetch_models, list_messages, load_providers, save_providers,
     send_chat, super_json_labels, super_json_progress, super_json_read, super_json_summary,
@@ -74,16 +75,29 @@ mod tests {
         assert_eq!(crate::super_json::skeleton(), parsed);
     }
 
-    /// The system prompt must spell out every writable super-json path.
+    /// The system prompt must spell out every project leaf and every table name;
+    /// the per-table `.count`/`.rows` grammar is documented once.
     #[test]
     fn test_system_prompt_documents_every_valid_path() {
         let prompt = crate::runtime::assemble_prompt("OpenAI", "gpt-4o", "s", "p");
         for path in crate::super_json::valid_paths() {
-            assert!(
-                prompt.contains(path.as_str()),
-                "system prompt does not mention {path}"
-            );
+            if let Some(table) = path
+                .split_once(".schema.")
+                .and_then(|(_, tail)| tail.split('.').next())
+            {
+                assert!(
+                    prompt.contains(table),
+                    "system prompt does not mention table {table}"
+                );
+            } else {
+                assert!(
+                    prompt.contains(path.as_str()),
+                    "system prompt does not mention {path}"
+                );
+            }
         }
+        assert!(prompt.contains("require.schema.<table>.count"));
+        assert!(prompt.contains("optional.schema.<table>.rows"));
     }
 }
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

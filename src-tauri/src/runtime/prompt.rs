@@ -20,9 +20,13 @@ pub fn assemble_prompt(
     } else {
         project_id
     };
+    let required_total = crate::super_json::required_paths().len().to_string();
+    let optional_total = crate::super_json::optional_paths().len().to_string();
     SYSTEM_TEMPLATE
         .replace("{provider_name}", provider_name)
         .replace("{model_name}", model_name)
         .replace("{session_id}", session_id)
         .replace("{project_state}", project_state)
+        .replace("{required_total}", &required_total)
+        .replace("{optional_total}", &optional_total)
 }

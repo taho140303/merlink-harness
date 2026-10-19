@@ -59,7 +59,9 @@ fn safe_segment(value: &str) -> Result<&str, String> {
 }
 
 pub fn project_dir(project_id: &str) -> Result<PathBuf, String> {
-    Ok(merlink_root()?.join("projects").join(safe_segment(project_id)?))
+    Ok(merlink_root()?
+        .join("projects")
+        .join(safe_segment(project_id)?))
 }
 
 /// The super json is project-global: one file per project, not per session.

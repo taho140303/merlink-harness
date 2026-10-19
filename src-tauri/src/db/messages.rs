@@ -146,7 +146,7 @@ mod tests {
         assistant.tool_calls = Some(vec![ToolCall {
             id: "call_1".into(),
             name: "super_json_set".into(),
-            arguments: json!({"path": "require.overview.name", "value": "Nửa Đêm"}),
+            arguments: json!({"path": "require.project.name", "value": "Nửa Đêm"}),
         }]);
         let tool =
             MessageEnvelope::tool_result("m3", "call_1", "super_json_set", &json!({"ok": true}));

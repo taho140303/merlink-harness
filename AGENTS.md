@@ -11,7 +11,7 @@ planning or delegating work in this repository.
 - Persistence: `config.json` (providers, 0600 on Unix), `merlink.db` (SQLite),
   `projects/<id>/super.json` (one document per project).
 - Agent loop: model -> tools -> model, **maximum 5 tool rounds**.
-- Super JSON: **25 writable leaf paths**, required/optional **70/30** progress.
+- Super JSON: **81 writable paths** (13 project leaves + 34 tables × count/rows), **18 required / 29 optional units**, 70/30 progress.
 - IPC: Tauri lower-camel-cases Rust parameter names. JS sends `sessionId`,
   `projectId`, `providerId`; never snake_case. Register commands only through
   `merlink_handlers!`.

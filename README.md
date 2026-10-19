@@ -8,7 +8,7 @@ Merlink Harness is early/alpha software, not a finished writing suite. Chat, pro
 
 ## How it works
 
-A chat turn sends the conversation to the configured model, runs any requested tools, and sends the tool results back to the model (model → tools → model), with a maximum of five tool rounds. The project "super JSON" has exactly 25 writable leaf paths, split into required and optional fields. A chat session can be bound to a project; the project document is shared at the project level rather than stored separately for each session. SQLite stores sessions, projects, and messages. Provider configuration and each project's super JSON are files under `~/.merlink`.
+A chat turn sends the conversation to the configured model, runs any requested tools, and sends the tool results back to the model (model → tools → model), with a maximum of five tool rounds. The project "super JSON" has 81 writable paths (13 project leaves + 34 tables × count/rows), split into 18 required and 29 optional units. A chat session can be bound to a project; the project document is shared at the project level rather than stored separately for each session. SQLite stores sessions, projects, and messages. Provider configuration and each project's super JSON are files under `~/.merlink`.
 
 An API provider and key are needed to use the real model-backed desktop chat. Browser preview is useful for viewing the frontend, but its mock responses are not a substitute for testing desktop behavior.
 

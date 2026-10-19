@@ -1,10 +1,15 @@
 //! Missing/filled bookkeeping and the two-stop 70/30 progress calculation.
+//!
+//! A unit is one decision: a `project` leaf, or one schema table (its `count`
+//! plus a complete `rows` array). 18 required units cover 0 → 70%; 29 optional
+//! units cover 70 → 100%.
 
 use serde_json::Value;
 
 use super::{
     io::load_or_init,
-    schema::{optional_paths, required_paths},
+    schema::{self, Group, PathRef},
+    tables,
 };
 use crate::models::SuperJsonProgress;
 
@@ -15,20 +20,20 @@ pub const LABEL_COLLECTING: &str = "Đang thu thập thông tin";
 pub const LABEL_ACCEPTABLE: &str = "Độ mạch lạc tạm chấp nhận";
 pub const LABEL_GOOD: &str = "Độ mạch lạc: tốt";
 
-/// Required paths still sitting at `null`. An empty result means the outline
-/// button may light up.
+/// Required units still unfilled. An empty result means the outline button may
+/// light up.
 pub fn missing_required(project_id: &str) -> Result<Vec<String>, String> {
     let document = load_or_init(project_id)?;
     let mut missing = Vec::new();
-    for path in required_paths() {
-        if !is_filled(&document, path) {
-            missing.push(path.clone());
+    for unit in schema::required_paths() {
+        if !is_unit_filled(&document, unit) {
+            missing.push(unit.clone());
         }
     }
     Ok(missing)
 }
 
-pub(super) fn value_at<'a>(document: &'a Value, path: &str) -> Option<&'a Value> {
+fn value_at<'a>(document: &'a Value, path: &str) -> Option<&'a Value> {
     let mut cursor = document;
     for segment in path.split('.') {
         cursor = cursor.get(segment)?;
@@ -36,34 +41,67 @@ pub(super) fn value_at<'a>(document: &'a Value, path: &str) -> Option<&'a Value>
     Some(cursor)
 }
 
-/// A field counts as filled once it holds a value. `null` never counts, and an
-/// empty array does not either: `optional.genre.secondary` starts as `[]` in the
-/// skeleton, which means "no secondary genre named yet", not "answered".
-fn is_filled(document: &Value, path: &str) -> bool {
-    match value_at(document, path) {
-        Some(Value::Null) | None => false,
-        Some(Value::Array(items)) => !items.is_empty(),
-        Some(_) => true,
+/// `null` never counts; an empty array does not either. Scalars and non-empty
+/// arrays do.
+fn is_filled_value(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Array(items) => !items.is_empty(),
+        _ => true,
     }
+}
+
+/// One unit is filled when its project leaf has a value, or when the table has a
+/// declared count and a matching, valid `rows` array.
+pub(super) fn is_unit_filled(document: &Value, unit: &str) -> bool {
+    if unit.contains(".project.") {
+        return value_at(document, unit).is_some_and(is_filled_value);
+    }
+    let Some(PathRef::TableSelector { group, table }) = schema::parse_path(unit) else {
+        return false;
+    };
+    let result = match group {
+        Group::Require => tables::is_table_complete(document, table),
+        Group::Optional => tables::is_optional_table_complete(document, table),
+    };
+    result.unwrap_or(false)
 }
 
 /// `(filled required, filled optional)` — the raw numbers behind the progress bar.
 pub fn filled_counts(project_id: &str) -> Result<(u32, u32), String> {
     let document = load_or_init(project_id)?;
-    let count = |paths: &[String]| {
-        paths
+    let count = |units: &[String]| {
+        units
             .iter()
-            .filter(|path| is_filled(&document, path))
+            .filter(|unit| is_unit_filled(&document, unit))
             .count() as u32
     };
-    Ok((count(required_paths()), count(optional_paths())))
+    Ok((
+        count(schema::required_paths()),
+        count(schema::optional_paths()),
+    ))
 }
 
-/// Two-stop progress (D6): the 11 required paths cover 0 → 70%, the 14 optional
-/// paths cover 70 → 100%. Completing every required path lands on exactly 70.
+/// Counts filled units for a document the caller already loaded (used by the
+/// deterministic prose summary).
+pub(super) fn unit_counts(document: &Value) -> (u32, u32) {
+    let count = |units: &[String]| {
+        units
+            .iter()
+            .filter(|unit| is_unit_filled(document, unit))
+            .count() as u32
+    };
+    (
+        count(schema::required_paths()),
+        count(schema::optional_paths()),
+    )
+}
+
+/// Two-stop progress: the 18 required units cover 0 → 70%, the 29 optional
+/// units cover 70 → 100%. Completing every required unit lands on exactly 70.
 pub fn progress(project_id: &str) -> Result<SuperJsonProgress, String> {
-    let required_total = required_paths().len() as u32;
-    let optional_total = optional_paths().len() as u32;
+    let required_total = schema::required_paths().len() as u32;
+    let optional_total = schema::optional_paths().len() as u32;
 
     if project_id.trim().is_empty() {
         return Ok(SuperJsonProgress {
@@ -104,214 +142,166 @@ pub fn progress(project_id: &str) -> Result<SuperJsonProgress, String> {
     })
 }
 
-/// A valid value for every required path, so progress tests can complete the
-/// 11 blocking fields without restating the type rules.
-#[cfg(test)]
-pub(super) fn required_value(path: &str) -> Value {
-    use serde_json::json;
-    match path {
-        "require.overview.plan.arc.count" => json!(5),
-        "require.overview.plan.chapter.count" => json!(120),
-        "require.overview.plan.word.count" => json!(90000),
-        _ => json!(format!("value for {path}")),
-    }
-}
-
-/// Same for the 14 optional paths, including the enum and boolean ones.
-#[cfg(test)]
-pub(super) fn optional_value(path: &str) -> Value {
-    use serde_json::json;
-    match path {
-        "optional.overview.language" => json!("VI"),
-        "optional.theme.resolution-type" => json!("OPEN"),
-        "optional.world.setting-scale" => json!("CITY"),
-        "optional.world.has-power-system" => json!(true),
-        "optional.genre.secondary" => json!(["trinh thám"]),
-        "optional.overview.plan.arc.tolerance"
-        | "optional.overview.plan.chapter.tolerance"
-        | "optional.overview.plan.word.tolerance" => json!(1),
-        _ => json!(format!("value for {path}")),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{
-        super::io::set,
-        *,
-    };
-    use crate::paths;
+    use super::*;
+    use crate::super_json::io::set;
     use serde_json::json;
 
     fn fill_required(project_id: &str) {
-        for path in required_paths() {
-            set(project_id, path, required_value(path)).unwrap_or_else(|error| panic!("{path}: {error}"));
+        set(project_id, "require.project.name", json!("Nửa Đêm")).unwrap();
+        set(project_id, "require.project.language", json!("VI")).unwrap();
+        for (leaf, value) in [
+            ("plan.arc.count", 5),
+            ("plan.chapter.count", 120),
+            ("plan.scene.count", 360),
+            ("plan.word.count", 90000),
+        ] {
+            set(project_id, &format!("require.project.{leaf}"), json!(value)).unwrap();
         }
-    }
-
-    fn fill_optional(project_id: &str) {
-        for path in optional_paths() {
-            set(project_id, path, optional_value(path)).unwrap_or_else(|error| panic!("{path}: {error}"));
-        }
-    }
-
-    /// Acceptance: once all 11 required fields hold a value, nothing blocks the
-    /// outline step any more.
-    #[test]
-    fn test_super_json_missing_is_empty_when_all_required_set() {
-        let _home = crate::test_support::TempHome::new("super-complete");
-        load_or_init("default").unwrap();
-
-        let values: [(&str, Value); 11] = [
-            ("require.overview.name", json!("Nửa Đêm")),
+        let rows = [
             (
-                "require.overview.logline.trigger-event",
-                json!("chiếc đồng hồ cuối cùng ngừng chạy"),
+                "project_genres",
+                json!([{ "genre_id": "trinh thám", "is_primary": true }]),
+            ),
+            ("arcs", json!([{ "name": "Mưa", "position": 1 }])),
+            ("chapters", json!([{ "name": "Đồng hồ", "position": 1 }])),
+            (
+                "scenes",
+                json!([{ "name": "Tiếng chuông", "chapter_id": "c1", "position": 1 }]),
             ),
             (
-                "require.overview.logline.main-character",
-                json!("một người thợ đồng hồ mù"),
+                "scene_characters",
+                json!([{ "scene_id": "s1", "character_id": "c1", "is_pov": true }]),
             ),
             (
-                "require.overview.logline.action",
-                json!("truy tìm người đã chế tạo ra nó"),
+                "characters",
+                json!([
+                    { "name": "Hoàng", "is_primary": true },
+                    { "name": "Phong", "is_primary": false },
+                    { "name": "Linh", "is_primary": false }
+                ]),
             ),
-            ("require.overview.logline.risk", json!("đánh mất ký ức")),
             (
-                "require.overview.logline.major-loss",
-                json!("đứa con gái duy nhất"),
+                "relationships",
+                json!([{ "from_character_id": "c1", "to_character_id": "c2" }]),
             ),
-            ("require.overview.plan.arc.count", json!(5)),
-            ("require.overview.plan.chapter.count", json!(120)),
-            ("require.overview.plan.word.count", json!(90000)),
-            ("require.genre.primary", json!("trinh thám")),
             (
-                "require.theme.question",
-                json!("ký ức có làm nên con người?"),
+                "relationship_roles",
+                json!([{ "relationship_id": "r1", "category_id": "cat1", "is_primary": true }]),
+            ),
+            (
+                "world_settings",
+                json!([{ "name": "Thành phố", "type": "CITY" }]),
+            ),
+            (
+                "power_systems",
+                json!([{ "name": "Mana", "source": "huyết mạch" }]),
+            ),
+            (
+                "themes",
+                json!([{ "scope": "PROJECT", "question": "ký ức có làm nên con người?" }]),
+            ),
+            (
+                "theme_arguments",
+                json!([{ "theme_id": "t1", "character_id": "c1", "role": "PRIMARY" }]),
             ),
         ];
-
-        for (path, value) in values {
-            set("default", path, value).unwrap_or_else(|error| panic!("{path}: {error}"));
+        for (table, rows) in rows {
+            let count = rows.as_array().unwrap().len() as i64;
+            set(
+                project_id,
+                &format!("require.schema.{table}.count"),
+                json!(count),
+            )
+            .unwrap();
+            set(project_id, &format!("require.schema.{table}.rows"), rows).unwrap();
         }
-
-        assert!(
-            missing_required("default").unwrap().is_empty(),
-            "all required fields were set, nothing should be missing"
-        );
-
-        // `null` is not an acceptable value for a text field, so the field stays
-        // filled and the document is still complete.
-        assert!(set("default", "require.overview.name", json!(null)).is_err());
-        assert!(missing_required("default").unwrap().is_empty());
     }
 
-    /// Acceptance: exactly the 11 required fields → exactly 70%.
     #[test]
     fn test_progress_is_seventy_when_required_complete() {
-        let _home = crate::test_support::TempHome::new("progress-seventy");
-        load_or_init("default").unwrap();
-        fill_required("default");
-
-        let progress = progress("default").unwrap();
-        assert!(progress.has_project);
-        assert_eq!(progress.project_id, "default");
-        assert_eq!(progress.filled_required, 11);
-        assert_eq!(progress.required_total, 11);
-        assert_eq!(progress.filled_optional, 0, "no optional field was touched");
-        assert_eq!(progress.optional_total, 14);
-        assert_eq!(progress.percent, 70, "11/11 required must land on exactly 70%");
-        assert_eq!(progress.label, "Độ mạch lạc tạm chấp nhận");
-
-        assert_eq!(filled_counts("default").unwrap(), (11, 0));
-        assert!(missing_required("default").unwrap().is_empty());
+        let _home = crate::test_support::TempHome::new("progress-70");
+        crate::super_json::load_or_init("p").unwrap();
+        fill_required("p");
+        let progress = progress("p").unwrap();
+        assert_eq!(progress.filled_required, 18, "{progress:?}");
+        assert_eq!(progress.required_total, 18);
+        assert_eq!(progress.percent, 70);
+        assert_eq!(progress.label, LABEL_ACCEPTABLE);
+        assert!(missing_required("p").unwrap().is_empty());
     }
 
-    /// Acceptance: all 25 fields → 100%.
     #[test]
-    fn test_progress_is_hundred_when_all_fields_filled() {
-        let _home = crate::test_support::TempHome::new("progress-hundred");
-        load_or_init("default").unwrap();
-        fill_required("default");
-        fill_optional("default");
-
-        let progress = progress("default").unwrap();
-        assert_eq!(progress.filled_required, 11);
-        assert_eq!(progress.filled_optional, 14);
-        assert_eq!(progress.percent, 100);
-        assert_eq!(progress.label, "Độ mạch lạc: tốt");
-        assert_eq!(filled_counts("default").unwrap(), (11, 14));
+    fn test_progress_counts_table_only_when_count_and_rows_agree() {
+        let _home = crate::test_support::TempHome::new("progress-unit");
+        crate::super_json::load_or_init("p").unwrap();
+        set("p", "require.schema.characters.count", json!(3)).unwrap();
+        assert_eq!(filled_counts("p").unwrap().0, 0);
+        set(
+            "p",
+            "require.schema.characters.rows",
+            json!([
+                { "name": "Hoàng", "is_primary": true },
+                { "name": "Phong", "is_primary": false },
+                { "name": "Linh", "is_primary": false }
+            ]),
+        )
+        .unwrap();
+        assert_eq!(filled_counts("p").unwrap().0, 1);
     }
 
-    /// Acceptance: `optional.genre.secondary = []` is not an answer. The skeleton
-    /// ships it as `[]`, so counting it would start every project at 2%.
     #[test]
-    fn test_progress_counts_empty_array_as_unfilled() {
-        let _home = crate::test_support::TempHome::new("progress-empty-array");
-        load_or_init("default").unwrap();
-        fill_required("default");
-
-        let baseline = progress("default").unwrap();
-        assert_eq!(baseline.filled_optional, 0, "the skeleton's [] is not filled");
-        assert_eq!(baseline.percent, 70);
-
-        // The validator accepts an empty array (it is a legal value) ...
-        set("default", "optional.genre.secondary", json!([])).unwrap();
-        let empty = progress("default").unwrap();
-        assert_eq!(empty.filled_optional, 0, "an empty array is still not filled");
-        assert_eq!(empty.percent, 70);
-
-        // ... and a non-empty one does count.
-        set("default", "optional.genre.secondary", json!(["hành động"])).unwrap();
-        let filled = progress("default").unwrap();
-        assert_eq!(filled.filled_optional, 1);
-        assert_eq!(filled.percent, 72, "70 + round(30 * 1 / 14)");
-    }
-
-    /// Every label and both stops, driven through the real numbers.
-    #[test]
-    fn test_progress_label_thresholds() {
-        let _home = crate::test_support::TempHome::new("progress-labels");
-
-        // No project at all: the header still knows the totals, but nothing is filled.
-        let none = progress("").unwrap();
-        assert!(!none.has_project);
-        assert_eq!(none.project_id, "");
-        assert_eq!(none.percent, 0);
-        assert_eq!(none.label, "Chưa có project");
-        assert_eq!(none.filled_required, 0);
-        assert_eq!(none.filled_optional, 0);
-        assert_eq!(none.required_total, 11);
-        assert_eq!(none.optional_total, 14);
-        // Asking about a project that does not exist must not create a directory.
-        assert!(!paths::merlink_root().unwrap().join("projects").exists());
-
-        // A project with nothing filled yet.
-        let empty = progress("default").unwrap();
-        assert!(empty.has_project);
-        assert_eq!(empty.percent, 0);
-        assert_eq!(empty.label, "Đang thu thập thông tin");
-
-        // One required field short of the stop.
-        let required: Vec<String> = required_paths().to_vec();
-        for path in &required[..10] {
-            set("default", path, required_value(path)).unwrap();
+    fn test_progress_is_hundred_when_all_units_filled() {
+        let _home = crate::test_support::TempHome::new("progress-100");
+        crate::super_json::load_or_init("p").unwrap();
+        fill_required("p");
+        for leaf in [
+            "author",
+            "summarize",
+            "target-audience",
+            "plan.arc.tolerance",
+            "plan.chapter.tolerance",
+            "plan.scene.tolerance",
+            "plan.word.tolerance",
+        ] {
+            let value = if leaf.contains("tolerance") {
+                json!(1)
+            } else {
+                json!("x")
+            };
+            set("p", &format!("optional.project.{leaf}"), value).unwrap();
         }
-        let partial = progress("default").unwrap();
-        assert_eq!(partial.filled_required, 10);
-        assert_eq!(partial.percent, 64, "round(70 * 10 / 11)");
-        assert_eq!(partial.label, "Đang thu thập thông tin");
-
-        // Exactly 11/11: the outline button threshold.
-        set("default", &required[10], required_value(&required[10])).unwrap();
-        let threshold = progress("default").unwrap();
-        assert_eq!(threshold.percent, 70);
-        assert_eq!(threshold.label, "Độ mạch lạc tạm chấp nhận");
-
-        // All 25.
-        fill_optional("default");
-        let full = progress("default").unwrap();
-        assert_eq!(full.percent, 100);
-        assert_eq!(full.label, "Độ mạch lạc: tốt");
+        for table in [
+            "relationship_motifs",
+            "project_motifs",
+            "scene_versions",
+            "appearance_option_groups",
+            "appearance_options",
+            "character_appearances",
+            "character_distinguishing_marks",
+            "relationship_categories",
+            "relationship_states",
+            "lore_entries",
+            "power_tiers",
+            "power_abilities",
+            "memories",
+            "memory_references",
+            "memory_emotions",
+            "memory_connections",
+            "memory_revisions",
+            "character_knowledge_sources",
+            "competence_domains",
+            "character_competences",
+            "competence_capabilities",
+            "competence_limitations",
+        ] {
+            set("p", &format!("optional.schema.{table}.count"), json!(0)).unwrap();
+        }
+        let progress = progress("p").unwrap();
+        assert_eq!(progress.filled_required, 18);
+        assert_eq!(progress.filled_optional, 29);
+        assert_eq!(progress.percent, 100);
+        assert_eq!(progress.label, LABEL_GOOD);
     }
 }

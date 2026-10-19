@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 
 use crate::{db, paths, super_json};
 
-use super::project::{project_or_error, unique_project_id};
 use super::TOOL_NAMES;
+use super::project::{project_or_error, unique_project_id};
 
 /// Executes one tool call.
 ///
@@ -76,11 +76,12 @@ pub fn execute_tool(
                 super_json::init_project(&project_id, requested_name.as_deref())?;
                 created_file = Some(paths::super_json_path(&project_id)?);
                 if !db::bind_session_to_project_if_unbound(&transaction, session_id, &project_id)? {
-                    return Err(db::project_for_session(&transaction, session_id)?
-                        .map_or_else(
+                    return Err(
+                        db::project_for_session(&transaction, session_id)?.map_or_else(
                             || "This chat already belongs to a project".to_owned(),
                             |existing| format!("This chat already belongs to project {existing}"),
-                        ));
+                        ),
+                    );
                 }
                 let missing = super_json::missing_required(&project_id)?;
                 transaction
@@ -125,9 +126,8 @@ pub fn execute_tool(
         "super_json_get" => {
             let project_id = project_or_error(project_id)?;
             match args.get("path").and_then(Value::as_str) {
-                Some(path) => super_json::get(project_id, path).map(|value| {
-                    json!({ "path": path, "value": value })
-                }),
+                Some(path) => super_json::get(project_id, path)
+                    .map(|value| json!({ "path": path, "value": value })),
                 None => super_json::load_or_init(project_id),
             }
         }
@@ -181,22 +181,22 @@ mod tests {
         );
 
         let missing = execute_tool("super_json_missing", &json!({}), "default", "s").unwrap();
-        assert_eq!(missing["required_total"], json!(11));
-        assert_eq!(missing["missing"].as_array().unwrap().len(), 11);
+        assert_eq!(missing["required_total"], json!(18));
+        assert_eq!(missing["missing"].as_array().unwrap().len(), 18);
 
         let applied = execute_tool(
             "super_json_set",
-            &json!({"path": "require.overview.name", "value": "Nửa Đêm"}),
+            &json!({"path": "require.project.name", "value": "Nửa Đêm"}),
             "default",
             "s",
         )
         .unwrap();
         assert_eq!(applied["ok"], json!(true));
-        assert_eq!(applied["missing_required"].as_array().unwrap().len(), 10);
+        assert_eq!(applied["missing_required"].as_array().unwrap().len(), 17);
 
         let read = execute_tool(
             "super_json_get",
-            &json!({"path": "require.overview.name"}),
+            &json!({"path": "require.project.name"}),
             "default",
             "s",
         )
@@ -204,7 +204,7 @@ mod tests {
         assert_eq!(read["value"], json!("Nửa Đêm"));
 
         let whole = execute_tool("super_json_get", &json!({}), "default", "s").unwrap();
-        assert!(whole["require"]["overview"]["logline"].is_object());
+        assert!(whole["require"]["project"].is_object());
 
         assert!(
             execute_tool("nope", &json!({}), "default", "s")
@@ -219,7 +219,7 @@ mod tests {
 
         let error = execute_tool(
             "super_json_set",
-            &json!({"path": "require.overview.plan.arc.count", "value": "5"}),
+            &json!({"path": "require.project.plan.arc.count", "value": "5"}),
             "default",
             "s",
         )
@@ -227,9 +227,14 @@ mod tests {
         assert!(error.contains("positive integer"), "{error}");
 
         assert!(
-            execute_tool("super_json_set", &json!({"path": "require.overview.name"}), "default", "s")
-                .unwrap_err()
-                .contains("requires a 'value'")
+            execute_tool(
+                "super_json_set",
+                &json!({"path": "require.project.name"}),
+                "default",
+                "s"
+            )
+            .unwrap_err()
+            .contains("requires a 'value'")
         );
         assert!(
             execute_tool("super_json_set", &json!({"value": 1}), "default", "s")
@@ -257,8 +262,13 @@ mod tests {
         assert_eq!(before.label, "Chưa có project");
         assert_eq!(before.percent, 0);
 
-        let result =
-            execute_tool("project_create", &json!({"name": "Nửa Đêm"}), "", "sess-new").unwrap();
+        let result = execute_tool(
+            "project_create",
+            &json!({"name": "Nửa Đêm"}),
+            "",
+            "sess-new",
+        )
+        .unwrap();
 
         // Every non-`[a-z0-9]` character becomes `-` (D3.3), diacritics included.
         assert_eq!(result["project_id"], json!("n-a-m"));
@@ -266,54 +276,64 @@ mod tests {
         assert_eq!(result["ok"], json!(true));
         assert_eq!(
             result["missing_required"].as_array().unwrap().len(),
-            10,
-            "project_create fills require.overview.name, so 10 remain"
+            17,
+            "project_create fills require.project.name, so 17 remain"
         );
 
         // The session is bound to the new project.
         assert_eq!(
-            db::project_for_session(&connection, "sess-new").unwrap().as_deref(),
+            db::project_for_session(&connection, "sess-new")
+                .unwrap()
+                .as_deref(),
             Some("n-a-m")
         );
         // The project row exists exactly once.
-        assert_eq!(db::list_projects(&connection).unwrap(), vec!["n-a-m".to_string()]);
+        assert_eq!(
+            db::list_projects(&connection).unwrap(),
+            vec!["n-a-m".to_string()]
+        );
 
         // `projects/<id>/super.json` exists, was seeded from the skeleton and
         // already carries the name.
         let path = paths::super_json_path("n-a-m").unwrap();
         assert_eq!(
             path,
-            home.path().join("projects").join("n-a-m").join("super.json"),
+            home.path()
+                .join("projects")
+                .join("n-a-m")
+                .join("super.json"),
             "the super json must live under the project directory"
         );
         assert!(path.exists(), "super.json missing at {}", path.display());
-        let on_disk: Value =
-            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(on_disk["require"]["overview"]["name"], json!("Nửa Đêm"));
-        assert_eq!(on_disk["require"]["overview"]["logline"]["action"], Value::Null);
-        assert_eq!(on_disk["optional"]["genre"]["secondary"], json!([]));
-        assert!(on_disk.get("$comment").is_none(), "docs keys stay out of user data");
+        let on_disk: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk["require"]["project"]["name"], json!("Nửa Đêm"));
+        assert_eq!(on_disk["require"]["project"]["language"], Value::Null);
+        assert_eq!(on_disk["optional"]["project"]["author"], Value::Null);
+        assert!(
+            on_disk.get("$comment").is_none(),
+            "docs keys stay out of user data"
+        );
 
         // Reading it back through the tools agrees with the file.
         let read = execute_tool(
             "super_json_get",
-            &json!({"path": "require.overview.name"}),
+            &json!({"path": "require.project.name"}),
             "n-a-m",
             "sess-new",
         )
         .unwrap();
         assert_eq!(read["value"], json!("Nửa Đêm"));
 
-        // The header now follows the binding: 1 of 11 required paths is filled, so
-        // the bar sits at round(70 * 1 / 11) = 6%.
+        // The header now follows the binding: 1 of 18 required units is filled, so
+        // the bar sits at round(70 * 1 / 18) = 4%.
         let after = crate::runtime::super_json_progress_for_session("sess-new").unwrap();
         assert!(after.has_project);
         assert_eq!(after.project_id, "n-a-m");
         assert_eq!(after.filled_required, 1);
-        assert_eq!(after.required_total, 11);
+        assert_eq!(after.required_total, 18);
         assert_eq!(after.filled_optional, 0);
-        assert_eq!(after.optional_total, 14);
-        assert_eq!(after.percent, 6);
+        assert_eq!(after.optional_total, 29);
+        assert_eq!(after.percent, 4);
         assert_eq!(after.label, "Đang thu thập thông tin");
     }
 
@@ -324,18 +344,30 @@ mod tests {
         let connection = db::open().unwrap();
         db::ensure_session(&connection, "sess-one", "").unwrap();
 
-        let first =
-            execute_tool("project_create", &json!({"name": "Truyện A"}), "", "sess-one").unwrap();
+        let first = execute_tool(
+            "project_create",
+            &json!({"name": "Truyện A"}),
+            "",
+            "sess-one",
+        )
+        .unwrap();
         assert_eq!(first["project_id"], json!("truy-n-a"));
 
-        let error = execute_tool("project_create", &json!({"name": "Truyện B"}), "", "sess-one")
-            .unwrap_err();
+        let error = execute_tool(
+            "project_create",
+            &json!({"name": "Truyện B"}),
+            "",
+            "sess-one",
+        )
+        .unwrap_err();
         assert_eq!(error, "This chat already belongs to project truy-n-a");
 
         // Nothing was created by the rejected call.
         assert_eq!(db::list_projects(&connection).unwrap().len(), 1);
         assert_eq!(
-            db::project_for_session(&connection, "sess-one").unwrap().as_deref(),
+            db::project_for_session(&connection, "sess-one")
+                .unwrap()
+                .as_deref(),
             Some("truy-n-a")
         );
         assert!(!paths::project_dir("truy-n-b").unwrap().exists());
@@ -344,10 +376,16 @@ mod tests {
         // or blank `name` is no longer malformed (D7): only a non-string is.
         for bad in [json!({"name": 7}), json!({"name": ["Nửa Đêm"]})] {
             let error = execute_tool("project_create", &bad, "", "sess-two").unwrap_err();
-            assert!(error.contains("requires a non-empty string 'name'"), "{bad}: {error}");
+            assert!(
+                error.contains("requires a non-empty string 'name'"),
+                "{bad}: {error}"
+            );
         }
         // Nothing was created by any of the rejected calls.
-        assert_eq!(db::list_projects(&connection).unwrap(), vec!["truy-n-a".to_string()]);
+        assert_eq!(
+            db::list_projects(&connection).unwrap(),
+            vec!["truy-n-a".to_string()]
+        );
     }
 
     /// D3 step 3: the slug is unique, and it always survives the path guard.
@@ -375,24 +413,35 @@ mod tests {
                 &fs::read_to_string(paths::super_json_path(id).unwrap()).unwrap(),
             )
             .unwrap();
-            assert_eq!(document["require"]["overview"]["name"], json!("Nửa Đêm"));
+            assert_eq!(document["require"]["project"]["name"], json!("Nửa Đêm"));
         }
         // Both ids pass `paths::safe_segment`. It is private, and `project_dir` is
         // its only caller and the function that actually builds the path, so it is
         // the real guard to assert on.
         for id in [&first_id, &second_id] {
-            assert!(paths::project_dir(id).is_ok(), "{id} must pass the path guard");
-            assert!(paths::super_json_path(id).is_ok(), "{id} must pass the path guard");
             assert!(
-                id.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-'),
+                paths::project_dir(id).is_ok(),
+                "{id} must pass the path guard"
+            );
+            assert!(
+                paths::super_json_path(id).is_ok(),
+                "{id} must pass the path guard"
+            );
+            assert!(
+                id.chars()
+                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-'),
                 "{id} must only contain [a-z0-9-]"
             );
         }
 
         // Vietnamese letters, quotes and punctuation all collapse into single `-`.
-        let messy =
-            execute_tool("project_create", &json!({"name": "Truyện: \"Kẻ Mù\"?!"}), "", "sess-c")
-                .unwrap();
+        let messy = execute_tool(
+            "project_create",
+            &json!({"name": "Truyện: \"Kẻ Mù\"?!"}),
+            "",
+            "sess-c",
+        )
+        .unwrap();
         let messy_id = messy["project_id"].as_str().unwrap();
         assert_eq!(messy_id, "truy-n-k-m");
         assert!(paths::project_dir(messy_id).is_ok());
@@ -412,25 +461,34 @@ mod tests {
         let file = directory.join("super.json");
         fs::write(&file, "original contents").unwrap();
 
-        let error = execute_tool("project_create", &json!({"name": "blocked"}), "", "new-session")
-            .unwrap_err();
+        let error = execute_tool(
+            "project_create",
+            &json!({"name": "blocked"}),
+            "",
+            "new-session",
+        )
+        .unwrap_err();
         assert!(error.contains("already exists"), "{error}");
         assert!(db::list_projects(&connection).unwrap().is_empty());
-        assert_eq!(db::project_for_session(&connection, "new-session").unwrap(), None);
+        assert_eq!(
+            db::project_for_session(&connection, "new-session").unwrap(),
+            None
+        );
         assert_eq!(fs::read_to_string(file).unwrap(), "original contents");
     }
 
     /// Acceptance: `super_json_*` is unusable until the chat has a project (D2).
     #[test]
-    fn test_super_json_tools_fail_without_project() {        let home = crate::test_support::TempHome::new("tools-no-project");
+    fn test_super_json_tools_fail_without_project() {
+        let home = crate::test_support::TempHome::new("tools-no-project");
 
         for (name, args) in [
             (
                 "super_json_set",
-                json!({"path": "require.overview.name", "value": "Nửa Đêm"}),
+                json!({"path": "require.project.name", "value": "Nửa Đêm"}),
             ),
             ("super_json_get", json!({})),
-            ("super_json_get", json!({"path": "require.overview.name"})),
+            ("super_json_get", json!({"path": "require.project.name"})),
             ("super_json_missing", json!({})),
         ] {
             let error = execute_tool(name, &args, "", "sess-unbound").unwrap_err();
@@ -443,30 +501,45 @@ mod tests {
         // Nothing was created on disk for an unbound chat — no super json, and no
         // project directory either.
         assert!(!home.path().join("projects").exists());
-        assert!(!paths::project_dir("default").unwrap().join("super.json").exists());
+        assert!(
+            !paths::project_dir("default")
+                .unwrap()
+                .join("super.json")
+                .exists()
+        );
 
         // `project_create` itself is exactly what unblocks them.
-        let created =
-            execute_tool("project_create", &json!({"name": "Sau khi tạo"}), "", "sess-unbound")
-                .unwrap();
+        let created = execute_tool(
+            "project_create",
+            &json!({"name": "Sau khi tạo"}),
+            "",
+            "sess-unbound",
+        )
+        .unwrap();
         let project_id = created["project_id"].as_str().unwrap().to_owned();
         assert_eq!(project_id, "sau-khi-t-o");
         let applied = execute_tool(
             "super_json_set",
-            &json!({"path": "require.genre.primary", "value": "trinh thám"}),
+            &json!({"path": "require.schema.project_genres.count", "value": 1}),
             &project_id,
             "sess-unbound",
         )
         .unwrap();
         assert_eq!(applied["ok"], json!(true));
         assert!(
-            execute_tool("super_json_missing", &json!({}), &project_id, "sess-unbound").is_ok(),
+            execute_tool(
+                "super_json_missing",
+                &json!({}),
+                &project_id,
+                "sess-unbound"
+            )
+            .is_ok(),
             "after project_create the super json tools work"
         );
     }
 
     /// Acceptance: `project_create` without a name creates an unnamed project,
-    /// takes a `du-an` id and leaves `require.overview.name` untouched (D7).
+    /// takes a `du-an` id and leaves `require.project.name` untouched (D7).
     #[test]
     fn test_project_create_without_name_leaves_title_unset() {
         let _home = crate::test_support::TempHome::new("tools-unnamed");
@@ -482,8 +555,8 @@ mod tests {
         );
         assert_eq!(
             created["missing_required"].as_array().unwrap().len(),
-            11,
-            "no title was written, so all 11 required fields are still missing"
+            18,
+            "no title was written, so all 18 required units are still missing"
         );
 
         // The row exists under the documented display title ...
@@ -498,24 +571,25 @@ mod tests {
 
         // ... the super json exists and its name stayed null ...
         let path = paths::super_json_path("du-an").unwrap();
-        let document: Value =
-            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(document["require"]["overview"]["name"], Value::Null);
+        let document: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(document["require"]["project"]["name"], Value::Null);
         assert!(
             crate::super_json::missing_required("du-an")
                 .unwrap()
-                .contains(&"require.overview.name".to_string()),
+                .contains(&"require.project.name".to_string()),
             "an unnamed project must still report the title as missing"
         );
 
         // ... and the session is bound, so the super json tools work.
         assert_eq!(
-            db::project_for_session(&connection, "sess-unnamed").unwrap().as_deref(),
+            db::project_for_session(&connection, "sess-unnamed")
+                .unwrap()
+                .as_deref(),
             Some("du-an")
         );
         let applied = execute_tool(
             "super_json_set",
-            &json!({"path": "require.genre.primary", "value": "trinh thám"}),
+            &json!({"path": "require.schema.project_genres.count", "value": 1}),
             "du-an",
             "sess-unnamed",
         )
@@ -525,13 +599,18 @@ mod tests {
         // A second unnamed project takes the `du-an-2` id, and a blank name is
         // treated exactly like a missing one.
         db::ensure_session(&connection, "sess-unnamed-2", "").unwrap();
-        let second = execute_tool("project_create", &json!({"name": "   "}), "", "sess-unnamed-2")
-            .unwrap();
+        let second = execute_tool(
+            "project_create",
+            &json!({"name": "   "}),
+            "",
+            "sess-unnamed-2",
+        )
+        .unwrap();
         assert_eq!(second["project_id"], json!("du-an-2"));
         assert!(second.get("name").is_none(), "{second}");
         let second_path = paths::super_json_path("du-an-2").unwrap();
         let second_document: Value =
             serde_json::from_str(&fs::read_to_string(&second_path).unwrap()).unwrap();
-        assert_eq!(second_document["require"]["overview"]["name"], Value::Null);
+        assert_eq!(second_document["require"]["project"]["name"], Value::Null);
     }
 }

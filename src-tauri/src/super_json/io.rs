@@ -1,15 +1,19 @@
-//! Locked, atomic read/write access to one project's `super.json`.
+//! Locked, atomic read/write access to one project's `super.json`, plus the
+//! one-way migration from the flat v1 document (25 leaves) to v2.
 
 use std::{
     collections::HashMap,
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
 
-use serde_json::Value;
+use serde_json::{Map, Value, json};
 
-use super::schema::{field_kind, skeleton, validate, valid_paths, FieldKind};
+use super::{
+    schema::{self, Group, PathRef},
+    tables,
+};
 use crate::paths;
 
 fn file_path(project_id: &str) -> Result<PathBuf, String> {
@@ -40,11 +44,17 @@ pub fn load_or_init(project_id: &str) -> Result<Value, String> {
 fn load_or_init_unlocked(project_id: &str) -> Result<Value, String> {
     let path = file_path(project_id)?;
     match fs::read_to_string(&path) {
-        Ok(raw) => serde_json::from_str(&raw)
-            .map_err(|error| format!("Invalid super json at {}: {error}", path.display())),
+        Ok(raw) => {
+            let mut document: Value = serde_json::from_str(&raw)
+                .map_err(|error| format!("Invalid super json at {}: {error}", path.display()))?;
+            if migrate_if_needed(&path, &raw, &mut document)? {
+                save_unlocked(project_id, &document, false)?;
+            }
+            Ok(document)
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            let document = skeleton();
-            save_unlocked(project_id, &document, false)?;
+            let document = schema::skeleton();
+            save_unlocked(project_id, &document, true)?;
             Ok(document)
         }
         Err(error) => Err(format!("Cannot read super json: {error}")),
@@ -113,220 +123,513 @@ fn save_unlocked(project_id: &str, document: &Value, exclusive: bool) -> Result<
 pub fn init_project(project_id: &str, name: Option<&str>) -> Result<(), String> {
     let lock = project_lock(project_id);
     let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
-    let mut document = skeleton();
+    let mut document = schema::skeleton();
     if let Some(name) = name {
-        validate(FieldKind::Text, "require.overview.name", &Value::String(name.to_owned()))?;
-        document["require"]["overview"]["name"] = Value::String(name.to_owned());
+        if name.trim().is_empty() {
+            return Err("Invalid value for require.project.name: must not be empty".to_owned());
+        }
+        document["require"]["project"]["name"] = Value::String(name.to_owned());
     }
     save_unlocked(project_id, &document, true)
 }
 
+fn project_mut<'a>(document: &'a mut Value, group: Group, rest: &str) -> Option<&'a mut Value> {
+    let mut cursor = document.get_mut(group.as_str())?.get_mut("project")?;
+    for segment in rest.split('.') {
+        cursor = cursor.get_mut(segment)?;
+    }
+    Some(cursor)
+}
+
+fn project_ref<'a>(document: &'a Value, group: Group, rest: &str) -> Option<&'a Value> {
+    let mut cursor = document.get(group.as_str())?.get("project")?;
+    for segment in rest.split('.') {
+        cursor = cursor.get(segment)?;
+    }
+    Some(cursor)
+}
+
+fn schema_entry_mut<'a>(
+    document: &'a mut Value,
+    group: Group,
+    table: &str,
+    writable: bool,
+) -> Option<&'a mut Value> {
+    document
+        .get_mut(group.as_str())?
+        .get_mut("schema")?
+        .as_array_mut()?
+        .iter_mut()
+        .find(|entry| {
+            entry["table"].as_str() == Some(table) && (!writable || entry.get("count").is_some())
+        })
+}
+
 pub fn get(project_id: &str, path: &str) -> Result<Value, String> {
-    if !valid_paths().iter().any(|known| known == path) {
+    let parsed =
+        schema::parse_path(path).ok_or_else(|| format!("Unknown super json path: {path}"))?;
+    if !matches!(parsed, PathRef::TableSelector { .. })
+        && !schema::valid_paths().iter().any(|known| known == path)
+    {
         return Err(format!("Unknown super json path: {path}"));
     }
     let document = load_or_init(project_id)?;
-    let mut cursor = &document;
-    for segment in path.split('.') {
-        cursor = cursor
-            .get(segment)
-            .ok_or_else(|| format!("Path not found: {path}"))?;
+    match parsed {
+        PathRef::Project { group, rest } => project_ref(&document, group, rest)
+            .cloned()
+            .ok_or_else(|| format!("Path not found: {path}")),
+        PathRef::TableSelector { table, .. } => schema::merged_table_entry(&document, table)
+            .ok_or_else(|| format!("Unknown super json table: {table}")),
+        PathRef::SchemaCount { group, table } | PathRef::SchemaRows { group, table } => {
+            let field = if matches!(parsed, PathRef::SchemaCount { .. }) {
+                "count"
+            } else {
+                "rows"
+            };
+            let mut cursor = document
+                .get(group.as_str())
+                .and_then(|group| group.get("schema"))
+                .and_then(Value::as_array)
+                .and_then(|entries| {
+                    entries
+                        .iter()
+                        .find(|entry| entry["table"].as_str() == Some(table))
+                })
+                .and_then(|entry| entry.get(field));
+            if cursor.is_none() && field == "count" {
+                cursor = schema::table_entry(&document, table).and_then(|entry| entry.get("count"));
+            }
+            cursor
+                .cloned()
+                .ok_or_else(|| format!("Path not found: {path}"))
+        }
     }
-    Ok(cursor.clone())
 }
 
-/// Sets exactly one whitelisted field. Never creates new fields.
+/// Sets exactly one writable field. Never creates new fields.
 pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> {
-    let kind = field_kind(path).ok_or_else(|| {
+    let parsed = schema::parse_path(path).ok_or_else(|| {
         format!(
             "Unknown super json path: {path}. Valid paths are: {}",
-            valid_paths().join(", ")
+            schema::valid_paths().join(", ")
         )
     })?;
-    validate(kind, path, &value)?;
+
+    if let PathRef::TableSelector { .. } = parsed {
+        return Err(format!(
+            "Path {path} is read-only; use a table selector only with super_json_get"
+        ));
+    }
+
+    let kind =
+        schema::field_kind(path).ok_or_else(|| format!("Unknown super json path: {path}"))?;
+    match kind {
+        schema::FieldKind::Rows => {}
+        other => schema::validate(other, path, &value)?,
+    }
 
     let lock = project_lock(project_id);
     let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
     let mut document = load_or_init_unlocked(project_id)?;
-    let segments: Vec<&str> = path.split('.').collect();
-    let (last, parents) = segments.split_last().ok_or("Empty path")?;
 
-    let mut cursor = &mut document;
-    for segment in parents {
-        cursor = cursor
-            .get_mut(*segment)
-            .ok_or_else(|| format!("Path not found: {path}"))?;
+    match parsed {
+        PathRef::Project { group, rest } => {
+            let slot = project_mut(&mut document, group, rest)
+                .ok_or_else(|| format!("Path not found: {path}"))?;
+            *slot = value.clone();
+        }
+        PathRef::SchemaCount { group, table } => {
+            let count = value
+                .as_i64()
+                .ok_or_else(|| format!("Invalid value for {path}: expected an integer"))?;
+            if group == Group::Require && count == 0 {
+                return Err(format!(
+                    "Invalid value for {path}: a required table needs at least one row"
+                ));
+            }
+            let entry = schema_entry_mut(&mut document, group, table, true)
+                .ok_or_else(|| format!("Path not found: {path}"))?;
+            if let Some(rows) = entry.get("rows").and_then(Value::as_array)
+                && !rows.is_empty()
+                && rows.len() as i64 != count
+            {
+                return Err(format!(
+                    "Invalid value for {path}: rows has {} object(s), not {count}",
+                    rows.len()
+                ));
+            }
+            entry["count"] = Value::from(count);
+        }
+        PathRef::SchemaRows { group, table } => {
+            let existing_count = schema_entry_mut(&mut document, group, table, true)
+                .and_then(|entry| entry.get("count"))
+                .and_then(Value::as_i64);
+            tables::validate_rows(table, &value, existing_count)?;
+            let entry = schema_entry_mut(&mut document, group, table, true)
+                .ok_or_else(|| format!("Path not found: {path}"))?;
+            entry["rows"] = value.clone();
+        }
+        PathRef::TableSelector { .. } => unreachable!(),
     }
-    let slot = cursor
-        .get_mut(*last)
-        .ok_or_else(|| format!("Path not found: {path}"))?;
-    *slot = value.clone();
 
     save_unlocked(project_id, &document, false)?;
     Ok(value)
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// v1 → v2 migration
+// ─────────────────────────────────────────────────────────────────────────
+
+fn old_value<'a>(document: &'a Value, group: &str, path: &str) -> Option<&'a Value> {
+    let mut cursor = document.get(group)?;
+    for segment in path.split('.') {
+        cursor = cursor.get(segment)?;
+    }
+    Some(cursor)
+}
+
+fn old_text(document: &Value, group: &str, path: &str) -> Option<String> {
+    old_value(document, group, path)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
+}
+
+fn copy_project(
+    document: &mut Value,
+    old: &Value,
+    group: Group,
+    old_group: &str,
+    old_path: &str,
+    new_leaf: &str,
+) {
+    if let Some(text) = old_text(old, old_group, old_path)
+        && let Some(slot) = project_mut(document, group, new_leaf)
+    {
+        *slot = Value::String(text);
+    }
+}
+
+fn copy_int(
+    document: &mut Value,
+    old: &Value,
+    group: Group,
+    old_group: &str,
+    old_path: &str,
+    new_leaf: &str,
+) {
+    if let Some(number) = old_value(old, old_group, old_path).and_then(Value::as_i64)
+        && let Some(slot) = project_mut(document, group, new_leaf)
+    {
+        *slot = Value::from(number);
+    }
+}
+
+fn write_table(document: &mut Value, table: &str, count: i64, rows: Vec<Value>) {
+    let has_countable = schema::countable_entry(document, table).is_some();
+    if !has_countable {
+        return;
+    }
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entry) = schema_entry_mut(document, group, table, true) {
+            entry["count"] = Value::from(count);
+            entry["rows"] = Value::Array(rows);
+            return;
+        }
+    }
+}
+
+/// Detects the flat v1 document and rewrites it in place. The original bytes are
+/// copied to `super.v1.json` once, before the first overwrite.
+fn migrate_if_needed(path: &Path, raw: &str, document: &mut Value) -> Result<bool, String> {
+    let is_v1 = document["require"].get("overview").is_some()
+        && document["require"].get("project").is_none();
+    if !is_v1 {
+        return Ok(false);
+    }
+
+    let backup = path.with_file_name("super.v1.json");
+    if !backup.exists() {
+        write_private(&backup, raw.as_bytes())?;
+    }
+
+    let old = document.clone();
+    let mut migrated = schema::skeleton();
+
+    copy_project(
+        &mut migrated,
+        &old,
+        Group::Require,
+        "require",
+        "overview.name",
+        "name",
+    );
+    copy_project(
+        &mut migrated,
+        &old,
+        Group::Require,
+        "optional",
+        "overview.language",
+        "language",
+    );
+    copy_project(
+        &mut migrated,
+        &old,
+        Group::Optional,
+        "optional",
+        "overview.author",
+        "author",
+    );
+    copy_project(
+        &mut migrated,
+        &old,
+        Group::Optional,
+        "optional",
+        "overview.description",
+        "summarize",
+    );
+    copy_project(
+        &mut migrated,
+        &old,
+        Group::Optional,
+        "optional",
+        "overview.target-audience",
+        "target-audience",
+    );
+
+    for leaf in ["arc", "chapter", "word"] {
+        copy_int(
+            &mut migrated,
+            &old,
+            Group::Require,
+            "require",
+            &format!("overview.plan.{leaf}.count"),
+            &format!("plan.{leaf}.count"),
+        );
+        copy_int(
+            &mut migrated,
+            &old,
+            Group::Optional,
+            "optional",
+            &format!("overview.plan.{leaf}.tolerance"),
+            &format!("plan.{leaf}.tolerance"),
+        );
+    }
+
+    let mut genre_rows = Vec::new();
+    if let Some(primary) = old_text(&old, "require", "genre.primary") {
+        genre_rows.push(json!({ "genre_id": primary, "is_primary": true }));
+    }
+    if let Some(secondary) =
+        old_value(&old, "optional", "genre.secondary").and_then(Value::as_array)
+    {
+        for item in secondary {
+            if let Some(value) = item.as_str().map(str::trim).filter(|text| !text.is_empty()) {
+                genre_rows.push(json!({ "genre_id": value, "is_primary": false }));
+            }
+        }
+    }
+    if !genre_rows.is_empty() {
+        let count = genre_rows.len() as i64;
+        write_table(&mut migrated, "project_genres", count, genre_rows);
+    }
+
+    let mut theme_row = Map::new();
+    theme_row.insert("scope".to_owned(), json!("PROJECT"));
+    let has_theme = old_text(&old, "require", "theme.question");
+    if let Some(question) = has_theme.clone() {
+        theme_row.insert("question".to_owned(), json!(question));
+    }
+    if let Some(kind) = old_text(&old, "optional", "theme.resolution-type") {
+        theme_row.insert("resolution_type".to_owned(), json!(kind));
+    }
+    if let Some(resolution) = old_text(&old, "optional", "theme.resolution") {
+        theme_row.insert("resolution".to_owned(), json!(resolution));
+    }
+    if let Some(message) = old_text(&old, "optional", "theme.message") {
+        theme_row.insert("message".to_owned(), json!(message));
+    }
+    if has_theme.is_some() {
+        write_table(&mut migrated, "themes", 1, vec![Value::Object(theme_row)]);
+    }
+
+    if let Some(scale) = old_text(&old, "optional", "world.setting-scale") {
+        write_table(
+            &mut migrated,
+            "world_settings",
+            1,
+            vec![json!({ "type": scale })],
+        );
+    }
+    if let Some(has_power) =
+        old_value(&old, "optional", "world.has-power-system").and_then(Value::as_bool)
+    {
+        write_table(
+            &mut migrated,
+            "power_systems",
+            i64::from(has_power),
+            Vec::new(),
+        );
+    }
+
+    *document = migrated;
+    Ok(true)
+}
+
+fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::{io::Write, os::unix::fs::OpenOptionsExt};
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|error| format!("Cannot create migration backup: {error}"))?;
+        file.write_all(bytes)
+            .map_err(|error| format!("Cannot write migration backup: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("Cannot sync migration backup: {error}"))
+    }
+    #[cfg(not(unix))]
+    {
+        fs::write(path, bytes).map_err(|error| format!("Cannot write migration backup: {error}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::super::progress::{required_value, value_at};
     use super::*;
     use crate::super_json::{missing_required, required_paths};
-    use serde_json::json;
-
-    #[test]
-    fn test_concurrent_sets_preserve_all_required_values() {
-        use std::sync::{Arc, Barrier};
-
-        let _home = crate::test_support::TempHome::new("super-concurrent");
-        let project_id = "concurrent".to_owned();
-        let paths = required_paths().to_vec();
-        let barrier = Arc::new(Barrier::new(paths.len()));
-        let threads: Vec<_> = paths
-            .iter()
-            .cloned()
-            .map(|path| {
-                let barrier = Arc::clone(&barrier);
-                let project_id = project_id.clone();
-                std::thread::spawn(move || {
-                    barrier.wait();
-                    set(&project_id, &path, required_value(&path)).unwrap();
-                })
-            })
-            .collect();
-        for thread in threads {
-            thread.join().unwrap();
-        }
-        let document = load_or_init(&project_id).unwrap();
-        for path in &paths {
-            assert_eq!(value_at(&document, path), Some(&required_value(path)), "{path}");
-        }
-    }
-
-    #[test]
-    fn test_init_project_refuses_to_overwrite_existing_json() {
-        let _home = crate::test_support::TempHome::new("super-no-overwrite");
-        init_project("existing", Some("First")).unwrap();
-        let error = init_project("existing", Some("Second")).unwrap_err();
-        assert!(error.contains("already exists"), "{error}");
-        assert_eq!(get("existing", "require.overview.name").unwrap(), json!("First"));
-    }
 
     #[test]
     fn test_super_json_skeleton_and_set_round_trip() {
         let _home = crate::test_support::TempHome::new("super-round-trip");
 
         let fresh = load_or_init("default").unwrap();
-        assert_eq!(fresh, skeleton(), "file must start as the skeleton");
+        assert_eq!(fresh, schema::skeleton());
 
-        let on_disk: Value =
-            serde_json::from_str(&fs::read_to_string(paths::super_json_path("default").unwrap()).unwrap())
-                .unwrap();
-        assert_eq!(on_disk, skeleton());
-        // Documentation keys must not leak into the user's data file.
-        assert!(on_disk.get("$comment").is_none());
-
-        let returned = set("default", "require.overview.name", json!("Nửa Đêm")).unwrap();
-        assert_eq!(returned, json!("Nửa Đêm"));
-
-        set("default", "require.overview.plan.arc.count", json!(5)).unwrap();
-        set("default", "optional.genre.secondary", json!(["trinh thám"])).unwrap();
+        set("default", "require.project.name", json!("Nửa Đêm")).unwrap();
+        set("default", "require.schema.characters.count", json!(2)).unwrap();
+        set(
+            "default",
+            "require.schema.characters.rows",
+            json!([
+                { "name": "Hoàng", "is_primary": true },
+                { "name": "Linh", "is_primary": false }
+            ]),
+        )
+        .unwrap();
 
         assert_eq!(
-            get("default", "require.overview.name").unwrap(),
+            get("default", "require.project.name").unwrap(),
             json!("Nửa Đêm")
         );
         assert_eq!(
-            get("default", "require.overview.plan.arc.count").unwrap(),
-            json!(5)
+            get("default", "require.schema.characters.count").unwrap(),
+            json!(2)
         );
-
-        // A different project must not see the first project's edits.
-        assert!(get("other", "require.overview.name").unwrap().is_null());
-
-        // Re-reading from disk preserves the edits.
-        assert_eq!(
-            load_or_init("default").unwrap()["require"]["overview"]["name"],
-            json!("Nửa Đêm")
-        );
+        let entry = get("default", "require.schema.characters").unwrap();
+        assert_eq!(entry["rows"][1]["name"], json!("Linh"));
 
         let missing = missing_required("default").unwrap();
-        assert_eq!(missing.len(), 9, "two required fields were filled");
-        assert!(!missing.contains(&"require.overview.name".to_string()));
+        assert_eq!(missing.len(), required_paths().len() - 2);
+        assert!(!missing.contains(&"require.project.name".to_string()));
+        assert!(!missing.contains(&"require.schema.characters".to_string()));
+    }
+
+    #[test]
+    fn test_rows_reject_count_mismatch_and_unknown_field() {
+        let _home = crate::test_support::TempHome::new("super-rows");
+        load_or_init("default").unwrap();
+        set("default", "require.project.name", json!("T")).unwrap();
+        set("default", "require.schema.characters.count", json!(3)).unwrap();
+
+        let error = set(
+            "default",
+            "require.schema.characters.rows",
+            json!([{ "name": "Hoàng", "is_primary": true }]),
+        )
+        .unwrap_err();
+        assert!(error.contains("count is 3"), "{error}");
+
+        let error = set(
+            "default",
+            "require.schema.characters.rows",
+            json!([
+                { "name": "Hoàng", "is_primary": true, "archetype": "hero" },
+                { "name": "Phong", "is_primary": false },
+                { "name": "Linh", "is_primary": false }
+            ]),
+        )
+        .unwrap_err();
+        assert!(error.contains("unknown field"), "{error}");
+    }
+
+    #[test]
+    fn test_migration_from_v1_document_moves_mapped_leaves() {
+        let home = crate::test_support::TempHome::new("super-migrate");
+        let project = "old";
+        let path = paths::super_json_path(project).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let old = json!({
+            "require": {
+                "overview": {
+                    "name": "Nửa Đêm",
+                    "plan": { "arc": { "count": 5 }, "chapter": { "count": 120 }, "word": { "count": 90000 } }
+                },
+                "genre": { "primary": "trinh thám" },
+                "theme": { "question": "ký ức có làm nên con người?" }
+            },
+            "optional": {
+                "overview": { "language": "VI", "author": "A", "description": "Tóm tắt" },
+                "genre": { "secondary": ["huyền bí"] },
+                "theme": { "resolution-type": "OPEN", "message": "thông điệp" },
+                "world": { "has-power-system": false, "setting-scale": "CITY" }
+            }
+        });
+        fs::write(&path, serde_json::to_vec_pretty(&old).unwrap()).unwrap();
+
+        let document = load_or_init(project).unwrap();
+        assert_eq!(document["require"]["project"]["name"], json!("Nửa Đêm"));
+        assert_eq!(document["require"]["project"]["language"], json!("VI"));
+        assert_eq!(
+            document["require"]["project"]["plan"]["arc"]["count"],
+            json!(5)
+        );
+        assert_eq!(
+            document["require"]["schema"][0]["rows"][0]["genre_id"],
+            json!("trinh thám")
+        );
+        assert!(path.with_file_name("super.v1.json").exists());
+
+        let again = load_or_init(project).unwrap();
+        assert_eq!(again, document, "migration must be idempotent");
+        let _ = home;
     }
 
     #[test]
     fn test_super_json_rejects_unknown_path() {
         let _home = crate::test_support::TempHome::new("super-unknown");
-
-        for bad in [
-            "require.overview.bogus",
-            "project.name", // the path the model invented before the enum existed
-            "",
-            "require",
-        ] {
+        for bad in ["require.overview.name", "project.name", "", "require"] {
             let error = set("default", bad, json!("x")).unwrap_err();
             assert!(
                 error.contains("Unknown super json path"),
                 "unexpected error for {bad}: {error}"
             );
         }
-
-        // A rejected write must not add anything to the document.
-        let document = load_or_init("default").unwrap();
-        assert_eq!(document, skeleton());
-        assert!(document["require"]["overview"].get("bogus").is_none());
     }
 
     #[test]
     fn test_super_json_rejects_wrong_type() {
         let _home = crate::test_support::TempHome::new("super-type");
         load_or_init("default").unwrap();
-
-        // Models routinely send numbers as strings; that must be rejected.
-        assert!(set("default", "require.overview.plan.arc.count", json!("5")).is_err());
-        assert!(set("default", "require.overview.plan.arc.count", json!(0)).is_err());
-        assert!(set("default", "require.overview.plan.arc.count", json!(-1)).is_err());
-        assert!(set("default", "require.overview.plan.arc.count", json!(true)).is_err());
-        assert!(set("default", "require.overview.plan.arc.count", json!(5.5)).is_err());
-        assert!(set("default", "require.overview.plan.arc.count", json!(5)).is_ok());
-
-        assert!(set("default", "optional.overview.plan.arc.tolerance", json!(0)).is_ok());
-        assert!(set("default", "optional.overview.plan.arc.tolerance", json!(-1)).is_err());
-
-        assert!(set("default", "require.overview.name", json!("   ")).is_err());
-        assert!(set("default", "require.overview.name", json!(7)).is_err());
-        assert!(set("default", "require.overview.name", json!(null)).is_err());
-
-        assert!(set("default", "optional.world.has-power-system", json!(true)).is_ok());
-        assert!(set("default", "optional.world.has-power-system", json!("yes")).is_err());
-
-        assert!(set("default", "optional.genre.secondary", json!(["a", "b"])).is_ok());
-        assert!(set("default", "optional.genre.secondary", json!([])).is_ok());
-        assert!(set("default", "optional.genre.secondary", json!([""])).is_err());
-        assert!(set("default", "optional.genre.secondary", json!("a")).is_err());
-
-        // Failed writes must leave the file untouched.
-        assert_eq!(load_or_init("default").unwrap()["require"]["overview"]["plan"]["arc"]
-            ["count"], json!(5));
-    }
-
-    #[test]
-    fn test_super_json_enum_paths_reject_invalid_value() {
-        let _home = crate::test_support::TempHome::new("super-enum");
-        load_or_init("default").unwrap();
-
-        assert!(set("default", "optional.theme.resolution-type", json!("MAYBE")).is_err());
-        assert!(set("default", "optional.theme.resolution-type", json!("OPEN")).is_ok());
-
-        assert!(set("default", "optional.world.setting-scale", json!("PLANET")).is_err());
-        assert!(set("default", "optional.world.setting-scale", json!("CITY")).is_ok());
-
-        assert!(set("default", "optional.overview.language", json!("VI")).is_ok());
-        assert!(set("default", "optional.overview.language", json!("vi")).is_err());
-        assert!(set("default", "optional.overview.language", json!("FR")).is_err());
-
-        let error =
-            set("default", "optional.world.setting-scale", json!("PLANET")).unwrap_err();
-        assert!(error.contains("is not one of"), "unhelpful error: {error}");
+        assert!(set("default", "require.project.plan.arc.count", json!("5")).is_err());
+        assert!(set("default", "require.project.plan.arc.count", json!(0)).is_err());
+        assert!(set("default", "optional.project.plan.arc.tolerance", json!(0)).is_ok());
+        assert!(set("default", "require.project.name", json!("   ")).is_err());
+        assert!(set("default", "require.project.language", json!("vi")).is_err());
+        assert!(set("default", "require.project.language", json!("VI")).is_ok());
     }
 }

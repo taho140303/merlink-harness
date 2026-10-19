@@ -145,8 +145,8 @@ pub struct ChatTurn {
 /// Super json completeness, computed in Rust (D6/D7) so the header bar and the
 /// outline button read one source of truth.
 ///
-/// `percent` uses two stops: the 11 required paths cover 0 → 70%, the 14 optional
-/// paths cover 70 → 100%. `required_total`/`optional_total` are always 11/14; the
+/// `percent` uses two stops: the 18 required units cover 0 → 70%, the 29 optional
+/// units cover 70 → 100%. `required_total`/`optional_total` are always 18/29; the
 /// `filled_*` counters are the ones that drop to zero without a project.
 /// Live progress of one agent turn, streamed to the UI over a Tauri `Channel`
 /// (D2). Serialised with an internal `type` tag so TypeScript can build a
@@ -159,7 +159,10 @@ pub struct ChatTurn {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     /// First event of a turn. `round_budget` is [`crate::runtime::MAX_TOOL_ROUNDS`].
-    TurnStarted { session_id: String, round_budget: u32 },
+    TurnStarted {
+        session_id: String,
+        round_budget: u32,
+    },
     /// Emitted immediately before each model call. `round` is 1-based.
     RoundStarted { round: u32 },
     /// Emitted immediately before a tool runs. `status` is the Vietnamese phase
@@ -180,7 +183,11 @@ pub enum AgentEvent {
         status: String,
     },
     /// Emitted after every model call of a round, with the real duration (D5).
-    RoundFinished { round: u32, duration_ms: u64, tool_calls: u32 },
+    RoundFinished {
+        round: u32,
+        duration_ms: u64,
+        tool_calls: u32,
+    },
     /// Last event of a turn, emitted before `run_agent_turn` returns — on the
     /// demo path, the 5-round cap and the tool-error path alike.
     TurnFinished {
@@ -243,7 +250,7 @@ mod tests {
             AgentEvent::ToolStarted {
                 id: "call_1".into(),
                 name: "super_json_set".into(),
-                path: Some("require.overview.name".into()),
+                path: Some("require.project.name".into()),
                 status: "Đang ghi nhận tên truyện".into(),
             },
             AgentEvent::ToolFinished {
@@ -284,7 +291,7 @@ mod tests {
         // The fields the UI reads must keep their snake_case names.
         let tool = serde_json::to_value(&events[2]).unwrap();
         assert_eq!(tool["id"], "call_1");
-        assert_eq!(tool["path"], "require.overview.name");
+        assert_eq!(tool["path"], "require.project.name");
         let finished = serde_json::to_value(&events[4]).unwrap();
         assert_eq!(finished["duration_ms"], 340);
         assert_eq!(finished["tool_calls"], 1);
@@ -298,7 +305,7 @@ mod tests {
         message.tool_calls = Some(vec![ToolCall {
             id: "call_1".into(),
             name: "super_json_set".into(),
-            arguments: serde_json::json!({"path": "require.overview.name", "value": "X"}),
+            arguments: serde_json::json!({"path": "require.project.name", "value": "X"}),
         }]);
         let encoded = serde_json::to_string(&message).unwrap();
         let decoded: MessageEnvelope = serde_json::from_str(&encoded).unwrap();

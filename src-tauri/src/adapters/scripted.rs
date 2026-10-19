@@ -35,7 +35,10 @@ impl ScriptedBackend {
 
 #[cfg(test)]
 impl LlmBackend for ScriptedBackend {
-    fn complete<'a>(&'a self, request: ChatRequest) -> BoxedFuture<'a, Result<AdapterReply, String>> {
+    fn complete<'a>(
+        &'a self,
+        request: ChatRequest,
+    ) -> BoxedFuture<'a, Result<AdapterReply, String>> {
         Box::pin(async move {
             self.requests.lock().unwrap().push(request);
             self.replies

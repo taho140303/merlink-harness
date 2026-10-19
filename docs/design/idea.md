@@ -6,47 +6,9 @@ Trong quá trình siêu json được fill sẽ có một thanh tiến độ ở
 
 Khung chat mà ai phản hồi là một component, gồm 2 block xếp chồng. ResponseComponent(md,TemplateComponent), md là phản hồi chữ của ai.
 
-Siêu JSON có dạng:
+Siêu JSON có dạng project-rooted v2 (1 `project` + 34 bảng, mỗi bảng `count`/`rows`):
 
-```json
-[
-    "require": {
-        "overview": {
-            "name": "string",
-            "logline": {
-                "trigger-event": "string",
-                "main-character": "string",
-                "action": "string",
-                "risk": "string",
-                "major-loss": "string"
-            },
-            "plan": {
-                "arc": {
-                    "count": 5
-                },
-                "chapter": {
-                    "count": 120
-                }
-            }
-        }
-    },
-    "optional": {
-        "overview": {
-            "description": "string",
-            "target-audience": "string",
-            "age-rating": "string",
-            "plan": {
-                "arc": {
-                    "tolerance": 1
-                },
-                "chapter": {
-                    "tolerance": 5
-                }
-            }
-        }
-    }
-]
-```
+> Đặc tả đầy đủ: [`docs/design/super-json.md`](super-json.md). Bản 25-leaf phẳng cũ đã bị thay thế.
 
 ## Các tool gọi:
 

@@ -32,12 +32,20 @@ fn slugify(name: &str) -> String {
         }
     }
     let slug = slug.trim_end_matches('-').to_owned();
-    if slug.is_empty() { "project".to_owned() } else { slug }
+    if slug.is_empty() {
+        "project".to_owned()
+    } else {
+        slug
+    }
 }
 
 /// Reserve the base slug or its `-2`, `-3`, … suffix in the caller's SQLite
 /// transaction, never choosing an ID from a stale project list.
-pub(super) fn unique_project_id(connection: &Connection, name: &str, title: &str) -> Result<String, String> {
+pub(super) fn unique_project_id(
+    connection: &Connection,
+    name: &str,
+    title: &str,
+) -> Result<String, String> {
     let base = slugify(name);
     for attempt in 1..=1_000 {
         let candidate = if attempt == 1 {
@@ -51,6 +59,7 @@ pub(super) fn unique_project_id(connection: &Connection, name: &str, title: &str
             return Ok(candidate);
         }
     }
-    Err(format!("Cannot create project: exhausted 1000 IDs for {base}"))
+    Err(format!(
+        "Cannot create project: exhausted 1000 IDs for {base}"
+    ))
 }
-

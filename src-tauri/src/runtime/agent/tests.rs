@@ -165,7 +165,7 @@ fn test_agent_loop_executes_tool_then_finishes() {
             "",
             vec![tool_call(
                 "call_1",
-                "require.overview.name",
+                "require.project.name",
                 json!("Nửa Đêm"),
             )],
         ),
@@ -202,7 +202,7 @@ fn test_agent_loop_executes_tool_then_finishes() {
 
     // The tool actually mutated the project super json on disk.
     assert_eq!(
-        crate::super_json::get("default", "require.overview.name").unwrap(),
+        crate::super_json::get("default", "require.project.name").unwrap(),
         json!("Nửa Đêm")
     );
 
@@ -279,7 +279,7 @@ fn test_agent_loop_attaches_reasoning_to_final_message() {
             "",
             vec![tool_call(
                 "call_1",
-                "require.overview.name",
+                "require.project.name",
                 json!("Nửa Đêm"),
             )],
         )
@@ -345,7 +345,7 @@ fn test_agent_loop_survives_tool_error() {
             "",
             vec![tool_call(
                 "call_bad",
-                "require.overview.plan.arc.count",
+                "require.project.plan.arc.count",
                 json!("5"),
             )],
         ),
@@ -377,7 +377,7 @@ fn test_agent_loop_survives_tool_error() {
     assert_eq!(appended[2].content, "Xin lỗi, tôi cần một con số.");
     // The rejected value was never written.
     assert!(
-        crate::super_json::get("default", "require.overview.plan.arc.count")
+        crate::super_json::get("default", "require.project.plan.arc.count")
             .unwrap()
             .is_null()
     );
@@ -522,7 +522,7 @@ fn test_system_prompt_limits_questions_per_turn() {
         "the three-question cap is missing"
     );
     assert!(
-        prompt.contains("One question per field."),
+        prompt.contains("One decision per question."),
         "the one-question-per-field rule is missing"
     );
     assert!(
@@ -548,7 +548,7 @@ fn test_system_prompt_forbids_inventing_values() {
         "writes **exactly one** field with **exactly the value the author stated**",
         "Never invent a value to fill a field",
         "the only thing you may write is",
-        "`require.overview.plan.chapter.count` = 120",
+        "`require.project.plan.chapter.count` = 120",
         "`project_create` **without** a name",
         "**Never make one up.**",
         "When it is unclear which field the author meant, ask instead of writing.",
@@ -600,8 +600,8 @@ fn test_agent_loop_creates_project_on_first_message() {
             "",
             vec![tool_call(
                 "call_set",
-                "require.genre.primary",
-                json!("trinh thám"),
+                "require.schema.project_genres.count",
+                json!(1),
             )],
         ),
         AdapterReply::text("Đã tạo project Nửa Đêm."),
@@ -646,18 +646,18 @@ fn test_agent_loop_creates_project_on_first_message() {
     let created: Value = serde_json::from_str(&turn.messages[1].content).unwrap();
     assert_eq!(created["project_id"], json!("n-a-m"));
     assert_eq!(created["name"], json!("Nửa Đêm"));
-    assert_eq!(created["missing_required"].as_array().unwrap().len(), 10);
+    assert_eq!(created["missing_required"].as_array().unwrap().len(), 17);
     let applied: Value = serde_json::from_str(&turn.messages[3].content).unwrap();
     assert_eq!(applied["ok"], json!(true), "{applied}");
-    assert_eq!(applied["value"], json!("trinh thám"));
+    assert_eq!(applied["value"], json!(1));
 
     // `projects/<id>/super.json` exists with the name already set.
     let path = crate::paths::super_json_path("n-a-m").unwrap();
     assert!(path.starts_with(home.path()), "{}", path.display());
     assert!(path.exists(), "super.json missing at {}", path.display());
     let on_disk: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-    assert_eq!(on_disk["require"]["overview"]["name"], json!("Nửa Đêm"));
-    assert_eq!(on_disk["require"]["genre"]["primary"], json!("trinh thám"));
+    assert_eq!(on_disk["require"]["project"]["name"], json!("Nửa Đêm"));
+    assert_eq!(on_disk["require"]["schema"][0]["count"], json!(1));
 
     // The second round's system prompt already names the project (D5).
     let requests = backend.requests();
@@ -725,8 +725,8 @@ fn test_agent_loop_emits_ordered_events() {
             "",
             vec![tool_call(
                 "call_b",
-                "require.genre.primary",
-                json!("trinh thám"),
+                "require.schema.project_genres.count",
+                json!(1),
             )],
         ),
         AdapterReply::text("Xong."),
@@ -1019,8 +1019,8 @@ fn test_turn_finished_reports_project_and_rounds() {
             "",
             vec![tool_call(
                 "call_set",
-                "require.genre.primary",
-                json!("trinh thám"),
+                "require.schema.project_genres.count",
+                json!(1),
             )],
         ),
         AdapterReply::text("Đã tạo project."),
@@ -1119,7 +1119,7 @@ fn test_failed_tool_emits_tool_finished_with_ok_false() {
             "",
             vec![tool_call(
                 "call_bad",
-                "require.overview.plan.arc.count",
+                "require.project.plan.arc.count",
                 json!("5"),
             )],
         ),
@@ -1371,8 +1371,8 @@ fn test_real_endpoint_agent_loop() {
             serde_json::to_string_pretty(&on_disk).unwrap()
         );
         assert!(
-            !on_disk["require"]["overview"]["name"].is_null(),
-            "require.overview.name is still null: {on_disk}"
+            !on_disk["require"]["project"]["name"].is_null(),
+            "require.project.name is still null: {on_disk}"
         );
 
         // Real turns to fill the remaining required fields. Each turn may use

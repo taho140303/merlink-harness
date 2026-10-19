@@ -82,6 +82,9 @@ impl RequiredHome {
         }
         std::fs::create_dir_all(&root).expect("create e2e home");
 
-        Self { _guard: guard, root }
+        Self {
+            _guard: guard,
+            root,
+        }
     }
 }

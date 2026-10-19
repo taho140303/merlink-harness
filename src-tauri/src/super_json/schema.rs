@@ -1,11 +1,16 @@
-//! The documented skeleton, the derived leaf lists, and the per-field type rules.
+//! The documented skeleton, derived writable paths/units, and per-field type rules.
+//!
+//! The super JSON is a project-rooted document: one `project` block (13 fixed
+//! leaves) plus 34 schema tables. Each table contributes exactly two writable
+//! paths (`count` and `rows`); `fields` is a read-only per-row contract.
+//! `fields` is deliberately absent from [`valid_paths`]: the model reads it with
+//! `super_json_get` (table selector) and then replaces `rows` wholesale.
 
+use serde_json::Value;
 use std::sync::OnceLock;
 
-use serde_json::{Map, Value};
-
 /// The canonical skeleton lives in the docs so the specification and the code
-/// can never drift apart. `docs/design/super-json.md` explains every field.
+/// can never drift apart.
 const SKELETON_JSON: &str = include_str!("../../../docs/schema/runtime/super.json");
 
 /// Root-level keys that carry documentation, not data.
@@ -24,6 +29,71 @@ pub fn skeleton() -> Value {
     document
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Group {
+    Require,
+    Optional,
+}
+
+impl Group {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Group::Require => "require",
+            Group::Optional => "optional",
+        }
+    }
+
+    fn from_str(text: &str) -> Option<Self> {
+        match text {
+            "require" => Some(Group::Require),
+            "optional" => Some(Group::Optional),
+            _ => None,
+        }
+    }
+}
+
+/// One writable address. `TableSelector` is read-only and exists only for
+/// `super_json_get`; it returns the whole table entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PathRef<'a> {
+    Project { group: Group, rest: &'a str },
+    SchemaCount { group: Group, table: &'a str },
+    SchemaRows { group: Group, table: &'a str },
+    TableSelector { group: Group, table: &'a str },
+}
+
+/// Parses the stable, index-free grammar:
+/// `require.project.<leaf>`, `require.schema.<table>.count|rows`,
+/// and the read-only `require.schema.<table>`.
+pub fn parse_path(path: &str) -> Option<PathRef<'_>> {
+    let (group_text, rest) = path.split_once('.')?;
+    let group = Group::from_str(group_text)?;
+    if let Some(leaf) = rest.strip_prefix("project.") {
+        if leaf.is_empty() || leaf.starts_with('.') {
+            return None;
+        }
+        return Some(PathRef::Project { group, rest: leaf });
+    }
+    let tail = rest.strip_prefix("schema.")?;
+    let (table, suffix) = match tail.split_once('.') {
+        Some((table, suffix)) => (table, Some(suffix)),
+        None => (tail, None),
+    };
+    if table.is_empty() {
+        return None;
+    }
+    match suffix {
+        Some("count") => Some(PathRef::SchemaCount { group, table }),
+        Some("rows") => Some(PathRef::SchemaRows { group, table }),
+        Some(_) => None,
+        None => Some(PathRef::TableSelector { group, table }),
+    }
+}
+
+fn project_object(document: &Value, group: Group) -> Option<&Value> {
+    document.get(group.as_str())?.get("project")
+}
+
 fn collect_leaves(value: &Value, prefix: &str, out: &mut Vec<String>) {
     match value {
         Value::Object(map) => {
@@ -36,104 +106,346 @@ fn collect_leaves(value: &Value, prefix: &str, out: &mut Vec<String>) {
                 } else {
                     format!("{prefix}.{key}")
                 };
-                let is_empty_object = child.as_object().is_some_and(Map::is_empty);
-                if is_empty_object {
-                    out.push(path);
-                } else {
-                    collect_leaves(child, &path, out);
-                }
+                collect_leaves(child, &path, out);
             }
         }
-        // nulls, scalars and arrays are all leaves.
-        _ => out.push(prefix.to_string()),
+        _ => out.push(prefix.to_owned()),
     }
 }
 
-fn leaves_of(section: &str) -> Vec<String> {
+/// Project leaves (`plan.arc.count`, …) for one group, sorted.
+pub fn project_leaves(group: Group) -> Vec<String> {
     let document = skeleton();
     let mut out = Vec::new();
-    if let Some(value) = document.get(section) {
-        collect_leaves(value, section, &mut out);
+    if let Some(project) = project_object(&document, group) {
+        collect_leaves(project, "", &mut out);
     }
     out.sort();
     out
 }
 
-/// Every field the agent is allowed to touch, derived from the skeleton itself
-/// rather than duplicated as a hand-written constant.
+/// Every writable path: 13 project leaves + 34 tables × {count, rows}.
 pub fn valid_paths() -> &'static [String] {
     static CACHE: OnceLock<Vec<String>> = OnceLock::new();
     CACHE.get_or_init(|| {
-        let mut all = Vec::new();
-        collect_leaves(&skeleton(), "", &mut all);
-        all.sort();
-        all
+        let document = skeleton();
+        let mut out = Vec::new();
+        for group in [Group::Require, Group::Optional] {
+            for leaf in project_leaves(group) {
+                out.push(format!("{}.project.{leaf}", group.as_str()));
+            }
+            if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+                for entry in entries {
+                    let Some(table) = entry["table"].as_str() else {
+                        continue;
+                    };
+                    if entry.get("count").is_some() {
+                        out.push(format!("{}.schema.{table}.count", group.as_str()));
+                    }
+                    if entry.get("rows").is_some() {
+                        out.push(format!("{}.schema.{table}.rows", group.as_str()));
+                    }
+                }
+            }
+        }
+        out.sort();
+        out
     })
 }
 
-/// Fields that block the "write outline" step until they are filled.
+fn units(group: Group) -> Vec<String> {
+    let document = skeleton();
+    let mut out = Vec::new();
+    for leaf in project_leaves(group) {
+        out.push(format!("{}.project.{leaf}", group.as_str()));
+    }
+    if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+        for entry in entries {
+            let Some(table) = entry["table"].as_str() else {
+                continue;
+            };
+            if entry.get("count").is_some() {
+                out.push(format!("{}.schema.{table}", group.as_str()));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Blocking decision units for `require` (project leaves + tables).
 pub fn required_paths() -> &'static [String] {
     static CACHE: OnceLock<Vec<String>> = OnceLock::new();
-    CACHE.get_or_init(|| leaves_of("require"))
+    CACHE.get_or_init(|| units(Group::Require))
 }
 
-/// The remaining fields: fillable at any time, and the ones that take the header
-/// progress bar from 70% to 100%.
+/// Fillable units for `optional` (project leaves + tables).
 pub fn optional_paths() -> &'static [String] {
     static CACHE: OnceLock<Vec<String>> = OnceLock::new();
-    CACHE.get_or_init(|| leaves_of("optional"))
+    CACHE.get_or_init(|| units(Group::Optional))
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum FieldKind {
+/// Unique table names in skeleton order (first appearance), 34 entries.
+#[allow(dead_code)]
+pub fn tables() -> &'static [String] {
+    static CACHE: OnceLock<Vec<String>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let document = skeleton();
+        let mut out = Vec::new();
+        for group in [Group::Require, Group::Optional] {
+            if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+                for entry in entries {
+                    if let Some(table) = entry["table"].as_str()
+                        && !out.iter().any(|known| known == table)
+                    {
+                        out.push(table.to_owned());
+                    }
+                }
+            }
+        }
+        out
+    })
+}
+
+/// The group that owns a table's `count`/`rows` entry.
+pub fn countable_group(table: &str) -> Option<Group> {
+    let document = skeleton();
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+            for entry in entries {
+                if entry["table"].as_str() == Some(table) && entry.get("count").is_some() {
+                    return Some(group);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// The entry that owns `count`/`rows` for a table (at most one, in one group).
+pub fn countable_entry<'a>(document: &'a Value, table: &str) -> Option<&'a Value> {
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+            for entry in entries {
+                if entry["table"].as_str() == Some(table) && entry.get("count").is_some() {
+                    return Some(entry);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// First entry for a table, used by the read-only table selector.
+pub fn table_entry<'a>(document: &'a Value, table: &str) -> Option<&'a Value> {
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+            for entry in entries {
+                if entry["table"].as_str() == Some(table) {
+                    return Some(entry);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// One read-only view of a table: merged `fields` across both groups plus the
+/// `count`/`rows` owned by the countable entry. This is what `super_json_get`
+/// returns for a table selector.
+pub fn merged_table_entry(document: &Value, table: &str) -> Option<Value> {
+    let mut fields = serde_json::Map::new();
+    let mut found = false;
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+            for entry in entries {
+                if entry["table"].as_str() == Some(table) {
+                    found = true;
+                    if let Some(map) = entry["fields"].as_object() {
+                        for (key, value) in map {
+                            fields.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if !found {
+        return None;
+    }
+    let countable = countable_entry(document, table);
+    Some(serde_json::json!({
+        "table": table,
+        "count": countable.and_then(|entry| entry.get("count")).cloned().unwrap_or(Value::Null),
+        "fields": Value::Object(fields),
+        "rows": countable.and_then(|entry| entry.get("rows")).cloned().unwrap_or_else(|| Value::Array(Vec::new())),
+    }))
+}
+
+/// Union of `fields` keys for a table across both groups.
+pub fn table_fields(table: &str) -> Vec<String> {
+    let document = skeleton();
+    let mut out: Vec<String> = Vec::new();
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = document[group.as_str()]["schema"].as_array() {
+            for entry in entries {
+                if entry["table"].as_str() == Some(table)
+                    && let Some(fields) = entry["fields"].as_object()
+                {
+                    for key in fields.keys() {
+                        if !out.iter().any(|known| known == key) {
+                            out.push(key.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Fields in the `require` entry for a table: these must be present in every
+/// row. Optional-only tables have no required row fields.
+pub fn required_row_fields(table: &str) -> Vec<String> {
+    let document = skeleton();
+    if let Some(entries) = document["require"]["schema"].as_array() {
+        for entry in entries {
+            if entry["table"].as_str() == Some(table) {
+                return entry["fields"]
+                    .as_object()
+                    .map(|fields| fields.keys().cloned().collect())
+                    .unwrap_or_default();
+            }
+        }
+    }
+    Vec::new()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FieldKind {
     Text,
     PositiveInt,
     NonNegativeInt,
     Bool,
-    TextArray,
+    Number,
+    Json,
+    Rows,
     Choice(&'static [&'static str]),
 }
 
-/// Type rules per field. Values start as `null`, so the type cannot be inferred
-/// from the skeleton — it has to be declared. `test_every_valid_path_has_a_type_rule`
-/// keeps this table in sync with `super.json`.
-pub(super) fn field_kind(path: &str) -> Option<FieldKind> {
-    use FieldKind::*;
-    Some(match path {
-        "require.overview.name"
-        | "require.overview.logline.trigger-event"
-        | "require.overview.logline.main-character"
-        | "require.overview.logline.action"
-        | "require.overview.logline.risk"
-        | "require.overview.logline.major-loss"
-        | "require.genre.primary"
-        | "require.theme.question"
-        | "optional.overview.description"
-        | "optional.overview.author"
-        | "optional.overview.target-audience"
-        | "optional.overview.age-rating"
-        | "optional.theme.resolution"
-        | "optional.theme.message" => Text,
+const LANGUAGES: &[&str] = &["VI", "EN", "JA", "ZH_HANT", "ZH_HANS"];
+const THEME_SCOPES: &[&str] = &["PROJECT", "ARC"];
+const THEME_RESOLUTIONS: &[&str] = &["RESOLVED", "OPEN", "AMBIGUOUS"];
+const THEME_ROLES: &[&str] = &["PRIMARY", "ANTITHESIS", "CAUTIONARY", "WITNESS"];
+const THEME_ANSWER_MODES: &[&str] = &["VERBAL", "ACTION", "OUTCOME", "IMPLICIT"];
+const LOCATION_TYPES: &[&str] = &[
+    "REALM", "WORLD", "REGION", "COUNTRY", "CITY", "TOWN", "FACILITY", "STREET", "ROOM",
+];
+const LOCATION_ACCESS: &[&str] = &[
+    "PUBLIC",
+    "PRIVATE",
+    "SECRET",
+    "LOCKED",
+    "GUARDED",
+    "RESTRICTED",
+];
+const LORE_TYPES: &[&str] = &["CULTURE", "HISTORY", "FACTION", "ITEM"];
+const MEMORY_TYPES: &[&str] = &["EPISODIC", "SEMANTIC", "PROCEDURAL"];
+const MEMORY_CERTAINTY: &[&str] = &["CERTAIN", "PROBABLE", "UNCERTAIN"];
+const MEMORY_SOURCES: &[&str] = &["FIRSTHAND", "HEARSAY", "INFERENCE"];
+const MEMORY_STATUSES: &[&str] = &["ACTIVE", "SUPPRESSED", "FORGOTTEN", "DISTORTED"];
+const SCENE_SOURCES: &[&str] = &["AI_GENERATED", "HUMAN_EDITED", "RESTORE"];
+const HIERARCHY: &[&str] = &["SUPERIOR", "EQUAL", "INFERIOR"];
+const DIMENSION_LEVELS: &[&str] = &["NONE", "LOW", "MODERATE", "HIGH", "ABSOLUTE"];
+const CATEGORY_GROUPS: &[&str] = &[
+    "FAMILY",
+    "ROMANTIC",
+    "SOCIAL",
+    "PROFESSIONAL",
+    "ANTAGONISTIC",
+];
+const GENDERS: &[&str] = &["MALE", "FEMALE"];
+const MEASUREMENT_UNITS: &[&str] = &["MM", "CM", "M", "HA", "KM", "ML", "L", "MG", "G", "KG"];
+const CERTAINTY_LEVELS: &[&str] = &["LOW", "MEDIUM", "HIGH"];
+const KNOWLEDGE_SOURCE_TYPES: &[&str] = &["INITIAL", "LORE"];
 
-        "require.overview.plan.arc.count"
-        | "require.overview.plan.chapter.count"
-        | "require.overview.plan.word.count" => PositiveInt,
-
-        "optional.overview.plan.arc.tolerance"
-        | "optional.overview.plan.chapter.tolerance"
-        | "optional.overview.plan.word.tolerance" => NonNegativeInt,
-
-        "optional.overview.language" => Choice(&["VI", "EN", "JA", "ZH_HANT", "ZH_HANS"]),
-        "optional.theme.resolution-type" => Choice(&["RESOLVED", "OPEN", "AMBIGUOUS"]),
-        "optional.world.setting-scale" => Choice(&[
-            "REALM", "WORLD", "REGION", "COUNTRY", "CITY", "TOWN", "FACILITY", "STREET", "ROOM",
-        ]),
-
-        "optional.world.has-power-system" => Bool,
-        "optional.genre.secondary" => TextArray,
-
+/// Type rule for one project leaf.
+fn project_kind(rest: &str) -> Option<FieldKind> {
+    Some(match rest {
+        "name" | "author" | "summarize" | "target-audience" => FieldKind::Text,
+        "language" => FieldKind::Choice(LANGUAGES),
+        "plan.arc.count" | "plan.chapter.count" | "plan.scene.count" | "plan.word.count" => {
+            FieldKind::PositiveInt
+        }
+        "plan.arc.tolerance"
+        | "plan.chapter.tolerance"
+        | "plan.scene.tolerance"
+        | "plan.word.tolerance" => FieldKind::NonNegativeInt,
         _ => return None,
     })
+}
+
+/// Table-aware type rule for one row column. Everything not listed falls back
+/// to `Text`, the dominant DBML type (varchar/text/uuid FK).
+pub fn column_kind(table: &str, column: &str) -> FieldKind {
+    match column {
+        "is_primary" | "is_system" | "is_pov" => return FieldKind::Bool,
+        "position" | "rank" | "height" | "weight" | "word_count" | "version_number"
+        | "revision_number" | "count" => return FieldKind::NonNegativeInt,
+        "significance" | "intensity" => return FieldKind::Number,
+        "data" => return FieldKind::Json,
+        _ => {}
+    }
+
+    match (table, column) {
+        ("themes", "scope") => FieldKind::Choice(THEME_SCOPES),
+        ("themes", "resolution_type") => FieldKind::Choice(THEME_RESOLUTIONS),
+        ("theme_arguments", "role") => FieldKind::Choice(THEME_ROLES),
+        ("theme_arguments", "answer_mode") => FieldKind::Choice(THEME_ANSWER_MODES),
+        ("world_settings", "type") => FieldKind::Choice(LOCATION_TYPES),
+        ("world_settings", "access") => FieldKind::Choice(LOCATION_ACCESS),
+        ("lore_entries", "type") => FieldKind::Choice(LORE_TYPES),
+        ("memories", "type") => FieldKind::Choice(MEMORY_TYPES),
+        ("memories", "certainty") => FieldKind::Choice(MEMORY_CERTAINTY),
+        ("memories", "knowledge_source") => FieldKind::Choice(MEMORY_SOURCES),
+        ("memories", "status") => FieldKind::Choice(MEMORY_STATUSES),
+        ("scene_versions", "scene_source") => FieldKind::Choice(SCENE_SOURCES),
+        ("relationship_roles", "hierarchy") => FieldKind::Choice(HIERARCHY),
+        ("relationship_categories", "category") => FieldKind::Choice(CATEGORY_GROUPS),
+        ("relationship_states", "trust")
+        | ("relationship_states", "affection")
+        | ("relationship_states", "hostility")
+        | ("relationship_states", "fear")
+        | ("relationship_states", "respect")
+        | ("relationship_states", "familiarity")
+        | ("relationship_states", "dependency") => FieldKind::Choice(DIMENSION_LEVELS),
+        ("characters", "biological_sex")
+        | ("characters", "gender_identity")
+        | ("characters", "gender_expression") => FieldKind::Choice(GENDERS),
+        ("character_appearances", "height_unit") | ("character_appearances", "weight_unit") => {
+            FieldKind::Choice(MEASUREMENT_UNITS)
+        }
+        ("character_knowledge_sources", "type") => FieldKind::Choice(KNOWLEDGE_SOURCE_TYPES),
+        ("character_knowledge_sources", "certainty") | ("character_competences", "reliability") => {
+            FieldKind::Choice(CERTAINTY_LEVELS)
+        }
+        _ => FieldKind::Text,
+    }
+}
+
+/// Type rule for a writable path, or `None` when the path is not writable.
+pub fn field_kind(path: &str) -> Option<FieldKind> {
+    if let Some(rest) = path
+        .strip_prefix("require.project.")
+        .or_else(|| path.strip_prefix("optional.project."))
+    {
+        return project_kind(rest);
+    }
+    match parse_path(path)? {
+        PathRef::SchemaCount { .. } => Some(FieldKind::NonNegativeInt),
+        PathRef::SchemaRows { .. } => Some(FieldKind::Rows),
+        PathRef::TableSelector { .. } | PathRef::Project { .. } => None,
+    }
 }
 
 pub(super) fn validate(kind: FieldKind, path: &str, value: &Value) -> Result<(), String> {
@@ -151,7 +463,6 @@ pub(super) fn validate(kind: FieldKind, path: &str, value: &Value) -> Result<(),
         },
         FieldKind::PositiveInt => match value.as_i64() {
             Some(number) if number > 0 => Ok(()),
-            // Deliberately rejects "5": models like to send numbers as strings.
             Some(_) => Err(format!("Invalid value for {path}: must be greater than 0")),
             None => Err(type_error("a positive integer")),
         },
@@ -164,20 +475,21 @@ pub(super) fn validate(kind: FieldKind, path: &str, value: &Value) -> Result<(),
             Some(_) => Ok(()),
             None => Err(type_error("a boolean")),
         },
-        FieldKind::TextArray => match value.as_array() {
-            Some(items) => {
-                if items.iter().all(|item| {
-                    item.as_str().is_some_and(|text| !text.trim().is_empty())
-                }) {
-                    Ok(())
-                } else {
-                    Err(format!(
-                        "Invalid value for {path}: every item must be a non-empty string"
-                    ))
-                }
-            }
-            None => Err(type_error("an array of strings")),
+        FieldKind::Number => match value.as_f64() {
+            Some(number) if (0.0..=1.0).contains(&number) => Ok(()),
+            Some(_) => Err(format!("Invalid value for {path}: must be between 0 and 1")),
+            None => Err(type_error("a number between 0 and 1")),
         },
+        FieldKind::Json => {
+            if value.is_object() || value.is_array() || value.is_string() {
+                Ok(())
+            } else {
+                Err(type_error("a JSON object, array, or string"))
+            }
+        }
+        FieldKind::Rows => Err(format!(
+            "Invalid value for {path}: rows are validated by the table contract"
+        )),
         FieldKind::Choice(allowed) => match value.as_str() {
             Some(text) if allowed.contains(&text) => Ok(()),
             Some(text) => Err(format!(
@@ -203,38 +515,71 @@ fn describe(value: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::super_json::missing_required;
 
     #[test]
-    fn test_super_json_required_path_count_is_eleven() {
-        let _home = crate::test_support::TempHome::new("super-count");
-        assert_eq!(valid_paths().len(), 25, "valid path count drifted");
-        assert_eq!(
-            required_paths().len(),
-            11,
-            "required path count drifted: {:?}",
-            required_paths()
-        );
-        assert_eq!(
-            missing_required("default").unwrap().len(),
-            11,
-            "a fresh project must report all 11 required paths as missing"
-        );
-        // Every required path must also be a valid path.
-        for path in required_paths() {
-            assert!(valid_paths().iter().any(|known| known == path), "{path}");
-        }
+    fn test_default_skeleton_has_81_paths_and_34_tables() {
+        assert_eq!(valid_paths().len(), 81, "13 project + 34×2");
+        assert_eq!(tables().len(), 34);
+        assert!(valid_paths().contains(&"require.project.name".to_owned()));
+        assert!(valid_paths().contains(&"require.schema.characters.rows".to_owned()));
+        assert!(valid_paths().contains(&"require.schema.themes.count".to_owned()));
     }
 
-    /// Guards the hand-written type table against `super.json` edits.
+    #[test]
+    fn test_required_units_are_18_and_optional_29() {
+        assert_eq!(required_paths().len(), 18);
+        assert_eq!(optional_paths().len(), 29);
+        assert!(required_paths().contains(&"require.schema.characters".to_owned()));
+        assert!(optional_paths().contains(&"optional.schema.appearance_options".to_owned()));
+    }
+
     #[test]
     fn test_every_valid_path_has_a_type_rule() {
         for path in valid_paths() {
-            assert!(
-                field_kind(path).is_some(),
-                "no type rule declared for {path} — super.json and field_kind() drifted"
-            );
+            assert!(field_kind(path).is_some(), "missing type rule for {path}");
         }
-        assert_eq!(valid_paths().len(), 25);
+    }
+
+    #[test]
+    fn test_scenes_chapter_id_is_required() {
+        let document = skeleton();
+        let entry = document["require"]["schema"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["table"] == "scenes")
+            .unwrap();
+        assert!(entry["fields"].get("chapter_id").is_some());
+    }
+
+    #[test]
+    fn test_parse_path_grammar() {
+        assert_eq!(
+            parse_path("require.schema.characters.rows"),
+            Some(PathRef::SchemaRows {
+                group: Group::Require,
+                table: "characters"
+            })
+        );
+        assert_eq!(
+            parse_path("require.schema.characters"),
+            Some(PathRef::TableSelector {
+                group: Group::Require,
+                table: "characters"
+            })
+        );
+        assert_eq!(parse_path("optional.schema.characters.fields"), None);
+        assert_eq!(
+            parse_path("require.project.plan.arc.count"),
+            Some(PathRef::Project {
+                group: Group::Require,
+                rest: "plan.arc.count"
+            })
+        );
+    }
+
+    #[test]
+    fn test_characters_have_is_primary_synthetic_field() {
+        assert!(table_fields("characters").contains(&"is_primary".to_owned()));
     }
 }
