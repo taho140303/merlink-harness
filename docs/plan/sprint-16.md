@@ -209,6 +209,7 @@ Test mới: `test_migration_from_v2_groups_to_v2_1` — dựng document kiểu v
 | `src-tauri/src/super_json/schema.rs` (test) | `test_required_units_are_18_and_optional_29` → `..._12_and_35`; required chứa `require.schema.project_motifs`, không chứa `require.schema.scenes`; optional chứa `optional.schema.{scenes,chapters,relationships,relationship_roles,world_settings,power_systems}`; `test_scenes_chapter_id_is_required` → `test_scenes_chapter_id_is_a_required_row_field` (assert `required_row_fields("scenes")` chứa `chapter_id` + skeleton có đúng 1 entry `scenes` nằm ở optional); thêm `test_one_entry_per_table` và `test_project_motifs_declares_scope_and_anchors` |
 | `src-tauri/src/tools/execute.rs` (test) | `18→12`, `17→11`, `29→35`, `4→6` (comment `70*1/12`) |
 | `src-tauri/src/ipc_contract_tests.rs` | `json!(18)→12`, `json!(29)→35`, missing `17→11`, percent `4→6`; hai path `require.schema.world_settings.*` → `optional.schema.world_settings.*` |
+| `src-tauri/src/runtime/agent/tests.rs` | dòng 649: `missing_required` len `17 → 11` (chỉ đúng một số) |
 | `src-tauri/src/models.rs`, `src/types.ts` | comment `18/29` → `12/35` |
 | `src/pages/Chat.tsx` | fallback `?? 18` → `?? 12` |
 | `src/lib/browser-mock.ts` | `MOCK_REQUIRED_TABLES` / `MOCK_OPTIONAL_TABLES` theo D1; unit list + percent tự theo hằng; nhãn giữ nguyên |
@@ -276,6 +277,7 @@ src-tauri/src/super_json/io.rs
 src-tauri/src/super_json/progress.rs
 src-tauri/src/tools/execute.rs
 src-tauri/src/ipc_contract_tests.rs
+src-tauri/src/runtime/agent/tests.rs
 src-tauri/src/models.rs
 src/types.ts
 src/pages/Chat.tsx
@@ -284,6 +286,10 @@ src/lib/browser-mock.ts
 
 Ngoài danh sách trên: **KHÔNG sửa**. `src-tauri/src/super_json/summary.rs` không cần đổi
 (các bảng nó đọc vẫn là require/đọc được qua `countable_entry`); nếu buộc phải đổi thì dừng và hỏi.
+
+> **Bổ sung trong lúc chạy (root duyệt):** `src-tauri/src/runtime/agent/tests.rs` được thêm vào
+> allow-list sau khi `cargo test` lộ ra hardcode `17` tại dòng 649 (`project_create` xong còn 11
+> required unit với required_total = 12). Chỉ đổi đúng số `17 → 11`; không sửa assert khác.
 
 ───────────────────────────────────────────────────────
 🛑 STOP CONDITIONS
