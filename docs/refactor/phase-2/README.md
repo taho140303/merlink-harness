@@ -212,7 +212,7 @@ Plus:
 
 - [x] All six sprints merged; `main` green.
 - [x] `src-tauri/src/lib.rs` is wiring only; commands live under `commands/`.
-- [x] The five large production modules (`commands`, `adapters`, `tools`, `super_json`, `db`, `runtime`) are folders with focused submodules.
+- [x] The six large production modules (`commands`, `adapters`, `tools`, `super_json`, `db`, `runtime`) are folders with focused submodules.
 - [x] No public call site changed without a re-export.
 - [x] `AGENTS.md` records the sprint contract and the model fallback.
 
@@ -221,7 +221,7 @@ Plus:
 
 | Sprint | Branch | Commit | Merge into `main` | Model |
 | --- | --- | --- | --- | --- |
-| P2-S1 | `refactor/p2-s1-commands` | `a3fc179` | `84fa87d` | gpt-6-sol (fallback after quota failure) |
+| P2-S1 | `refactor/p2-s1-commands` | `a3fc179` | `84fa87d` | deepseek-v4.1-flash (GPT quota failed twice) |
 | P2-S2 | `refactor/p2-s2-adapters` | `928bcf4` | `7eb2770` | deepseek-v4.1-flash |
 | P2-S3 | `refactor/p2-s3-tools` | `cd5a0da` | `6661dcb` | deepseek-v4.1-flash |
 | P2-S4 | `refactor/p2-s4-super-json` | `e06844a` | `99a3ecb` | deepseek-v4.1-flash |
