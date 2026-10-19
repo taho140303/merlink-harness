@@ -14,8 +14,8 @@
 | P2-S2 | `adapters/` | done | `928bcf4` |
 | P2-S3 | `tools/` | done | `cd5a0da` |
 | P2-S4 | `super_json/` | done | `e06844a` |
-| P2-S5 | `db/` | ready | — |
-| P2-S6 | `runtime/` | pending | — |
+| P2-S5 | `db/` | done | `a3311e2` |
+| P2-S6 | `runtime/` | ready | — |
 
 ## 1. Why the files look big
 
