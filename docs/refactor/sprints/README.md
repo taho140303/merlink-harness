@@ -7,7 +7,7 @@ dependency, and update its own status line here.
 
 | Sprint | Spec | Status | Branch | Units |
 | --- | --- | --- | --- | --- |
-| S0 | [00-oss-baseline.md](00-oss-baseline.md) | pushed | `refactor/s0-oss-baseline` | OSS docs |
+| S0 | [00-oss-baseline.md](00-oss-baseline.md) | done | `refactor/s0-oss-baseline` | OSS docs |
 | S1 | [01-session-ownership.md](01-session-ownership.md) | done | `refactor/s1-session-ownership` | F-01 frontend, F-02 |
 | S2 | [02-message-integrity.md](02-message-integrity.md) | done | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
 | S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | done | `refactor/s3-project-json-integrity` | F-03, F-04 |
@@ -15,7 +15,7 @@ dependency, and update its own status line here.
 | S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | done | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
 | S6 | [06-ipc-and-preview.md](06-ipc-and-preview.md) | done | `refactor/s6-ipc-preview` | F-13–F-16 |
 | S7 | [07-ui-correctness.md](07-ui-correctness.md) | done | `refactor/s7-ui-correctness` | F-18, F-19 |
-| S8 | [08-platform-and-read-boundary.md](08-platform-and-read-boundary.md) | pushed | `refactor/s8-platform-read-boundary` | F-21 |
+| S8 | [08-platform-and-read-boundary.md](08-platform-and-read-boundary.md) | done | `refactor/s8-platform-read-boundary` | F-21 |
 
 ## Rules for every sprint subagent
 
