@@ -2,7 +2,7 @@
 
 - **Status:** done
 - **Branch:** `refactor/s2-message-integrity`
-- **Units:** F-01 (backend half), F-20 (database part)
+- **Units:** F-01 (backend half), schema-version hook
 - **Depends on:** S1
 - **Code changes:** `src-tauri/src/db.rs`, `src-tauri/src/runtime.rs` (only where
   it calls the DB), `src-tauri/src/lib.rs` (only if a test needs it)

@@ -2,7 +2,7 @@
 
 > Status: **complete** · 2026-10-19
 > Inputs: 6 reviewer reports (2 per GoF group), 89 raw findings.
-> Output: 20 merged units of work, 8 sprints (S0–S7), one deletion list, and a
+> Output: 21 merged units of work, 9 sprints (S0–S8), one deletion list, and a
 > pattern verdict that is deliberately conservative.
 
 ## 1. What was done
@@ -19,7 +19,7 @@ real source under `src/` and `src-tauri/src/`. Reviews were independent: no
 reviewer read the other report for their group, and no application code was
 changed.
 
-The 89 raw findings collapse into **20 merged units**. A unit is merged when at
+The 89 raw findings collapse into **21 merged units**. A unit is merged when at
 least two reviewers described the same failure mechanism, even if they named a
 different pattern. The report count is not a score: several units are one bug
 seen from three lenses.
@@ -80,7 +80,9 @@ misleading behavior or expensive drift; **Low** = maintenance cost.
   independently reproduced control-flow defects.
 - **5/6:** F-05, F-09.
 - **4/6:** F-03, F-08, F-10, F-11.
-- **2–3/6:** F-06, F-07, F-12, F-13, F-15, F-16, F-17, F-18, F-19, F-20. These
+- **2–3/6:** F-06, F-07, F-12, F-13, F-15, F-16, F-17, F-18, F-19, F-20. F-21
+  (Windows home fallback + ghost read) is structural/a only and was scheduled as a
+  post-synthesis hardening sprint. These
   are real but lower leverage; a sprint may land only part of one if doing so
   keeps the diff reviewable.
 
@@ -106,7 +108,7 @@ async operation; guard channel events, success, error, `finally`, and all reads.
 Do not disable New Chat — detach the old turn instead. Backend cancellation is a
 separate product decision; already-executed tools must not be pretended away.
 
-### 4.2 Message identity and database integrity (F-01, F-20)
+### 4.2 Message identity and database integrity (F-01)
 
 `messages.id` is the sole primary key (`src-tauri/src/db.rs:19-26`) and
 `append_message` is `INSERT OR REPLACE` (`:173-194`). The frontend generates user
@@ -227,7 +229,7 @@ dependency.
 | --- | --- | --- | --- | --- |
 | S0 | [00-oss-baseline.md](../sprints/00-oss-baseline.md) | programme deliverable | `README.md`, `CONTRIBUTING.md`, `LICENSE`, `.github/` | — |
 | S1 | [01-session-ownership.md](../sprints/01-session-ownership.md) | F-01 (frontend), F-02 | `src/pages/Chat.tsx` | S0 |
-| S2 | [02-message-integrity.md](../sprints/02-message-integrity.md) | F-01 (backend), F-20 (DB) | `src-tauri/src/db.rs`, `runtime.rs` | S1 |
+| S2 | [02-message-integrity.md](../sprints/02-message-integrity.md) | F-01 (backend), schema-version hook | `src-tauri/src/db.rs`, `runtime.rs` | S1 |
 | S3 | [03-project-and-json-integrity.md](../sprints/03-project-and-json-integrity.md) | F-03, F-04 | `tools.rs`, `db.rs`, `super_json.rs` | S2 |
 | S4 | [04-agent-loop-truth.md](../sprints/04-agent-loop-truth.md) | F-05, F-06, F-07 | `runtime.rs`, `Chat.tsx` | S3 |
 | S5 | [05-provider-lifecycle.md](../sprints/05-provider-lifecycle.md) | F-08, F-09, F-10, F-11, F-12, F-17 | `SettingsDialog.tsx`, `store.rs`, `adapters.rs`, `Chat.tsx` | S4 |
@@ -275,7 +277,7 @@ branch is pushed and its acceptance checks are recorded in the spec.
 4. **Product gaps found but not scheduled.** Persisted session resume
    (`list_messages` exists, no UI), real projects on Home/Characters, and
    project listing are product decisions, not refactors. They are recorded here
-   and intentionally left out of S0–S7.
+   and intentionally left out of S0–S8.
 5. **Windows data root.** S8 added `USERPROFILE` and `HOMEDRIVE` + `HOMEPATH`
    fallbacks while keeping `~/.merlink`. A migration to a platform data directory
    (for example `%APPDATA%`) is a separate product decision; it would need a
