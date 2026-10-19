@@ -11,8 +11,8 @@
 | Sprint | Scope | Status | Branch tip |
 | --- | --- | --- | --- |
 | P2-S1 | `commands/` | done | `a3fc179` |
-| P2-S2 | `adapters/` | ready | — |
-| P2-S3 | `tools/` | pending | — |
+| P2-S2 | `adapters/` | done | `928bcf4` |
+| P2-S3 | `tools/` | ready | — |
 | P2-S4 | `super_json/` | pending | — |
 | P2-S5 | `db/` | pending | — |
 | P2-S6 | `runtime/` | pending | — |
