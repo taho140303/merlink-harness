@@ -1,5 +1,6 @@
 # SPRINT 16.1 — TOOL CONTRACT: `_json_index`, `add_row`/`add_field`, PROMPT CÓ JSON CONTEXT
 
+> **Trạng thái: DONE — merged vào `feat/brand-mark` tại `c15351a`** (commit nội dung `a6ab1dd`).
 > Branch: `sprint-16.1-tool-contract` · Base: `feat/brand-mark` (sau merge Sprint 16, `d9c502b`)
 > Tiền đề: Sprint 16 đã đưa super json lên v2.1 (12 require / 35 optional, 1 entry/bảng,
 > `project_motifs` require + scope, migration v2→v2.1). Sprint này **không** đổi nhóm bảng.

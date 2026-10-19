@@ -1,5 +1,6 @@
 # SPRINT 16 — SUPER JSON v2.1: NHÓM REQUIRE/OPTIONAL MỚI + `project_motifs` SCOPE
 
+> **Trạng thái: DONE — merged vào `feat/brand-mark` tại `d9c502b`** (commit nội dung `6d1a2bc`, spec `f905874`).
 > Branch: `sprint-16-schema-v21` · Base: `feat/brand-mark` (KHÔNG phải `main`; `main` chưa có super json v2)
 > Sprint kế tiếp: `sprint-16.1-tool-contract` (tool mới + prompt + `_json_index`)
 
