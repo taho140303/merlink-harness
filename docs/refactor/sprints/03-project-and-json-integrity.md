@@ -1,6 +1,6 @@
 # S3 — Project creation and super-JSON integrity
 
-- **Status:** pushed
+- **Status:** done
 - **Branch:** `refactor/s3-project-json-integrity`
 - **Units:** F-03, F-04
 - **Depends on:** S2

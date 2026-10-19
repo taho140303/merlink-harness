@@ -10,8 +10,8 @@ dependency, and update its own status line here.
 | S0 | [00-oss-baseline.md](00-oss-baseline.md) | pushed | `refactor/s0-oss-baseline` | OSS docs |
 | S1 | [01-session-ownership.md](01-session-ownership.md) | done | `refactor/s1-session-ownership` | F-01 frontend, F-02 |
 | S2 | [02-message-integrity.md](02-message-integrity.md) | done | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
-| S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | pushed | `refactor/s3-project-json-integrity` | F-03, F-04 |
-| S4 | [04-agent-loop-truth.md](04-agent-loop-truth.md) | blocked by S3 | `refactor/s4-agent-loop-truth` | F-05, F-06, F-07 |
+| S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | done | `refactor/s3-project-json-integrity` | F-03, F-04 |
+| S4 | [04-agent-loop-truth.md](04-agent-loop-truth.md) | ready | `refactor/s4-agent-loop-truth` | F-05, F-06, F-07 |
 | S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | blocked by S4 | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
 | S6 | [06-ipc-and-preview.md](06-ipc-and-preview.md) | blocked by S5 | `refactor/s6-ipc-preview` | F-13–F-16 |
 | S7 | [07-ui-correctness.md](07-ui-correctness.md) | blocked by S6 | `refactor/s7-ui-correctness` | F-18, F-19 |
@@ -28,8 +28,11 @@ dependency, and update its own status line here.
    `include_str!`. No secrets in the repository.
 5. Run `cargo test --manifest-path src-tauri/Cargo.toml` and `pnpm build` before
    committing. Both must pass.
-6. Commit with a conventional message, push the branch to `origin`, and report
-   the branch, commit SHA, commands run, results, and any deferred item.
+6. Commit with the **taho140303** identity, not the machine's global identity:
+   `git -c user.name=taho140303 -c user.email="202986530+taho140303@users.noreply.github.com" commit -m "..."`.
+   Verify `git log -1 --format='%an <%ae>'` before pushing. Push the branch to
+   `origin` and report the branch, commit SHA, commands run, results, and any
+   deferred item.
 7. Update the sprint's status line in this file to `pushed` (or `blocked`) in the
    same commit. Do not mark a sprint `done`; only the root agent merges and marks
    it done after verification.
