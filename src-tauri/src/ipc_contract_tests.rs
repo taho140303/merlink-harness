@@ -288,6 +288,19 @@ fn body_list_messages() -> Value {
     json!({ "sessionId": "contract-session-list-messages" })
 }
 
+fn body_list_sessions() -> Value {
+    json!({})
+}
+fn body_get_session() -> Value {
+    json!({ "sessionId": "contract-session-history" })
+}
+fn body_rename_session() -> Value {
+    json!({ "sessionId": "contract-session-history", "title": "Renamed" })
+}
+fn body_delete_session() -> Value {
+    json!({ "sessionId": "contract-session-history" })
+}
+
 fn body_fetch_models() -> Value {
     // `SettingsDialog.tsx:381`. The URL is a closed port so the call fails fast
     // and locally: this row exists for its *key shape*, not its network result.
@@ -341,6 +354,22 @@ static CONTRACT: &[ContractEntry] = &[
     ContractEntry {
         cmd: "fetch_models",
         body: body_fetch_models,
+    },
+    ContractEntry {
+        cmd: "list_sessions",
+        body: body_list_sessions,
+    },
+    ContractEntry {
+        cmd: "get_session",
+        body: body_get_session,
+    },
+    ContractEntry {
+        cmd: "rename_session",
+        body: body_rename_session,
+    },
+    ContractEntry {
+        cmd: "delete_session",
+        body: body_delete_session,
     },
 ];
 
@@ -643,6 +672,38 @@ fn test_ipc_super_json_labels_end_to_end() {
     // The command is a pure read: it must not create a project either.
     assert!(!harness.home.path().join("projects").exists());
     println!("super_json_labels -> {labels}");
+}
+
+#[test]
+fn test_ipc_sessions_end_to_end() {
+    let harness = Harness::new("ipc-sessions");
+    let connection = crate::db::open().unwrap();
+    connection.execute("INSERT INTO projects (id, title, created_at) VALUES ('history-project', 'History Project', '2024-01-01')", []).unwrap();
+    connection.execute("INSERT INTO sessions (id, project_id, title, created_at) VALUES ('contract-session-history', 'history-project', NULL, '2024-02-01')", []).unwrap();
+    connection.execute("INSERT INTO messages (id, session_id, role, content, created_at) VALUES ('history-user', 'contract-session-history', 'user', '  first
+ message ', '2024-02-01')", []).unwrap();
+    let project_id = "history-project";
+    let list = harness.ok("list_sessions", body_list_sessions());
+    let rows = list.as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["id"], "contract-session-history");
+    assert_eq!(rows[0]["project_id"], project_id);
+    assert_eq!(rows[0]["project_title"], "History Project");
+    assert_eq!(rows[0]["title"], "first message");
+    let renamed = harness.ok("rename_session", body_rename_session());
+    assert_eq!(renamed["title"], "Renamed");
+    let fetched = harness.ok("get_session", body_get_session());
+    assert_eq!(fetched["title"], "Renamed");
+    assert_eq!(fetched["project_title"], "History Project");
+    assert_eq!(harness.ok("delete_session", body_delete_session()), true);
+    assert_eq!(
+        harness.ok(
+            "list_messages",
+            json!({"sessionId":"contract-session-history"})
+        ),
+        json!([])
+    );
+    assert_eq!(harness.ok("get_session", body_get_session()), Value::Null);
 }
 
 #[test]
@@ -1035,7 +1096,12 @@ fn test_ipc_snake_case_keys_are_rejected() {
     );
     assert_eq!(
         no_snake_variant,
-        vec!["load_providers", "save_providers", "super_json_labels"],
+        vec![
+            "load_providers",
+            "save_providers",
+            "super_json_labels",
+            "list_sessions"
+        ],
         "only commands whose keys are unchanged by snake_case may be exempt"
     );
     assert_eq!(

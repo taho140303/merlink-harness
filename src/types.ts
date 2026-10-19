@@ -42,6 +42,14 @@ export interface TokenUsage {
   output_tokens: number;
 }
 
+export interface SessionSummary {
+  id: string;
+  project_id: string;
+  project_title: string | null;
+  title: string;
+  created_at: string;
+}
+
 export interface MessageMeta {
   model: string;
   provider: string;

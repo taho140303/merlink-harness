@@ -10,8 +10,9 @@ mod super_json;
 mod tools;
 #[allow(unused_imports)]
 use commands::{
-    context_usage, execute_tool, fetch_models, list_messages, load_providers, save_providers,
-    send_chat, super_json_labels, super_json_progress, super_json_read, super_json_summary,
+    context_usage, delete_session, execute_tool, fetch_models, get_session, list_messages,
+    list_sessions, load_providers, rename_session, save_providers, send_chat, super_json_labels,
+    super_json_progress, super_json_read, super_json_summary,
 };
 /// Shared handler list for `run()` and IPC contract tests.
 macro_rules! merlink_handlers {
@@ -27,7 +28,11 @@ macro_rules! merlink_handlers {
             crate::commands::super_json::super_json_labels,
             crate::commands::chat::context_usage,
             crate::commands::chat::list_messages,
-            crate::commands::providers::fetch_models
+            crate::commands::providers::fetch_models,
+            crate::commands::sessions::list_sessions,
+            crate::commands::sessions::get_session,
+            crate::commands::sessions::rename_session,
+            crate::commands::sessions::delete_session
         ]
     };
 }
