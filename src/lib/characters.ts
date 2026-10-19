@@ -91,12 +91,49 @@ export function projectName(story: string, projects: Project[]): string {
   );
 }
 
+export function normalizeCharacter(raw: unknown): Character | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const item = raw as Record<string, unknown>;
+  if (
+    typeof item.id !== "string" || !item.id.trim() ||
+    typeof item.name !== "string" || !item.name.trim() ||
+    typeof item.role !== "string" || !item.role.trim()
+  ) return null;
+
+  const text = (value: unknown) => typeof value === "string" ? value : "";
+  return {
+    ...item,
+    id: item.id,
+    name: item.name,
+    role: item.role,
+    story: text(item.story),
+    age: typeof item.age === "number" && Number.isFinite(item.age)
+      ? item.age : text(item.age),
+    gender: text(item.gender),
+    appearance: text(item.appearance),
+    bio: text(item.bio),
+    backstory: text(item.backstory),
+    tags: Array.isArray(item.tags) && item.tags.every((tag) => typeof tag === "string")
+      ? item.tags : [],
+    relationships: Array.isArray(item.relationships)
+      ? item.relationships.filter((relationship) =>
+          typeof relationship === "string" ||
+          (relationship !== null && typeof relationship === "object" &&
+            typeof relationship.name === "string" && typeof relationship.relation === "string"),
+        ) : [],
+    dialogueCount: typeof item.dialogueCount === "number" && Number.isFinite(item.dialogueCount)
+      ? item.dialogueCount : 0,
+  };
+}
+
 export function readCustomCharacters(): Character[] {
   try {
     const saved = JSON.parse(
       localStorage.getItem(STORAGE_KEY) || "[]",
     ) as unknown;
-    return Array.isArray(saved) ? (saved as Character[]) : [];
+    return Array.isArray(saved)
+      ? saved.map(normalizeCharacter).filter((item): item is Character => item !== null)
+      : [];
   } catch {
     return [];
   }

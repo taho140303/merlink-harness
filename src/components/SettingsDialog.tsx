@@ -5,6 +5,7 @@ import {
   readTextScale,
   TEXT_SCALE_OPTIONS,
 } from "../lib/preferences";
+import { applyTheme, readTheme, type Theme } from "../lib/theme";
 import {
   Settings,
   Bot,
@@ -79,13 +80,7 @@ export function SettingsDialog({
     }
   });
 
-  const [theme, setThemeState] = useState<string>(() => {
-    try {
-      return localStorage.getItem("merlink-theme") || "system";
-    } catch {
-      return "system";
-    }
-  });
+  const [theme, setThemeState] = useState<Theme>(readTheme);
 
   // D1: the active button is the persisted scale, rounded to its percentage.
   const [textScalePercent, setTextScalePercent] = useState<number>(() =>
@@ -119,6 +114,7 @@ export function SettingsDialog({
 
   const closeRef = useRef<HTMLButtonElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorOpenerRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Sync initial tab when opening and invalidate an editor closed with Settings.
@@ -144,24 +140,9 @@ export function SettingsDialog({
     }
   };
 
-  const applyTheme = (nextTheme: string) => {
+  const chooseTheme = (nextTheme: Theme) => {
     setThemeState(nextTheme);
-    try {
-      localStorage.setItem("merlink-theme", nextTheme);
-      const isDark =
-        nextTheme === "dark" ||
-        (nextTheme === "system" &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches);
-      if (isDark) {
-        document.documentElement.classList.add("dark");
-        document.documentElement.setAttribute("data-theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.setAttribute("data-theme", "light");
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    applyTheme(nextTheme, true);
   };
 
   /**
@@ -178,29 +159,73 @@ export function SettingsDialog({
     void applyTextScale(percent / 100);
   };
 
-  // Focus and ESC handling
+  // The outer Settings dialog owns scroll locking, not its nested editor.
   useEffect(() => {
     if (!open) return;
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
+    return () => { document.body.style.overflow = oldOverflow; };
+  }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (editor) {
-          closeEditor();
-        } else {
-          onClose();
-        }
+        if (editor) closeEditor();
+        else onClose();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = oldOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, editor, onClose]);
+
+  useEffect(() => {
+    if (!open || !editor) return;
+    const panel = editorRef.current;
+    if (!panel) return;
+    const opener = editorOpenerRef.current;
+    const selectors =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusable = () => [...panel.querySelectorAll<HTMLElement>(selectors)].filter(
+      (element) => element.getClientRects().length &&
+        getComputedStyle(element).visibility !== "hidden",
+    );
+    (focusable()[0] ?? panel).focus();
+
+    const trapTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      // A generic Dialog portal may be above Settings; only the top layer traps.
+      const layers = document.querySelectorAll(
+        ".merlink-provider-backdrop, .merlink-dialog-backdrop",
+      );
+      if (layers[layers.length - 1] !== panel.parentElement) return;
+      const elements = focusable();
+      if (!elements.length) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      if (!panel.contains(document.activeElement) || document.activeElement === panel) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trapTab);
+    return () => {
+      document.removeEventListener("keydown", trapTab);
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [open, editor]);
 
   /** Clears the fetch banner whenever the editor moves to another form. */
   const resetFetchState = () => {
@@ -238,6 +263,8 @@ export function SettingsDialog({
    */
   const openEditor = (provider: ProviderConfig | null = null) => {
     if (savingRef.current) return;
+    editorOpenerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
     editorGenerationRef.current += 1;
     resetFetchState();
     setForm(newFormState(provider));
@@ -469,7 +496,7 @@ export function SettingsDialog({
                     <button
                       type="button"
                       className={theme === "light" ? "is-active" : ""}
-                      onClick={() => applyTheme("light")}
+                      onClick={() => chooseTheme("light")}
                     >
                       <Sun size={17} />
                       <span>Light</span>
@@ -477,7 +504,7 @@ export function SettingsDialog({
                     <button
                       type="button"
                       className={theme === "dark" ? "is-active" : ""}
-                      onClick={() => applyTheme("dark")}
+                      onClick={() => chooseTheme("dark")}
                     >
                       <Moon size={17} />
                       <span>Dark</span>
@@ -485,7 +512,7 @@ export function SettingsDialog({
                     <button
                       type="button"
                       className={theme === "system" ? "is-active" : ""}
-                      onClick={() => applyTheme("system")}
+                      onClick={() => chooseTheme("system")}
                     >
                       <Monitor size={17} />
                       <span>System</span>

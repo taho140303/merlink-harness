@@ -1,6 +1,6 @@
 # S7 — UI correctness and accessibility
 
-- **Status:** blocked by S6
+- **Status:** pushed
 - **Branch:** `refactor/s7-ui-correctness`
 - **Units:** F-18, F-19
 - **Depends on:** S6
