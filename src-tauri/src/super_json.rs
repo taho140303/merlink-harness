@@ -1,7 +1,8 @@
 use std::{
+    collections::HashMap,
     fs,
     path::PathBuf,
-    sync::OnceLock,
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use serde_json::{Map, Value};
@@ -215,22 +216,44 @@ fn file_path(project_id: &str) -> Result<PathBuf, String> {
     paths::super_json_path(project_id)
 }
 
+/// Process-wide per-project serialization. This protects only threads in this app
+/// process; a second app process can still race on the same filesystem document.
+fn project_lock(project_id: &str) -> Arc<Mutex<()>> {
+    static LOCKS: OnceLock<Mutex<HashMap<String, Arc<Mutex<()>>>>> = OnceLock::new();
+    let registry = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut locks = registry.lock().unwrap_or_else(|poison| poison.into_inner());
+    Arc::clone(
+        locks
+            .entry(project_id.to_owned())
+            .or_insert_with(|| Arc::new(Mutex::new(()))),
+    )
+}
+
 /// Reads the project's super json, creating it from the skeleton on first use.
 pub fn load_or_init(project_id: &str) -> Result<Value, String> {
+    let lock = project_lock(project_id);
+    let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+    load_or_init_unlocked(project_id)
+}
+
+/// The caller must already hold the project's lock.
+fn load_or_init_unlocked(project_id: &str) -> Result<Value, String> {
     let path = file_path(project_id)?;
     match fs::read_to_string(&path) {
         Ok(raw) => serde_json::from_str(&raw)
             .map_err(|error| format!("Invalid super json at {}: {error}", path.display())),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             let document = skeleton();
-            save(project_id, &document)?;
+            save_unlocked(project_id, &document, false)?;
             Ok(document)
         }
         Err(error) => Err(format!("Cannot read super json: {error}")),
     }
 }
 
-fn save(project_id: &str, document: &Value) -> Result<(), String> {
+/// The caller must already hold the project's lock. Exclusive saves publish via
+/// hard link, which fails if `super.json` exists instead of replacing it.
+fn save_unlocked(project_id: &str, document: &Value, exclusive: bool) -> Result<(), String> {
     let path = file_path(project_id)?;
     let parent = path.parent().ok_or("Invalid super json path")?;
     fs::create_dir_all(parent)
@@ -263,13 +286,39 @@ fn save(project_id: &str, document: &Value) -> Result<(), String> {
         {
             fs::write(&tmp, &bytes).map_err(|error| format!("Cannot write super json: {error}"))?;
         }
-        fs::rename(&tmp, &path).map_err(|error| format!("Cannot replace super json: {error}"))
+        if exclusive {
+            fs::hard_link(&tmp, &path).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    format!("Super json already exists at {}", path.display())
+                } else {
+                    format!("Cannot initialize super json: {error}")
+                }
+            })?;
+            let _ = fs::remove_file(&tmp);
+            Ok(())
+        } else {
+            fs::rename(&tmp, &path).map_err(|error| format!("Cannot replace super json: {error}"))
+        }
     })();
 
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+/// Initialize once, in one atomic publish, without replacing an existing file.
+/// A successful return means this call created the file; callers may compensate
+/// a later transaction failure by removing only that file.
+pub fn init_project(project_id: &str, name: Option<&str>) -> Result<(), String> {
+    let lock = project_lock(project_id);
+    let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut document = skeleton();
+    if let Some(name) = name {
+        validate(FieldKind::Text, "require.overview.name", &Value::String(name.to_owned()))?;
+        document["require"]["overview"]["name"] = Value::String(name.to_owned());
+    }
+    save_unlocked(project_id, &document, true)
 }
 
 pub fn get(project_id: &str, path: &str) -> Result<Value, String> {
@@ -296,7 +345,9 @@ pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> 
     })?;
     validate(kind, path, &value)?;
 
-    let mut document = load_or_init(project_id)?;
+    let lock = project_lock(project_id);
+    let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut document = load_or_init_unlocked(project_id)?;
     let segments: Vec<&str> = path.split('.').collect();
     let (last, parents) = segments.split_last().ok_or("Empty path")?;
 
@@ -311,7 +362,7 @@ pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> 
         .ok_or_else(|| format!("Path not found: {path}"))?;
     *slot = value.clone();
 
-    save(project_id, &document)?;
+    save_unlocked(project_id, &document, false)?;
     Ok(value)
 }
 
@@ -734,6 +785,44 @@ pub fn summary(document: &Value) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn test_concurrent_sets_preserve_all_required_values() {
+        use std::sync::{Arc, Barrier};
+
+        let _home = crate::test_support::TempHome::new("super-concurrent");
+        let project_id = "concurrent".to_owned();
+        let paths = required_paths().to_vec();
+        let barrier = Arc::new(Barrier::new(paths.len()));
+        let threads: Vec<_> = paths
+            .iter()
+            .cloned()
+            .map(|path| {
+                let barrier = Arc::clone(&barrier);
+                let project_id = project_id.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    set(&project_id, &path, required_value(&path)).unwrap();
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        let document = load_or_init(&project_id).unwrap();
+        for path in &paths {
+            assert_eq!(value_at(&document, path), Some(&required_value(path)), "{path}");
+        }
+    }
+
+    #[test]
+    fn test_init_project_refuses_to_overwrite_existing_json() {
+        let _home = crate::test_support::TempHome::new("super-no-overwrite");
+        init_project("existing", Some("First")).unwrap();
+        let error = init_project("existing", Some("Second")).unwrap_err();
+        assert!(error.contains("already exists"), "{error}");
+        assert_eq!(get("existing", "require.overview.name").unwrap(), json!("First"));
+    }
 
     #[test]
     fn test_super_json_required_path_count_is_eleven() {
