@@ -25,7 +25,7 @@ export function Projects() {
   useEffect(() => { void load(); }, [load]);
 
   return (
-    <main className="projects-page">
+    <div className="projects-page">
       <header className="projects-header">
         <span className="page-breadcrumb">Workspace / <strong>Projects</strong></span>
         <button className="btn btn-primary" onClick={() => newChat(navigate)}><Plus size={16} /> New Project</button>
@@ -39,6 +39,6 @@ export function Projects() {
           {projects.map((project) => <ProjectOverviewCard key={project.id} project={project} onOpen={(id) => navigate(`/projects/${encodeURIComponent(id)}`)} />)}
         </section>
       )}
-    </main>
+    </div>
   );
 }

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 interface GenreListProps {
   genres: string[];
   columns?: number;
@@ -11,7 +13,7 @@ export function GenreList({ genres, columns = 3, maxRows = 2 }: GenreListProps) 
   const shown = overflow ? genres.slice(0, budget - 1) : genres;
   const hidden = overflow ? genres.slice(budget - 1) : [];
   return (
-    <div className="project-genre-grid" style={{ "--genre-columns": columns } as React.CSSProperties}>
+    <div className="project-genre-grid" style={{ "--genre-columns": columns } as CSSProperties}>
       {shown.map((genre, index) => <span className="project-genre-chip" key={`${genre}-${index}`} title={genre}>{genre}</span>)}
       {overflow && <span className="project-genre-chip project-genre-overflow" title={hidden.join(" · ")} aria-label={`More genres: ${hidden.join(" · ")}`}>...</span>}
     </div>

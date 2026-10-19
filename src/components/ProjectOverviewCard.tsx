@@ -16,7 +16,7 @@ export function ProjectOverviewCard({ project, onOpen }: ProjectOverviewCardProp
       <ProjectCover projectId={project.id} title={project.title} genres={project.genres} />
       <div className="project-overview-body">
         <h2 className="project-overview-title">{project.title}</h2>
-        <GenreList genres={project.genres} columns={3} maxRows={2} />
+        <GenreList genres={project.genres} columns={2} maxRows={2} />
       </div>
     </article>
   );

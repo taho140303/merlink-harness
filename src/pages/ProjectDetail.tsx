@@ -29,7 +29,7 @@ export function ProjectDetail() {
   }, [projectId]);
 
   return (
-    <main className="project-detail-page">
+    <div className="project-detail-page">
       <Link to="/projects" className="project-back-link"><ArrowLeft size={16} /> Back to projects</Link>
       {loading ? <p className="projects-state">Loading project…</p> : error ? (
         <section className="projects-empty" role="alert"><h1>Could not load project</h1><p>{error}</p><Link to="/projects" className="btn">Back to projects</Link></section>
@@ -47,6 +47,6 @@ export function ProjectDetail() {
           </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }

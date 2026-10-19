@@ -130,7 +130,7 @@ interface GenreListProps {
 - CSS grid: `grid-template-columns: repeat(var(--genre-columns), minmax(0, 1fr))`;
   `grid-auto-rows: 26px`; mỗi chip `min-width:0; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap`.
-- `columns` mặc định 3; card overview dùng 3 → tối đa 6 slot; >6 genre thì 5 + `...`.
+- `columns` mặc định 3; card overview dùng 2 → tối đa 4 slot; >4 genre thì 3 + `...`.
 - “n cột” được thể hiện bằng prop `columns`; không hardcode số cột trong JSX.
 
 ### D6 — Projects page: 3 cột + detail route
@@ -231,7 +231,7 @@ router mới (React Router đã có), không thêm thư viện ảnh/gradient.
 2. `src/components/GenreList.tsx` đúng D5.
 3. `src/components/ProjectOverviewCard.tsx`:
    - `article` role button/tabIndex, click + Enter/Space → `onOpen(project.id)`.
-   - `ProjectCover` card + title + `GenreList columns={3} maxRows={2}`.
+   - `ProjectCover` card + title + `GenreList columns={2} maxRows={2}`.
    - Không hiện metadata khác.
 
 ### T6 — Pages + route
