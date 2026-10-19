@@ -871,7 +871,9 @@ fn registered_commands() -> Vec<String> {
         .split(',')
         .map(str::trim)
         .filter(|name| !name.is_empty())
-        .map(str::to_string)
+        // Handlers are spelled as fully-qualified paths (`crate::commands::...`),
+        // so the contract is checked against the bare command name.
+        .map(|path| path.rsplit("::").next().unwrap_or(path).to_string())
         .collect()
 }
 
