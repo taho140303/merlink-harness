@@ -524,10 +524,23 @@ pub fn execute_tool_internal(
     tools::execute_tool(tool_name, &args, &bound_project, session_id)
 }
 
+/// Reads may initialise a missing document only for a project that exists in
+/// SQLite; a typo must not leave a ghost directory or plausible empty data.
+pub fn super_json_document(project_id: &str) -> Result<serde_json::Value, String> {
+    if project_id.trim().is_empty() {
+        return Err("Project ID must not be empty".into());
+    }
+    let connection = db::open()?;
+    if !db::project_exists(&connection, project_id)? {
+        return Err(format!("Project not found: {project_id}"));
+    }
+    crate::super_json::load_or_init(project_id)
+}
+
 /// The `Chi tiết` dialog's prose summary (Sprint 11.11 · D2): a template fill
 /// over the project's super json, generated here and never by a model.
 pub fn super_json_summary_for_project(project_id: &str) -> Result<String, String> {
-    let document = crate::super_json::load_or_init(project_id)?;
+    let document = super_json_document(project_id)?;
     Ok(crate::super_json::summary(&document))
 }
 

@@ -1,17 +1,31 @@
-use std::path::PathBuf;
+use std::{ffi::OsString, path::PathBuf};
 
 /// Root of every Merlink-owned file.
 ///
-/// `MERLINK_HOME` wins over `$HOME` so unit tests and e2e runs can isolate
-/// themselves from the developer's real `~/.merlink` directory.
+/// `MERLINK_HOME` wins so tests and e2e runs never touch real user data.
 pub fn merlink_root() -> Result<PathBuf, String> {
-    if let Some(value) = std::env::var_os("MERLINK_HOME").filter(|value| !value.is_empty()) {
-        return Ok(PathBuf::from(value));
+    merlink_root_from(|name| std::env::var_os(name))
+}
+
+/// Resolve a data root without changing the process environment in tests.
+fn merlink_root_from(env: impl Fn(&str) -> Option<OsString>) -> Result<PathBuf, String> {
+    let nonempty = |name| env(name).filter(|value| !value.is_empty());
+    if let Some(root) = nonempty("MERLINK_HOME") {
+        return Ok(PathBuf::from(root));
     }
-    let home = std::env::var_os("HOME")
-        .filter(|value| !value.is_empty())
-        .ok_or("HOME is not set")?;
-    Ok(PathBuf::from(home).join(".merlink"))
+    for name in ["HOME", "USERPROFILE"] {
+        if let Some(home) = nonempty(name) {
+            return Ok(PathBuf::from(home).join(".merlink"));
+        }
+    }
+    if let (Some(mut drive), Some(path)) = (nonempty("HOMEDRIVE"), nonempty("HOMEPATH")) {
+        drive.push(path);
+        return Ok(PathBuf::from(drive).join(".merlink"));
+    }
+    Err(
+        "Cannot resolve Merlink home; tried MERLINK_HOME, HOME, USERPROFILE, HOMEDRIVE + HOMEPATH"
+            .into(),
+    )
 }
 
 /// Provider config stays a JSON file on purpose; only runtime data moves to SQLite.
@@ -70,6 +84,58 @@ mod tests {
             super_json_path("default").unwrap(),
             root.join("projects/default/super.json")
         );
+    }
+
+    #[test]
+    fn test_merlink_root_fallback_order_without_changing_process_env() {
+        let cases: &[(&[(&str, &str)], &str)] = &[
+            (
+                &[("MERLINK_HOME", "override"), ("HOME", "unix")],
+                "override",
+            ),
+            (
+                &[("HOME", "unix"), ("USERPROFILE", "windows")],
+                "unix/.merlink",
+            ),
+            (
+                &[("HOME", ""), ("USERPROFILE", "windows")],
+                "windows/.merlink",
+            ),
+            (
+                &[
+                    ("USERPROFILE", "windows"),
+                    ("HOMEDRIVE", "drive"),
+                    ("HOMEPATH", "\\path"),
+                ],
+                "windows/.merlink",
+            ),
+            (
+                &[("HOMEDRIVE", "C:"), ("HOMEPATH", "\\Users\\author")],
+                r"C:\Users\author/.merlink",
+            ),
+        ];
+        for (variables, expected) in cases {
+            let root = merlink_root_from(|key| {
+                variables
+                    .iter()
+                    .find(|(name, _)| *name == key)
+                    .map(|(_, value)| (*value).into())
+            })
+            .unwrap();
+            assert_eq!(root, PathBuf::from(expected), "variables: {variables:?}");
+        }
+        let error = merlink_root_from(|_| None).unwrap_err();
+        for variable in [
+            "MERLINK_HOME",
+            "HOME",
+            "USERPROFILE",
+            "HOMEDRIVE",
+            "HOMEPATH",
+        ] {
+            assert!(error.contains(variable), "{error}");
+        }
+        let incomplete = merlink_root_from(|key| (key == "HOMEDRIVE").then(|| "drive".into()));
+        assert!(incomplete.is_err(), "drive alone is not a home directory");
     }
 
     #[test]

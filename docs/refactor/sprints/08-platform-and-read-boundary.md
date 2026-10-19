@@ -1,6 +1,6 @@
 # S8 — Platform data root and read boundary
 
-- **Status:** ready
+- **Status:** pushed
 - **Branch:** `refactor/s8-platform-read-boundary`
 - **Units:** F-21 (residual findings from structural/a #4 and #10)
 - **Depends on:** S7
