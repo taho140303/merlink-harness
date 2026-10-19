@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024"
+     height="1024"
+     viewBox="0 0 1024 1024">
+
+  <defs>
+    <!--
+      ENERGY FLOW GRADIENT
+      Gradient chạy liên tục từ dưới lên trên.
+    -->
+    <linearGradient
+      id="energy"
+      x1="0" y1="0"
+      x2="0" y2="1"
+      gradientUnits="objectBoundingBox"
+      spreadMethod="reflect">
+
+      <stop offset="0%" stop-color="#FF55A5"/>
+      <stop offset="25%" stop-color="#FFC5E3"/>
+      <stop offset="50%" stop-color="#B8F3FF"/>
+      <stop offset="75%" stop-color="#55EFFF"/>
+      <stop offset="100%" stop-color="#FF55A5"/>
+
+      <animateTransform
+        attributeName="gradientTransform"
+        type="translate"
+        from="0 0"
+        to="0 -2"
+        dur="5s"
+        repeatCount="indefinite"/>
+    </linearGradient>
+
+    <!-- Gradient tạo chiều sâu -->
+    <linearGradient id="depth"
+                    x1="0%" y1="100%"
+                    x2="100%" y2="0%">
+
+      <stop offset="0%" stop-color="#61EEFF"/>
+      <stop offset="50%" stop-color="#C5B6D2"/>
+      <stop offset="100%" stop-color="#FF76B9"/>
+
+      <animateTransform
+        attributeName="gradientTransform"
+        type="translate"
+        values="0 0;0 -0.5;0 0"
+        dur="7s"
+        repeatCount="indefinite"/>
+    </linearGradient>
+
+    <!-- Cắt lỗ và rãnh ngòi bút -->
+    <mask id="penCut">
+      <rect width="1024"
+            height="1024"
+            fill="white"/>
+
+      <circle cx="338"
+              cy="738"
+              r="30"
+              fill="black"/>
+
+      <path d="M338 738 L171 956"
+            stroke="black"
+            stroke-width="17"
+            stroke-linecap="round"/>
+    </mask>
+  </defs>
+
+  <!-- LOGO -->
+  <g>
+
+    <!-- Vòng lụa phía trên -->
+    <path
+      d="
+        M421 422
+        C520 248 672 49 770 23
+        C835 4 863 60 837 145
+        C810 232 746 350 684 438
+        C754 327 800 219 803 144
+        C805 88 767 77 721 104
+        C629 158 550 304 536 403
+        Z"
+      fill="url(#energy)"/>
+
+    <!-- Chiều sâu bên trong -->
+    <path
+      d="
+        M421 422
+        C514 280 622 158 721 104
+        C653 190 590 305 536 403
+        Z"
+      fill="url(#depth)"
+      opacity="0.55"/>
+
+    <!-- Vòng lụa phải -->
+    <path
+      d="
+        M657 247
+        C764 188 862 198 899 253
+        C953 335 864 435 716 464
+        C828 419 881 342 837 283
+        C804 240 734 231 657 247
+        Z"
+      fill="url(#energy)"/>
+
+    <!-- Dải xoắn ngang -->
+    <path
+      d="
+        M318 472
+        C430 412 579 423 657 400
+        C709 385 731 339 762 278
+        C730 376 703 443 638 468
+        C539 506 411 476 316 540
+        C263 576 251 613 320 631
+        C238 616 208 551 318 472
+        Z"
+      fill="url(#energy)"/>
+
+    <!-- Thân bút -->
+    <path
+      d="
+        M408 507
+        L492 500
+        C444 568 426 636 429 709
+        L438 793
+        Q439 800 430 803
+        C347 823 272 907 170 987
+        Q155 1000 169 968
+        C215 867 232 797 219 731
+        Q213 721 226 715
+        C316 673 369 590 408 507
+        Z"
+      fill="url(#energy)"
+      mask="url(#penCut)"/>
+
+    <!-- Mũi lụa kéo dài -->
+    <path
+      d="
+        M587 479
+        C638 437 690 357 741 291
+        C695 417 624 590 454 743
+        C488 644 534 545 587 479
+        Z"
+      fill="url(#energy)"/>
+
+  </g>
+
+</svg>

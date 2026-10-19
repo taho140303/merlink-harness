@@ -1,7 +1,9 @@
 # KẾ HOẠCH — SUPER JSON v2 (project-rooted, cardinality-aware) + CI/CD
 
-> Trạng thái: PLAN. Chưa sửa code. Nguồn design: `docs/schema/super_temp/super_json_template_deepseek_flash.json`
-> (gọi tắt **D**) + 1 patch bắt buộc: chuyển `scenes.chapter_id` từ optional sang require.
+> Trạng thái: PLAN (đã triển khai trong `0174ce9`). Nguồn design ban đầu:
+> `docs/schema/super_temp/super_json_template_deepseek_flash.json` (đã xóa cùng thư mục tạm).
+> Schema chốt: `docs/schema/runtime/super.json` (gọi tắt **D**) + 1 patch bắt buộc: chuyển
+> `scenes.chapter_id` từ optional sang require.
 > Mục tiêu: thay 25 leaf phẳng bằng một document 1 project → 34 bảng có `count`/`rows`, cập nhật
 > toàn bộ dàn câu hỏi/prompt/summary/labels, và thêm CI/CD GitHub Actions dùng cú pháp hiện hành.
 

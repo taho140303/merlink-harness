@@ -129,7 +129,7 @@ function Shell() {
             aria-label="Merlink Harness home"
           >
             <span className="merlink-brand-mark">
-              <img src="logo.png" width="36" height="36" alt="" />
+              <img src="/logo.svg" width="36" height="36" alt="" />
             </span>
             <span className="merlink-brand-text">
               <span className="merlink-brand-title">Merlink Harness</span>
