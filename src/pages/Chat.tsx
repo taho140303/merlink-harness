@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { createAgentEventChannel } from "../lib/tauri";
 import { invokeCommand } from "../lib/ipc";
 import { newMessageId, newSessionId } from "../lib/ids";
@@ -193,6 +193,8 @@ function CopyButton({ text }: { text: string }) {
 
 export function Chat() {
   const { providersRevision } = useOutletContext<{ providersRevision: number }>();
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const navigate = useNavigate();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
@@ -200,7 +202,7 @@ export function Chat() {
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string>(() => newSessionId());
+  const [sessionId, setSessionId] = useState<string>(() => routeSessionId ?? newSessionId());
   /**
    * The project this chat belongs to. Empty until the agent creates one; the
    * backend is the source of truth and every turn reports it back (D1/D4).
@@ -250,6 +252,7 @@ export function Chat() {
   const projectRef = useRef(projectId);
   const providerRef = useRef(selectedProviderId);
   const modelRef = useRef(selectedModelId);
+  const loadedRouteRef = useRef<string | null>(routeSessionId ? null : "");
   const isCurrentRead = useCallback((epoch: number, session: string, project: string) =>
     sessionEpochRef.current === epoch &&
     sessionRef.current === session &&
@@ -362,6 +365,43 @@ export function Chat() {
   useEffect(() => { void refreshContextUsage(); }, [refreshContextUsage, sessionId, selectedProviderId, selectedModelId]);
 
   useEffect(() => {
+    const routeId = routeSessionId ?? "";
+    if (loadedRouteRef.current === routeId) return;
+    loadedRouteRef.current = routeId;
+    if (!routeId) {
+      sessionEpochRef.current += 1; activeTurnRef.current = null;
+      const fresh = newSessionId(); sessionRef.current = fresh; projectRef.current = "";
+      setSessionId(fresh); setProjectId(""); setMessages([]); setError(null); setLoading(false);
+      setProgress(null); setSuperJson(null); setSuperJsonSummary("");
+      setLiveSteps([]); setLiveStartedAt(null); setLiveElapsedMs(0); setTurnStats({}); setReasoningOpen({}); setToolLogFor(null);
+      return;
+    }
+    let cancelled = false;
+    const epoch = ++sessionEpochRef.current;
+    activeTurnRef.current = null;
+    setLoading(false);
+    setError(null);
+    setLiveSteps([]); setLiveStartedAt(null); setLiveElapsedMs(0);
+    setTurnStats({}); setReasoningOpen({}); setToolLogFor(null);
+    void (async () => {
+      try {
+        const summary = await invokeCommand("get_session", { sessionId: routeId });
+        if (cancelled || sessionEpochRef.current !== epoch) return;
+        if (!summary) { navigate("/chat", { replace: true }); return; }
+        const transcript = await invokeCommand("list_messages", { sessionId: routeId });
+        if (cancelled || sessionEpochRef.current !== epoch) return;
+        sessionRef.current = routeId; projectRef.current = summary.project_id;
+        setSessionId(routeId); setProjectId(summary.project_id); setMessages(transcript);
+        setProgress(null); setSuperJson(null); setSuperJsonSummary("");
+        void refreshProgress(); void refreshDetail(summary.project_id);
+      } catch (err) {
+        if (!cancelled) { console.error("Could not load conversation:", err); navigate("/chat", { replace: true }); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [routeSessionId, navigate]);
+
+  useEffect(() => {
     let cancelled = false;
     void loadProviders(() => cancelled);
     return () => { cancelled = true; };
@@ -442,6 +482,7 @@ export function Chat() {
     sessionEpochRef.current += 1;
     activeTurnRef.current = null;
     const nextSession = newSessionId();
+    loadedRouteRef.current = "";
     sessionRef.current = nextSession;
     projectRef.current = "";
     setMessages([]);
@@ -555,6 +596,8 @@ export function Chat() {
       }
       void refreshDetail(turn.project_id);
       void refreshProgress();
+      loadedRouteRef.current = turnSessionId;
+      if (routeSessionId !== turnSessionId) navigate(`/chat/${encodeURIComponent(turnSessionId)}`, { replace: true });
     } catch (err: unknown) {
       if (!isCurrentTurn(epoch, turnSessionId)) return;
       console.error("send_chat error:", err);
@@ -585,6 +628,7 @@ export function Chat() {
         if (isCurrentTurn(epoch, turnSessionId)) console.error("super_json_progress error:", progressError);
       }
     } finally {
+      window.dispatchEvent(new Event("merlink:sessions-changed"));
       if (isCurrentTurn(epoch, turnSessionId)) {
         activeTurnRef.current = null;
         setLoading(false);

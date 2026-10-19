@@ -288,6 +288,25 @@ fn body_list_messages() -> Value {
     json!({ "sessionId": "contract-session-list-messages" })
 }
 
+fn body_list_sessions() -> Value {
+    json!({})
+}
+fn body_list_projects() -> Value {
+    json!({})
+}
+fn body_get_project() -> Value {
+    json!({ "projectId": "contract-project" })
+}
+fn body_get_session() -> Value {
+    json!({ "sessionId": "contract-session-history" })
+}
+fn body_rename_session() -> Value {
+    json!({ "sessionId": "contract-session-history", "title": "Renamed" })
+}
+fn body_delete_session() -> Value {
+    json!({ "sessionId": "contract-session-history" })
+}
+
 fn body_fetch_models() -> Value {
     // `SettingsDialog.tsx:381`. The URL is a closed port so the call fails fast
     // and locally: this row exists for its *key shape*, not its network result.
@@ -342,6 +361,30 @@ static CONTRACT: &[ContractEntry] = &[
         cmd: "fetch_models",
         body: body_fetch_models,
     },
+    ContractEntry {
+        cmd: "list_projects",
+        body: body_list_projects,
+    },
+    ContractEntry {
+        cmd: "get_project",
+        body: body_get_project,
+    },
+    ContractEntry {
+        cmd: "list_sessions",
+        body: body_list_sessions,
+    },
+    ContractEntry {
+        cmd: "get_session",
+        body: body_get_session,
+    },
+    ContractEntry {
+        cmd: "rename_session",
+        body: body_rename_session,
+    },
+    ContractEntry {
+        cmd: "delete_session",
+        body: body_delete_session,
+    },
 ];
 
 fn contract_entry(cmd: &str) -> &'static ContractEntry {
@@ -390,6 +433,35 @@ fn test_ipc_load_providers_end_to_end() {
         harness.home.path().join("config.json").is_file(),
         "save_providers over IPC did not write config.json into the temp home"
     );
+}
+
+#[test]
+fn test_ipc_project_summaries_end_to_end() {
+    let harness = Harness::new("ipc-project-summaries");
+    let created = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create", "args": { "name": "Contract Story" },
+            "projectId": "", "sessionId": "contract-project-session"
+        }),
+    );
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_owned();
+    let listed = harness.ok("list_projects", body_list_projects());
+    let project = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == project_id)
+        .unwrap();
+    assert_eq!(project["title"], "Contract Story");
+    assert_eq!(project["session_count"], 1);
+    assert!(project["genres"].as_array().unwrap().is_empty());
+    let fetched = harness.ok("get_project", json!({ "projectId": project_id }));
+    assert_eq!(fetched["title"], "Contract Story");
+    assert_eq!(fetched["session_count"], 1);
 }
 
 #[test]
@@ -643,6 +715,38 @@ fn test_ipc_super_json_labels_end_to_end() {
     // The command is a pure read: it must not create a project either.
     assert!(!harness.home.path().join("projects").exists());
     println!("super_json_labels -> {labels}");
+}
+
+#[test]
+fn test_ipc_sessions_end_to_end() {
+    let harness = Harness::new("ipc-sessions");
+    let connection = crate::db::open().unwrap();
+    connection.execute("INSERT INTO projects (id, title, created_at) VALUES ('history-project', 'History Project', '2024-01-01')", []).unwrap();
+    connection.execute("INSERT INTO sessions (id, project_id, title, created_at) VALUES ('contract-session-history', 'history-project', NULL, '2024-02-01')", []).unwrap();
+    connection.execute("INSERT INTO messages (id, session_id, role, content, created_at) VALUES ('history-user', 'contract-session-history', 'user', '  first
+ message ', '2024-02-01')", []).unwrap();
+    let project_id = "history-project";
+    let list = harness.ok("list_sessions", body_list_sessions());
+    let rows = list.as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["id"], "contract-session-history");
+    assert_eq!(rows[0]["project_id"], project_id);
+    assert_eq!(rows[0]["project_title"], "History Project");
+    assert_eq!(rows[0]["title"], "first message");
+    let renamed = harness.ok("rename_session", body_rename_session());
+    assert_eq!(renamed["title"], "Renamed");
+    let fetched = harness.ok("get_session", body_get_session());
+    assert_eq!(fetched["title"], "Renamed");
+    assert_eq!(fetched["project_title"], "History Project");
+    assert_eq!(harness.ok("delete_session", body_delete_session()), true);
+    assert_eq!(
+        harness.ok(
+            "list_messages",
+            json!({"sessionId":"contract-session-history"})
+        ),
+        json!([])
+    );
+    assert_eq!(harness.ok("get_session", body_get_session()), Value::Null);
 }
 
 #[test]
@@ -1035,7 +1139,13 @@ fn test_ipc_snake_case_keys_are_rejected() {
     );
     assert_eq!(
         no_snake_variant,
-        vec!["load_providers", "save_providers", "super_json_labels"],
+        vec![
+            "load_providers",
+            "save_providers",
+            "super_json_labels",
+            "list_projects",
+            "list_sessions"
+        ],
         "only commands whose keys are unchanged by snake_case may be exempt"
     );
     assert_eq!(
@@ -1123,6 +1233,8 @@ const RUST_ONLY_COMMANDS: &[&str] = &["execute_tool", "list_messages"];
 #[test]
 fn test_every_contract_entry_uses_camel_case_keys() {
     const CHAT_TSX: &str = include_str!("../../src/pages/Chat.tsx");
+    const PROJECTS_TSX: &str = include_str!("../../src/pages/Projects.tsx");
+    const PROJECT_DETAIL_TSX: &str = include_str!("../../src/pages/ProjectDetail.tsx");
     const SETTINGS_DIALOG_TSX: &str = include_str!("../../src/components/SettingsDialog.tsx");
 
     for entry in CONTRACT {
@@ -1146,7 +1258,10 @@ fn test_every_contract_entry_uses_camel_case_keys() {
 
         for key in &keys {
             assert!(
-                CHAT_TSX.contains(key.as_str()) || SETTINGS_DIALOG_TSX.contains(key.as_str()),
+                CHAT_TSX.contains(key.as_str())
+                    || PROJECTS_TSX.contains(key.as_str())
+                    || PROJECT_DETAIL_TSX.contains(key.as_str())
+                    || SETTINGS_DIALOG_TSX.contains(key.as_str()),
                 "{}: key `{key}` is not sent by Chat.tsx or SettingsDialog.tsx — \
                  the contract table is guessing",
                 entry.cmd

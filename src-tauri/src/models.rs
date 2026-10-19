@@ -66,6 +66,26 @@ pub struct ToolCall {
     pub arguments: serde_json::Value,
 }
 
+/// Display-ready sidebar summary for a persisted conversation.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProjectSummary {
+    pub id: String,
+    pub title: String,
+    pub genres: Vec<String>,
+    pub created_at: String,
+    pub session_count: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SessionSummary {
+    pub id: String,
+    /// Empty string means the session has not been bound to a project.
+    pub project_id: String,
+    pub project_title: Option<String>,
+    pub title: String,
+    pub created_at: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageEnvelope {
     pub id: String,

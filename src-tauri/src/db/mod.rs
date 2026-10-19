@@ -10,8 +10,13 @@ pub use messages::count_messages;
 pub use messages::{append_message, list_messages};
 #[cfg(test)]
 pub use projects::list_projects;
-pub use projects::{create_project, ensure_project, project_exists};
-pub use sessions::{bind_session_to_project_if_unbound, ensure_session, project_for_session};
+pub use projects::{
+    create_project, ensure_project, list_project_summaries, project_exists, project_summary,
+};
+pub use sessions::{
+    bind_session_to_project_if_unbound, delete_session, ensure_session, get_session, list_sessions,
+    project_for_session, rename_session,
+};
 
 use crate::paths;
 use rusqlite::Connection;

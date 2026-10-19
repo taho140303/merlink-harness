@@ -1,5 +1,6 @@
-import type { AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope, ProviderConfig, SuperJsonProgress, ToolCall } from "../types";
+import type { AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope, ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress, ToolCall } from "../types";
 import type { SendChatArgs } from "./ipc";
+import { mockProjects } from "../data/mock";
 
 const MODEL_PRESETS: Record<
   string,
@@ -105,12 +106,77 @@ interface MockSession {
   messages: MessageEnvelope[];
   values: Map<string, unknown>;
   unnamedCount: number;
+  title: string | null;
+  createdAt: string;
 }
 const sessions = new Map<string, MockSession>();
+
+function seedMockSessions(): void {
+  if (sessions.size !== 0) return;
+  const seed = (id: string, projectId: string, createdAt: string, userText?: string) => {
+    const session: MockSession = { projectId, messages: [], values: new Map(), unnamedCount: 0, title: null, createdAt };
+    if (userText) session.messages.push({ id: `${id}-user`, role: "user", content: userText });
+    sessions.set(id, session);
+  };
+  seed("demo-session-moon", "glass-tide", "2025-01-03T10:00:00.000Z", "Viết về một đêm trăng bên sông.");
+  seed("demo-session-garden", "midnight-orchard", "2025-01-02T10:00:00.000Z");
+  seed("demo-session-unbound", "", "2025-01-01T10:00:00.000Z");
+}
+
+function mockProjectSummary(projectId: string): ProjectSummary | null {
+  const seeded = mockProjects.find((project) => project.id === projectId);
+  const projectSessions = [...sessions.entries()].filter(([, session]) => session.projectId === projectId);
+  if (!seeded && projectSessions.length === 0) return null;
+  const values = projectSessions[0]?.[1].values;
+  const storedName = values?.get("require.project.name");
+  const genreValues = seeded ? [seeded.genre] : mockRows(values, "project_genres")
+    .map((row) => typeof row.genre_id === "string" ? row.genre_id.trim() : "")
+    .filter(Boolean);
+  const seenGenres = new Set<string>();
+  const genres = genreValues.filter((genre) => {
+    const key = genre.toLocaleLowerCase();
+    if (!key || seenGenres.has(key)) return false;
+    seenGenres.add(key);
+    return true;
+  });
+  const createdAt = seeded
+    ? new Date(seeded.createdAt).toISOString()
+    : (projectSessions.map(([, session]) => session.createdAt).sort()[0] ?? new Date().toISOString());
+  return {
+    id: projectId,
+    title: typeof storedName === "string" && storedName.trim() ? storedName.trim() : (seeded?.title ?? "Dự án chưa đặt tên"),
+    genres,
+    created_at: createdAt,
+    session_count: projectSessions.length,
+  };
+}
+
+function mockProjectTitle(projectId: string): string | null {
+  if (!projectId) return null;
+  const seeded = mockProjects.find((project) => project.id === projectId);
+  if (seeded) return seeded.title;
+  const owner = [...sessions.values()].find((session) => session.projectId === projectId);
+  const name = owner?.values.get("require.project.name");
+  return typeof name === "string" && name.trim() ? name.trim() : "Dự án chưa đặt tên";
+}
+
+function mockDisplayTitle(session: MockSession): string {
+  if (session.title?.trim()) return session.title.trim();
+  const firstUser = session.messages.find((message) => message.role === "user")?.content ?? "";
+  const collapsed = firstUser.trim().replace(/\s+/g, " ");
+  if (!collapsed) return "New conversation";
+  return collapsed.length > 60 ? `${Array.from(collapsed).slice(0, 60).join("")}…` : collapsed;
+}
+
+function mockSessionSummary(id: string, session: MockSession): SessionSummary {
+  return { id, project_id: session.projectId, project_title: mockProjectTitle(session.projectId), title: mockDisplayTitle(session), created_at: session.createdAt };
+}
+
+seedMockSessions();
 function mockSession(sessionId: string): MockSession {
   let session = sessions.get(sessionId);
   if (!session) {
-    session = { projectId: "", messages: [], values: new Map(), unnamedCount: 0 };
+    session = { projectId: "", messages: [], values: new Map(), unnamedCount: 0, title: null, createdAt: new Date().toISOString() };
     sessions.set(sessionId, session);
   }
   return session;
@@ -653,6 +719,9 @@ function mockStatedTitle(text: string): string {
 
 function mockSendChat(args: SendChatArgs): Promise<ChatTurn> {
   const session = mockSession(args.sessionId);
+  if (session.messages.length === 0 && !session.createdAt) session.createdAt = new Date().toISOString();
+  const firstUser = args.messages.find((message) => message.role === "user");
+  if (firstUser && !session.messages.some((message) => message.id === firstUser.id)) session.messages.push(firstUser);
   if (args.projectId && session.projectId && args.projectId !== session.projectId) {
     return Promise.reject(new Error("Project does not belong to this session"));
   }
@@ -878,9 +947,40 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
     }
     case "send_chat":
       return mockSendChat(args as SendChatArgs);
+    case "list_projects": {
+      const ids = new Set([...mockProjects.map((project) => project.id), ...[...sessions.values()].map((session) => session.projectId).filter(Boolean)]);
+      return [...ids].map(mockProjectSummary).filter((project): project is ProjectSummary => project !== null)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    case "get_project": {
+      const { projectId } = args as { projectId: string };
+      return mockProjectSummary(projectId);
+    }
     case "list_messages": {
       const { sessionId } = args as { sessionId: string };
       return sessions.get(sessionId)?.messages ?? [];
+    }
+    case "list_sessions":
+      return [...sessions.entries()].map(([id, session]) => mockSessionSummary(id, session))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "get_session": {
+      const { sessionId } = args as { sessionId: string };
+      const session = sessions.get(sessionId);
+      return session ? mockSessionSummary(sessionId, session) : null;
+    }
+    case "rename_session": {
+      const { sessionId, title } = args as { sessionId: string; title: string };
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error(`Session not found: ${sessionId}`);
+      const trimmed = title.trim();
+      if (!trimmed) throw new Error("Session title cannot be empty");
+      if (Array.from(trimmed).length > 120) throw new Error("Session title is too long (max 120 characters)");
+      session.title = trimmed;
+      return mockSessionSummary(sessionId, session);
+    }
+    case "delete_session": {
+      const { sessionId } = args as { sessionId: string };
+      return sessions.delete(sessionId);
     }
     case "fetch_models":
       // The browser never contacts a provider; the desktop adapter fetches real models.

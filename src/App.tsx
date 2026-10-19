@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Routes,
   Route,
@@ -15,15 +15,24 @@ import {
   Sliders,
   Users,
   PanelLeftClose,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { Home } from "./pages/Home";
 import { Chat } from "./pages/Chat";
 import { Characters } from "./pages/Characters";
 import { Projects } from "./pages/Projects";
+import { ProjectDetail } from "./pages/ProjectDetail";
 import { StoryConfig } from "./pages/StoryConfig";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { applyTextScale, readTextScale } from "./lib/preferences";
 import { applyTheme, readTheme, subscribeSystemTheme } from "./lib/theme";
+import { invokeCommand } from "./lib/ipc";
+import type { SessionSummary } from "./types";
+import { Dialog } from "./components/Dialog";
 
 const NAV_ITEMS = [
   { to: "/chat", label: "Chat", icon: MessageSquare },
@@ -78,9 +87,52 @@ function Shell() {
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [providersRevision, setProvidersRevision] = useState(0);
-  const [collapsed, setCollapsed] = useState(() =>
-    readStoredJson<boolean>(SIDEBAR_KEY, false),
-  );
+  const [collapsed, setCollapsed] = useState(() => readStoredJson<boolean>(SIDEBAR_KEY, false));
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [sessionsError, setSessionsError] = useState(false);
+  const [groupByProject, setGroupByProject] = useState(() => {
+    try { return localStorage.getItem("merlink-session-group-by-project") === "true"; } catch { return false; }
+  });
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>(() => readStoredJson<string[]>("merlink-collapsed-project-groups", []));
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const cancelRenameRef = useRef(false);
+
+  const loadSessions = async () => {
+    try { setSessions(await invokeCommand("list_sessions")); setSessionsError(false); }
+    catch (error) { console.error("Could not load conversations:", error); setSessionsError(true); }
+  };
+
+  useEffect(() => {
+    void loadSessions();
+    const refresh = () => void loadSessions();
+    window.addEventListener("merlink:sessions-changed", refresh);
+    return () => window.removeEventListener("merlink:sessions-changed", refresh);
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("merlink-session-group-by-project", String(groupByProject)); } catch { /* storage unavailable */ }
+  }, [groupByProject]);
+  useEffect(() => {
+    try { localStorage.setItem("merlink-collapsed-project-groups", JSON.stringify(collapsedGroups)); } catch { /* storage unavailable */ }
+  }, [collapsedGroups]);
+  useEffect(() => {
+    if (renamingId) { renameInputRef.current?.focus(); renameInputRef.current?.select(); }
+  }, [renamingId]);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuFor(null); };
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && !target.closest(".merlink-session-menu, .merlink-session-more")) setMenuFor(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("mousedown", closeOnOutsideClick);
+    return () => { window.removeEventListener("keydown", closeOnEscape); window.removeEventListener("mousedown", closeOnOutsideClick); };
+  }, []);
 
   useEffect(() => {
     applyTheme(readTheme());
@@ -112,9 +164,61 @@ function Shell() {
    * change mounts a brand-new Chat (which starts empty anyway).
    */
   const startNewChat = () => {
-    navigate("/chat");
-    window.dispatchEvent(new Event("merlink:new-chat"));
+    if (location.pathname === "/chat") window.dispatchEvent(new Event("merlink:new-chat"));
+    else navigate("/chat");
   };
+  const activeSessionId = location.pathname.startsWith("/chat/") ? decodeURIComponent(location.pathname.slice("/chat/".length)) : "";
+  const autoExpandedActiveRef = useRef<string | null>(null);
+  useEffect(() => {
+    const active = sessions.find((session) => session.id === activeSessionId);
+    if (active && autoExpandedActiveRef.current !== activeSessionId) {
+      autoExpandedActiveRef.current = activeSessionId;
+      setCollapsedGroups((current) => current.filter((key) => key !== active.project_id));
+    }
+    if (!activeSessionId) autoExpandedActiveRef.current = null;
+  }, [activeSessionId, sessions]);
+  const beginRename = (session: SessionSummary) => {
+    cancelRenameRef.current = false;
+    setMenuFor(null); setRenamingId(session.id); setRenameValue(session.title); setRenameError(null);
+  };
+  const saveRename = async (sessionId: string) => {
+    if (renamingId !== sessionId) return;
+    try {
+      const updated = await invokeCommand("rename_session", { sessionId, title: renameValue });
+      setSessions((current) => current.map((item) => item.id === sessionId ? updated : item));
+      setRenamingId(null); setRenameError(null);
+    } catch (error) { setRenameError(error instanceof Error ? error.message : String(error)); }
+  };
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    try {
+      await invokeCommand("delete_session", { sessionId: target.id });
+      setSessions((current) => current.filter((item) => item.id !== target.id));
+      setDeleteTarget(null);
+      if (activeSessionId === target.id) { navigate("/chat"); window.dispatchEvent(new Event("merlink:new-chat")); }
+    } catch (error) { console.error("Could not delete conversation:", error); }
+  };
+  const grouped = new Map<string, SessionSummary[]>();
+  for (const session of sessions) grouped.set(session.project_id, [...(grouped.get(session.project_id) ?? []), session]);
+  const groupKeys = [...grouped.keys()].sort((a, b) => {
+    if (!a) return b ? 1 : 0; if (!b) return -1;
+    return (grouped.get(b)?.[0]?.created_at ?? "").localeCompare(grouped.get(a)?.[0]?.created_at ?? "");
+  });
+  const toggleGroup = (key: string) => setCollapsedGroups((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key]);
+  const renderSession = (session: SessionSummary) => (
+    <div className={`merlink-session-row${activeSessionId === session.id ? " merlink-session-open" : ""}`} key={session.id}>
+      {renamingId === session.id ? <div className="merlink-session-rename-wrap">
+        <input ref={renameInputRef} className="merlink-session-rename" value={renameValue} aria-label={`Rename ${session.title}`} onChange={(event) => { setRenameValue(event.target.value); setRenameError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } if (event.key === "Escape") { event.preventDefault(); cancelRenameRef.current = true; event.currentTarget.blur(); setRenamingId(null); setRenameError(null); } }} onBlur={() => { if (cancelRenameRef.current) { cancelRenameRef.current = false; return; } void saveRename(session.id); }} />
+        {renameError && <div className="merlink-session-error" role="alert">{renameError}</div>}
+      </div> : <NavLink className="merlink-session-title" to={`/chat/${encodeURIComponent(session.id)}`} onClick={() => setMenuFor(null)}>{session.title}</NavLink>}
+      <button type="button" className="merlink-session-more" aria-label={`Session actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menuFor === session.id} onClick={() => setMenuFor(menuFor === session.id ? null : session.id)}><MoreVertical size={17} /></button>
+      {menuFor === session.id && <div className="merlink-session-menu" role="menu" onMouseLeave={() => undefined}>
+        <button type="button" className="merlink-session-menu-item" role="menuitem" onClick={() => beginRename(session)}><Pencil size={14} />Rename</button>
+        <button type="button" className="merlink-session-menu-item" role="menuitem" onClick={() => { setMenuFor(null); setDeleteTarget(session); }}><Trash2 size={14} />Delete</button>
+      </div>}
+    </div>
+  );
 
   return (
     <div className={`merlink-app${collapsed ? " is-collapsed" : ""}`}>
@@ -232,6 +336,22 @@ function Shell() {
           })}
         </nav>
 
+        {!collapsed && <section className="merlink-history" aria-label="Conversation history">
+          <div className="merlink-history-head"><strong>Conversations</strong><label className="merlink-history-switch">Group by project <button type="button" role="switch" aria-checked={groupByProject} onClick={() => setGroupByProject((value) => !value)} /></label></div>
+          {sessionsError ? <div className="merlink-history-empty">Could not load conversations. <button type="button" onClick={() => void loadSessions()}>Retry</button></div> : sessions.length === 0 ? <div className="merlink-history-empty">No conversations yet.</div> : <div className="merlink-session-list">
+            {!groupByProject ? sessions.map(renderSession) : groupKeys.map((key) => {
+              const expanded = !collapsedGroups.includes(key);
+              const groupSessions = grouped.get(key) ?? [];
+              const activeInGroup = groupSessions.some((session) => session.id === activeSessionId);
+              const title = key ? groupSessions[0]?.project_title ?? key : "Unbound";
+              return <div className="merlink-project-group" key={key}>
+                <button type="button" className="merlink-project-toggle" aria-expanded={expanded || activeInGroup} onClick={() => toggleGroup(key)}>{(expanded || activeInGroup) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<span>{title}</span></button>
+                {(expanded || activeInGroup) && <div className="merlink-project-children">{groupSessions.map(renderSession)}</div>}
+              </div>;
+            })}
+          </div>}
+        </section>}
+
         <div className="merlink-sidebar-bottom">
           <button
             type="button"
@@ -252,6 +372,10 @@ function Shell() {
         </div>
       </main>
 
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete conversation?">
+        <p>Delete this conversation and its messages?</p>
+        <div className="merlink-session-delete-actions"><button type="button" className="btn" onClick={() => setDeleteTarget(null)}>Keep conversation</button><button type="button" className="btn btn-primary" onClick={() => void confirmDelete()}>Delete conversation</button></div>
+      </Dialog>
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -267,8 +391,10 @@ export default function App() {
       <Route path="/" element={<Shell />}>
         <Route index element={<Home />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="chat/:sessionId" element={<Chat />} />
         <Route path="characters" element={<Characters />} />
         <Route path="projects" element={<Projects />} />
+        <Route path="projects/:projectId" element={<ProjectDetail />} />
         <Route path="story-config" element={<StoryConfig />} />
         <Route path="*" element={<Home />} />
       </Route>
