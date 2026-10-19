@@ -12,7 +12,7 @@ dependency, and update its own status line here.
 | S2 | [02-message-integrity.md](02-message-integrity.md) | done | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
 | S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | done | `refactor/s3-project-json-integrity` | F-03, F-04 |
 | S4 | [04-agent-loop-truth.md](04-agent-loop-truth.md) | done | `refactor/s4-agent-loop-truth` | F-05, F-06, F-07 |
-| S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | ready | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
+| S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | pushed | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
 | S6 | [06-ipc-and-preview.md](06-ipc-and-preview.md) | blocked by S5 | `refactor/s6-ipc-preview` | F-13–F-16 |
 | S7 | [07-ui-correctness.md](07-ui-correctness.md) | blocked by S6 | `refactor/s7-ui-correctness` | F-18, F-19 |
 

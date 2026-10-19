@@ -20,12 +20,13 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import type { ProviderConfig, ModelConfig, FetchedModel } from "../types";
+import type { ProviderConfig, ProviderKind, ModelConfig, FetchedModel } from "../types";
 
 export interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
   initialTab?: "general" | "llm-provider";
+  onProvidersChanged: () => void;
 }
 
 function createModelConfig(
@@ -53,6 +54,7 @@ function createModelConfig(
 }
 
 interface FormState {
+  kind: ProviderKind;
   id: string;
   name: string;
   baseURL: string;
@@ -66,6 +68,7 @@ export function SettingsDialog({
   open,
   onClose,
   initialTab = "general",
+  onProvidersChanged,
 }: SettingsDialogProps) {
   const [tab, setTab] = useState<"general" | "llm-provider">(initialTab);
   const [language, setLanguage] = useState(() => {
@@ -90,11 +93,12 @@ export function SettingsDialog({
   );
 
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
-  const [editor, setEditor] = useState<{
-    id: string | null;
-    mode: "third-party" | "custom";
-  } | null>(null);
+  const [editor, setEditor] = useState<{ id: string | null } | null>(null);
+  const editorGenerationRef = useRef(0);
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>({
+    kind: "custom",
     id: "",
     name: "",
     baseURL: "",
@@ -103,6 +107,8 @@ export function SettingsDialog({
     defaultModel: "",
     showKey: false,
   });
+  const formRef = useRef(form);
+  formRef.current = form;
   const [notice, setNotice] = useState("");
   const [expandedModel, setExpandedModel] = useState<number>(-1);
   const [fetching, setFetching] = useState(false);
@@ -115,11 +121,15 @@ export function SettingsDialog({
   const editorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Sync initial tab when opening
+  // Sync initial tab when opening and invalidate an editor closed with Settings.
   useEffect(() => {
     if (open) {
       setTab(initialTab);
-      loadProvidersFromBackend();
+      void loadProvidersFromBackend();
+    } else {
+      editorGenerationRef.current += 1;
+      setEditor(null);
+      resetFetchState();
     }
   }, [open, initialTab]);
 
@@ -200,19 +210,23 @@ export function SettingsDialog({
   };
 
   const closeEditor = () => {
+    if (savingRef.current) return;
+    editorGenerationRef.current += 1;
     resetFetchState();
     setEditor(null);
   };
 
-  const newFormState = (source: any): FormState => {
-    const models = (source.models || []).map(createModelConfig);
+  const newFormState = (source: ProviderConfig | null): FormState => {
+    const models = (source?.models ?? []).map(createModelConfig);
     return {
-      id: source.id || "",
-      name: source.name || "",
-      baseURL: source.base_url || "",
-      apiKey: source.api_key || "",
+      kind: source?.kind === "anthropic" || source?.kind === "openai"
+        ? source.kind : "custom",
+      id: source?.id ?? "",
+      name: source?.name ?? "",
+      baseURL: source?.base_url ?? "",
+      apiKey: source?.api_key ?? "",
       models,
-      defaultModel: source.default_model_id || models[0]?.id || "",
+      defaultModel: source?.default_model_id || models[0]?.id || "",
       showKey: false,
     };
   };
@@ -223,25 +237,15 @@ export function SettingsDialog({
    * fetches models (or adds them by hand). A new provider is `custom` by default.
    */
   const openEditor = (provider: ProviderConfig | null = null) => {
+    if (savingRef.current) return;
+    editorGenerationRef.current += 1;
     resetFetchState();
-    setForm(
-      provider
-        ? newFormState(provider)
-        : newFormState({ id: "", name: "", base_url: "", apiKey: "", models: [] }),
-    );
+    setForm(newFormState(provider));
     setExpandedModel(-1);
-    setEditor({
-      id: provider?.id || null,
-      mode: provider && provider.kind !== "custom" ? "third-party" : "custom",
-    });
+    setEditor({ id: provider?.id ?? null });
   };
 
-  /**
-   * D8: the provider *type* of an existing provider is fixed, so `custom` is a
-   * read-only derivation now that the ADD flow always starts as custom (there is
-   * no catalog left to switch between presets).
-   */
-  const custom = editor?.mode === "custom";
+  const showAdvanced = editor?.id === null || form.kind === "custom" || Boolean(form.baseURL);
 
   const updateModel = (index: number, patch: Partial<ModelConfig>) => {
     setForm((prev) => ({
@@ -249,13 +253,6 @@ export function SettingsDialog({
       models: prev.models.map((m, i) => (i === index ? { ...m, ...patch } : m)),
     }));
   };
-
-  /**
-   * The wire format that saving this form would produce — the fetch must ask the
-   * provider the same way the chat will (D3), so the two can never disagree.
-   */
-  const providerKind = () =>
-    custom ? "custom" : form.id === "anthropic" ? "anthropic" : "openai";
 
   const providerBaseURL = () => form.baseURL.trim();
 
@@ -269,45 +266,56 @@ export function SettingsDialog({
    * logged away.
    */
   const fetchModels = async () => {
-    if (fetching) return;
+    if (fetching || !editor) return;
+    const generation = editorGenerationRef.current;
     setFetching(true);
     setFetchError("");
     setFetchNotice("");
     try {
       // D11: Tauri expects camelCase keys for Rust parameter names.
       const fetched = await safeInvoke<FetchedModel[]>("fetch_models", {
-        providerKind: providerKind(),
+        providerKind: form.kind,
         baseUrl: providerBaseURL(),
         apiKey: form.apiKey.trim(),
       });
+      if (generation !== editorGenerationRef.current) return;
 
-      const incoming = (Array.isArray(fetched) ? fetched : [])
-        .filter((item) => item && typeof item.id === "string" && item.id.trim())
-        .map((item) =>
-          createModelConfig({ id: item.id.trim(), name: item.name?.trim() || item.id.trim() }),
-        );
-      const existing = new Set(form.models.map((model) => model.id.trim()));
-      const added = incoming.filter((model) => !existing.has(model.id));
-
+      const current = formRef.current;
+      const seen = new Set(current.models.map((model) => model.id.trim()));
+      const incoming = Array.isArray(fetched) ? fetched : [];
+      const added: ModelConfig[] = [];
+      for (const item of incoming) {
+        if (!item || typeof item.id !== "string" || !item.id.trim()) continue;
+        const id = item.id.trim();
+        if (seen.has(id)) continue;
+        seen.add(id);
+        added.push(createModelConfig({ id, name: item.name?.trim() || id }));
+      }
       if (added.length === 0) {
         setFetchNotice(
           incoming.length === 0
             ? "Provider returned no models."
-            : `Không có model mới (${form.models.length} model đang có).`,
+            : `Không có model mới (${current.models.length} model đang có).`,
         );
         return;
       }
 
-      setForm((prev) => ({
-        ...prev,
-        models: [...prev.models, ...added],
-        defaultModel: prev.defaultModel || added[0].id,
-      }));
+      setForm((prev) => {
+        const existing = new Set(prev.models.map((model) => model.id.trim()));
+        const unique = added.filter((model) => !existing.has(model.id));
+        return {
+          ...prev,
+          models: [...prev.models, ...unique],
+          defaultModel: prev.defaultModel || unique[0]?.id || "",
+        };
+      });
       setFetchNotice(`Đã thêm ${added.length} model mới.`);
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : String(err));
+      if (generation === editorGenerationRef.current) {
+        setFetchError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
-      setFetching(false);
+      if (generation === editorGenerationRef.current) setFetching(false);
     }
   };
 
@@ -317,16 +325,38 @@ export function SettingsDialog({
     new Set(form.models.map((m) => m.id.trim())).size === form.models.length;
 
   const valid = Boolean(
-    form.apiKey?.trim() &&
+    form.apiKey.trim() &&
       validModels &&
-      (!custom || (form.name?.trim() && /^https?:\/\/\S+/i.test(form.baseURL || ""))),
+      form.name.trim() &&
+      /^https?:\/\/\S+/i.test(form.baseURL),
   );
 
+  // The native IPC writes the entire list; serialize mutations in this window.
+  // Other windows still have no cross-window merge/versioning.
+  const persistProviders = async (next: ProviderConfig[], successMessage: string): Promise<boolean> => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await safeInvoke("save_providers", { providers: next });
+      setProviders(next);
+      setNotice(successMessage);
+      onProvidersChanged();
+      return true;
+    } catch (err) {
+      console.error("Failed to save providers:", err);
+      setNotice(`Failed to save providers: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!valid) return;
-    // D9: editing keeps the provider's own id — a new id is only minted when the
-    // ADD flow saves a brand new endpoint.
-    const id = custom ? editor?.id || `custom-${Date.now()}` : form.id;
+    if (!valid || savingRef.current || !editor) return;
+    // Editing keeps its id; a new id never determines the wire protocol.
+    const id = editor.id ?? `custom-${Date.now()}`;
     if (!id) return;
     const existing = providers.find((item) => item.id === id);
     const cleaned = form.models.map((m) =>
@@ -346,7 +376,7 @@ export function SettingsDialog({
     const provider: ProviderConfig = {
       id,
       name: form.name.trim() || id,
-      kind: custom ? "custom" : id === "anthropic" ? "anthropic" : "openai",
+      kind: form.kind,
       api_key: form.apiKey.trim(),
       base_url: form.baseURL.trim(),
       models: cleaned,
@@ -357,40 +387,21 @@ export function SettingsDialog({
       ? providers.map((item) => (item.id === id ? provider : item))
       : [...providers, provider];
 
-    try {
-      await safeInvoke("save_providers", { providers: nextProviders });
-      setProviders(nextProviders);
-      closeEditor();
-      setNotice("Provider saved");
-    } catch (err) {
-      console.error("Failed to save providers:", err);
-      setNotice("Failed to save provider");
-    }
+    if (await persistProviders(nextProviders, "Provider saved")) closeEditor();
   };
 
   const handleRemoveProvider = async (id: string) => {
+    if (savingRef.current) return;
     const nextProviders = providers.filter((item) => item.id !== id);
-    try {
-      await safeInvoke("save_providers", { providers: nextProviders });
-      setProviders(nextProviders);
-      setNotice("Provider deleted");
-    } catch (err) {
-      console.error("Failed to delete provider:", err);
-    }
+    await persistProviders(nextProviders, "Provider deleted");
   };
 
   const handleClearKey = async () => {
+    if (savingRef.current || !editor?.id) return;
     const nextProviders = providers.map((item) =>
-      item.id === form.id ? { ...item, api_key: "" } : item,
+      item.id === editor.id ? { ...item, api_key: "" } : item,
     );
-    try {
-      await safeInvoke("save_providers", { providers: nextProviders });
-      setProviders(nextProviders);
-      closeEditor();
-      setNotice("Saved API key cleared");
-    } catch (err) {
-      console.error("Failed to clear key:", err);
-    }
+    if (await persistProviders(nextProviders, "Saved API key cleared")) closeEditor();
   };
 
   if (!open) return null;
@@ -597,19 +608,18 @@ export function SettingsDialog({
                       >
                         <Pencil size={17} />
                       </button>
-                      {provider.kind === "custom" && (
-                        <button
-                          type="button"
-                          className="merlink-settings-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveProvider(provider.id);
-                          }}
-                          aria-label={`Delete ${provider.name}`}
-                        >
-                          <Trash2 size={17} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="merlink-settings-icon"
+                        disabled={saving}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleRemoveProvider(provider.id);
+                        }}
+                        aria-label={`Delete ${provider.name}`}
+                      >
+                        <Trash2 size={17} />
+                      </button>
                     </div>
                   ))}
                   </div>
@@ -666,20 +676,23 @@ export function SettingsDialog({
             </header>
 
             <div className="merlink-provider-editor-body">
-              <div className="merlink-provider-modes">
-                {/* D2: there is no preset catalog to switch between any more, so
-                    the ADD flow always opens a blank custom endpoint; editing
-                    keeps the provider's fixed type as a label (D8). */}
-                <button type="button" className="is-active" disabled>
-                  {custom ? "Custom model API" : "Third-party model provider"}
-                </button>
-              </div>
+              <label className="merlink-settings-field">
+                <span>Protocol</span>
+                <select
+                  value={form.kind === "anthropic" ? "anthropic" : "openai-compatible"}
+                  onChange={(e) => setForm((prev) => ({
+                    ...prev,
+                    kind: e.target.value === "anthropic"
+                      ? "anthropic"
+                      : prev.kind === "anthropic" ? "custom" : prev.kind,
+                  }))}
+                >
+                  <option value="openai-compatible">OpenAI-compatible</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
 
-              <p>
-                {custom
-                  ? "Connect to any OpenAI-compatible endpoint."
-                  : "Enter its API key; the endpoint stays as configured."}
-              </p>
+              <p>Choose the provider's wire protocol, then enter its API key and endpoint.</p>
 
               <label className="merlink-settings-field">
                 <span>API key</span>
@@ -707,7 +720,7 @@ export function SettingsDialog({
 
               <details
                 className="merlink-provider-advanced"
-                open={custom ? true : undefined}
+                open={showAdvanced ? true : undefined}
               >
                 <summary>Customized settings</summary>
                 <div className="merlink-provider-custom-fields">
@@ -715,7 +728,7 @@ export function SettingsDialog({
                     <span>Display name</span>
                     <input
                       value={form.name}
-                      required={custom}
+                      required
                       placeholder="Provider name"
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, name: e.target.value }))
@@ -727,7 +740,7 @@ export function SettingsDialog({
                     <input
                       type="url"
                       value={form.baseURL}
-                      required={custom}
+                      required
                       placeholder="https://api.example.com/v1"
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -975,13 +988,14 @@ export function SettingsDialog({
               </details>
 
               <footer className="merlink-provider-editor-actions">
-                {!custom &&
+                {editor.id !== null &&
                   providers.some(
-                    (item) => item.id === form.id && item.api_key,
+                    (item) => item.id === editor.id && item.api_key,
                   ) && (
                     <button
                       type="button"
                       className="btn"
+                      disabled={saving}
                       onClick={handleClearKey}
                     >
                       Clear API key
@@ -993,7 +1007,7 @@ export function SettingsDialog({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={!valid}
+                  disabled={!valid || saving}
                   onClick={handleSave}
                 >
                   Apply

@@ -92,6 +92,7 @@ function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [providersRevision, setProvidersRevision] = useState(0);
   const [collapsed, setCollapsed] = useState(() =>
     readStoredJson<boolean>(SIDEBAR_KEY, false),
   );
@@ -273,13 +274,14 @@ function Shell() {
 
       <main className={`merlink-content${isActive("/chat") ? " is-wide" : ""}`}>
         <div className="merlink-content-inner">
-          <Outlet />
+          <Outlet context={{ providersRevision }} />
         </div>
       </main>
 
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onProvidersChanged={() => setProvidersRevision((revision) => revision + 1)}
       />
     </div>
   );

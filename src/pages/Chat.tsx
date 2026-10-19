@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useOutletContext } from "react-router-dom";
 import { createAgentEventChannel, safeInvoke } from "../lib/tauri";
 import { newMessageId, newSessionId } from "../lib/ids";
 import { Markdown } from "../components/Markdown";
@@ -191,6 +192,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function Chat() {
+  const { providersRevision } = useOutletContext<{ providersRevision: number }>();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
@@ -360,8 +362,10 @@ export function Chat() {
   useEffect(() => { void refreshContextUsage(); }, [refreshContextUsage, sessionId, selectedProviderId, selectedModelId]);
 
   useEffect(() => {
-    void loadProviders();
-  }, []);
+    let cancelled = false;
+    void loadProviders(() => cancelled);
+    return () => { cancelled = true; };
+  }, [providersRevision]);
 
   // D3/D8: the tool log's Vietnamese labels come from Rust, never from a second
   // hardcoded map in the frontend. Browser mode answers from its mock.
@@ -395,30 +399,26 @@ export function Chat() {
     void refreshDetail(projectId);
   }, [projectId, refreshDetail]);
 
-  async function loadProviders() {
+  async function loadProviders(isCancelled: () => boolean) {
     try {
       const list = await safeInvoke<ProviderConfig[]>("load_providers");
-      if (!mountedRef.current || !Array.isArray(list)) return;
+      if (!mountedRef.current || isCancelled() || !Array.isArray(list)) return;
       setProviders(list);
-      // D3: with no shipped catalog the list can be empty. Prefer the first
-      // provider that actually has a key, otherwise fall back to the first one.
-      const provider =
-        list.find((item) => item.api_key.trim().length > 0) ?? list[0];
-      if (!provider) {
-        providerRef.current = "";
-        modelRef.current = "";
-        setSelectedProviderId("");
-        setSelectedModelId("");
-        return;
-      }
-      const modelId = provider.models.find((model) => model.id === provider.default_model_id)
-        ?.id ?? provider.models[0]?.id ?? "";
-      providerRef.current = provider.id;
+      // Keep the live selection when still valid; otherwise prefer a provider
+      // with a key (the original first-load rule). An in-flight turn already
+      // captured its provider/model in send_chat and is not restarted here.
+      const provider = list.find((item) => item.id === providerRef.current)
+        ?? list.find((item) => item.api_key.trim().length > 0)
+        ?? list[0];
+      const modelId = provider?.models.find((model) => model.id === modelRef.current)?.id
+        ?? provider?.models.find((model) => model.id === provider.default_model_id)?.id
+        ?? provider?.models[0]?.id ?? "";
+      providerRef.current = provider?.id ?? "";
       modelRef.current = modelId;
-      setSelectedProviderId(provider.id);
+      setSelectedProviderId(providerRef.current);
       setSelectedModelId(modelId);
     } catch (err) {
-      console.error("Error loading providers in Chat:", err);
+      if (!isCancelled()) console.error("Error loading providers in Chat:", err);
     }
   }
 
