@@ -145,8 +145,8 @@ pub struct ChatTurn {
 /// Super json completeness, computed in Rust (D6/D7) so the header bar and the
 /// outline button read one source of truth.
 ///
-/// `percent` uses two stops: the 18 required units cover 0 → 70%, the 29 optional
-/// units cover 70 → 100%. `required_total`/`optional_total` are always 18/29; the
+/// `percent` uses two stops: the 12 required units cover 0 → 70%, the 35 optional
+/// units cover 70 → 100%. `required_total`/`optional_total` are always 12/35; the
 /// `filled_*` counters are the ones that drop to zero without a project.
 /// Live progress of one agent turn, streamed to the UI over a Tauri `Channel`
 /// (D2). Serialised with an internal `type` tag so TypeScript can build a

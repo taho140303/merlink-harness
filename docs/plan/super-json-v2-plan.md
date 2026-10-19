@@ -508,3 +508,50 @@ actionlint 1.7.12                OK
 
 Chưa có commit/tag/push. Baseline `cargo fmt --all` đã chạy nên diff có format-only ở nhiều file;
 nên tách commit format trước khi mở PR theo plan.
+
+---
+
+## 11. v2.1 delta (Sprint 16)
+
+> Các số **18 required / 29 optional** trong §1–§10 là **lịch sử của v2**. v2.1 thay bằng
+> **12 required / 35 optional**, vẫn **81 writable path** (13 project leaf + 34 bảng × `count`/`rows`)
+> và **34 bảng**.
+
+### 11.1 Nhóm mới
+
+| Bảng | v2 | v2.1 |
+| --- | --- | --- |
+| `chapters` | require | **optional** |
+| `scenes` | require | **optional** |
+| `scene_characters` | require | **optional** |
+| `relationships` | require | **optional** |
+| `relationship_roles` | require | **optional** |
+| `world_settings` | require | **optional** |
+| `power_systems` | require | **optional** |
+| `project_motifs` | optional | **require** (scope = project) |
+
+- **Require (12 unit)** = 6 project leaf + `project_genres`, `arcs`, `characters`, `project_motifs`,
+  `themes`, `theme_arguments`.
+- **Optional (35 unit)** = 7 project leaf + 28 bảng còn lại.
+- Mỗi bảng chỉ còn **một** entry `{table, count, fields, rows}`; entry fields-only của v2 được gộp,
+  `fields` = core + extra (giữ thứ tự core trước).
+- `require.project.plan.chapter.count` vẫn required; chỉ bảng `chapters` chuyển optional nên không
+  còn mâu thuẫn "count bắt buộc nhưng rows không".
+
+### 11.2 `project_motifs`
+
+- `fields`: `motif_id`, `scope`, `arc_id`, `chapter_id`; `scope` ∈ `project | arc | chapter`.
+- `arc_id`/`chapter_id` là draft anchor (không có trong dbml); importer dựng `from` từ scope + code.
+- Rule hoàn tất mềm: chỉ filled khi có ít nhất một row `scope == "project"`; row `arc|chapter` là
+  tuỳ chọn. Là bảng require nên `count` vẫn phải > 0.
+- `system.dbml` thêm `scope`, `from`, `to` varchar + index `(scope, from)` + `Note:`.
+
+### 11.3 Validation và migration
+
+- `required_row_fields()` đọc map hằng `REQUIRED_ROW_FIELDS` (13 bảng), **độc lập group**, nên bảng
+  chuyển sang optional vẫn giữ row contract (vd `scenes` vẫn cần `name`, `chapter_id`, `position`).
+- Rule cross-table: `project_motifs` (scope project) và `scene_characters` (cần `is_pov: true` nếu
+  `scenes.rows` không rỗng).
+- Migration v2 → v2.1 idempotent khi load: gom entry theo bảng, giữ `count`/`rows`, lấy `fields` từ
+  skeleton v2.1, đưa về đúng group và sort theo `schema::tables()`. Doc v2 cũ load xong thành 34
+  entry, mỗi bảng một entry.

@@ -47,7 +47,9 @@ fn load_or_init_unlocked(project_id: &str) -> Result<Value, String> {
         Ok(raw) => {
             let mut document: Value = serde_json::from_str(&raw)
                 .map_err(|error| format!("Invalid super json at {}: {error}", path.display()))?;
-            if migrate_if_needed(&path, &raw, &mut document)? {
+            let migrated_v1 = migrate_if_needed(&path, &raw, &mut document)?;
+            let migrated_groups = migrate_groups_if_needed(&mut document);
+            if migrated_v1 || migrated_groups {
                 save_unlocked(project_id, &document, false)?;
             }
             Ok(document)
@@ -477,6 +479,87 @@ fn migrate_if_needed(path: &Path, raw: &str, document: &mut Value) -> Result<boo
     Ok(true)
 }
 
+/// Normalises a v2 document — tables split across groups, or a second
+/// fields-only entry — into v2.1: exactly one entry per table, in its countable
+/// group, carrying the v2.1 `fields` while `count`/`rows` survive unchanged.
+fn migrate_groups_if_needed(document: &mut Value) -> bool {
+    let before = document.clone();
+    let skeleton = schema::skeleton();
+
+    for table in schema::tables() {
+        let Some(belongs) = schema::countable_group(table) else {
+            continue;
+        };
+        let mut found = Vec::new();
+        let mut count = Value::Null;
+        let mut rows = Value::Array(Vec::new());
+        for group in [Group::Require, Group::Optional] {
+            for entry in schema_entries(document, group) {
+                if entry["table"].as_str() != Some(table.as_str()) {
+                    continue;
+                }
+                found.push(group);
+                if entry.get("count").is_some() {
+                    count = entry.get("count").cloned().unwrap_or(Value::Null);
+                    rows = entry
+                        .get("rows")
+                        .cloned()
+                        .unwrap_or_else(|| Value::Array(Vec::new()));
+                }
+            }
+        }
+        if found.len() == 1 && found[0] == belongs {
+            continue;
+        }
+
+        for group in [Group::Require, Group::Optional] {
+            if let Some(entries) = schema_entries_mut(document, group) {
+                entries.retain(|entry| entry["table"].as_str() != Some(table.as_str()));
+            }
+        }
+        let fields = schema::table_entry(&skeleton, table)
+            .and_then(|entry| entry.get("fields"))
+            .cloned()
+            .unwrap_or_else(|| Value::Object(Map::new()));
+        let entry = json!({
+            "table": table,
+            "count": count,
+            "fields": fields,
+            "rows": rows,
+        });
+        if let Some(entries) = schema_entries_mut(document, belongs) {
+            entries.push(entry);
+        }
+    }
+
+    let order = schema::tables();
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = schema_entries_mut(document, group) {
+            entries.sort_by_key(|entry| {
+                order
+                    .iter()
+                    .position(|known| known == entry["table"].as_str().unwrap_or_default())
+                    .unwrap_or(usize::MAX)
+            });
+        }
+    }
+
+    *document != before
+}
+
+fn schema_entries(document: &Value, group: Group) -> &[Value] {
+    document[group.as_str()]["schema"]
+        .as_array()
+        .map_or(&[], Vec::as_slice)
+}
+
+fn schema_entries_mut(document: &mut Value, group: Group) -> Option<&mut Vec<Value>> {
+    document
+        .get_mut(group.as_str())?
+        .get_mut("schema")?
+        .as_array_mut()
+}
+
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -607,6 +690,95 @@ mod tests {
         let again = load_or_init(project).unwrap();
         assert_eq!(again, document, "migration must be idempotent");
         let _ = home;
+    }
+
+    #[test]
+    fn test_migration_from_v2_groups_to_v2_1() {
+        let _home = crate::test_support::TempHome::new("super-migrate-groups");
+        let project = "v2";
+        let path = paths::super_json_path(project).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        let skeleton = schema::skeleton();
+        let mut v2 = skeleton.clone();
+        let take = |document: &mut Value, group: &str, table: &str| -> Value {
+            let entries = document[group]["schema"].as_array_mut().unwrap();
+            let index = entries
+                .iter()
+                .position(|entry| entry["table"] == table)
+                .unwrap();
+            entries.remove(index)
+        };
+
+        // v2: `project_motifs` lived in optional with only `motif_id`.
+        let mut motifs = take(&mut v2, "require", "project_motifs");
+        motifs["fields"] = json!({ "motif_id": null });
+        v2["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .push(motifs);
+        // v2: `scenes` lived in require, carrying real data.
+        let mut scenes = take(&mut v2, "optional", "scenes");
+        scenes["count"] = json!(1);
+        scenes["rows"] = json!([{ "name": "Tiếng chuông", "chapter_id": "c1", "position": 1 }]);
+        v2["require"]["schema"].as_array_mut().unwrap().push(scenes);
+        // v2: `characters` was two entries, the second fields-only.
+        v2["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "table": "characters",
+                "fields": { "birth": null, "species": null }
+            }));
+        fs::write(&path, serde_json::to_vec_pretty(&v2).unwrap()).unwrap();
+
+        let document = load_or_init(project).unwrap();
+        for table in schema::tables() {
+            let entries = ["require", "optional"]
+                .iter()
+                .filter(|group| {
+                    document[group]["schema"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|entry| entry["table"].as_str() == Some(table.as_str()))
+                })
+                .count();
+            assert_eq!(entries, 1, "{table} must have exactly one entry");
+        }
+        assert_eq!(document["require"]["schema"].as_array().unwrap().len(), 6);
+        assert_eq!(document["optional"]["schema"].as_array().unwrap().len(), 28);
+
+        let motifs = schema::countable_entry(&document, "project_motifs").unwrap();
+        assert_eq!(
+            motifs["fields"],
+            json!({ "motif_id": null, "scope": null, "arc_id": null, "chapter_id": null })
+        );
+        assert_eq!(motifs["count"], Value::Null);
+        assert_eq!(
+            schema::countable_group("project_motifs"),
+            Some(Group::Require)
+        );
+
+        let scenes = schema::countable_entry(&document, "scenes").unwrap();
+        assert_eq!(scenes["count"], json!(1));
+        assert_eq!(scenes["rows"][0]["name"], json!("Tiếng chuông"));
+        assert_eq!(
+            scenes["fields"],
+            skeleton["optional"]["schema"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|entry| entry["table"] == "scenes")
+                .unwrap()["fields"]
+        );
+        assert_eq!(schema::countable_group("scenes"), Some(Group::Optional));
+
+        let on_disk: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk, document);
+
+        let again = load_or_init(project).unwrap();
+        assert_eq!(again, document, "migration must be idempotent");
     }
 
     #[test]

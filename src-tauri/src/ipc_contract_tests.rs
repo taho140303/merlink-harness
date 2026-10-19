@@ -417,8 +417,8 @@ fn test_ipc_super_json_progress_end_to_end() {
     let empty = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(empty["has_project"], json!(false));
     assert_eq!(empty["project_id"], json!(""));
-    assert_eq!(empty["required_total"], json!(18));
-    assert_eq!(empty["optional_total"], json!(29));
+    assert_eq!(empty["required_total"], json!(12));
+    assert_eq!(empty["optional_total"], json!(35));
     assert_eq!(empty["filled_required"], json!(0));
     assert_eq!(empty["percent"], json!(0));
 
@@ -440,15 +440,15 @@ fn test_ipc_super_json_progress_end_to_end() {
     assert!(!project_id.is_empty());
 
     // 3. The same session now reports real progress: `project_create` writes
-    //    exactly one required unit (`require.project.name`), which is 70%/18.
+    //    exactly one required unit (`require.project.name`), which is 70%/12.
     let progress = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(progress["has_project"], json!(true));
     assert_eq!(progress["project_id"], json!(project_id));
-    assert_eq!(progress["required_total"], json!(18));
-    assert_eq!(progress["optional_total"], json!(29));
+    assert_eq!(progress["required_total"], json!(12));
+    assert_eq!(progress["optional_total"], json!(35));
     assert_eq!(progress["filled_required"], json!(1));
     assert_eq!(progress["filled_optional"], json!(0));
-    assert_eq!(progress["percent"], json!(4));
+    assert_eq!(progress["percent"], json!(6));
     assert!(
         progress["label"]
             .as_str()
@@ -550,9 +550,9 @@ fn test_ipc_super_json_summary_end_to_end() {
             "require.schema.themes.rows",
             json!([{ "scope": "PROJECT", "question": "Ký ức có làm nên con người?", "resolution_type": "OPEN" }]),
         ),
-        ("require.schema.world_settings.count", json!(1)),
+        ("optional.schema.world_settings.count", json!(1)),
         (
-            "require.schema.world_settings.rows",
+            "optional.schema.world_settings.rows",
             json!([{ "name": "Thành phố", "type": "CITY" }]),
         ),
     ] {
@@ -728,8 +728,8 @@ fn test_ipc_execute_tool_end_to_end() {
             .as_array()
             .expect("missing_required")
             .len(),
-        17,
-        "18 required units minus the name project_create just wrote"
+        11,
+        "12 required units minus the name project_create just wrote"
     );
 
     // The artifacts really landed in the temp home, not in a real ~/.merlink.

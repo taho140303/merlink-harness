@@ -680,7 +680,7 @@ export function Chat() {
                 {progress?.label ?? "…"}
               </strong>
               <span className="chat-progress-count">
-                {progress?.filled_required ?? 0}/{progress?.required_total ?? 18}
+                {progress?.filled_required ?? 0}/{progress?.required_total ?? 12}
                 {" · "}
                 {progress?.percent ?? 0}%
               </span>

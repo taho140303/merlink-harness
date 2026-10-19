@@ -149,18 +149,18 @@ const MOCK_PROJECT_LABELS: Record<string, string> = {
 };
 
 const MOCK_REQUIRED_TABLES = [
-  "project_genres", "arcs", "chapters", "scenes", "scene_characters", "characters",
-  "relationships", "relationship_roles", "world_settings", "power_systems", "themes",
-  "theme_arguments",
+  "project_genres", "arcs", "characters", "project_motifs", "themes", "theme_arguments",
 ] as const;
 
 const MOCK_OPTIONAL_TABLES = [
-  "relationship_motifs", "project_motifs", "scene_versions", "appearance_option_groups",
-  "appearance_options", "character_appearances", "character_distinguishing_marks",
-  "relationship_categories", "relationship_states", "lore_entries", "power_tiers",
-  "power_abilities", "memories", "memory_references", "memory_emotions", "memory_connections",
-  "memory_revisions", "character_knowledge_sources", "competence_domains",
-  "character_competences", "competence_capabilities", "competence_limitations",
+  "relationship_motifs", "chapters", "scenes", "scene_characters", "scene_versions",
+  "appearance_option_groups", "appearance_options", "character_appearances",
+  "character_distinguishing_marks", "relationships", "relationship_categories",
+  "relationship_roles", "relationship_states", "world_settings", "lore_entries",
+  "power_systems", "power_tiers", "power_abilities", "memories", "memory_references",
+  "memory_emotions", "memory_connections", "memory_revisions", "character_knowledge_sources",
+  "competence_domains", "character_competences", "competence_capabilities",
+  "competence_limitations",
 ] as const;
 
 const MOCK_TABLE_LABELS: Record<string, string> = {

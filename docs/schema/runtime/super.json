@@ -1,5 +1,5 @@
 {
-  "$comment": "SUPER JSON v2 — 1 project root + 34 schema tables. fields = read-only row contract; count = planned rows; rows = actual instances. Source: docs/plan/super-json-v2-plan.md",
+  "$comment": "SUPER JSON v2.1 — 1 project root + 34 schema tables. fields = read-only row contract; count = planned rows; rows = actual instances. v2.1: scenes/chapters/relationships/world/power + relation tables are optional; project_motifs is required at project scope. Source: docs/plan/super-json-v2-plan.md",
   "require": {
     "project": {
       "name": null,
@@ -34,36 +34,9 @@
         "count": null,
         "fields": {
           "name": null,
-          "position": null
-        },
-        "rows": []
-      },
-      {
-        "table": "chapters",
-        "count": null,
-        "fields": {
-          "name": null,
-          "position": null
-        },
-        "rows": []
-      },
-      {
-        "table": "scenes",
-        "count": null,
-        "fields": {
-          "name": null,
-          "chapter_id": null,
-          "position": null
-        },
-        "rows": []
-      },
-      {
-        "table": "scene_characters",
-        "count": null,
-        "fields": {
-          "scene_id": null,
-          "character_id": null,
-          "is_pov": null
+          "position": null,
+          "code": null,
+          "summarize": null
         },
         "rows": []
       },
@@ -72,44 +45,23 @@
         "count": null,
         "fields": {
           "name": null,
-          "is_primary": null
+          "is_primary": null,
+          "birth": null,
+          "species": null,
+          "biological_sex": null,
+          "gender_identity": null,
+          "gender_expression": null
         },
         "rows": []
       },
       {
-        "table": "relationships",
+        "table": "project_motifs",
         "count": null,
         "fields": {
-          "from_character_id": null,
-          "to_character_id": null
-        },
-        "rows": []
-      },
-      {
-        "table": "relationship_roles",
-        "count": null,
-        "fields": {
-          "relationship_id": null,
-          "category_id": null,
-          "is_primary": null
-        },
-        "rows": []
-      },
-      {
-        "table": "world_settings",
-        "count": null,
-        "fields": {
-          "name": null,
-          "type": null
-        },
-        "rows": []
-      },
-      {
-        "table": "power_systems",
-        "count": null,
-        "fields": {
-          "name": null,
-          "source": null
+          "motif_id": null,
+          "scope": null,
+          "arc_id": null,
+          "chapter_id": null
         },
         "rows": []
       },
@@ -118,7 +70,13 @@
         "count": null,
         "fields": {
           "scope": null,
-          "question": null
+          "question": null,
+          "code": null,
+          "arc_id": null,
+          "parent_theme_id": null,
+          "resolution_type": null,
+          "resolution": null,
+          "message": null
         },
         "rows": []
       },
@@ -128,7 +86,11 @@
         "fields": {
           "theme_id": null,
           "character_id": null,
-          "role": null
+          "role": null,
+          "answer_mode": null,
+          "note": null,
+          "required_knowledge": null,
+          "required_competence": null
         },
         "rows": []
       }
@@ -165,38 +127,42 @@
         "rows": []
       },
       {
-        "table": "project_motifs",
+        "table": "chapters",
         "count": null,
         "fields": {
-          "motif_id": null
+          "name": null,
+          "position": null,
+          "code": null,
+          "arc_id": null,
+          "summarize": null
         },
         "rows": []
       },
       {
-        "table": "arcs",
-        "fields": {
-          "code": null,
-          "summarize": null
-        }
-      },
-      {
-        "table": "chapters",
-        "fields": {
-          "code": null,
-          "arc_id": null,
-          "summarize": null
-        }
-      },
-      {
         "table": "scenes",
+        "count": null,
         "fields": {
+          "name": null,
+          "chapter_id": null,
+          "position": null,
           "code": null,
           "world_setting_id": null,
           "style_preset_id": null,
           "narrator_config_id": null,
           "summarize": null,
           "content": null
-        }
+        },
+        "rows": []
+      },
+      {
+        "table": "scene_characters",
+        "count": null,
+        "fields": {
+          "scene_id": null,
+          "character_id": null,
+          "is_pov": null
+        },
+        "rows": []
       },
       {
         "table": "scene_versions",
@@ -208,16 +174,6 @@
           "content": null
         },
         "rows": []
-      },
-      {
-        "table": "characters",
-        "fields": {
-          "birth": null,
-          "species": null,
-          "biological_sex": null,
-          "gender_identity": null,
-          "gender_expression": null
-        }
       },
       {
         "table": "appearance_option_groups",
@@ -276,6 +232,15 @@
         "rows": []
       },
       {
+        "table": "relationships",
+        "count": null,
+        "fields": {
+          "from_character_id": null,
+          "to_character_id": null
+        },
+        "rows": []
+      },
+      {
         "table": "relationship_categories",
         "count": null,
         "fields": {
@@ -286,9 +251,14 @@
       },
       {
         "table": "relationship_roles",
+        "count": null,
         "fields": {
+          "relationship_id": null,
+          "category_id": null,
+          "is_primary": null,
           "hierarchy": null
-        }
+        },
+        "rows": []
       },
       {
         "table": "relationship_states",
@@ -307,7 +277,10 @@
       },
       {
         "table": "world_settings",
+        "count": null,
         "fields": {
+          "name": null,
+          "type": null,
           "code": null,
           "parent_id": null,
           "description": null,
@@ -318,7 +291,8 @@
           "sensory_tactile": null,
           "sensory_olfactory": null,
           "sensory_gustatory": null
-        }
+        },
+        "rows": []
       },
       {
         "table": "lore_entries",
@@ -336,14 +310,18 @@
       },
       {
         "table": "power_systems",
+        "count": null,
         "fields": {
+          "name": null,
+          "source": null,
           "code": null,
           "scope": null,
           "description": null,
           "rules": null,
           "cost": null,
           "limitations": null
-        }
+        },
+        "rows": []
       },
       {
         "table": "power_tiers",
@@ -367,26 +345,6 @@
           "description": null
         },
         "rows": []
-      },
-      {
-        "table": "themes",
-        "fields": {
-          "code": null,
-          "arc_id": null,
-          "parent_theme_id": null,
-          "resolution_type": null,
-          "resolution": null,
-          "message": null
-        }
-      },
-      {
-        "table": "theme_arguments",
-        "fields": {
-          "answer_mode": null,
-          "note": null,
-          "required_knowledge": null,
-          "required_competence": null
-        }
       },
       {
         "table": "memories",

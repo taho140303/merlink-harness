@@ -646,7 +646,7 @@ fn test_agent_loop_creates_project_on_first_message() {
     let created: Value = serde_json::from_str(&turn.messages[1].content).unwrap();
     assert_eq!(created["project_id"], json!("n-a-m"));
     assert_eq!(created["name"], json!("Nửa Đêm"));
-    assert_eq!(created["missing_required"].as_array().unwrap().len(), 17);
+    assert_eq!(created["missing_required"].as_array().unwrap().len(), 11);
     let applied: Value = serde_json::from_str(&turn.messages[3].content).unwrap();
     assert_eq!(applied["ok"], json!(true), "{applied}");
     assert_eq!(applied["value"], json!(1));

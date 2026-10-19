@@ -1,10 +1,18 @@
-# 🔒 SPRINT 15 — REFACTOR: TỤ JSON + TÁCH MODULE + DESIGN PATTERN
+# 🔓 SPRINT 15 — REFACTOR: TỤ JSON + TÁCH MODULE + DESIGN PATTERN
 
-> ## STATUS: LOCKED
+> ## STATUS: UNLOCKED — superseded by Sprint 16 / Sprint 16.1
 >
-> **Sprint này bị KHOÁ theo quyết định của người dùng (2026-10-19).**
-> Không ai được bắt đầu sprint này cho tới khi các điều kiện mở khoá bên dưới được thoả.
-> Nếu bạn là subagent được giao "sprint 15" mà chưa thấy xác nhận mở khoá → **DỪNG, báo BLOCKED**.
+> **Đã đủ điều kiện mở khoá (2026-10-20).** Phạm vi còn lại được tách lại và giao cho:
+> - [`sprint-16.md`](sprint-16.md) — schema v2.1 + docs (`system.dbml`, `super.json`, design docs).
+> - [`sprint-16.1.md`](sprint-16.1.md) — tool contract + prompt (`add_row`/`add_field`, `_json_index`).
+>
+> Phần tách module đã xong ở Phase 2 (P2-S1–P2-S6); phần design-pattern đã xong ở Phase 1 (S0–S8).
+> Tài liệu dưới đây giữ nguyên như bản khảo sát lịch sử, không phải spec thi công.
+> - Điều kiện 1 (Cơ chế rollback / git): Đã thoả (git repo hoạt động, commit baseline, branch + CI).
+> - Điều kiện 2 (Sprint 11.6 IPC contract test): Đã thoả từ 2026-10-19.
+> - Điều kiện 3 (Không còn sprint hotfix dở): Phase 1 (S0–S8) và Phase 2 (P2-S1–P2-S6) đã xong.
+> - Điều kiện 4 (Xác nhận lại phạm vi với mã nguồn hiện tại): Đã đối chiếu ngày 2026-10-20.
+
 
 ---
 
@@ -24,13 +32,11 @@ Người dùng đã chọn **hoãn** nhóm việc này khi được hỏi, với
 
 ## 2. Điều kiện mở khoá (tất cả phải thoả)
 
-- [ ] **Có cơ chế rollback.** Hoặc người dùng đồng ý `git init` + commit baseline, hoặc có phương án
-      sao lưu được người dùng xác nhận. Không có cái này thì KHÔNG chạy.
+- [x] **Có cơ chế rollback.** Git repository đã hoạt động, workflow theo nhánh sprint, commit baseline đầy đủ.
 - [x] ~~Sprint 11.6 (IPC contract test) đã DONE và `cargo test` xanh.~~
-      **Đã thoả 2026-10-19**: 71 passed / 0 failed / 3 ignored, 0 warning. Refactor giờ có lưới an toàn
-      tốt hơn trước: mọi thay đổi làm lệch tên tham số IPC sẽ fail `cargo test` ngay.
-- [ ] Không còn sprint hotfix nào đang dở (12/13/14 tuỳ thứ tự người dùng chọn).
-- [ ] Người dùng xác nhận lại phạm vi, vì tài liệu này viết từ khảo sát ngày 2026-10-19 và có thể đã cũ.
+      **Đã thoả 2026-10-19**: 71 passed / 0 failed / 3 ignored, 0 warning. Hiện tại hệ thống đạt 127 test passed.
+- [x] Không còn sprint hotfix nào đang dở (Phase 1 sprints S0–S8 và Phase 2 P2-S1–P2-S6 đã hoàn tất).
+- [x] Người dùng yêu cầu đối chiếu lại phạm vi và mã nguồn hiện tại (2026-10-20). Đã đối chiếu hoàn tất.
 
 ---
 
@@ -175,3 +181,4 @@ liệu ở mục 4 chỉ ra đau ở đâu.
 | 2026-10-19 | Người dùng từ chối `git init` → **KHOÁ sprint này**, hoãn sang sprint 15 |
 | 2026-10-19 | 2 subagent khảo sát (coupling map + JSON inventory) bị dừng theo quyết định hoãn → mục 4 vẫn trống |
 | 2026-10-19 | Sprint 11.6 DONE (71 test xanh) → điều kiện mở khoá #2 thoả. **Sprint vẫn LOCKED** vì chưa có cơ chế rollback |
+| 2026-10-20 | Đã có git rollback; Phase 1 (S0–S8) và Phase 2 (P2-S1–P2-S6) đã xong phần tách module + design pattern. Sprint 15 **UNLOCKED**; phạm vi schema/tool còn lại chuyển sang Sprint 16 và 16.1. |
