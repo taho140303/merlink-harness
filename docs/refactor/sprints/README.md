@@ -9,8 +9,8 @@ dependency, and update its own status line here.
 | --- | --- | --- | --- | --- |
 | S0 | [00-oss-baseline.md](00-oss-baseline.md) | pushed | `refactor/s0-oss-baseline` | OSS docs |
 | S1 | [01-session-ownership.md](01-session-ownership.md) | done | `refactor/s1-session-ownership` | F-01 frontend, F-02 |
-| S2 | [02-message-integrity.md](02-message-integrity.md) | pushed | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
-| S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | blocked by S2 | `refactor/s3-project-json-integrity` | F-03, F-04 |
+| S2 | [02-message-integrity.md](02-message-integrity.md) | done | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
+| S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | ready | `refactor/s3-project-json-integrity` | F-03, F-04 |
 | S4 | [04-agent-loop-truth.md](04-agent-loop-truth.md) | blocked by S3 | `refactor/s4-agent-loop-truth` | F-05, F-06, F-07 |
 | S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | blocked by S4 | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
 | S6 | [06-ipc-and-preview.md](06-ipc-and-preview.md) | blocked by S5 | `refactor/s6-ipc-preview` | F-13–F-16 |
