@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ImagePlus } from "lucide-react";
 import {
   EMPTY_FORM,
@@ -17,6 +17,19 @@ interface CharacterFormProps {
 export function CharacterForm({ projects, onClose, onCreate }: CharacterFormProps) {
   const [form, setForm] = useState<CharacterFormValues>(EMPTY_FORM);
   const [uploadError, setUploadError] = useState("");
+  const readerRef = useRef<FileReader | null>(null);
+  const uploadGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      uploadGenerationRef.current += 1;
+      readerRef.current?.abort();
+      readerRef.current = null;
+    };
+  }, []);
 
   function field<K extends keyof CharacterFormValues>(name: K) {
     return {
@@ -38,6 +51,9 @@ export function CharacterForm({ projects, onClose, onCreate }: CharacterFormProp
   function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const generation = ++uploadGenerationRef.current;
+    readerRef.current?.abort();
+    readerRef.current = null;
     if (!file.type.startsWith("image/")) {
       setUploadError("Choose a JPG, PNG, or WebP image.");
       return;
@@ -48,8 +64,12 @@ export function CharacterForm({ projects, onClose, onCreate }: CharacterFormProp
     }
     setUploadError("");
     const reader = new FileReader();
-    reader.onload = () =>
+    readerRef.current = reader;
+    reader.onload = () => {
+      if (generation !== uploadGenerationRef.current || !mountedRef.current) return;
+      readerRef.current = null;
       setForm((current) => ({ ...current, uploadedImage: String(reader.result) }));
+    };
     reader.readAsDataURL(file);
   }
 
@@ -65,7 +85,7 @@ export function CharacterForm({ projects, onClose, onCreate }: CharacterFormProp
       role,
       age: form.age.trim(),
       gender: form.gender,
-      story: form.story || projects[0]?.id || "",
+      story: form.story,
       tags: form.tags,
       appearance,
       bio:

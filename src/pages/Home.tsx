@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
@@ -11,10 +12,16 @@ import {
   Bot,
 } from "lucide-react";
 import { mockCharacters, mockProjects } from "../data/mock";
+import { readCustomCharacters } from "../lib/characters";
 
 export function Home() {
+  // Project and word metrics remain demo fixtures until a real project read-model exists.
   const topProjects = mockProjects.slice(0, 3);
   const totalWords = mockProjects.reduce((sum, project) => sum + project.wordCount, 0);
+  const totalCharacters = useMemo(
+    () => readCustomCharacters().length + mockCharacters.length,
+    [],
+  );
 
   const cards = [
     {
@@ -24,7 +31,7 @@ export function Home() {
     },
     {
       icon: Users,
-      value: String(mockCharacters.length).padStart(2, "0"),
+      value: String(totalCharacters).padStart(2, "0"),
       label: "Characters brought to life",
     },
     {

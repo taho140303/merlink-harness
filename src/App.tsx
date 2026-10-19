@@ -23,6 +23,7 @@ import { Projects } from "./pages/Projects";
 import { StoryConfig } from "./pages/StoryConfig";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { applyTextScale, readTextScale } from "./lib/preferences";
+import { applyTheme, readTheme, subscribeSystemTheme } from "./lib/theme";
 
 const NAV_ITEMS = [
   { to: "/chat", label: "Chat", icon: MessageSquare },
@@ -72,22 +73,6 @@ function Atmosphere() {
   );
 }
 
-function applyStoredTheme() {
-  let preference = "system";
-  try {
-    preference = localStorage.getItem("merlink-theme") || "system";
-  } catch {
-    preference = "system";
-  }
-  const dark =
-    preference === "dark" ||
-    (preference === "system" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
-  document.documentElement.classList.toggle("dark", dark);
-  return preference;
-}
-
 function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,23 +83,12 @@ function Shell() {
   );
 
   useEffect(() => {
-    applyStoredTheme();
+    applyTheme(readTheme());
     // D1: the text scale is a real setting, applied as soon as the shell mounts
     // (next to the theme). `applyTextScale` never rejects, so there is nothing
     // to await here.
     void applyTextScale(readTextScale());
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      let preference = "system";
-      try {
-        preference = localStorage.getItem("merlink-theme") || "system";
-      } catch {
-        preference = "system";
-      }
-      if (preference === "system") applyStoredTheme();
-    };
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
+    return subscribeSystemTheme();
   }, []);
 
   const toggleSidebar = () => {

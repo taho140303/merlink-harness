@@ -487,8 +487,11 @@ export function Chat() {
    */
   async function sendMessage(raw: string) {
     const content = raw.trim();
-    // D3: with no provider configured there is nowhere to send the message.
-    if (!content || activeTurnRef.current !== null || providers.length === 0) return;
+    if (!content || activeTurnRef.current !== null) return;
+    if (providers.length === 0) {
+      setError("Add a provider in Settings before sending a message.");
+      return;
+    }
 
     sessionEpochRef.current += 1;
     const epoch = sessionEpochRef.current;
@@ -600,6 +603,10 @@ export function Chat() {
     event?.preventDefault();
     const content = input.trim();
     if (!content || activeTurnRef.current !== null) return;
+    if (providers.length === 0) {
+      setError("Add a provider in Settings before sending a message.");
+      return;
+    }
     setInput("");
     historyIndex.current = -1;
     savedDraft.current = "";
@@ -997,6 +1004,11 @@ export function Chat() {
           disabled={loading}
           onChange={(event) => { setInput(event.target.value); if (historyIndex.current === -1) savedDraft.current = event.target.value; }}
           onKeyDown={(event) => {
+            if (event.key === "Enter" && providers.length === 0 && input.trim()) {
+              event.preventDefault();
+              setError("Add a provider in Settings before sending a message.");
+              return;
+            }
             if (event.key === "ArrowUp") {
               event.preventDefault();
               const sent = messages.filter((m) => m.role === "user").map((m) => m.content);
