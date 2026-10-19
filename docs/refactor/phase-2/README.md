@@ -6,6 +6,17 @@
 > Rule: this is a **behavior-preserving move**. No feature, no UI change, no new
 > dependency, no public API rename.
 
+## 0. Status
+
+| Sprint | Scope | Status | Branch tip |
+| --- | --- | --- | --- |
+| P2-S1 | `commands/` | done | `a3fc179` |
+| P2-S2 | `adapters/` | ready | — |
+| P2-S3 | `tools/` | pending | — |
+| P2-S4 | `super_json/` | pending | — |
+| P2-S5 | `db/` | pending | — |
+| P2-S6 | `runtime/` | pending | — |
+
 ## 1. Why the files look big
 
 Most of the line count is `#[cfg(test)]`. The production surface is smaller:
