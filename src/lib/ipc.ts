@@ -1,7 +1,7 @@
 import type { Channel } from "@tauri-apps/api/core";
 import type {
   AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope,
-  ProviderConfig, SessionSummary, SuperJsonProgress,
+  ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress,
 } from "../types";
 import { safeInvoke, type AgentEventChannel } from "./tauri";
 
@@ -20,6 +20,8 @@ export interface CommandMap {
   save_providers: { args: { providers: ProviderConfig[] }; result: void };
   send_chat: { args: SendChatArgs; result: ChatTurn };
   list_messages: { args: { sessionId: string }; result: MessageEnvelope[] };
+  list_projects: { args: never; result: ProjectSummary[] };
+  get_project: { args: { projectId: string }; result: ProjectSummary | null };
   list_sessions: { args: never; result: SessionSummary[] };
   get_session: { args: { sessionId: string }; result: SessionSummary | null };
   rename_session: { args: { sessionId: string; title: string }; result: SessionSummary };

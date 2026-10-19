@@ -1,4 +1,4 @@
-import type { AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope, ProviderConfig, SessionSummary, SuperJsonProgress, ToolCall } from "../types";
+import type { AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope, ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress, ToolCall } from "../types";
 import type { SendChatArgs } from "./ipc";
 import { mockProjects } from "../data/mock";
 
@@ -121,6 +121,34 @@ function seedMockSessions(): void {
   seed("demo-session-moon", "glass-tide", "2025-01-03T10:00:00.000Z", "Viết về một đêm trăng bên sông.");
   seed("demo-session-garden", "midnight-orchard", "2025-01-02T10:00:00.000Z");
   seed("demo-session-unbound", "", "2025-01-01T10:00:00.000Z");
+}
+
+function mockProjectSummary(projectId: string): ProjectSummary | null {
+  const seeded = mockProjects.find((project) => project.id === projectId);
+  const projectSessions = [...sessions.entries()].filter(([, session]) => session.projectId === projectId);
+  if (!seeded && projectSessions.length === 0) return null;
+  const values = projectSessions[0]?.[1].values;
+  const storedName = values?.get("require.project.name");
+  const genreValues = seeded ? [seeded.genre] : mockRows(values, "project_genres")
+    .map((row) => typeof row.genre_id === "string" ? row.genre_id.trim() : "")
+    .filter(Boolean);
+  const seenGenres = new Set<string>();
+  const genres = genreValues.filter((genre) => {
+    const key = genre.toLocaleLowerCase();
+    if (!key || seenGenres.has(key)) return false;
+    seenGenres.add(key);
+    return true;
+  });
+  const createdAt = seeded
+    ? new Date(seeded.createdAt).toISOString()
+    : (projectSessions.map(([, session]) => session.createdAt).sort()[0] ?? new Date().toISOString());
+  return {
+    id: projectId,
+    title: typeof storedName === "string" && storedName.trim() ? storedName.trim() : (seeded?.title ?? "Dự án chưa đặt tên"),
+    genres,
+    created_at: createdAt,
+    session_count: projectSessions.length,
+  };
 }
 
 function mockProjectTitle(projectId: string): string | null {
@@ -919,6 +947,15 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
     }
     case "send_chat":
       return mockSendChat(args as SendChatArgs);
+    case "list_projects": {
+      const ids = new Set([...mockProjects.map((project) => project.id), ...[...sessions.values()].map((session) => session.projectId).filter(Boolean)]);
+      return [...ids].map(mockProjectSummary).filter((project): project is ProjectSummary => project !== null)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    case "get_project": {
+      const { projectId } = args as { projectId: string };
+      return mockProjectSummary(projectId);
+    }
     case "list_messages": {
       const { sessionId } = args as { sessionId: string };
       return sessions.get(sessionId)?.messages ?? [];

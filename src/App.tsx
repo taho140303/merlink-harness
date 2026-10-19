@@ -25,6 +25,7 @@ import { Home } from "./pages/Home";
 import { Chat } from "./pages/Chat";
 import { Characters } from "./pages/Characters";
 import { Projects } from "./pages/Projects";
+import { ProjectDetail } from "./pages/ProjectDetail";
 import { StoryConfig } from "./pages/StoryConfig";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { applyTextScale, readTextScale } from "./lib/preferences";
@@ -393,6 +394,7 @@ export default function App() {
         <Route path="chat/:sessionId" element={<Chat />} />
         <Route path="characters" element={<Characters />} />
         <Route path="projects" element={<Projects />} />
+        <Route path="projects/:projectId" element={<ProjectDetail />} />
         <Route path="story-config" element={<StoryConfig />} />
         <Route path="*" element={<Home />} />
       </Route>

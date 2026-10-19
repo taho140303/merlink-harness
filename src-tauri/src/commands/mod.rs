@@ -7,7 +7,7 @@ pub(crate) mod super_json;
 #[allow(unused_imports)]
 pub(crate) use chat::{context_usage, list_messages, send_chat};
 #[allow(unused_imports)]
-pub(crate) use project::execute_tool;
+pub(crate) use project::{execute_tool, get_project, list_projects};
 #[allow(unused_imports)]
 pub(crate) use providers::{fetch_models, load_providers, save_providers};
 #[allow(unused_imports)]

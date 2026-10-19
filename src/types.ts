@@ -42,6 +42,14 @@ export interface TokenUsage {
   output_tokens: number;
 }
 
+export interface ProjectSummary {
+  id: string;
+  title: string;
+  genres: string[];
+  created_at: string;
+  session_count: number;
+}
+
 export interface SessionSummary {
   id: string;
   project_id: string;

@@ -13,7 +13,7 @@ mod tables;
 // `super_json` is private to the crate, so rustc cannot see these re-exports
 // from outside; they stay public for call sites and for the crate's tests.
 #[allow(unused_imports)]
-pub use io::{add_field, add_row, get, init_project, load_or_init, set, warnings};
+pub use io::{add_field, add_row, get, init_project, load_existing, load_or_init, set, warnings};
 #[allow(unused_imports)]
 pub use progress::{
     LABEL_ACCEPTABLE, LABEL_COLLECTING, LABEL_GOOD, LABEL_NO_PROJECT, filled_counts,

@@ -33,6 +33,22 @@ fn project_lock(project_id: &str) -> Arc<Mutex<()>> {
     )
 }
 
+/// Reads an existing super json file. Missing file → `Ok(None)`. Never creates
+/// a project directory or a skeleton, unlike [`load_or_init`].
+pub fn load_existing(project_id: &str) -> Result<Option<Value>, String> {
+    let path = file_path(project_id)?;
+    match fs::read_to_string(&path) {
+        Ok(raw) => serde_json::from_str(&raw)
+            .map(Some)
+            .map_err(|error| format!("Invalid super json at {}: {error}", path.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!(
+            "Cannot read super json at {}: {error}",
+            path.display()
+        )),
+    }
+}
+
 /// Reads the project's super json, creating it from the skeleton on first use.
 pub fn load_or_init(project_id: &str) -> Result<Value, String> {
     let lock = project_lock(project_id);
@@ -738,6 +754,28 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::super_json::{missing_required, required_paths};
+
+    #[test]
+    fn test_load_existing_does_not_create_a_missing_project() {
+        let home = crate::test_support::TempHome::new("super-load-existing-missing");
+        let directory = home.path().join("projects").join("missing");
+        assert_eq!(load_existing("missing").unwrap(), None);
+        assert!(!directory.exists());
+    }
+
+    #[test]
+    fn test_load_existing_reads_an_existing_document() {
+        let home = crate::test_support::TempHome::new("super-load-existing-present");
+        let path = home
+            .path()
+            .join("projects")
+            .join("existing")
+            .join("super.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, r#"{"require":{"project":{"name":"Existing"}}}"#).unwrap();
+        let document = load_existing("existing").unwrap().unwrap();
+        assert_eq!(document["require"]["project"]["name"], "Existing");
+    }
 
     #[test]
     fn test_super_json_skeleton_and_set_round_trip() {
