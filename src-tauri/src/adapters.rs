@@ -1,6 +1,8 @@
 use std::{
+    collections::HashSet,
     future::Future,
     pin::Pin,
+    sync::OnceLock,
 };
 
 use serde_json::{Value, json};
@@ -118,25 +120,25 @@ fn anthropic_endpoint(base_url: &str) -> String {
     }
 }
 
-/// Model-list endpoint (Sprint 11.5 · D3): the same normalisation as
-/// [`anthropic_endpoint`], but for the collection path instead of `/messages`.
-///
-/// - Anthropic: `GET {base}/v1/models` (`{base}` may already carry `/v1`).
-/// - OpenAI-compatible (and `custom`): `GET {base_url}/models`.
+/// Derive model discovery from the API root, including completed chat URLs.
 fn models_endpoint(base_url: &str, kind: &str) -> String {
     let base = base_url.trim_end_matches('/');
     if kind == "anthropic" {
-        if base.ends_with("/v1/models") {
+        let base = base.strip_suffix("/messages").unwrap_or(base);
+        if base.ends_with("/models") {
             base.to_owned()
         } else if base.ends_with("/v1") {
             format!("{base}/models")
         } else {
             format!("{base}/v1/models")
         }
-    } else if base.ends_with("/models") {
-        base.to_owned()
     } else {
-        format!("{base}/models")
+        let base = base.strip_suffix("/chat/completions").unwrap_or(base);
+        if base.ends_with("/models") {
+            base.to_owned()
+        } else {
+            format!("{base}/models")
+        }
     }
 }
 
@@ -282,36 +284,32 @@ pub fn parse_openai_response(body: &Value) -> Result<AdapterReply, String> {
         .unwrap_or_default()
         .to_owned();
 
-    let tool_calls: Vec<ToolCall> = message
-        .get("tool_calls")
-        .and_then(Value::as_array)
-        .map(|calls| {
-            calls
-                .iter()
-                .filter_map(|call| {
-                    let function = call.get("function")?;
-                    let name = function.get("name")?.as_str()?.to_owned();
-                    // `arguments` arrives as a JSON string, but some proxies send
-                    // an object directly; tolerate both.
-                    let arguments = match function.get("arguments") {
-                        Some(Value::String(raw)) => serde_json::from_str(raw)
-                            .unwrap_or_else(|_| Value::String(raw.clone())),
-                        Some(other) => other.clone(),
-                        None => Value::Null,
-                    };
-                    Some(ToolCall {
-                        id: call
-                            .get("id")
-                            .and_then(Value::as_str)
-                            .unwrap_or_default()
-                            .to_owned(),
-                        name,
-                        arguments,
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut tool_calls = Vec::new();
+    let mut ids = HashSet::new();
+    if let Some(raw_calls) = message.get("tool_calls") {
+        let calls = raw_calls.as_array().ok_or("OpenAI tool_calls must be an array")?;
+        for (index, call) in calls.iter().enumerate() {
+            let id = call.get("id").and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| format!("OpenAI tool call {index} missing id"))?;
+            if !ids.insert(id) {
+                return Err(format!("OpenAI tool call {index} duplicate id {id}"));
+            }
+            let function = call.get("function")
+                .ok_or_else(|| format!("OpenAI tool call {id} missing function.name"))?;
+            let name = function.get("name").and_then(Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| format!("OpenAI tool call {id} missing function.name"))?;
+            let arguments = match function.get("arguments") {
+                Some(Value::String(raw)) => serde_json::from_str(raw)
+                    .map_err(|error| format!("OpenAI tool call {id} invalid arguments: {error}"))?,
+                Some(value @ (Value::Object(_) | Value::Array(_) | Value::Null)) => value.clone(),
+                Some(_) => return Err(format!("OpenAI tool call {id} invalid arguments type")),
+                None => return Err(format!("OpenAI tool call {id} missing arguments")),
+            };
+            tool_calls.push(ToolCall { id: id.to_owned(), name: name.to_owned(), arguments });
+        }
+    }
 
     if content.trim().is_empty() && tool_calls.is_empty() {
         return Err("Provider returned neither content nor tool calls".into());
@@ -351,19 +349,19 @@ pub fn parse_anthropic_response(body: &Value) -> Result<AdapterReply, String> {
                     text.push(value.to_owned());
                 }
             }
-            Some("tool_use") => tool_calls.push(ToolCall {
-                id: block
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-                name: block
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-                arguments: block.get("input").cloned().unwrap_or(Value::Null),
-            }),
+            Some("tool_use") => {
+                let id = block.get("id").and_then(Value::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| format!("Anthropic tool_use block {} missing id", tool_calls.len()))?;
+                let name = block.get("name").and_then(Value::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| format!("Anthropic tool_use {id} missing name"))?;
+                tool_calls.push(ToolCall {
+                    id: id.to_owned(),
+                    name: name.to_owned(),
+                    arguments: block.get("input").cloned().unwrap_or(Value::Null),
+                });
+            }
             _ => {}
         }
     }
@@ -466,21 +464,22 @@ async fn checked_json(response: reqwest::Response) -> Result<Value, String> {
     serde_json::from_str(&body).map_err(|error| format!("Invalid provider response: {error}"))
 }
 
+static CHAT_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+static LIST_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+
 fn client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+    CHAT_CLIENT.get_or_init(|| reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())).clone()
 }
 
-/// Client for the model-list request (D11): a 30s ceiling instead of the chat
-/// client's 120s, so a wrong address fails while the user is still looking at the
-/// dialog instead of freezing "Fetching models…" for two minutes.
+/// Model discovery retains its shorter 30-second timeout.
 fn list_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+    LIST_CLIENT.get_or_init(|| reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())).clone()
 }
 
 /// Asks the provider for its model list (Sprint 11.5 · D1/D3).
@@ -965,6 +964,69 @@ mod tests {
             "https://api.anthropic.com/v1/models",
             "an existing version segment must not be duplicated"
         );
+    }
+
+    #[test]
+    fn test_models_endpoint_completed_urls_and_slashes() {
+        for (kind, base, expected) in [
+            ("openai", "https://api.example.com", "https://api.example.com/models"),
+            ("openai", "https://api.example.com/v1/chat/completions", "https://api.example.com/v1/models"),
+            ("custom", "https://api.example.com/v1/chat/completions/", "https://api.example.com/v1/models"),
+            ("openai", "https://api.example.com/v1/models/", "https://api.example.com/v1/models"),
+            ("anthropic", "https://api.example.com/v1/messages", "https://api.example.com/v1/models"),
+            ("anthropic", "https://api.example.com/v1/messages/", "https://api.example.com/v1/models"),
+            ("anthropic", "https://api.example.com/v1/models/", "https://api.example.com/v1/models"),
+            ("anthropic", "https://api.example.com/messages", "https://api.example.com/v1/models"),
+        ] {
+            assert_eq!(models_endpoint(base, kind), expected, "{kind} {base}");
+        }
+    }
+
+    #[test]
+    fn test_openai_rejects_malformed_tool_calls() {
+        for (call, expected) in [
+            (json!({"function":{"name":"set","arguments":"{}"}}), "id"),
+            (json!({"id":"  ","function":{"name":"set","arguments":"{}"}}), "id"),
+            (json!({"id":"one","function":{"arguments":"{}"}}), "name"),
+            (json!({"id":"one","function":{"name":"  ","arguments":"{}"}}), "name"),
+            (json!({"id":"one","function":{"name":"set","arguments":"{not json"}}), "arguments"),
+            (json!({"id":"one","function":{"name":"set"}}), "arguments"),
+            (json!({"id":"one","function":{"name":"set","arguments":42}}), "arguments"),
+        ] {
+            let body = json!({"choices":[{"message":{"content":"ok","tool_calls":[call]}}]});
+            let error = parse_openai_response(&body).err().expect("malformed call must fail");
+            assert!(error.contains(expected), "{error}");
+        }
+        let duplicate = json!({"choices":[{"message":{"content":"ok","tool_calls":[
+            {"id":"one","function":{"name":"set","arguments":"{}"}},
+            {"id":"one","function":{"name":"get","arguments":{}}}
+        ]}}]});
+        assert!(parse_openai_response(&duplicate).err().expect("duplicate must fail").contains("one"));
+        let object = json!({"choices":[{"message":{"tool_calls":[
+            {"id":"one","function":{"name":"set","arguments":{"path":"x"}}}
+        ]}}]});
+        assert_eq!(parse_openai_response(&object).unwrap().tool_calls[0].arguments, json!({"path":"x"}));
+    }
+
+    #[test]
+    fn test_anthropic_rejects_missing_or_blank_tool_identity() {
+        for (block, expected) in [
+            (json!({"type":"tool_use","name":"set"}), "id"),
+            (json!({"type":"tool_use","id":"  ","name":"set"}), "id"),
+            (json!({"type":"tool_use","id":"one"}), "name"),
+            (json!({"type":"tool_use","id":"one","name":"  "}), "name"),
+        ] {
+            let body = json!({"content":[{"type":"text","text":"ok"},block]});
+            let error = parse_anthropic_response(&body).err().expect("malformed call must fail");
+            assert!(error.contains(expected), "{error}");
+        }
+        let body = json!({"content":[
+            {"type":"tool_use","id":"one","name":"set"},
+            {"type":"tool_use","id":"two","name":"set","input":[1,2]}
+        ]});
+        let reply = parse_anthropic_response(&body).unwrap();
+        assert_eq!(reply.tool_calls[0].arguments, Value::Null);
+        assert_eq!(reply.tool_calls[1].arguments, json!([1,2]));
     }
 
     /// D3: blank inputs fail immediately, and no request is attempted (there is no

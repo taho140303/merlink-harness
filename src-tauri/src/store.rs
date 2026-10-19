@@ -1,34 +1,12 @@
 use std::{fs, path::PathBuf};
 
-use crate::models::ProviderConfig;
-#[cfg(test)]
-use crate::models::{InputTypes, ModelConfig};
-
-/// The ten providers older versions seeded on first run (Sprint 11.13 · D2).
-///
-/// This is **not** a catalog: it exists only so [`load_providers`] can recognise
-/// untouched seed entries left on disk by an older install and drop them once.
-/// A new install starts with no providers at all; providers are only ever what
-/// the author adds in Settings.
-const LEGACY_SEEDED_IDS: [&str; 10] = [
-    "openai",
-    "anthropic",
-    "deepseek",
-    "google",
-    "qwen",
-    "glm",
-    "zai",
-    "kimi",
-    "command-code",
-    "ollama",
-];
+use crate::models::{InputTypes, ModelConfig, ProviderConfig};
 
 pub fn get_config_path() -> Result<PathBuf, String> {
     crate::paths::config_path()
 }
 
-/// The old seed helper, test-only now that the shipped catalog is empty.
-#[cfg(test)]
+/// Rebuilds the exact legacy seed shape for the one-time migration only.
 fn provider(
     id: &str,
     name: &str,
@@ -64,11 +42,8 @@ fn provider(
     }
 }
 
-/// The ten-provider seed of every version before Sprint 11.13, kept **only** as
-/// a test fixture: migration tests and IPC round-trip tests still need a realistic
-/// config to write to disk. Production code never calls this (D2).
-#[cfg(test)]
-pub fn catalog_fixture() -> Vec<ProviderConfig> {
+/// Historical migration fingerprints, never exposed as a selectable provider catalog.
+fn legacy_seed_catalog() -> Vec<ProviderConfig> {
     vec![
         provider(
             "openai",
@@ -137,6 +112,12 @@ pub fn catalog_fixture() -> Vec<ProviderConfig> {
     ]
 }
 
+/// Test fixture for historical config/IPC round trips.
+#[cfg(test)]
+pub fn catalog_fixture() -> Vec<ProviderConfig> {
+    legacy_seed_catalog()
+}
+
 /// The shipped provider list (Sprint 11.13 · D2).
 ///
 /// There is no hardcoded catalog any more: the list is exactly what the author
@@ -145,12 +126,10 @@ pub fn default_providers() -> Vec<ProviderConfig> {
     Vec::new()
 }
 
-/// One-shot cleanup predicate: an entry that is still a legacy seed nobody has
-/// touched (its api key is empty). Anything the author created or configured is
-/// left alone — `custom-<timestamp>` entries, named providers, any provider with
-/// a key.
+/// Prune only a field-for-field unchanged, keyless historical seed. A cleared key
+/// on an edited record does not restore its historical fingerprint.
 fn is_untouched_legacy_seed(provider: &ProviderConfig) -> bool {
-    provider.api_key.trim().is_empty() && LEGACY_SEEDED_IDS.contains(&provider.id.as_str())
+    provider.api_key.is_empty() && legacy_seed_catalog().contains(provider)
 }
 
 pub fn load_providers() -> Result<Vec<ProviderConfig>, String> {
@@ -264,10 +243,10 @@ mod tests {
             on_disk.is_empty(),
             "load_providers must rewrite config.json without the legacy seeds"
         );
-        for id in LEGACY_SEEDED_IDS {
+        for seed in catalog_fixture() {
             assert!(
-                !raw.contains(&format!("\"{id}\"")),
-                "seed `{id}` is still on disk: {raw}"
+                !raw.contains(&format!("\"{}\"", seed.id)),
+                "seed `{}` is still on disk: {raw}", seed.id
             );
         }
     }
@@ -301,6 +280,42 @@ mod tests {
         assert_eq!(on_disk[0].id, "custom-1792378417139");
         assert!(!raw.contains("\"openai\""));
         assert!(!raw.contains("\"anthropic\""));
+    }
+
+    #[test]
+    fn test_edited_keyless_seed_survives() {
+        let _home = TempHome::new("store-edited-keyless");
+        let mut edited = catalog_fixture().remove(0);
+        edited.base_url = "https://author.example/v1".into();
+        edited.models[0].name = "My model".into();
+        save_providers(std::slice::from_ref(&edited)).unwrap();
+        let loaded = load_providers().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].base_url, edited.base_url);
+    }
+
+    #[test]
+    fn test_key_cleared_configured_provider_survives() {
+        let _home = TempHome::new("store-cleared-key");
+        let mut configured = catalog_fixture().remove(1);
+        configured.name = "My Anthropic".into();
+        configured.api_key = "configured".into();
+        save_providers(std::slice::from_ref(&configured)).unwrap();
+        configured.api_key.clear();
+        save_providers(std::slice::from_ref(&configured)).unwrap();
+        let loaded = load_providers().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, configured.name);
+    }
+
+    #[test]
+    fn test_keyless_custom_provider_survives() {
+        let _home = TempHome::new("store-custom-keyless");
+        let mut custom = catalog_fixture().remove(0);
+        custom.id = "custom-1".into();
+        custom.kind = "custom".into();
+        save_providers(std::slice::from_ref(&custom)).unwrap();
+        assert_eq!(load_providers().unwrap().len(), 1);
     }
 
     /// A provider the author configured is never mistaken for a seed, even if it

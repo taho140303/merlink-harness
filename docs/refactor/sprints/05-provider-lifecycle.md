@@ -1,6 +1,6 @@
 # S5 — Provider lifecycle
 
-- **Status:** blocked by S4
+- **Status:** pushed
 - **Branch:** `refactor/s5-provider-lifecycle`
 - **Units:** F-08, F-09, F-10, F-11, F-12, F-17
 - **Depends on:** S4

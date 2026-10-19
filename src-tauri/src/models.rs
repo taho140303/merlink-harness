@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InputTypes {
     pub text: bool,
     pub image: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelConfig {
     pub id: String,
     pub name: String,
@@ -16,7 +16,7 @@ pub struct ModelConfig {
     pub reasoning_level: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderConfig {
     pub id: String,
     pub name: String,
