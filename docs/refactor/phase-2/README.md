@@ -12,8 +12,8 @@
 | --- | --- | --- | --- |
 | P2-S1 | `commands/` | done | `a3fc179` |
 | P2-S2 | `adapters/` | done | `928bcf4` |
-| P2-S3 | `tools/` | ready | — |
-| P2-S4 | `super_json/` | pending | — |
+| P2-S3 | `tools/` | done | `cd5a0da` |
+| P2-S4 | `super_json/` | ready | — |
 | P2-S5 | `db/` | pending | — |
 | P2-S6 | `runtime/` | pending | — |
 
@@ -110,6 +110,15 @@ src-tauri/src/
 7. **One sprint = one branch = one subagent = one push.** Root merges with
    `--no-ff` after re-running the commands.
 
+## 3a. Line budgets: production vs total
+
+Sprint targets below are **production-line** budgets. Test modules move with the
+code they exercise, so a file's `wc -l` can be larger than its production size.
+This is deliberate: keeping tests next to the code preserves private access and
+avoids duplicating helpers. If total file size becomes the priority, a later
+phase can move each `#[cfg(test)] mod tests` into a sibling test module, but that
+is a separate refactor.
+
 ## 4. Sprint sequence (low risk → high risk)
 
 ### P2-S1 — `commands/` extraction
@@ -148,8 +157,8 @@ src-tauri/src/
 - **Files:** `src-tauri/src/super_json.rs` → `super_json/{mod,schema,io,progress,summary}.rs`.
 - **Work:** move schema/path validation, file locking + IO, progress/missing
   logic, and the large Vietnamese summary template. Update `include_str!` depth.
-- **Target:** no submodule > 320 production lines; `mod.rs` only constants +
-  re-exports.
+- **Target:** `summary.rs` ≤ 420 production lines (the prose template is the
+  largest block); other submodules ≤ 320; `mod.rs` only constants + re-exports.
 - **Risk:** `summary.rs` is the largest prose block; move it mechanically and
   keep every test. `include_str!` path is the most likely build break.
 
