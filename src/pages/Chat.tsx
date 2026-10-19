@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createAgentEventChannel, safeInvoke } from "../lib/tauri";
+import { newMessageId, newSessionId } from "../lib/ids";
 import { Markdown } from "../components/Markdown";
 import { Dialog } from "../components/Dialog";
 import { ContextDonut } from "../components/ContextDonut";
@@ -35,17 +36,6 @@ import type {
  * separate outline pipeline yet, it just goes through `handleSend`.
  */
 const OUTLINE_PROMPT = "Bắt đầu viết dàn ý.";
-
-/**
- * Sessions are an opaque id for now: the backend only uses it as a foreign key
- * for message history. There is no session directory and no resume flow yet.
- */
-function newSessionId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `sess-${crypto.randomUUID()}`;
-  }
-  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 /**
  * One step of the live frame (Sprint 11.12 · D1).
@@ -249,7 +239,41 @@ export function Chat() {
   const historyIndex = useRef(-1);
   const savedDraft = useRef("");
 
+  // The epoch owns every async read and turn. New chat detaches the old turn;
+  // it does not cancel the backend, whose tools may already have run.
+  const sessionEpochRef = useRef(0);
+  const activeTurnRef = useRef<{ epoch: number; sessionId: string } | null>(null);
+  const mountedRef = useRef(true);
+  const sessionRef = useRef(sessionId);
+  const projectRef = useRef(projectId);
+  const providerRef = useRef(selectedProviderId);
+  const modelRef = useRef(selectedModelId);
+  const isCurrentRead = useCallback((epoch: number, session: string, project: string) =>
+    sessionEpochRef.current === epoch &&
+    sessionRef.current === session &&
+    projectRef.current === project,
+  []);
+  const isCurrentTurn = useCallback((epoch: number, session: string) =>
+    sessionEpochRef.current === epoch &&
+    sessionRef.current === session &&
+    activeTurnRef.current?.epoch === epoch &&
+    activeTurnRef.current.sessionId === session,
+  []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      sessionEpochRef.current += 1;
+      activeTurnRef.current = null;
+    };
+  }, []);
+
   const refreshSuperJson = useCallback(async (id: string) => {
+    const epoch = sessionEpochRef.current;
+    const session = sessionRef.current;
+    const project = projectRef.current;
+    if (id !== project) return;
     // Without a project there is no super json to read; asking would be an error.
     if (!id) {
       setSuperJson(null);
@@ -259,17 +283,23 @@ export function Chat() {
       const document = await safeInvoke<unknown>("super_json_read", {
         projectId: id,
       });
+      if (!isCurrentRead(epoch, session, project)) return;
       setSuperJson(document);
     } catch (err) {
+      if (!isCurrentRead(epoch, session, project)) return;
       console.error("super_json_read error:", err);
     }
-  }, []);
+  }, [isCurrentRead]);
 
   /**
    * Prose for the `Chi tiết` dialog (D2/D5). Generated in Rust from the super
    * json — the frontend only splits it into paragraphs.
    */
   const refreshSummary = useCallback(async (id: string) => {
+    const epoch = sessionEpochRef.current;
+    const session = sessionRef.current;
+    const project = projectRef.current;
+    if (id !== project) return;
     if (!id) {
       setSuperJsonSummary("");
       return;
@@ -278,11 +308,13 @@ export function Chat() {
       const text = await safeInvoke<string>("super_json_summary", {
         projectId: id,
       });
+      if (!isCurrentRead(epoch, session, project)) return;
       setSuperJsonSummary(text);
     } catch (err) {
+      if (!isCurrentRead(epoch, session, project)) return;
       console.error("super_json_summary error:", err);
     }
-  }, []);
+  }, [isCurrentRead]);
 
   /** Refresh keeps both views current (D5). */
   const refreshDetail = useCallback(
@@ -294,24 +326,38 @@ export function Chat() {
 
   /** Progress is computed in Rust; the header only renders it (D7). */
   const refreshProgress = useCallback(async () => {
+    const epoch = sessionEpochRef.current;
+    const session = sessionRef.current;
+    const project = projectRef.current;
     try {
       const next = await safeInvoke<SuperJsonProgress>("super_json_progress", {
-        sessionId,
+        sessionId: session,
       });
+      if (!isCurrentRead(epoch, session, project)) return;
       setProgress(next);
     } catch (err) {
+      if (!isCurrentRead(epoch, session, project)) return;
       console.error("super_json_progress error:", err);
     }
-  }, [sessionId]);
+  }, [isCurrentRead]);
 
   const refreshContextUsage = useCallback(async () => {
+    const epoch = sessionEpochRef.current;
+    const session = sessionRef.current;
+    const project = projectRef.current;
+    const provider = providerRef.current;
+    const model = modelRef.current;
     try {
-      const next = await safeInvoke<ContextUsage>("context_usage", { sessionId, providerId: selectedProviderId, modelId: selectedModelId });
+      const next = await safeInvoke<ContextUsage>("context_usage", { sessionId: session, providerId: provider, modelId: model });
+      if (!isCurrentRead(epoch, session, project) || providerRef.current !== provider || modelRef.current !== model) return;
       setContextUsage(next);
-    } catch (err) { console.error("context_usage error:", err); }
-  }, [sessionId, selectedProviderId, selectedModelId]);
+    } catch (err) {
+      if (!isCurrentRead(epoch, session, project) || providerRef.current !== provider || modelRef.current !== model) return;
+      console.error("context_usage error:", err);
+    }
+  }, [isCurrentRead]);
 
-  useEffect(() => { void refreshContextUsage(); }, [refreshContextUsage]);
+  useEffect(() => { void refreshContextUsage(); }, [refreshContextUsage, sessionId, selectedProviderId, selectedModelId]);
 
   useEffect(() => {
     void loadProviders();
@@ -342,7 +388,7 @@ export function Chat() {
 
   useEffect(() => {
     void refreshProgress();
-  }, [refreshProgress]);
+  }, [refreshProgress, sessionId]);
 
   // Both dialog views follow the project the session is bound to.
   useEffect(() => {
@@ -352,38 +398,39 @@ export function Chat() {
   async function loadProviders() {
     try {
       const list = await safeInvoke<ProviderConfig[]>("load_providers");
-      if (!Array.isArray(list)) return;
+      if (!mountedRef.current || !Array.isArray(list)) return;
       setProviders(list);
       // D3: with no shipped catalog the list can be empty. Prefer the first
       // provider that actually has a key, otherwise fall back to the first one.
       const provider =
         list.find((item) => item.api_key.trim().length > 0) ?? list[0];
       if (!provider) {
+        providerRef.current = "";
+        modelRef.current = "";
         setSelectedProviderId("");
         setSelectedModelId("");
         return;
       }
+      const modelId = provider.models.find((model) => model.id === provider.default_model_id)
+        ?.id ?? provider.models[0]?.id ?? "";
+      providerRef.current = provider.id;
+      modelRef.current = modelId;
       setSelectedProviderId(provider.id);
-      setSelectedModelId(
-        provider.models.find((model) => model.id === provider.default_model_id)
-          ?.id ??
-          provider.models[0]?.id ??
-          "",
-      );
+      setSelectedModelId(modelId);
     } catch (err) {
       console.error("Error loading providers in Chat:", err);
     }
   }
 
   function handleProviderChange(providerId: string) {
+    providerRef.current = providerId;
     setSelectedProviderId(providerId);
     const provider = providers.find((p) => p.id === providerId);
     if (provider) {
-      setSelectedModelId(
-        provider.models.find((m) => m.id === provider.default_model_id)?.id ||
-          provider.models[0]?.id ||
-          "",
-      );
+      const modelId = provider.models.find((m) => m.id === provider.default_model_id)?.id ||
+        provider.models[0]?.id || "";
+      modelRef.current = modelId;
+      setSelectedModelId(modelId);
     }
   }
 
@@ -392,9 +439,15 @@ export function Chat() {
    * every page. A stable callback keeps the subscription below from re-binding.
    */
   const handleNewChat = useCallback(() => {
+    sessionEpochRef.current += 1;
+    activeTurnRef.current = null;
+    const nextSession = newSessionId();
+    sessionRef.current = nextSession;
+    projectRef.current = "";
     setMessages([]);
     setError(null);
-    setSessionId(newSessionId());
+    setLoading(false);
+    setSessionId(nextSession);
     // A new chat has no project until the agent creates one.
     setProjectId("");
     setProgress(null);
@@ -435,8 +488,12 @@ export function Chat() {
   async function sendMessage(raw: string) {
     const content = raw.trim();
     // D3: with no provider configured there is nowhere to send the message.
-    if (!content || loading || providers.length === 0) return;
+    if (!content || activeTurnRef.current !== null || providers.length === 0) return;
 
+    sessionEpochRef.current += 1;
+    const epoch = sessionEpochRef.current;
+    const turnSessionId = sessionRef.current;
+    activeTurnRef.current = { epoch, sessionId: turnSessionId };
     setError(null);
     setLiveSteps([]);
     setLiveStartedAt(Date.now());
@@ -444,7 +501,7 @@ export function Chat() {
     // D4: sum the model time of every round into the final message's stats.
     let modelMs = 0;
     const userMessage: MessageEnvelope = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       role: "user",
       content,
     };
@@ -456,6 +513,7 @@ export function Chat() {
     // D1: register the channel *before* invoking, so no early event is missed.
     // Events arrive while the command runs and grow the live frame incrementally.
     const channel = createAgentEventChannel((event: AgentEvent) => {
+      if (!isCurrentTurn(epoch, turnSessionId)) return;
       if (event.type === "round_finished") modelMs += event.duration_ms;
       setLiveSteps((previous) => applyLiveEvent(previous, event));
     });
@@ -469,9 +527,11 @@ export function Chat() {
         modelId: selectedModelId,
         messages: nextMessages,
         projectId,
-        sessionId,
+        sessionId: turnSessionId,
         channel,
       });
+      if (!isCurrentTurn(epoch, turnSessionId)) return;
+      projectRef.current = turn.project_id;
       setMessages((previous) => [...previous, ...turn.messages]);
       setProjectId(turn.project_id);
       // D4: store the model time against the final message that carries `meta`,
@@ -487,6 +547,7 @@ export function Chat() {
       void refreshDetail(turn.project_id);
       void refreshProgress();
     } catch (err: unknown) {
+      if (!isCurrentTurn(epoch, turnSessionId)) return;
       console.error("send_chat error:", err);
       setError(
         typeof err === "string"
@@ -496,21 +557,24 @@ export function Chat() {
             : "Failed to send chat message.",
       );
     } finally {
-      setLoading(false);
-      // D1/D2: the turn is over (success or error), so the live frame disappears
-      // completely; the transcript keeps only prose plus the message-level tool
-      // log behind the wrench button (D3).
-      setLiveSteps([]);
-      setLiveStartedAt(null);
-      setLiveElapsedMs(0);
-      void refreshContextUsage();
+      if (isCurrentTurn(epoch, turnSessionId)) {
+        activeTurnRef.current = null;
+        setLoading(false);
+        // D1/D2: the turn is over (success or error), so the live frame disappears
+        // completely; the transcript keeps only prose plus the message-level tool
+        // log behind the wrench button (D3).
+        setLiveSteps([]);
+        setLiveStartedAt(null);
+        setLiveElapsedMs(0);
+        void refreshContextUsage();
+      }
     }
   }
 
   async function handleSend(event?: FormEvent) {
     event?.preventDefault();
     const content = input.trim();
-    if (!content || loading) return;
+    if (!content || activeTurnRef.current !== null) return;
     setInput("");
     historyIndex.current = -1;
     savedDraft.current = "";
@@ -621,7 +685,7 @@ export function Chat() {
             aria-label="Model"
             value={selectedModelId}
             disabled={!currentProvider}
-            onChange={(event) => setSelectedModelId(event.target.value)}
+            onChange={(event) => { modelRef.current = event.target.value; setSelectedModelId(event.target.value); }}
           >
             {currentProvider?.models.length ? (
               currentProvider.models.map((model) => (

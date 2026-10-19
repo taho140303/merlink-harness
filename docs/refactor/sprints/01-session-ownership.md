@@ -1,6 +1,6 @@
 # S1 — Session and turn ownership (frontend)
 
-- **Status:** blocked by S0
+- **Status:** pushed
 - **Branch:** `refactor/s1-session-ownership`
 - **Units:** F-01 (frontend half), F-02
 - **Depends on:** S0
