@@ -182,23 +182,31 @@ pub fn validate_rows(
                     allowed.join(", ")
                 ));
             }
+            // An explicit null means "not set": type rules apply only to real
+            // values. A required column that is null is caught below as missing.
+            if value.is_null() {
+                continue;
+            }
             let kind = schema::column_kind(table, column);
             schema::validate(kind, &field_path(table, index, column), value)?;
             validate_draft_reference(table, index, column, value, document)?;
         }
         if mode == RowMode::Complete {
             for column in &required {
-                if object.contains_key(column) {
+                // A null value is the same as a missing column.
+                if object.get(column).is_some_and(|value| !value.is_null()) {
                     continue;
                 }
                 // D1: a draft reference replaces the required `_id` column.
-                if column.ends_with("_id") && object.contains_key(&format!("{column}_json_index")) {
+                let reference = format!("{column}_json_index");
+                if column.ends_with("_id")
+                    && object.get(&reference).is_some_and(|value| !value.is_null())
+                {
                     continue;
                 }
                 return Err(format!(
                     "Invalid value for {table}.rows: row {index} is missing required field \
-                     {column:?} (or its draft reference {reference:?})",
-                    reference = format!("{column}_json_index")
+                     {column:?} (or its draft reference {reference:?})"
                 ));
             }
         }
@@ -422,6 +430,26 @@ mod tests {
         let rows = json!([{ "name": "Mở đầu", "position": 1 }]);
         let error = validate_rows("scenes", &rows, Some(1), None, RowMode::Complete).unwrap_err();
         assert!(error.contains("chapter_id"), "{error}");
+    }
+
+    #[test]
+    fn test_null_optional_field_is_allowed() {
+        // The fields contract shows `null`; an explicit null on an optional column
+        // means "not set" (`world_setting_id` is allowed to be empty).
+        let rows = json!([{
+            "name": "Mở đầu",
+            "chapter_id": "c1",
+            "position": 1,
+            "world_setting_id": Value::Null
+        }]);
+        validate_rows("scenes", &rows, Some(1), None, RowMode::Complete).unwrap();
+    }
+
+    #[test]
+    fn test_null_required_field_is_rejected() {
+        let rows = json!([{ "name": Value::Null, "is_primary": true }]);
+        let error = validate_rows("characters", &rows, Some(1), None, RowMode::Complete).unwrap_err();
+        assert!(error.contains("missing required field"), "{error}");
     }
 
     fn document_with(table: &str, count: i64, rows: Value) -> Value {

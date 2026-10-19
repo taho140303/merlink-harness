@@ -371,8 +371,19 @@ pub fn add_field(
             allowed.join(", ")
         ));
     }
-    let kind = schema::column_kind(table, field);
-    schema::validate(kind, &format!("{table}.rows[{json_index}].{field}"), &value)?;
+    let required = schema::required_row_fields(table);
+    if value.is_null() {
+        // Optional columns may be cleared with an explicit null; a required column
+        // cannot be nulled (the completeness rules would reject the table anyway).
+        if required.iter().any(|known| known == field) {
+            return Err(format!(
+                "Invalid value for {table}.rows[{json_index}].{field}: a required field cannot be null"
+            ));
+        }
+    } else {
+        let kind = schema::column_kind(table, field);
+        schema::validate(kind, &format!("{table}.rows[{json_index}].{field}"), &value)?;
+    }
 
     let group = schema::countable_group(table)
         .ok_or_else(|| format!("Unknown super json table: {table}"))?;
@@ -1023,6 +1034,28 @@ mod tests {
         assert_eq!(error, "Row 9 not found in characters.rows");
         let error = add_field("p", "nope", 0, "name", json!("Linh")).unwrap_err();
         assert!(error.contains("Unknown super json table: nope"), "{error}");
+    }
+
+    #[test]
+    fn test_add_field_accepts_null_only_on_optional_columns() {
+        let _home = crate::test_support::TempHome::new("super-add-field-null");
+        load_or_init("p").unwrap();
+        set("p", "optional.schema.scenes.count", json!(1)).unwrap();
+        set(
+            "p",
+            "optional.schema.scenes.rows",
+            json!([{ "name": "Mở đầu", "chapter_id": "c1", "position": 1 }]),
+        )
+        .unwrap();
+
+        // An explicit null clears an optional column (world_setting_id may be empty).
+        add_field("p", "scenes", 0, "world_setting_id", Value::Null).unwrap();
+        let entry = get("p", "optional.schema.scenes").unwrap();
+        assert_eq!(entry["rows"][0]["world_setting_id"], Value::Null);
+
+        // A required column cannot be nulled.
+        let error = add_field("p", "scenes", 0, "name", Value::Null).unwrap_err();
+        assert!(error.contains("required field cannot be null"), "{error}");
     }
 
     #[test]

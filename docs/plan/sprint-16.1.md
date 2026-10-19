@@ -29,6 +29,9 @@
   Bảng đích ngoài draft (`motifs`, `genres`, `style_presets`, `narrator_configs`) chỉ check int.
 - `_json_index` và `<field>_json_index` là **synthetic** trong `table_fields()`; không thêm vào
   `fields` của `super.json` (giữ nguyên 81 path / 34 bảng).
+- `null` trên cột **optional** = "chưa đặt" (hợp lệ, kể cả `world_setting_id`/`*_json_index`); `null`
+  trên cột **required** bị coi là thiếu ở Complete và bị `add_field` từ chối. Bổ sung sau khi merge
+  (hotfix root) vì `fields` contract hiển thị `null` nên model có thể copy nguyên vào row.
 
 ### D2 — Hai tool mới (tổng 7)
 
