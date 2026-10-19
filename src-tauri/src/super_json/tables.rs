@@ -448,7 +448,8 @@ mod tests {
     #[test]
     fn test_null_required_field_is_rejected() {
         let rows = json!([{ "name": Value::Null, "is_primary": true }]);
-        let error = validate_rows("characters", &rows, Some(1), None, RowMode::Complete).unwrap_err();
+        let error =
+            validate_rows("characters", &rows, Some(1), None, RowMode::Complete).unwrap_err();
         assert!(error.contains("missing required field"), "{error}");
     }
 
