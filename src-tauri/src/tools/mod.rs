@@ -14,11 +14,13 @@ pub use labels::{field_labels, status_message, tool_path};
 pub use specs::tool_specs;
 
 /// Tools exposed to the model. `project_create` is listed first because the other
-/// four are unusable until a chat has a project.
-pub const TOOL_NAMES: [&str; 5] = [
+/// six are unusable until a chat has a project.
+pub const TOOL_NAMES: [&str; 7] = [
     "project_create",
     "super_json_get",
     "super_json_set",
+    "super_json_add_row",
+    "super_json_add_field",
     "super_json_missing",
     "echo",
 ];

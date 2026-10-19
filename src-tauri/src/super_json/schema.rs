@@ -278,12 +278,15 @@ pub fn merged_table_entry(document: &Value, table: &str) -> Option<Value> {
         "table": table,
         "count": countable.and_then(|entry| entry.get("count")).cloned().unwrap_or(Value::Null),
         "fields": Value::Object(fields),
+        "refs": ref_fields(table),
         "rows": countable.and_then(|entry| entry.get("rows")).cloned().unwrap_or_else(|| Value::Array(Vec::new())),
     }))
 }
 
-/// Union of `fields` keys for a table across both groups.
-pub fn table_fields(table: &str) -> Vec<String> {
+/// Union of the documented `fields` keys for a table across both groups. These
+/// are the database columns; the synthetic draft-reference columns below are
+/// deliberately excluded.
+fn declared_fields(table: &str) -> Vec<String> {
     let document = skeleton();
     let mut out: Vec<String> = Vec::new();
     for group in [Group::Require, Group::Optional] {
@@ -299,6 +302,32 @@ pub fn table_fields(table: &str) -> Vec<String> {
                     }
                 }
             }
+        }
+    }
+    out
+}
+
+/// Synthetic draft-reference columns: every declared `_id` column also accepts
+/// `<field>_json_index`, a 0-based position in the target table's `rows`.
+pub fn ref_fields(table: &str) -> Vec<String> {
+    declared_fields(table)
+        .into_iter()
+        .filter(|field| field.ends_with("_id"))
+        .map(|field| format!("{field}_json_index"))
+        .collect()
+}
+
+/// Everything a row may carry: the declared columns, the tool-assigned
+/// `_json_index`, and the draft-reference columns. `_json_index` is synthetic;
+/// it is not a path and does not change the 81 paths / 34 tables.
+pub fn table_fields(table: &str) -> Vec<String> {
+    let mut out = declared_fields(table);
+    if out.is_empty() {
+        return out;
+    }
+    for field in std::iter::once("_json_index".to_owned()).chain(ref_fields(table)) {
+        if !out.iter().any(|known| known == &field) {
+            out.push(field);
         }
     }
     out
@@ -401,6 +430,9 @@ fn project_kind(rest: &str) -> Option<FieldKind> {
 /// Table-aware type rule for one row column. Everything not listed falls back
 /// to `Text`, the dominant DBML type (varchar/text/uuid FK).
 pub fn column_kind(table: &str, column: &str) -> FieldKind {
+    if column == "_json_index" || column.ends_with("_json_index") {
+        return FieldKind::NonNegativeInt;
+    }
     match column {
         "is_primary" | "is_system" | "is_pov" => return FieldKind::Bool,
         "position" | "rank" | "height" | "weight" | "word_count" | "version_number"
@@ -672,5 +704,68 @@ mod tests {
     #[test]
     fn test_characters_have_is_primary_synthetic_field() {
         assert!(table_fields("characters").contains(&"is_primary".to_owned()));
+    }
+
+    #[test]
+    fn test_table_fields_expose_json_index_and_refs() {
+        let fields = table_fields("relationships");
+        for field in [
+            "_json_index",
+            "from_character_id_json_index",
+            "to_character_id_json_index",
+        ] {
+            assert!(
+                fields.contains(&field.to_owned()),
+                "relationships is missing {field}"
+            );
+        }
+        // Declared columns survive the synthetic additions, in skeleton order.
+        assert!(fields.contains(&"from_character_id".to_owned()));
+        assert!(fields.contains(&"to_character_id".to_owned()));
+        assert_eq!(
+            ref_fields("relationships"),
+            vec![
+                "from_character_id_json_index".to_owned(),
+                "to_character_id_json_index".to_owned()
+            ]
+        );
+        // A table with no `_id` column still gets the tool-assigned index.
+        assert_eq!(table_fields("arcs"), {
+            let mut expected = declared_fields("arcs");
+            expected.push("_json_index".to_owned());
+            expected
+        });
+        // `refs` is part of the read-only table selector, additive to the four
+        // documented keys.
+        let document = skeleton();
+        let entry = merged_table_entry(&document, "relationships").unwrap();
+        assert_eq!(entry["table"], "relationships");
+        assert_eq!(
+            entry["refs"],
+            serde_json::json!(ref_fields("relationships"))
+        );
+        assert!(
+            entry["fields"]
+                .get("from_character_id_json_index")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_column_kind_marks_refs_as_non_negative_ints() {
+        assert_eq!(
+            column_kind("relationships", "_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        assert_eq!(
+            column_kind("relationships", "from_character_id_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        assert_eq!(
+            column_kind("scenes", "chapter_id_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        // The plain column keeps its documented (text) rule.
+        assert_eq!(column_kind("scenes", "chapter_id"), FieldKind::Text);
     }
 }

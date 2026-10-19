@@ -764,6 +764,93 @@ fn test_ipc_execute_tool_end_to_end() {
     );
 }
 
+/// Sprint 16.1 · T7: the two incremental write tools really run over IPC.
+#[test]
+fn test_ipc_execute_tool_add_row_end_to_end() {
+    let harness = Harness::new("ipc-execute-tool-add-row");
+    let created = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create",
+            "args": { "name": "Nua Dem" },
+            "projectId": "",
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_string();
+    let missing_before = created["missing_required"]
+        .as_array()
+        .expect("missing_required")
+        .len();
+
+    let added = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "super_json_add_row",
+            "args": {
+                "table": "characters",
+                "row": { "name": "Hoàng", "is_primary": true }
+            },
+            "projectId": project_id,
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    assert_eq!(added["ok"], json!(true));
+    assert_eq!(added["table"], json!("characters"));
+    assert_eq!(added["json_index"], json!(0));
+    assert_eq!(added["count"], json!(1));
+    assert_eq!(added["row"]["_json_index"], json!(0));
+    assert_eq!(
+        added["missing_required"].as_array().expect("missing").len(),
+        missing_before - 1,
+        "the characters unit became complete"
+    );
+    assert!(added["warnings"].is_array());
+
+    let field = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "super_json_add_field",
+            "args": {
+                "table": "characters",
+                "json_index": 0,
+                "field": "birth",
+                "value": "Mùa đông"
+            },
+            "projectId": project_id,
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    assert_eq!(field["ok"], json!(true));
+    assert_eq!(field["json_index"], json!(0));
+    assert_eq!(field["field"], json!("birth"));
+    assert!(field["warnings"].is_array());
+
+    // Both writes landed in the real file behind the IPC call.
+    let super_json = harness
+        .home
+        .path()
+        .join("projects")
+        .join(&project_id)
+        .join("super.json");
+    let document: Value =
+        serde_json::from_str(&std::fs::read_to_string(&super_json).expect("super.json"))
+            .expect("super.json is JSON");
+    let characters = document["require"]["schema"]
+        .as_array()
+        .expect("require schema")
+        .iter()
+        .find(|entry| entry["table"] == "characters")
+        .expect("characters entry");
+    assert_eq!(characters["count"], json!(1));
+    assert_eq!(characters["rows"][0]["name"], json!("Hoàng"));
+    assert_eq!(characters["rows"][0]["birth"], json!("Mùa đông"));
+    assert_eq!(characters["rows"][0]["_json_index"], json!(0));
+}
+
 #[test]
 fn test_ipc_execute_tool_rejects_project_from_another_session() {
     let harness = Harness::new("ipc-execute-tool-project-guard");

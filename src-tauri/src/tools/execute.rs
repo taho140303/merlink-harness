@@ -142,11 +142,67 @@ pub fn execute_tool(
                 .ok_or("super_json_set requires a 'value'")?;
             let applied = super_json::set(project_id, path, value.clone())?;
             let missing = super_json::missing_required(project_id)?;
+            let warnings = super_json::warnings(project_id)?;
             Ok(json!({
                 "ok": true,
                 "path": path,
                 "value": applied,
                 "missing_required": missing,
+                "warnings": warnings,
+            }))
+        }
+        "super_json_add_row" => {
+            let project_id = project_or_error(project_id)?;
+            let table = args
+                .get("table")
+                .and_then(Value::as_str)
+                .ok_or("super_json_add_row requires a string 'table'")?;
+            let row = args
+                .get("row")
+                .ok_or("super_json_add_row requires a 'row' object")?;
+            let (json_index, count) = super_json::add_row(project_id, table, row.clone())?;
+            let mut stored = row.clone();
+            stored["_json_index"] = json!(json_index);
+            let missing = super_json::missing_required(project_id)?;
+            let warnings = super_json::warnings(project_id)?;
+            Ok(json!({
+                "ok": true,
+                "table": table,
+                "json_index": json_index,
+                "count": count,
+                "row": stored,
+                "missing_required": missing,
+                "warnings": warnings,
+            }))
+        }
+        "super_json_add_field" => {
+            let project_id = project_or_error(project_id)?;
+            let table = args
+                .get("table")
+                .and_then(Value::as_str)
+                .ok_or("super_json_add_field requires a string 'table'")?;
+            let json_index = args
+                .get("json_index")
+                .and_then(Value::as_i64)
+                .ok_or("super_json_add_field requires an integer 'json_index'")?;
+            let field = args
+                .get("field")
+                .and_then(Value::as_str)
+                .ok_or("super_json_add_field requires a string 'field'")?;
+            let value = args
+                .get("value")
+                .ok_or("super_json_add_field requires a 'value'")?;
+            super_json::add_field(project_id, table, json_index, field, value.clone())?;
+            let missing = super_json::missing_required(project_id)?;
+            let warnings = super_json::warnings(project_id)?;
+            Ok(json!({
+                "ok": true,
+                "table": table,
+                "json_index": json_index,
+                "field": field,
+                "value": value,
+                "missing_required": missing,
+                "warnings": warnings,
             }))
         }
         "super_json_missing" => {
@@ -612,5 +668,67 @@ mod tests {
         let second_document: Value =
             serde_json::from_str(&fs::read_to_string(&second_path).unwrap()).unwrap();
         assert_eq!(second_document["require"]["project"]["name"], Value::Null);
+    }
+
+    #[test]
+    fn test_execute_add_row_and_add_field_round_trip() {
+        let _home = crate::test_support::TempHome::new("tools-add-row-field");
+        let created = execute_tool(
+            "project_create",
+            &json!({"name": "Nửa Đêm"}),
+            "",
+            "sess-add-row",
+        )
+        .unwrap();
+        let project_id = created["project_id"].as_str().unwrap();
+        let before = created["missing_required"].as_array().unwrap().len();
+
+        let added = execute_tool(
+            "super_json_add_row",
+            &json!({"table": "characters", "row": {"name": "Hoàng", "is_primary": true}}),
+            project_id,
+            "sess-add-row",
+        )
+        .unwrap();
+        assert_eq!(added["ok"], json!(true));
+        assert_eq!(added["table"], json!("characters"));
+        assert_eq!(added["json_index"], json!(0));
+        assert_eq!(added["count"], json!(1));
+        assert_eq!(added["row"]["_json_index"], json!(0));
+        assert_eq!(added["row"]["name"], json!("Hoàng"));
+        assert_eq!(
+            added["missing_required"].as_array().unwrap().len(),
+            before - 1,
+            "characters became complete, so one required unit disappeared"
+        );
+        assert!(added["warnings"].is_array());
+
+        let field = execute_tool(
+            "super_json_add_field",
+            &json!({
+                "table": "characters",
+                "json_index": 0,
+                "field": "birth",
+                "value": "Mùa đông"
+            }),
+            project_id,
+            "sess-add-row",
+        )
+        .unwrap();
+        assert_eq!(field["ok"], json!(true));
+        assert_eq!(field["table"], json!("characters"));
+        assert_eq!(field["json_index"], json!(0));
+        assert_eq!(field["field"], json!("birth"));
+        assert_eq!(field["value"], json!("Mùa đông"));
+        assert!(field["warnings"].is_array());
+
+        let applied = execute_tool(
+            "super_json_set",
+            &json!({"path": "require.project.language", "value": "VI"}),
+            project_id,
+            "sess-add-row",
+        )
+        .unwrap();
+        assert!(applied["warnings"].is_array(), "{applied}");
     }
 }
