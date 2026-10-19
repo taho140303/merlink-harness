@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, ErrorCode, params};
 
 use crate::{models::MessageEnvelope, paths};
 
@@ -110,22 +110,29 @@ pub fn ensure_project(
     Ok(())
 }
 
-/// Creates a project row. The caller (`project_create`) has already resolved a
-/// unique id, so this never needs to overwrite an existing title.
+/// Reserve an ID without changing an existing project's title. Only an ID
+/// primary-key conflict is a retryable collision; other constraints are errors.
 pub fn create_project(
     connection: &Connection,
     project_id: &str,
     title: &str,
-) -> Result<(), String> {
-    connection
-        .execute(
-            "INSERT OR IGNORE INTO projects (id, title, created_at) VALUES (?1, ?2, ?3)",
-            params![project_id, title, now()],
-        )
-        .map_err(|error| format!("Cannot create project: {error}"))?;
-    Ok(())
+) -> Result<bool, String> {
+    match connection.execute(
+        "INSERT INTO projects (id, title, created_at) VALUES (?1, ?2, ?3)",
+        params![project_id, title, now()],
+    ) {
+        Ok(_) => Ok(true),
+        Err(rusqlite::Error::SqliteFailure(error, _))
+            if error.code == ErrorCode::ConstraintViolation
+                && error.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_PRIMARYKEY =>
+        {
+            Ok(false)
+        }
+        Err(error) => Err(format!("Cannot create project: {error}")),
+    }
 }
 
+#[cfg(test)]
 pub fn list_projects(connection: &Connection) -> Result<Vec<String>, String> {
     let mut statement = connection
         .prepare("SELECT id FROM projects ORDER BY created_at ASC, rowid ASC")
@@ -182,25 +189,22 @@ pub fn project_for_session(
     Ok(Some(project_id).filter(|value| !value.trim().is_empty()))
 }
 
-/// Binds a session to a project (D1).
-///
-/// Written as an upsert: the agent loop always creates the session row first, but
-/// `project_create` is also reachable through the `execute_tool` command, where a
-/// caller-supplied session id might not exist yet. Creating the row here keeps
-/// the binding from silently going nowhere.
-pub fn bind_session_to_project(
+/// Insert a missing session or bind an unbound one without ever replacing its
+/// existing project. `execute_tool` may receive a session not yet in SQLite.
+pub fn bind_session_to_project_if_unbound(
     connection: &Connection,
     session_id: &str,
     project_id: &str,
-) -> Result<(), String> {
-    connection
+) -> Result<bool, String> {
+    let changed = connection
         .execute(
             "INSERT INTO sessions (id, project_id, title, created_at) VALUES (?1, ?2, NULL, ?3) \
-             ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id",
+             ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id \
+             WHERE sessions.project_id IS NULL OR sessions.project_id = ''",
             params![session_id, project_id, now()],
         )
         .map_err(|error| format!("Cannot bind session to project: {error}"))?;
-    Ok(())
+    Ok(changed != 0)
 }
 
 pub fn append_message(
@@ -568,6 +572,34 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, 2);
+    }
+
+    #[test]
+    fn test_create_project_reports_id_conflict_without_changing_row() {
+        let _home = crate::test_support::TempHome::new("db-project-conflict");
+        let connection = open().unwrap();
+        assert!(create_project(&connection, "same", "First title").unwrap());
+        assert!(!create_project(&connection, "same", "Second title").unwrap());
+        let titles: Vec<String> = connection
+            .prepare("SELECT title FROM projects WHERE id = 'same'")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(titles, ["First title"]);
+    }
+
+    #[test]
+    fn test_conditional_bind_preserves_existing_project_and_inserts_missing_session() {
+        let _home = crate::test_support::TempHome::new("db-conditional-bind");
+        let connection = open().unwrap();
+        assert!(bind_session_to_project_if_unbound(&connection, "missing", "first").unwrap());
+        assert!(!bind_session_to_project_if_unbound(&connection, "missing", "second").unwrap());
+        assert_eq!(project_for_session(&connection, "missing").unwrap().as_deref(), Some("first"));
+        ensure_session(&connection, "unbound", "").unwrap();
+        assert!(bind_session_to_project_if_unbound(&connection, "unbound", "third").unwrap());
+        assert_eq!(project_for_session(&connection, "unbound").unwrap().as_deref(), Some("third"));
     }
 
     #[test]

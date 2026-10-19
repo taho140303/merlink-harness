@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, TransactionBehavior};
 use serde_json::{Value, json};
 
 use crate::{db, paths, super_json};
@@ -246,19 +246,23 @@ fn slugify(name: &str) -> String {
     if slug.is_empty() { "project".to_owned() } else { slug }
 }
 
-/// The slug, plus a `-2`, `-3`, … suffix while the id is taken.
-fn unique_project_id(connection: &Connection, name: &str) -> Result<String, String> {
+/// Reserve the base slug or its `-2`, `-3`, … suffix in the caller's SQLite
+/// transaction, never choosing an ID from a stale project list.
+fn unique_project_id(connection: &Connection, name: &str, title: &str) -> Result<String, String> {
     let base = slugify(name);
-    let existing = db::list_projects(connection)?;
-    let mut candidate = base.clone();
-    let mut suffix = 2;
-    while existing.iter().any(|id| id == &candidate) {
-        candidate = format!("{base}-{suffix}");
-        suffix += 1;
+    for attempt in 1..=1_000 {
+        let candidate = if attempt == 1 {
+            base.clone()
+        } else {
+            format!("{base}-{attempt}")
+        };
+        // The id becomes a directory name, so validate before inserting it.
+        let _ = paths::project_dir(&candidate)?;
+        if db::create_project(connection, &candidate, title)? {
+            return Ok(candidate);
+        }
     }
-    // The id becomes a directory name, so prove it passes the path guard too.
-    let _ = paths::project_dir(&candidate)?;
-    Ok(candidate)
+    Err(format!("Cannot create project: exhausted 1000 IDs for {base}"))
 }
 
 /// Executes one tool call.
@@ -292,35 +296,78 @@ pub fn execute_tool(
                 }
             };
 
-            let connection = db::open()?;
-            // D3.2: a chat owns at most one project, so a repeat call is refused
-            // instead of silently creating a second one.
-            if let Some(existing) = db::project_for_session(&connection, session_id)? {
-                return Err(format!("This chat already belongs to project {existing}"));
-            }
+            let mut connection = db::open()?;
+            let mut created_file = None;
+            let mut created_directory = None;
+            // SQLite and the filesystem are not one transaction. Roll back the
+            // reservation/binding first (by dropping a failed transaction), then
+            // unlink only the JSON file and empty directory this call created.
+            // A crash or failed cleanup can still leave an orphan file/directory;
+            // a crash before commit can leave the file without a project row.
+            let creation = (|| -> Result<(String, Vec<String>), String> {
+                // Acquire the SQLite writer before the session pre-check: a
+                // deferred read transaction can otherwise fail on promotion to
+                // writer when another session reserves the same slug concurrently.
+                let transaction = connection
+                    .transaction_with_behavior(TransactionBehavior::Immediate)
+                    .map_err(|error| format!("Cannot start project transaction: {error}"))?;
+                // Preserve the existing repeat-call error; the conditional bind
+                // below is the authority if another path binds the session.
+                if let Some(existing) = db::project_for_session(&transaction, session_id)? {
+                    return Err(format!("This chat already belongs to project {existing}"));
+                }
 
-            // An unnamed project takes a `du-an` id and keeps the documented
-            // display title, but does not touch `require.overview.name`.
-            let (project_id, display_title) = match &requested_name {
-                Some(name) => (unique_project_id(&connection, name)?, name.clone()),
-                None => (
-                    unique_project_id(&connection, "du-an")?,
-                    "Dự án chưa đặt tên".to_owned(),
-                ),
+                let (base_name, display_title) = match &requested_name {
+                    Some(name) => (name.as_str(), name.as_str()),
+                    None => ("du-an", "Dự án chưa đặt tên"),
+                };
+                let project_id = unique_project_id(&transaction, base_name, display_title)?;
+                let directory = paths::project_dir(&project_id)?;
+                std::fs::create_dir_all(directory.parent().ok_or("Invalid project directory")?)
+                    .map_err(|error| format!("Cannot create projects directory: {error}"))?;
+                match std::fs::create_dir(&directory) {
+                    Ok(()) => created_directory = Some(directory),
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(format!("Cannot create project directory: {error}")),
+                }
+                super_json::init_project(&project_id, requested_name.as_deref())?;
+                created_file = Some(paths::super_json_path(&project_id)?);
+                if !db::bind_session_to_project_if_unbound(&transaction, session_id, &project_id)? {
+                    return Err(db::project_for_session(&transaction, session_id)?
+                        .map_or_else(
+                            || "This chat already belongs to a project".to_owned(),
+                            |existing| format!("This chat already belongs to project {existing}"),
+                        ));
+                }
+                let missing = super_json::missing_required(&project_id)?;
+                transaction
+                    .commit()
+                    .map_err(|error| format!("Cannot commit project transaction: {error}"))?;
+                Ok((project_id, missing))
+            })();
+            let (project_id, missing) = match creation {
+                Ok(result) => result,
+                Err(mut error) => {
+                    if let Some(path) = created_file
+                        && let Err(cleanup_error) = std::fs::remove_file(&path)
+                    {
+                        error.push_str(&format!(
+                            "; cannot remove newly created super json: {cleanup_error}"
+                        ));
+                    }
+                    // Non-recursive: never remove a directory populated after
+                    // we created it (or a pre-existing directory).
+                    if let Some(directory) = created_directory
+                        && let Err(cleanup_error) = std::fs::remove_dir(&directory)
+                    {
+                        error.push_str(&format!(
+                            "; cannot remove newly created project directory: {cleanup_error}"
+                        ));
+                    }
+                    return Err(error);
+                }
             };
-            db::create_project(&connection, &project_id, &display_title)?;
-            super_json::load_or_init(&project_id)?;
-            if let Some(name) = &requested_name {
-                // D3.5: the author never has to be asked for the title twice.
-                super_json::set(
-                    &project_id,
-                    "require.overview.name",
-                    Value::String(name.clone()),
-                )?;
-            }
-            db::bind_session_to_project(&connection, session_id, &project_id)?;
 
-            let missing = super_json::missing_required(&project_id)?;
             let mut result = json!({
                 "ok": true,
                 "project_id": project_id,
@@ -708,6 +755,13 @@ mod tests {
         assert_eq!(first_id, "n-a-m", "diacritics are not [a-z0-9] (D3.3)");
         assert_ne!(first_id, second_id);
         assert_eq!(second_id, "n-a-m-2", "the second project takes a -2 suffix");
+        for id in [&first_id, &second_id] {
+            let document: Value = serde_json::from_str(
+                &fs::read_to_string(paths::super_json_path(id).unwrap()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(document["require"]["overview"]["name"], json!("Nửa Đêm"));
+        }
         // Both ids pass `paths::safe_segment`. It is private, and `project_dir` is
         // its only caller and the function that actually builds the path, so it is
         // the real guard to assert on.
@@ -732,6 +786,23 @@ mod tests {
         let empty = execute_tool("project_create", &json!({"name": "…???"}), "", "sess-d").unwrap();
         assert_eq!(empty["project_id"], json!("project"));
         assert!(paths::project_dir("project").is_ok());
+    }
+
+    #[test]
+    fn test_project_create_json_failure_rolls_back_and_preserves_existing_directory() {
+        let _home = crate::test_support::TempHome::new("tools-create-json-failure");
+        let connection = db::open().unwrap();
+        let directory = paths::project_dir("blocked").unwrap();
+        fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("super.json");
+        fs::write(&file, "original contents").unwrap();
+
+        let error = execute_tool("project_create", &json!({"name": "blocked"}), "", "new-session")
+            .unwrap_err();
+        assert!(error.contains("already exists"), "{error}");
+        assert!(db::list_projects(&connection).unwrap().is_empty());
+        assert_eq!(db::project_for_session(&connection, "new-session").unwrap(), None);
+        assert_eq!(fs::read_to_string(file).unwrap(), "original contents");
     }
 
     /// Acceptance: `super_json_*` is unusable until the chat has a project (D2).
