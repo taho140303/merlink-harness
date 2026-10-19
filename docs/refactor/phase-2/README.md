@@ -1,6 +1,6 @@
 # Phase 2 — module decomposition plan
 
-> Status: **planned** · 2026-10-19
+> Status: **complete** · 2026-10-19
 > Input: user proposal for `commands/ adapters/ runtime/ tools/ db/`, plus measured
 > production-line counts (not total file size).
 > Rule: this is a **behavior-preserving move**. No feature, no UI change, no new
@@ -229,8 +229,8 @@ Plus:
 | P2-S6 | `refactor/p2-s6-runtime` | `79f9cc1` | `f0c0dcd` | deepseek-v4.1-flash |
 
 Final verification on `main`: `cargo test` 127 passed / 3 ignored;
-`pnpm build` passed. The largest remaining file is
-`runtime/agent/tests.rs` (1,505 test lines); all production modules are now
-≤ 360 lines except `super_json/summary.rs` (328 production, 760 total with its
-tests) and `tools/execute.rs` (166 production, 537 total). Splitting test modules
-is a separate phase if total `wc -l` becomes the priority.
+`pnpm build` passed. All production modules are now ≤ 360 lines. The largest
+remaining files are test-heavy: `runtime/agent/tests.rs` (1,505 test lines),
+`super_json/summary.rs` (328 production / 760 total), and `tools/execute.rs`
+(166 production / 537 total). Splitting test modules is a separate phase if
+total `wc -l` becomes the priority.
