@@ -1,6 +1,6 @@
 # S0 — Open-source baseline
 
-- **Status:** ready
+- **Status:** pushed
 - **Branch:** `refactor/s0-oss-baseline`
 - **Units:** programme deliverable (no defect ID)
 - **Depends on:** nothing
