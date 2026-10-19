@@ -17,7 +17,7 @@ An API provider and key are needed to use the real model-backed desktop chat. Br
 - Node.js 20 or later and pnpm.
 - A stable Rust toolchain.
 - The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform. Linux needs the distribution's native WebKitGTK and build packages; macOS needs Xcode Command Line Tools; Windows needs the supported Microsoft C++ tools and WebView2. Follow the official prerequisites for current package names and versions.
-- Desktop storage currently resolves from `MERLINK_HOME` or, otherwise, `$HOME/.merlink`. On Windows, set `MERLINK_HOME` if `HOME` is not defined; native platform data-directory discovery is not implemented.
+- Desktop storage resolves from `MERLINK_HOME`, then `HOME`, then on Windows `USERPROFILE` (or `HOMEDRIVE` + `HOMEPATH`), with `.merlink` under that root. Native platform data-directory discovery is not implemented; `MERLINK_HOME` always wins.
 
 ## Run
 
@@ -38,7 +38,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 pnpm build
 ```
 
-The Rust baseline is 101 passed and 3 ignored; the ignored tests require online provider access. Tests use an isolated `MERLINK_HOME` and must never write to a contributor's real `~/.merlink`. Set `MERLINK_HOME` to a disposable directory if you run a manual storage test; do not point it at real user data. `pnpm build` type-checks and builds the frontend; it does not exercise the desktop IPC boundary. See [CONTRIBUTING.md](CONTRIBUTING.md) for IPC and storage rules.
+The Rust baseline is 127 passed and 3 ignored; the ignored tests require online provider access. Tests use an isolated `MERLINK_HOME` and must never write to a contributor's real `~/.merlink`. Set `MERLINK_HOME` to a disposable directory if you run a manual storage test; do not point it at real user data. `pnpm build` type-checks and builds the frontend; it does not exercise the desktop IPC boundary. See [CONTRIBUTING.md](CONTRIBUTING.md) for IPC and storage rules.
 
 ## Data and privacy
 
@@ -53,7 +53,7 @@ There is no telemetry: app data stays local except for model requests you explic
 
 ## Refactor programme
 
-Read the [refactor programme](docs/refactor/README.md) and its [phase-0 synthesis](docs/refactor/synthesis/phase-0.md) for current work and known limitations. The [sprint index](docs/refactor/sprints/README.md) tracks implementation scope; planned fixes are not implemented features.
+Read the [refactor programme](docs/refactor/README.md) and its [phase-0 synthesis](docs/refactor/synthesis/phase-0.md) for the review record and known limitations. Phase 1 (S0–S8) is complete; the [sprint index](docs/refactor/sprints/README.md) records the scope and status of every unit. Product gaps such as session resume and a real project read-model are listed in the synthesis, not implemented here.
 
 ## Contributing and license
 

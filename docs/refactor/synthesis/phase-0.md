@@ -276,10 +276,10 @@ branch is pushed and its acceptance checks are recorded in the spec.
    (`list_messages` exists, no UI), real projects on Home/Characters, and
    project listing are product decisions, not refactors. They are recorded here
    and intentionally left out of S0–S7.
-5. **Windows.** `MERLINK_HOME`/`HOME` is the only root resolution
-   (`src-tauri/src/paths.rs:7-15`). A Windows user without `HOME` cannot start.
-   Add a `USERPROFILE` fallback only if it can be done without moving the data
-   root; a platform data-directory migration is a separate product decision.
+5. **Windows data root.** S8 added `USERPROFILE` and `HOMEDRIVE` + `HOMEPATH`
+   fallbacks while keeping `~/.merlink`. A migration to a platform data directory
+   (for example `%APPDATA%`) is a separate product decision; it would need a
+   relocation plan for existing data.
 6. **Reviewer claims not reproduced at runtime.** These reports are static
    source reviews. Every sprint must turn its target defect into an executable
    test or a recorded manual check; a finding that cannot be reproduced should
@@ -294,8 +294,32 @@ Phase 1 is complete when all of the following are true:
       section.
 - [x] This synthesis ranks the merged findings and maps every scheduled unit to
       a sprint.
-- [ ] All nine sprint specs exist and each has a branch pushed with a green
+- [x] All nine sprint specs exist and each has a branch pushed with a green
       `cargo test` and `pnpm build`.
-- [ ] The root repository has a real README, CONTRIBUTING, and LICENSE.
-- [ ] `main` contains the merged sprint work, and the final tip is verified with
+- [x] The root repository has a real README, CONTRIBUTING, and LICENSE.
+- [x] `main` contains the merged sprint work, and the final tip is verified with
       `cargo test` and `pnpm build`.
+
+## 10. Execution log
+
+All branches were cut from the preceding `main`, merged with `--no-ff`, and
+verified again on `main`. Commits from S3 onward use the repository owner's
+`taho140303 <202986530+taho140303@users.noreply.github.com>` identity; S0–S2
+were already published under the machine's previous git identity before that
+account switch and were **not** rewritten (public history is append-only by
+policy).
+
+| Sprint | Branch | Commit | Merge into `main` |
+| --- | --- | --- | --- |
+| S0 | `refactor/s0-oss-baseline` | `63f1627` | `90e5301` |
+| S1 | `refactor/s1-session-ownership` | `80b9acd` | `8f94dba` |
+| S2 | `refactor/s2-message-integrity` | `f1f43f7` | `5e7833c` |
+| S3 | `refactor/s3-project-json-integrity` | `e128ad5` | `a6a06cb` |
+| S4 | `refactor/s4-agent-loop-truth` | `b7a38f1` | `faa1d04` |
+| S5 | `refactor/s5-provider-lifecycle` | `eef6ff0` | `9f80f20` |
+| S6 | `refactor/s6-ipc-preview` | `0fe928a` | `78612aa` |
+| S7 | `refactor/s7-ui-correctness` | `03edce2` | `6a0e949` |
+| S8 | `refactor/s8-platform-read-boundary` | `9430077` | `ff40e30` |
+
+Final verification on `main`: `cargo test --manifest-path src-tauri/Cargo.toml`
+→ 127 passed, 0 failed, 3 ignored; `pnpm build` → tsc + Vite pass.
