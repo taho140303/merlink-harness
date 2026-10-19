@@ -560,6 +560,56 @@ fn test_system_prompt_forbids_inventing_values() {
     }
 }
 
+/// Sprint 16.1 · T5: the prompt carries the mandatory field-check question
+/// verbatim, so the model re-reads the author's message before a write.
+#[test]
+fn test_prompt_contains_the_mandatory_field_check() {
+    let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
+    assert!(prompt.contains("# Mandatory field check"));
+    assert!(
+        prompt.contains(
+            "mô tả trên có thông tin nào chứa field mà JSON chưa tồn tại để bổ sung không?"
+        ),
+        "the mandatory field-check question is missing"
+    );
+    assert!(prompt.contains("Never silently overwrite"));
+}
+
+/// Sprint 16.1 · T5: the no-arc default answer is literal.
+#[test]
+fn test_prompt_contains_the_no_arc_sentence() {
+    let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
+    assert!(prompt.contains("# No-arc default"));
+    assert!(
+        prompt.contains("Vậy coi như project chỉ có 1 arc duy nhất"),
+        "the no-arc sentence is missing"
+    );
+    assert!(prompt.contains("`require.schema.arcs.count` to 1"));
+}
+
+/// Sprint 16.1 · T5: draft references are explained with the synthetic columns.
+#[test]
+fn test_prompt_explains_json_index_refs() {
+    let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
+    assert!(prompt.contains("# Draft references (`_json_index`)"));
+    assert!(prompt.contains("`_json_index` is the 0-based position"));
+    assert!(prompt.contains("from_character_id_json_index"));
+    assert!(prompt.contains("Never put a name, a slug or a code where an id is expected."));
+}
+
+/// Sprint 16.1 · T5: every tool the model can call is listed.
+#[test]
+fn test_prompt_lists_seven_tools() {
+    let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
+    assert_eq!(crate::tools::TOOL_NAMES.len(), 7);
+    for name in crate::tools::TOOL_NAMES {
+        assert!(
+            prompt.contains(&format!("`{name}`")),
+            "the prompt is missing tool {name}"
+        );
+    }
+}
+
 /// The prompt has to say out loud that there is no project yet, otherwise the
 /// model has no reason to call `project_create` (D2/D5).
 fn assert_prompt_reports_project_state() {
@@ -646,7 +696,7 @@ fn test_agent_loop_creates_project_on_first_message() {
     let created: Value = serde_json::from_str(&turn.messages[1].content).unwrap();
     assert_eq!(created["project_id"], json!("n-a-m"));
     assert_eq!(created["name"], json!("Nửa Đêm"));
-    assert_eq!(created["missing_required"].as_array().unwrap().len(), 17);
+    assert_eq!(created["missing_required"].as_array().unwrap().len(), 11);
     let applied: Value = serde_json::from_str(&turn.messages[3].content).unwrap();
     assert_eq!(applied["ok"], json!(true), "{applied}");
     assert_eq!(applied["value"], json!(1));

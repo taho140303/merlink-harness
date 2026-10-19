@@ -380,11 +380,17 @@ Table project_motifs {
     id uuid [pk, note: 'UUIDv7']
     motif_id uuid [ref: > motifs.id]
     project_id uuid [ref: > projects.id]
+    scope varchar [note: 'project | arc | chapter']
+    from  varchar [note: 'scope=project → project.code; scope=arc → "project.code"."arc.code"; scope=chapter → "project.code"."arc.code"."chapter.code"']
+    to    varchar [note: 'code của đối tượng đích, vd motifs.code']
 
     indexes {
         (project_id, motif_id) [unique]
         motif_id
+        (scope, from)
     }
+
+    Note: 'Motif áp cho project/arc/chapter. Super json: scope=project là require; scope=arc|chapter là optional. from/to do importer điền từ scope + code.'
 }
 
 

@@ -12,7 +12,7 @@ use serde_json::{Map, Value, json};
 
 use super::{
     schema::{self, Group, PathRef},
-    tables,
+    tables::{self, RowMode},
 };
 use crate::paths;
 
@@ -47,7 +47,9 @@ fn load_or_init_unlocked(project_id: &str) -> Result<Value, String> {
         Ok(raw) => {
             let mut document: Value = serde_json::from_str(&raw)
                 .map_err(|error| format!("Invalid super json at {}: {error}", path.display()))?;
-            if migrate_if_needed(&path, &raw, &mut document)? {
+            let migrated_v1 = migrate_if_needed(&path, &raw, &mut document)?;
+            let migrated_groups = migrate_groups_if_needed(&mut document);
+            if migrated_v1 || migrated_groups {
                 save_unlocked(project_id, &document, false)?;
             }
             Ok(document)
@@ -207,7 +209,7 @@ pub fn get(project_id: &str, path: &str) -> Result<Value, String> {
 }
 
 /// Sets exactly one writable field. Never creates new fields.
-pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> {
+pub fn set(project_id: &str, path: &str, mut value: Value) -> Result<Value, String> {
     let parsed = schema::parse_path(path).ok_or_else(|| {
         format!(
             "Unknown super json path: {path}. Valid paths are: {}",
@@ -264,7 +266,14 @@ pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> 
             let existing_count = schema_entry_mut(&mut document, group, table, true)
                 .and_then(|entry| entry.get("count"))
                 .and_then(Value::as_i64);
-            tables::validate_rows(table, &value, existing_count)?;
+            tables::normalize_json_index(&mut value);
+            tables::validate_rows(
+                table,
+                &value,
+                existing_count,
+                Some(&document),
+                RowMode::Complete,
+            )?;
             let entry = schema_entry_mut(&mut document, group, table, true)
                 .ok_or_else(|| format!("Path not found: {path}"))?;
             entry["rows"] = value.clone();
@@ -274,6 +283,152 @@ pub fn set(project_id: &str, path: &str, value: Value) -> Result<Value, String> 
 
     save_unlocked(project_id, &document, false)?;
     Ok(value)
+}
+
+/// Appends one draft row to a table and returns `(json_index, count)`.
+///
+/// The tool owns `_json_index`; the count follows D2: an unset count becomes
+/// `rows.len()`, a count that matched the old length follows the append, and a
+/// count already ahead of the rows (a declared plan) is left alone.
+pub fn add_row(project_id: &str, table: &str, row: Value) -> Result<(i64, i64), String> {
+    if schema::table_fields(table).is_empty() {
+        return Err(format!("Unknown super json table: {table}"));
+    }
+    if !row.is_object() {
+        return Err(format!(
+            "Invalid value for {table}.rows: row must be an object"
+        ));
+    }
+    let group = schema::countable_group(table)
+        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+
+    let lock = project_lock(project_id);
+    let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut document = load_or_init_unlocked(project_id)?;
+
+    let (old_rows, current_count) = {
+        let entry = schema_entry_mut(&mut document, group, table, true)
+            .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+        (
+            entry
+                .get("rows")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            entry.get("count").and_then(Value::as_i64),
+        )
+    };
+    let json_index = old_rows.len() as i64;
+    let count = match current_count {
+        // A count ahead of the rows is a plan the author declared; keep it.
+        Some(current) if current != json_index => current,
+        // Unset, or exactly in sync: the append advances the count.
+        _ => json_index + 1,
+    };
+
+    let mut appended = row;
+    appended["_json_index"] = Value::from(json_index);
+    let mut candidate = Value::Array(old_rows);
+    candidate
+        .as_array_mut()
+        .expect("built as an array")
+        .push(appended);
+    tables::validate_rows(
+        table,
+        &candidate,
+        Some(count),
+        Some(&document),
+        RowMode::Draft,
+    )?;
+
+    let entry = schema_entry_mut(&mut document, group, table, true)
+        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    entry["count"] = Value::from(count);
+    entry["rows"] = candidate;
+
+    save_unlocked(project_id, &document, false)?;
+    Ok((json_index, count))
+}
+
+/// Sets exactly one field of one existing row.
+pub fn add_field(
+    project_id: &str,
+    table: &str,
+    json_index: i64,
+    field: &str,
+    value: Value,
+) -> Result<(), String> {
+    let allowed = schema::table_fields(table);
+    if allowed.is_empty() {
+        return Err(format!("Unknown super json table: {table}"));
+    }
+    if field == "_json_index" {
+        return Err("_json_index is assigned by the tool and cannot be written".to_owned());
+    }
+    if !allowed.iter().any(|known| known == field) {
+        return Err(format!(
+            "Unknown field {field:?} for {table}; allowed fields are: {}",
+            allowed.join(", ")
+        ));
+    }
+    let required = schema::required_row_fields(table);
+    if value.is_null() {
+        // Optional columns may be cleared with an explicit null; a required column
+        // cannot be nulled (the completeness rules would reject the table anyway).
+        if required.iter().any(|known| known == field) {
+            return Err(format!(
+                "Invalid value for {table}.rows[{json_index}].{field}: a required field cannot be null"
+            ));
+        }
+    } else {
+        let kind = schema::column_kind(table, field);
+        schema::validate(kind, &format!("{table}.rows[{json_index}].{field}"), &value)?;
+    }
+
+    let group = schema::countable_group(table)
+        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let lock = project_lock(project_id);
+    let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut document = load_or_init_unlocked(project_id)?;
+
+    {
+        let entry = schema::countable_entry(&document, table)
+            .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+        let rows = entry
+            .get("rows")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("Path not found: {table}.rows"))?;
+        if json_index < 0 || json_index as usize >= rows.len() {
+            return Err(format!("Row {json_index} not found in {table}.rows"));
+        }
+        tables::validate_draft_reference(
+            table,
+            json_index as usize,
+            field,
+            &value,
+            Some(&document),
+        )?;
+    }
+
+    let entry = schema_entry_mut(&mut document, group, table, true)
+        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let rows = entry
+        .get_mut("rows")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| format!("Path not found: {table}.rows"))?;
+    let object = rows[json_index as usize].as_object_mut().ok_or_else(|| {
+        format!("Invalid value for {table}.rows: row {json_index} must be an object")
+    })?;
+    object.insert(field.to_owned(), value);
+
+    save_unlocked(project_id, &document, false)?;
+    Ok(())
+}
+
+/// Soft warnings for the project's current document (D4).
+pub fn warnings(project_id: &str) -> Result<Vec<String>, String> {
+    let document = load_or_init(project_id)?;
+    Ok(tables::warnings(&document))
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -477,6 +632,87 @@ fn migrate_if_needed(path: &Path, raw: &str, document: &mut Value) -> Result<boo
     Ok(true)
 }
 
+/// Normalises a v2 document — tables split across groups, or a second
+/// fields-only entry — into v2.1: exactly one entry per table, in its countable
+/// group, carrying the v2.1 `fields` while `count`/`rows` survive unchanged.
+fn migrate_groups_if_needed(document: &mut Value) -> bool {
+    let before = document.clone();
+    let skeleton = schema::skeleton();
+
+    for table in schema::tables() {
+        let Some(belongs) = schema::countable_group(table) else {
+            continue;
+        };
+        let mut found = Vec::new();
+        let mut count = Value::Null;
+        let mut rows = Value::Array(Vec::new());
+        for group in [Group::Require, Group::Optional] {
+            for entry in schema_entries(document, group) {
+                if entry["table"].as_str() != Some(table.as_str()) {
+                    continue;
+                }
+                found.push(group);
+                if entry.get("count").is_some() {
+                    count = entry.get("count").cloned().unwrap_or(Value::Null);
+                    rows = entry
+                        .get("rows")
+                        .cloned()
+                        .unwrap_or_else(|| Value::Array(Vec::new()));
+                }
+            }
+        }
+        if found.len() == 1 && found[0] == belongs {
+            continue;
+        }
+
+        for group in [Group::Require, Group::Optional] {
+            if let Some(entries) = schema_entries_mut(document, group) {
+                entries.retain(|entry| entry["table"].as_str() != Some(table.as_str()));
+            }
+        }
+        let fields = schema::table_entry(&skeleton, table)
+            .and_then(|entry| entry.get("fields"))
+            .cloned()
+            .unwrap_or_else(|| Value::Object(Map::new()));
+        let entry = json!({
+            "table": table,
+            "count": count,
+            "fields": fields,
+            "rows": rows,
+        });
+        if let Some(entries) = schema_entries_mut(document, belongs) {
+            entries.push(entry);
+        }
+    }
+
+    let order = schema::tables();
+    for group in [Group::Require, Group::Optional] {
+        if let Some(entries) = schema_entries_mut(document, group) {
+            entries.sort_by_key(|entry| {
+                order
+                    .iter()
+                    .position(|known| known == entry["table"].as_str().unwrap_or_default())
+                    .unwrap_or(usize::MAX)
+            });
+        }
+    }
+
+    *document != before
+}
+
+fn schema_entries(document: &Value, group: Group) -> &[Value] {
+    document[group.as_str()]["schema"]
+        .as_array()
+        .map_or(&[], Vec::as_slice)
+}
+
+fn schema_entries_mut(document: &mut Value, group: Group) -> Option<&mut Vec<Value>> {
+    document
+        .get_mut(group.as_str())?
+        .get_mut("schema")?
+        .as_array_mut()
+}
+
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -610,6 +846,95 @@ mod tests {
     }
 
     #[test]
+    fn test_migration_from_v2_groups_to_v2_1() {
+        let _home = crate::test_support::TempHome::new("super-migrate-groups");
+        let project = "v2";
+        let path = paths::super_json_path(project).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        let skeleton = schema::skeleton();
+        let mut v2 = skeleton.clone();
+        let take = |document: &mut Value, group: &str, table: &str| -> Value {
+            let entries = document[group]["schema"].as_array_mut().unwrap();
+            let index = entries
+                .iter()
+                .position(|entry| entry["table"] == table)
+                .unwrap();
+            entries.remove(index)
+        };
+
+        // v2: `project_motifs` lived in optional with only `motif_id`.
+        let mut motifs = take(&mut v2, "require", "project_motifs");
+        motifs["fields"] = json!({ "motif_id": null });
+        v2["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .push(motifs);
+        // v2: `scenes` lived in require, carrying real data.
+        let mut scenes = take(&mut v2, "optional", "scenes");
+        scenes["count"] = json!(1);
+        scenes["rows"] = json!([{ "name": "Tiếng chuông", "chapter_id": "c1", "position": 1 }]);
+        v2["require"]["schema"].as_array_mut().unwrap().push(scenes);
+        // v2: `characters` was two entries, the second fields-only.
+        v2["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "table": "characters",
+                "fields": { "birth": null, "species": null }
+            }));
+        fs::write(&path, serde_json::to_vec_pretty(&v2).unwrap()).unwrap();
+
+        let document = load_or_init(project).unwrap();
+        for table in schema::tables() {
+            let entries = ["require", "optional"]
+                .iter()
+                .filter(|group| {
+                    document[group]["schema"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|entry| entry["table"].as_str() == Some(table.as_str()))
+                })
+                .count();
+            assert_eq!(entries, 1, "{table} must have exactly one entry");
+        }
+        assert_eq!(document["require"]["schema"].as_array().unwrap().len(), 6);
+        assert_eq!(document["optional"]["schema"].as_array().unwrap().len(), 28);
+
+        let motifs = schema::countable_entry(&document, "project_motifs").unwrap();
+        assert_eq!(
+            motifs["fields"],
+            json!({ "motif_id": null, "scope": null, "arc_id": null, "chapter_id": null })
+        );
+        assert_eq!(motifs["count"], Value::Null);
+        assert_eq!(
+            schema::countable_group("project_motifs"),
+            Some(Group::Require)
+        );
+
+        let scenes = schema::countable_entry(&document, "scenes").unwrap();
+        assert_eq!(scenes["count"], json!(1));
+        assert_eq!(scenes["rows"][0]["name"], json!("Tiếng chuông"));
+        assert_eq!(
+            scenes["fields"],
+            skeleton["optional"]["schema"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|entry| entry["table"] == "scenes")
+                .unwrap()["fields"]
+        );
+        assert_eq!(schema::countable_group("scenes"), Some(Group::Optional));
+
+        let on_disk: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk, document);
+
+        let again = load_or_init(project).unwrap();
+        assert_eq!(again, document, "migration must be idempotent");
+    }
+
+    #[test]
     fn test_super_json_rejects_unknown_path() {
         let _home = crate::test_support::TempHome::new("super-unknown");
         for bad in ["require.overview.name", "project.name", "", "require"] {
@@ -631,5 +956,125 @@ mod tests {
         assert!(set("default", "require.project.name", json!("   ")).is_err());
         assert!(set("default", "require.project.language", json!("vi")).is_err());
         assert!(set("default", "require.project.language", json!("VI")).is_ok());
+    }
+
+    #[test]
+    fn test_add_row_appends_and_tracks_count() {
+        let _home = crate::test_support::TempHome::new("super-add-row");
+        load_or_init("p").unwrap();
+
+        let (index, count) = add_row(
+            "p",
+            "characters",
+            json!({ "name": "Hoàng", "is_primary": true }),
+        )
+        .unwrap();
+        assert_eq!((index, count), (0, 1));
+
+        let entry = get("p", "require.schema.characters").unwrap();
+        assert_eq!(entry["count"], json!(1));
+        assert_eq!(entry["rows"][0]["_json_index"], json!(0));
+
+        // A count already equal to the old length advances with the append.
+        let (index, count) = add_row(
+            "p",
+            "characters",
+            json!({ "name": "Phong", "is_primary": false }),
+        )
+        .unwrap();
+        assert_eq!((index, count), (1, 2));
+        let entry = get("p", "require.schema.characters").unwrap();
+        assert_eq!(entry["rows"][1]["_json_index"], json!(1));
+        assert_eq!(entry["rows"][1]["name"], json!("Phong"));
+
+        // Draft rows only need to be objects, and the table must exist.
+        let error = add_row("p", "nope", json!({})).unwrap_err();
+        assert!(error.contains("Unknown super json table: nope"), "{error}");
+        let error = add_row("p", "characters", json!("Hoàng")).unwrap_err();
+        assert!(error.contains("must be an object"), "{error}");
+    }
+
+    #[test]
+    fn test_add_row_keeps_planned_count() {
+        let _home = crate::test_support::TempHome::new("super-add-row-plan");
+        load_or_init("p").unwrap();
+        set("p", "require.schema.characters.count", json!(5)).unwrap();
+
+        let (index, count) = add_row("p", "characters", json!({ "name": "Hoàng" })).unwrap();
+        assert_eq!((index, count), (0, 5), "a planned count must survive");
+
+        // Draft mode accepts a row that still misses a required field.
+        let entry = get("p", "require.schema.characters").unwrap();
+        assert_eq!(entry["count"], json!(5));
+        assert_eq!(entry["rows"].as_array().unwrap().len(), 1);
+        assert_eq!(entry["rows"][0]["name"], json!("Hoàng"));
+    }
+
+    #[test]
+    fn test_add_field_updates_one_row() {
+        let _home = crate::test_support::TempHome::new("super-add-field");
+        load_or_init("p").unwrap();
+        add_row(
+            "p",
+            "characters",
+            json!({ "name": "Hoàng", "is_primary": true }),
+        )
+        .unwrap();
+
+        add_field("p", "characters", 0, "birth", json!("Mùa đông")).unwrap();
+        let entry = get("p", "require.schema.characters").unwrap();
+        assert_eq!(entry["rows"][0]["birth"], json!("Mùa đông"));
+        assert_eq!(entry["rows"][0]["name"], json!("Hoàng"));
+
+        let error = add_field("p", "characters", 0, "_json_index", json!(1)).unwrap_err();
+        assert!(error.contains("cannot be written"), "{error}");
+        let error = add_field("p", "characters", 0, "archetype", json!("hero")).unwrap_err();
+        assert!(error.contains("Unknown field"), "{error}");
+        let error = add_field("p", "characters", 9, "name", json!("Linh")).unwrap_err();
+        assert_eq!(error, "Row 9 not found in characters.rows");
+        let error = add_field("p", "nope", 0, "name", json!("Linh")).unwrap_err();
+        assert!(error.contains("Unknown super json table: nope"), "{error}");
+    }
+
+    #[test]
+    fn test_add_field_accepts_null_only_on_optional_columns() {
+        let _home = crate::test_support::TempHome::new("super-add-field-null");
+        load_or_init("p").unwrap();
+        set("p", "optional.schema.scenes.count", json!(1)).unwrap();
+        set(
+            "p",
+            "optional.schema.scenes.rows",
+            json!([{ "name": "Mở đầu", "chapter_id": "c1", "position": 1 }]),
+        )
+        .unwrap();
+
+        // An explicit null clears an optional column (world_setting_id may be empty).
+        add_field("p", "scenes", 0, "world_setting_id", Value::Null).unwrap();
+        let entry = get("p", "optional.schema.scenes").unwrap();
+        assert_eq!(entry["rows"][0]["world_setting_id"], Value::Null);
+
+        // A required column cannot be nulled.
+        let error = add_field("p", "scenes", 0, "name", Value::Null).unwrap_err();
+        assert!(error.contains("required field cannot be null"), "{error}");
+    }
+
+    #[test]
+    fn test_set_rows_renumbers_json_index() {
+        let _home = crate::test_support::TempHome::new("super-renumber");
+        load_or_init("p").unwrap();
+        set("p", "require.schema.characters.count", json!(2)).unwrap();
+        set(
+            "p",
+            "require.schema.characters.rows",
+            json!([
+                { "name": "Hoàng", "is_primary": true, "_json_index": 9 },
+                { "name": "Linh", "is_primary": false, "_json_index": 7 }
+            ]),
+        )
+        .unwrap();
+
+        let entry = get("p", "require.schema.characters").unwrap();
+        assert_eq!(entry["rows"][0]["_json_index"], json!(0));
+        assert_eq!(entry["rows"][1]["_json_index"], json!(1));
     }
 }

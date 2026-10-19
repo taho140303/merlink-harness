@@ -278,12 +278,15 @@ pub fn merged_table_entry(document: &Value, table: &str) -> Option<Value> {
         "table": table,
         "count": countable.and_then(|entry| entry.get("count")).cloned().unwrap_or(Value::Null),
         "fields": Value::Object(fields),
+        "refs": ref_fields(table),
         "rows": countable.and_then(|entry| entry.get("rows")).cloned().unwrap_or_else(|| Value::Array(Vec::new())),
     }))
 }
 
-/// Union of `fields` keys for a table across both groups.
-pub fn table_fields(table: &str) -> Vec<String> {
+/// Union of the documented `fields` keys for a table across both groups. These
+/// are the database columns; the synthetic draft-reference columns below are
+/// deliberately excluded.
+fn declared_fields(table: &str) -> Vec<String> {
     let document = skeleton();
     let mut out: Vec<String> = Vec::new();
     for group in [Group::Require, Group::Optional] {
@@ -304,21 +307,59 @@ pub fn table_fields(table: &str) -> Vec<String> {
     out
 }
 
-/// Fields in the `require` entry for a table: these must be present in every
-/// row. Optional-only tables have no required row fields.
-pub fn required_row_fields(table: &str) -> Vec<String> {
-    let document = skeleton();
-    if let Some(entries) = document["require"]["schema"].as_array() {
-        for entry in entries {
-            if entry["table"].as_str() == Some(table) {
-                return entry["fields"]
-                    .as_object()
-                    .map(|fields| fields.keys().cloned().collect())
-                    .unwrap_or_default();
-            }
+/// Synthetic draft-reference columns: every declared `_id` column also accepts
+/// `<field>_json_index`, a 0-based position in the target table's `rows`.
+pub fn ref_fields(table: &str) -> Vec<String> {
+    declared_fields(table)
+        .into_iter()
+        .filter(|field| field.ends_with("_id"))
+        .map(|field| format!("{field}_json_index"))
+        .collect()
+}
+
+/// Everything a row may carry: the declared columns, the tool-assigned
+/// `_json_index`, and the draft-reference columns. `_json_index` is synthetic;
+/// it is not a path and does not change the 81 paths / 34 tables.
+pub fn table_fields(table: &str) -> Vec<String> {
+    let mut out = declared_fields(table);
+    if out.is_empty() {
+        return out;
+    }
+    for field in std::iter::once("_json_index".to_owned()).chain(ref_fields(table)) {
+        if !out.iter().any(|known| known == &field) {
+            out.push(field);
         }
     }
-    Vec::new()
+    out
+}
+
+/// Fields every row must carry, independent of the table's group. A table that
+/// moves from require to optional must not silently lose its row contract.
+const REQUIRED_ROW_FIELDS: [(&str, &[&str]); 13] = [
+    ("project_genres", &["genre_id", "is_primary"]),
+    ("arcs", &["name", "position"]),
+    ("characters", &["name", "is_primary"]),
+    ("project_motifs", &["motif_id", "scope"]),
+    ("themes", &["scope", "question"]),
+    ("theme_arguments", &["theme_id", "character_id", "role"]),
+    ("chapters", &["name", "position"]),
+    ("scenes", &["name", "chapter_id", "position"]),
+    ("scene_characters", &["scene_id", "character_id", "is_pov"]),
+    ("relationships", &["from_character_id", "to_character_id"]),
+    (
+        "relationship_roles",
+        &["relationship_id", "category_id", "is_primary"],
+    ),
+    ("world_settings", &["name", "type"]),
+    ("power_systems", &["name", "source"]),
+];
+
+pub fn required_row_fields(table: &str) -> Vec<String> {
+    REQUIRED_ROW_FIELDS
+        .iter()
+        .find(|(known, _)| *known == table)
+        .map(|(_, fields)| fields.iter().map(|field| (*field).to_owned()).collect())
+        .unwrap_or_default()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -338,6 +379,7 @@ const THEME_SCOPES: &[&str] = &["PROJECT", "ARC"];
 const THEME_RESOLUTIONS: &[&str] = &["RESOLVED", "OPEN", "AMBIGUOUS"];
 const THEME_ROLES: &[&str] = &["PRIMARY", "ANTITHESIS", "CAUTIONARY", "WITNESS"];
 const THEME_ANSWER_MODES: &[&str] = &["VERBAL", "ACTION", "OUTCOME", "IMPLICIT"];
+const PROJECT_MOTIF_SCOPES: &[&str] = &["project", "arc", "chapter"];
 const LOCATION_TYPES: &[&str] = &[
     "REALM", "WORLD", "REGION", "COUNTRY", "CITY", "TOWN", "FACILITY", "STREET", "ROOM",
 ];
@@ -388,6 +430,9 @@ fn project_kind(rest: &str) -> Option<FieldKind> {
 /// Table-aware type rule for one row column. Everything not listed falls back
 /// to `Text`, the dominant DBML type (varchar/text/uuid FK).
 pub fn column_kind(table: &str, column: &str) -> FieldKind {
+    if column == "_json_index" || column.ends_with("_json_index") {
+        return FieldKind::NonNegativeInt;
+    }
     match column {
         "is_primary" | "is_system" | "is_pov" => return FieldKind::Bool,
         "position" | "rank" | "height" | "weight" | "word_count" | "version_number"
@@ -399,6 +444,7 @@ pub fn column_kind(table: &str, column: &str) -> FieldKind {
 
     match (table, column) {
         ("themes", "scope") => FieldKind::Choice(THEME_SCOPES),
+        ("project_motifs", "scope") => FieldKind::Choice(PROJECT_MOTIF_SCOPES),
         ("themes", "resolution_type") => FieldKind::Choice(THEME_RESOLUTIONS),
         ("theme_arguments", "role") => FieldKind::Choice(THEME_ROLES),
         ("theme_arguments", "answer_mode") => FieldKind::Choice(THEME_ANSWER_MODES),
@@ -526,11 +572,79 @@ mod tests {
     }
 
     #[test]
-    fn test_required_units_are_18_and_optional_29() {
-        assert_eq!(required_paths().len(), 18);
-        assert_eq!(optional_paths().len(), 29);
+    fn test_required_units_are_12_and_optional_35() {
+        assert_eq!(required_paths().len(), 12);
+        assert_eq!(optional_paths().len(), 35);
         assert!(required_paths().contains(&"require.schema.characters".to_owned()));
+        assert!(required_paths().contains(&"require.schema.project_motifs".to_owned()));
+        assert!(!required_paths().contains(&"require.schema.scenes".to_owned()));
+        for table in [
+            "scenes",
+            "chapters",
+            "scene_characters",
+            "relationships",
+            "relationship_roles",
+            "world_settings",
+            "power_systems",
+        ] {
+            assert!(
+                optional_paths().contains(&format!("optional.schema.{table}")),
+                "{table} must be optional"
+            );
+        }
         assert!(optional_paths().contains(&"optional.schema.appearance_options".to_owned()));
+    }
+
+    #[test]
+    fn test_one_entry_per_table() {
+        let document = skeleton();
+        assert_eq!(tables().len(), 34);
+        for group in [Group::Require, Group::Optional] {
+            for entry in document[group.as_str()]["schema"].as_array().unwrap() {
+                let table = entry["table"].as_str().unwrap();
+                let occurrences = [Group::Require, Group::Optional]
+                    .iter()
+                    .flat_map(|group| {
+                        document[group.as_str()]["schema"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .filter(move |entry| entry["table"] == table)
+                    })
+                    .count();
+                assert_eq!(occurrences, 1, "{table} must have exactly one entry");
+                assert!(entry.get("count").is_some(), "{table} needs count");
+                assert!(entry.get("rows").is_some(), "{table} needs rows");
+            }
+        }
+    }
+
+    #[test]
+    fn test_project_motifs_declares_scope_and_anchors() {
+        let required = required_row_fields("project_motifs");
+        for field in ["motif_id", "scope"] {
+            assert!(required.contains(&field.to_owned()), "missing {field}");
+        }
+        let document = skeleton();
+        let entry = document["require"]["schema"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["table"] == "project_motifs")
+            .unwrap();
+        assert_eq!(
+            entry["fields"],
+            serde_json::json!({
+                "motif_id": null,
+                "scope": null,
+                "arc_id": null,
+                "chapter_id": null
+            })
+        );
+        assert_eq!(
+            column_kind("project_motifs", "scope"),
+            FieldKind::Choice(&["project", "arc", "chapter"])
+        );
     }
 
     #[test]
@@ -541,15 +655,24 @@ mod tests {
     }
 
     #[test]
-    fn test_scenes_chapter_id_is_required() {
+    fn test_scenes_chapter_id_is_a_required_row_field() {
+        let required = required_row_fields("scenes");
+        for field in ["name", "chapter_id", "position"] {
+            assert!(required.contains(&field.to_owned()), "missing {field}");
+        }
         let document = skeleton();
-        let entry = document["require"]["schema"]
-            .as_array()
-            .unwrap()
+        let entries: Vec<&Value> = ["require", "optional"]
             .iter()
-            .find(|entry| entry["table"] == "scenes")
-            .unwrap();
-        assert!(entry["fields"].get("chapter_id").is_some());
+            .flat_map(|group| document[group]["schema"].as_array().unwrap())
+            .filter(|entry| entry["table"] == "scenes")
+            .collect();
+        assert_eq!(entries.len(), 1, "scenes must have exactly one entry");
+        let optional = document["optional"]["schema"].as_array().unwrap();
+        assert!(
+            optional.iter().any(|entry| entry["table"] == "scenes"),
+            "scenes must live in optional"
+        );
+        assert!(entries[0]["fields"].get("chapter_id").is_some());
     }
 
     #[test]
@@ -581,5 +704,68 @@ mod tests {
     #[test]
     fn test_characters_have_is_primary_synthetic_field() {
         assert!(table_fields("characters").contains(&"is_primary".to_owned()));
+    }
+
+    #[test]
+    fn test_table_fields_expose_json_index_and_refs() {
+        let fields = table_fields("relationships");
+        for field in [
+            "_json_index",
+            "from_character_id_json_index",
+            "to_character_id_json_index",
+        ] {
+            assert!(
+                fields.contains(&field.to_owned()),
+                "relationships is missing {field}"
+            );
+        }
+        // Declared columns survive the synthetic additions, in skeleton order.
+        assert!(fields.contains(&"from_character_id".to_owned()));
+        assert!(fields.contains(&"to_character_id".to_owned()));
+        assert_eq!(
+            ref_fields("relationships"),
+            vec![
+                "from_character_id_json_index".to_owned(),
+                "to_character_id_json_index".to_owned()
+            ]
+        );
+        // A table with no `_id` column still gets the tool-assigned index.
+        assert_eq!(table_fields("arcs"), {
+            let mut expected = declared_fields("arcs");
+            expected.push("_json_index".to_owned());
+            expected
+        });
+        // `refs` is part of the read-only table selector, additive to the four
+        // documented keys.
+        let document = skeleton();
+        let entry = merged_table_entry(&document, "relationships").unwrap();
+        assert_eq!(entry["table"], "relationships");
+        assert_eq!(
+            entry["refs"],
+            serde_json::json!(ref_fields("relationships"))
+        );
+        assert!(
+            entry["fields"]
+                .get("from_character_id_json_index")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_column_kind_marks_refs_as_non_negative_ints() {
+        assert_eq!(
+            column_kind("relationships", "_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        assert_eq!(
+            column_kind("relationships", "from_character_id_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        assert_eq!(
+            column_kind("scenes", "chapter_id_json_index"),
+            FieldKind::NonNegativeInt
+        );
+        // The plain column keeps its documented (text) rule.
+        assert_eq!(column_kind("scenes", "chapter_id"), FieldKind::Text);
     }
 }

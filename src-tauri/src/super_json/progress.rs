@@ -1,7 +1,7 @@
 //! Missing/filled bookkeeping and the two-stop 70/30 progress calculation.
 //!
 //! A unit is one decision: a `project` leaf, or one schema table (its `count`
-//! plus a complete `rows` array). 18 required units cover 0 → 70%; 29 optional
+//! plus a complete `rows` array). 12 required units cover 0 → 70%; 35 optional
 //! units cover 70 → 100%.
 
 use serde_json::Value;
@@ -97,7 +97,7 @@ pub(super) fn unit_counts(document: &Value) -> (u32, u32) {
     )
 }
 
-/// Two-stop progress: the 18 required units cover 0 → 70%, the 29 optional
+/// Two-stop progress: the 12 required units cover 0 → 70%, the 35 optional
 /// units cover 70 → 100%. Completing every required unit lands on exactly 70.
 pub fn progress(project_id: &str) -> Result<SuperJsonProgress, String> {
     let required_total = schema::required_paths().len() as u32;
@@ -165,15 +165,6 @@ mod tests {
                 json!([{ "genre_id": "trinh thám", "is_primary": true }]),
             ),
             ("arcs", json!([{ "name": "Mưa", "position": 1 }])),
-            ("chapters", json!([{ "name": "Đồng hồ", "position": 1 }])),
-            (
-                "scenes",
-                json!([{ "name": "Tiếng chuông", "chapter_id": "c1", "position": 1 }]),
-            ),
-            (
-                "scene_characters",
-                json!([{ "scene_id": "s1", "character_id": "c1", "is_pov": true }]),
-            ),
             (
                 "characters",
                 json!([
@@ -183,20 +174,8 @@ mod tests {
                 ]),
             ),
             (
-                "relationships",
-                json!([{ "from_character_id": "c1", "to_character_id": "c2" }]),
-            ),
-            (
-                "relationship_roles",
-                json!([{ "relationship_id": "r1", "category_id": "cat1", "is_primary": true }]),
-            ),
-            (
-                "world_settings",
-                json!([{ "name": "Thành phố", "type": "CITY" }]),
-            ),
-            (
-                "power_systems",
-                json!([{ "name": "Mana", "source": "huyết mạch" }]),
+                "project_motifs",
+                json!([{ "motif_id": "mo-tif", "scope": "project" }]),
             ),
             (
                 "themes",
@@ -225,8 +204,8 @@ mod tests {
         crate::super_json::load_or_init("p").unwrap();
         fill_required("p");
         let progress = progress("p").unwrap();
-        assert_eq!(progress.filled_required, 18, "{progress:?}");
-        assert_eq!(progress.required_total, 18);
+        assert_eq!(progress.filled_required, 12, "{progress:?}");
+        assert_eq!(progress.required_total, 12);
         assert_eq!(progress.percent, 70);
         assert_eq!(progress.label, LABEL_ACCEPTABLE);
         assert!(missing_required("p").unwrap().is_empty());
@@ -274,15 +253,21 @@ mod tests {
         }
         for table in [
             "relationship_motifs",
-            "project_motifs",
+            "chapters",
+            "scenes",
+            "scene_characters",
             "scene_versions",
             "appearance_option_groups",
             "appearance_options",
             "character_appearances",
             "character_distinguishing_marks",
+            "relationships",
             "relationship_categories",
+            "relationship_roles",
             "relationship_states",
+            "world_settings",
             "lore_entries",
+            "power_systems",
             "power_tiers",
             "power_abilities",
             "memories",
@@ -299,8 +284,8 @@ mod tests {
             set("p", &format!("optional.schema.{table}.count"), json!(0)).unwrap();
         }
         let progress = progress("p").unwrap();
-        assert_eq!(progress.filled_required, 18);
-        assert_eq!(progress.filled_optional, 29);
+        assert_eq!(progress.filled_required, 12);
+        assert_eq!(progress.filled_optional, 35);
         assert_eq!(progress.percent, 100);
         assert_eq!(progress.label, LABEL_GOOD);
     }

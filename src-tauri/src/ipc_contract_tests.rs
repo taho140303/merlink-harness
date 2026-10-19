@@ -417,8 +417,8 @@ fn test_ipc_super_json_progress_end_to_end() {
     let empty = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(empty["has_project"], json!(false));
     assert_eq!(empty["project_id"], json!(""));
-    assert_eq!(empty["required_total"], json!(18));
-    assert_eq!(empty["optional_total"], json!(29));
+    assert_eq!(empty["required_total"], json!(12));
+    assert_eq!(empty["optional_total"], json!(35));
     assert_eq!(empty["filled_required"], json!(0));
     assert_eq!(empty["percent"], json!(0));
 
@@ -440,15 +440,15 @@ fn test_ipc_super_json_progress_end_to_end() {
     assert!(!project_id.is_empty());
 
     // 3. The same session now reports real progress: `project_create` writes
-    //    exactly one required unit (`require.project.name`), which is 70%/18.
+    //    exactly one required unit (`require.project.name`), which is 70%/12.
     let progress = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(progress["has_project"], json!(true));
     assert_eq!(progress["project_id"], json!(project_id));
-    assert_eq!(progress["required_total"], json!(18));
-    assert_eq!(progress["optional_total"], json!(29));
+    assert_eq!(progress["required_total"], json!(12));
+    assert_eq!(progress["optional_total"], json!(35));
     assert_eq!(progress["filled_required"], json!(1));
     assert_eq!(progress["filled_optional"], json!(0));
-    assert_eq!(progress["percent"], json!(4));
+    assert_eq!(progress["percent"], json!(6));
     assert!(
         progress["label"]
             .as_str()
@@ -550,9 +550,9 @@ fn test_ipc_super_json_summary_end_to_end() {
             "require.schema.themes.rows",
             json!([{ "scope": "PROJECT", "question": "Ký ức có làm nên con người?", "resolution_type": "OPEN" }]),
         ),
-        ("require.schema.world_settings.count", json!(1)),
+        ("optional.schema.world_settings.count", json!(1)),
         (
-            "require.schema.world_settings.rows",
+            "optional.schema.world_settings.rows",
             json!([{ "name": "Thành phố", "type": "CITY" }]),
         ),
     ] {
@@ -728,8 +728,8 @@ fn test_ipc_execute_tool_end_to_end() {
             .as_array()
             .expect("missing_required")
             .len(),
-        17,
-        "18 required units minus the name project_create just wrote"
+        11,
+        "12 required units minus the name project_create just wrote"
     );
 
     // The artifacts really landed in the temp home, not in a real ~/.merlink.
@@ -762,6 +762,93 @@ fn test_ipc_execute_tool_end_to_end() {
         "unexpected error: {}",
         error_text(&unknown)
     );
+}
+
+/// Sprint 16.1 · T7: the two incremental write tools really run over IPC.
+#[test]
+fn test_ipc_execute_tool_add_row_end_to_end() {
+    let harness = Harness::new("ipc-execute-tool-add-row");
+    let created = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create",
+            "args": { "name": "Nua Dem" },
+            "projectId": "",
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_string();
+    let missing_before = created["missing_required"]
+        .as_array()
+        .expect("missing_required")
+        .len();
+
+    let added = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "super_json_add_row",
+            "args": {
+                "table": "characters",
+                "row": { "name": "Hoàng", "is_primary": true }
+            },
+            "projectId": project_id,
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    assert_eq!(added["ok"], json!(true));
+    assert_eq!(added["table"], json!("characters"));
+    assert_eq!(added["json_index"], json!(0));
+    assert_eq!(added["count"], json!(1));
+    assert_eq!(added["row"]["_json_index"], json!(0));
+    assert_eq!(
+        added["missing_required"].as_array().expect("missing").len(),
+        missing_before - 1,
+        "the characters unit became complete"
+    );
+    assert!(added["warnings"].is_array());
+
+    let field = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "super_json_add_field",
+            "args": {
+                "table": "characters",
+                "json_index": 0,
+                "field": "birth",
+                "value": "Mùa đông"
+            },
+            "projectId": project_id,
+            "sessionId": "contract-session-add-row"
+        }),
+    );
+    assert_eq!(field["ok"], json!(true));
+    assert_eq!(field["json_index"], json!(0));
+    assert_eq!(field["field"], json!("birth"));
+    assert!(field["warnings"].is_array());
+
+    // Both writes landed in the real file behind the IPC call.
+    let super_json = harness
+        .home
+        .path()
+        .join("projects")
+        .join(&project_id)
+        .join("super.json");
+    let document: Value =
+        serde_json::from_str(&std::fs::read_to_string(&super_json).expect("super.json"))
+            .expect("super.json is JSON");
+    let characters = document["require"]["schema"]
+        .as_array()
+        .expect("require schema")
+        .iter()
+        .find(|entry| entry["table"] == "characters")
+        .expect("characters entry");
+    assert_eq!(characters["count"], json!(1));
+    assert_eq!(characters["rows"][0]["name"], json!("Hoàng"));
+    assert_eq!(characters["rows"][0]["birth"], json!("Mùa đông"));
+    assert_eq!(characters["rows"][0]["_json_index"], json!(0));
 }
 
 #[test]
