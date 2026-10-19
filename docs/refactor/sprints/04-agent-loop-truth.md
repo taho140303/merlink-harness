@@ -1,6 +1,6 @@
 # S4 — Agent-loop truth
 
-- **Status:** blocked by S3
+- **Status:** pushed
 - **Branch:** `refactor/s4-agent-loop-truth`
 - **Units:** F-05, F-06, F-07
 - **Depends on:** S3
