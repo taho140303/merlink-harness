@@ -1,9 +1,11 @@
 # SPRINT 16.6 — PROJECT TAB: 3×3 OVERVIEW GRID + RANDOM COVERS
 
-> **Trạng thái: READY FOR SUBAGENT.**
+> **Trạng thái: DONE — implemented on `sprint-16.6-project-tab`; root-verified.**
+> Commits: `ccb00e3` (implementation), `47bee2a` (review fixes).
 > Branch: `sprint-16.6-project-tab` · Base: `sprint-16.5-sidebar-history` (sau khi 16.5 DONE).
 > Nếu 16.5 chưa merge: rebase branch này lên `sprint-16.5-sidebar-history`, **không sửa** phần sidebar
 > history. Baseline trên base 16.5: `cargo test` phải 0 failed / 3 ignored; `pnpm build` pass.
+> Kết quả sau sprint: `cargo test` **170 passed / 3 ignored**, `pnpm build`, fmt và clippy pass.
 > Route mặc định: `openai-codex / gpt-6-sol / high`; fallback `commandcode / deepseek-v4.1-flash / high`.
 
 ## CONTEXT

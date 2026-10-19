@@ -1,8 +1,10 @@
 # SPRINT 16.5 — SIDEBAR CONVERSATION HISTORY (TITLE-ONLY ROWS)
 
-> **Trạng thái: READY FOR SUBAGENT.**
+> **Trạng thái: DONE — implemented on `sprint-16.5-sidebar-history`; root-verified.**
+> Commits: `4468731` (implementation), `cf2df06` (spec), `fb00fff` (review fixes).
 > Branch: `sprint-16.5-sidebar-history` · Base: `main` @ `125c77e` (sau merge Sprint 16.1).
 > Baseline đã verify trên base: `cargo test` **155 passed / 3 ignored**, `pnpm build` pass.
+> Kết quả sau sprint: `cargo test` **161 passed / 3 ignored**, `pnpm build`, fmt và clippy pass.
 > Route mặc định: `openai-codex / gpt-6-sol / high`; fallback `commandcode / deepseek-v4.1-flash / high`.
 
 ## CONTEXT
