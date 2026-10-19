@@ -95,8 +95,8 @@ export interface ChatTurn {
 /**
  * Mirrors `SuperJsonProgress` in src-tauri/src/models.rs (serde snake_case).
  *
- * The 18 required units cover 0 → 70% and the 29 optional units cover 70 → 100%.
- * `required_total`/`optional_total` are always 18/29; only the `filled_*` counts
+ * The 12 required units cover 0 → 70% and the 35 optional units cover 70 → 100%.
+ * `required_total`/`optional_total` are always 12/35; only the `filled_*` counts
  * drop to zero while the chat has no project.
  */
 export interface ContextUsage {

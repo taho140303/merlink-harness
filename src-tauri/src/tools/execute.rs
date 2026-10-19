@@ -181,8 +181,8 @@ mod tests {
         );
 
         let missing = execute_tool("super_json_missing", &json!({}), "default", "s").unwrap();
-        assert_eq!(missing["required_total"], json!(18));
-        assert_eq!(missing["missing"].as_array().unwrap().len(), 18);
+        assert_eq!(missing["required_total"], json!(12));
+        assert_eq!(missing["missing"].as_array().unwrap().len(), 12);
 
         let applied = execute_tool(
             "super_json_set",
@@ -192,7 +192,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(applied["ok"], json!(true));
-        assert_eq!(applied["missing_required"].as_array().unwrap().len(), 17);
+        assert_eq!(applied["missing_required"].as_array().unwrap().len(), 11);
 
         let read = execute_tool(
             "super_json_get",
@@ -276,8 +276,8 @@ mod tests {
         assert_eq!(result["ok"], json!(true));
         assert_eq!(
             result["missing_required"].as_array().unwrap().len(),
-            17,
-            "project_create fills require.project.name, so 17 remain"
+            11,
+            "project_create fills require.project.name, so 11 remain"
         );
 
         // The session is bound to the new project.
@@ -324,16 +324,16 @@ mod tests {
         .unwrap();
         assert_eq!(read["value"], json!("Nửa Đêm"));
 
-        // The header now follows the binding: 1 of 18 required units is filled, so
-        // the bar sits at round(70 * 1 / 18) = 4%.
+        // The header now follows the binding: 1 of 12 required units is filled, so
+        // the bar sits at round(70 * 1 / 12) = 6%.
         let after = crate::runtime::super_json_progress_for_session("sess-new").unwrap();
         assert!(after.has_project);
         assert_eq!(after.project_id, "n-a-m");
         assert_eq!(after.filled_required, 1);
-        assert_eq!(after.required_total, 18);
+        assert_eq!(after.required_total, 12);
         assert_eq!(after.filled_optional, 0);
-        assert_eq!(after.optional_total, 29);
-        assert_eq!(after.percent, 4);
+        assert_eq!(after.optional_total, 35);
+        assert_eq!(after.percent, 6);
         assert_eq!(after.label, "Đang thu thập thông tin");
     }
 
@@ -555,8 +555,8 @@ mod tests {
         );
         assert_eq!(
             created["missing_required"].as_array().unwrap().len(),
-            18,
-            "no title was written, so all 18 required units are still missing"
+            12,
+            "no title was written, so all 12 required units are still missing"
         );
 
         // The row exists under the documented display title ...

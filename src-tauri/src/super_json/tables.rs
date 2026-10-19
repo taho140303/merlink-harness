@@ -81,6 +81,29 @@ pub fn validate_rows(table: &str, rows: &Value, count: Option<i64>) -> Result<()
     Ok(())
 }
 
+/// Cross-table rules that make a table "not yet complete" without rejecting the
+/// write itself (drafting is incremental).
+fn document_rule(document: &Value, table: &str, rows: &Value) -> bool {
+    let items: &[Value] = rows.as_array().map_or(&[], Vec::as_slice);
+    match table {
+        "project_motifs" => items
+            .iter()
+            .any(|row| row.get("scope").and_then(Value::as_str) == Some("project")),
+        "scene_characters" => {
+            let scenes = schema::countable_entry(document, "scenes")
+                .and_then(|entry| entry.get("rows"))
+                .and_then(Value::as_array);
+            match scenes {
+                Some(scenes) if !scenes.is_empty() => items
+                    .iter()
+                    .any(|row| row.get("is_pov").and_then(Value::as_bool) == Some(true)),
+                _ => true,
+            }
+        }
+        _ => true,
+    }
+}
+
 /// A valid, non-empty row array for a required table.
 pub fn is_table_complete(document: &Value, table: &str) -> Result<bool, String> {
     let Some(entry) = schema::countable_entry(document, table) else {
@@ -102,7 +125,7 @@ pub fn is_table_complete(document: &Value, table: &str) -> Result<bool, String> 
         return Ok(false);
     }
     validate_rows(table, rows, Some(count))?;
-    Ok(true)
+    Ok(document_rule(document, table, rows))
 }
 
 /// Optional tables may legitimately declare zero rows ("none").
@@ -126,7 +149,7 @@ pub fn is_optional_table_complete(document: &Value, table: &str) -> Result<bool,
         return Ok(false);
     }
     validate_rows(table, rows, Some(count))?;
-    Ok(true)
+    Ok(document_rule(document, table, rows))
 }
 
 #[cfg(test)]
@@ -173,5 +196,67 @@ mod tests {
         let rows = json!([{ "name": "Mở đầu", "position": 1 }]);
         let error = validate_rows("scenes", &rows, Some(1)).unwrap_err();
         assert!(error.contains("chapter_id"), "{error}");
+    }
+
+    fn document_with(table: &str, count: i64, rows: Value) -> Value {
+        let mut document = schema::skeleton();
+        for group in ["require", "optional"] {
+            if let Some(entries) = document[group]["schema"].as_array_mut()
+                && let Some(entry) = entries
+                    .iter_mut()
+                    .find(|entry| entry["table"] == table && entry.get("count").is_some())
+            {
+                entry["count"] = json!(count);
+                entry["rows"] = rows;
+                return document;
+            }
+        }
+        panic!("no countable entry for {table}");
+    }
+
+    #[test]
+    fn test_project_motifs_need_a_project_scope_row() {
+        let document = document_with(
+            "project_motifs",
+            1,
+            json!([{ "motif_id": "mo-tif", "scope": "arc", "arc_id": "a1" }]),
+        );
+        assert!(!is_table_complete(&document, "project_motifs").unwrap());
+
+        let document = document_with(
+            "project_motifs",
+            1,
+            json!([{ "motif_id": "mo-tif", "scope": "project" }]),
+        );
+        assert!(is_table_complete(&document, "project_motifs").unwrap());
+    }
+
+    #[test]
+    fn test_scene_characters_need_a_pov_row_when_scenes_exist() {
+        let mut document = document_with(
+            "scenes",
+            1,
+            json!([{ "name": "Mở đầu", "chapter_id": "c1", "position": 1 }]),
+        );
+        let scene_characters = document["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|entry| entry["table"] == "scene_characters")
+            .unwrap();
+        scene_characters["count"] = json!(1);
+        scene_characters["rows"] =
+            json!([{ "scene_id": "s1", "character_id": "c1", "is_pov": false }]);
+        assert!(!is_optional_table_complete(&document, "scene_characters").unwrap());
+
+        let scene_characters = document["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|entry| entry["table"] == "scene_characters")
+            .unwrap();
+        scene_characters["rows"] =
+            json!([{ "scene_id": "s1", "character_id": "c1", "is_pov": true }]);
+        assert!(is_optional_table_complete(&document, "scene_characters").unwrap());
     }
 }

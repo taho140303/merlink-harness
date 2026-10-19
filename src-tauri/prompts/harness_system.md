@@ -153,28 +153,29 @@ The chat header shows a two-stop progress bar, computed from the super json:
 
 ## Required tables (each has `.count` and `.rows`)
 
+The document has 81 writable paths: 13 project leaves + 34 tables × `count`/`rows`, split into
+**12 required / 35 optional** units. The 6 required tables are:
+
 | Table | Row fields (all required) |
 | --- | --- |
 | `project_genres` | `genre_id`, `is_primary` |
 | `arcs` | `name`, `position` |
-| `chapters` | `name`, `position` |
-| `scenes` | `name`, `chapter_id`, `position` |
-| `scene_characters` | `scene_id`, `character_id`, `is_pov` |
 | `characters` | `name`, `is_primary` |
-| `relationships` | `from_character_id`, `to_character_id` |
-| `relationship_roles` | `relationship_id`, `category_id`, `is_primary` |
-| `world_settings` | `name`, `type` |
-| `power_systems` | `name`, `source` |
+| `project_motifs` | `motif_id`, `scope` (`project` \| `arc` \| `chapter`) |
 | `themes` | `scope`, `question` |
 | `theme_arguments` | `theme_id`, `character_id`, `role` |
 
+`project_motifs` only counts as filled when at least one row has `scope = "project"`; rows scoped to
+an arc or chapter are optional extras.
+
 ## Optional tables (each has `.count` and `.rows`; read `fields` before writing)
 
-`relationship_motifs`, `project_motifs`, `scene_versions`, `appearance_option_groups`,
-`appearance_options`, `character_appearances`, `character_distinguishing_marks`,
-`relationship_categories`, `relationship_states`, `lore_entries`, `power_tiers`, `power_abilities`,
-`memories`, `memory_references`, `memory_emotions`, `memory_connections`, `memory_revisions`,
-`character_knowledge_sources`, `competence_domains`, `character_competences`,
+`relationship_motifs`, `chapters`, `scenes`, `scene_characters`, `scene_versions`,
+`appearance_option_groups`, `appearance_options`, `character_appearances`,
+`character_distinguishing_marks`, `relationships`, `relationship_categories`, `relationship_roles`,
+`relationship_states`, `world_settings`, `lore_entries`, `power_systems`, `power_tiers`,
+`power_abilities`, `memories`, `memory_references`, `memory_emotions`, `memory_connections`,
+`memory_revisions`, `character_knowledge_sources`, `competence_domains`, `character_competences`,
 `competence_capabilities`, `competence_limitations`.
 
 Optional tables are still real: fill the ones the story needs, and use `count = 0` when the author
