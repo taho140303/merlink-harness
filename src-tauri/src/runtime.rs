@@ -311,7 +311,6 @@ pub async fn run_agent_turn(
 
     let tool_specs = tools::tool_specs();
     let mut conversation: Vec<MessageEnvelope> = messages.to_vec();
-    let mut last_content = String::new();
     let mut last_tokens = TokenUsage::default();
     // D9: reasoning is accumulated across every round and attached only to the
     // final message of the turn (the one carrying `meta`).
@@ -353,7 +352,6 @@ pub async fn run_agent_turn(
             }
         };
         last_tokens = reply.tokens.clone();
-        last_content = reply.content.clone();
         // D9: every round's thinking belongs to the same turn, so concatenate.
         if let Some(reasoning) = reply
             .reasoning
@@ -449,6 +447,24 @@ pub async fn run_agent_turn(
                 "[merlink] tool {} ok={} ms={} args={} result={}",
                 invocation.name, invocation.ok, duration_ms, invocation.arguments, invocation.result
             );
+            let tool_message =
+                MessageEnvelope::tool_result(new_id("tool"), &call.id, &call.name, &result);
+            // A finished tool is truthful only after its result is durable.
+            if let Err(error) = db::append_message(&connection, &session_id, &tool_message) {
+                sink.emit(AgentEvent::ToolFinished {
+                    id: call.id.clone(),
+                    name: call.name.clone(),
+                    ok: false,
+                    duration_ms,
+                    status,
+                });
+                return Err(format!(
+                    "Tool '{}' ran but its result could not be stored: {error}",
+                    call.name
+                ));
+            }
+            conversation.push(tool_message.clone());
+            appended.push(tool_message);
             sink.emit(AgentEvent::ToolFinished {
                 id: call.id.clone(),
                 name: call.name.clone(),
@@ -456,12 +472,6 @@ pub async fn run_agent_turn(
                 duration_ms,
                 status,
             });
-
-            let tool_message =
-                MessageEnvelope::tool_result(new_id("tool"), &call.id, &call.name, &result);
-            db::append_message(&connection, &session_id, &tool_message)?;
-            conversation.push(tool_message.clone());
-            appended.push(tool_message);
         }
 
         sink.emit(AgentEvent::RoundFinished {
@@ -471,18 +481,13 @@ pub async fn run_agent_turn(
         });
     }
 
-    let mut content = last_content.trim().to_owned();
-    if !content.is_empty() {
-        content.push_str("\n\n");
-    }
-    content.push_str(STOP_MARKER);
-
-    let mut stop_message = MessageEnvelope::new(new_id("assistant"), "assistant", content);
+    let project_id = effective_project(&connection, &session_id)?;
+    let mut stop_message = MessageEnvelope::new(new_id("assistant"), "assistant", STOP_MARKER);
     stop_message.meta = Some(build_meta(
         provider,
         &model.name,
         &session_id,
-        &effective_project_id,
+        &project_id,
         &prompt_hash,
         last_tokens,
         elapsed_ms(turn_started) as u128,
@@ -491,7 +496,6 @@ pub async fn run_agent_turn(
     stop_message.reasoning = (!turn_reasoning.is_empty()).then(|| turn_reasoning.clone());
     db::append_message(&connection, &session_id, &stop_message)?;
     appended.push(stop_message);
-    let project_id = effective_project(&connection, &session_id)?;
     // D4: the cap path also closes with `TurnFinished`.
     sink.emit(AgentEvent::TurnFinished {
         project_id: project_id.clone(),
@@ -782,6 +786,56 @@ mod tests {
         assert_eq!(stored[2].role, "tool");
     }
 
+    #[test]
+    fn test_agent_loop_provider_error_keeps_partial_transcript() {
+        let _home = crate::test_support::TempHome::new("runtime-partial-failure");
+        let providers = keyed_providers();
+        let backend = ScriptedBackend::new(vec![AdapterReply::with_tool_calls(
+            "",
+            vec![ToolCall {
+                id: "call_echo".into(),
+                name: "echo".into(),
+                arguments: json!({"value": "persisted"}),
+            }],
+        )]);
+        let session = "sess-partial-failure";
+        let error = tauri::async_runtime::block_on(run_agent_turn(
+            &backend,
+            &providers,
+            "openai",
+            "gpt-4o",
+            &[MessageEnvelope::user("partial-user", "echo this")],
+            "",
+            session,
+            &NoopSink,
+        ))
+        .unwrap_err();
+        assert_eq!(error, "ScriptedBackend ran out of scripted replies");
+        assert_eq!(backend.request_count(), 2);
+
+        let connection = db::open().unwrap();
+        let stored = db::list_messages(&connection, session).unwrap();
+        assert_eq!(
+            stored.len(),
+            3,
+            "user, assistant tool call, and tool result remain durable"
+        );
+        assert_eq!(
+            stored
+                .iter()
+                .map(|message| message.role.as_str())
+                .collect::<Vec<_>>(),
+            ["user", "assistant", "tool"]
+        );
+        assert_eq!(stored[0].id, "partial-user");
+        assert_eq!(stored[1].tool_calls.as_ref().unwrap()[0].id, "call_echo");
+        assert_eq!(stored[2].tool_call_id.as_deref(), Some("call_echo"));
+        assert_eq!(
+            serde_json::from_str::<Value>(&stored[2].content).unwrap()["value"],
+            json!("persisted")
+        );
+    }
+
     /// Sprint 11.12 · D9: reasoning from every round is concatenated onto the
     /// final message only; intermediate assistant/tool messages stay clean.
     #[test]
@@ -888,19 +942,25 @@ mod tests {
     fn test_agent_loop_caps_at_max_rounds() {
         let _home = crate::test_support::TempHome::new("runtime-cap");
         let providers = keyed_providers();
-        let endless = (0..MAX_TOOL_ROUNDS)
+        let prose = "This pre-tool prose must not become a final answer";
+        let mut endless: Vec<_> = (0..MAX_TOOL_ROUNDS - 1)
             .map(|index| {
                 AdapterReply::with_tool_calls(
                     "",
-                    vec![tool_call(
-                        &format!("call_{index}"),
-                        "require.overview.name",
-                        json!(format!("name {index}")),
-                    )],
+                    vec![ToolCall {
+                        id: format!("call_{index}"),
+                        name: "echo".into(),
+                        arguments: json!({"round": index}),
+                    }],
                 )
             })
             .collect();
+        endless.push(
+            AdapterReply::with_tool_calls(prose, vec![project_create_call("call_create", "Nửa Đêm")])
+                .with_reasoning("Reasoning from the final round"),
+        );
         let backend = ScriptedBackend::new(endless);
+        let sink = RecordingSink::default();
 
         let messages = vec![MessageEnvelope::user("u1", "đặt tên mãi")];
         let turn = tauri::async_runtime::block_on(run_agent_turn(
@@ -909,12 +969,12 @@ mod tests {
             "openai",
             "gpt-4o",
             &messages,
-            "default",
+            "",
             "sess-cap",
-            &NoopSink,
+            &sink,
         ))
         .unwrap();
-        let appended = turn.messages;
+        let appended = &turn.messages;
 
         assert_eq!(backend.request_count(), MAX_TOOL_ROUNDS);
         let last = appended.last().unwrap();
@@ -924,6 +984,26 @@ mod tests {
             "last content must end with the stop marker: {}",
             last.content
         );
+        assert_eq!(last.content, STOP_MARKER);
+        assert!(
+            !last.content.contains(prose),
+            "pre-tool prose must not be recycled"
+        );
+        assert_eq!(
+            last.reasoning.as_deref(),
+            Some("Reasoning from the final round")
+        );
+        assert_eq!(turn.project_id, "n-a-m");
+        assert_eq!(last.meta.as_ref().unwrap().project_id, turn.project_id);
+        assert_eq!(
+            session_messages("sess-cap").unwrap().last().unwrap().content,
+            STOP_MARKER
+        );
+        assert!(matches!(
+            sink.events().last().unwrap(),
+            AgentEvent::TurnFinished { project_id, rounds, .. }
+                if project_id == &turn.project_id && *rounds == MAX_TOOL_ROUNDS as u32
+        ));
         assert!(last.tool_calls.is_none(), "the stop message requests no tools");
         // 5 rounds x (assistant + tool) + the stop message.
         assert_eq!(appended.len(), MAX_TOOL_ROUNDS * 2 + 1);
@@ -1243,6 +1323,129 @@ mod tests {
             })
             .collect();
         assert_eq!(rounds, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_tool_finished_observes_persisted_result() {
+        struct InspectingSink {
+            session: &'static str,
+            persisted_at_finish: std::sync::Mutex<Vec<bool>>,
+        }
+        impl ProgressSink for InspectingSink {
+            fn emit(&self, event: AgentEvent) {
+                if let AgentEvent::ToolFinished { id, .. } = event {
+                    let connection = db::open().unwrap();
+                    let found = db::list_messages(&connection, self.session)
+                        .unwrap()
+                        .iter()
+                        .any(|message| {
+                            message.role == "tool" && message.tool_call_id.as_deref() == Some(&id)
+                        });
+                    self.persisted_at_finish.lock().unwrap().push(found);
+                }
+            }
+        }
+        let _home = crate::test_support::TempHome::new("runtime-tool-finish-persisted");
+        let backend = ScriptedBackend::new(vec![
+            AdapterReply::with_tool_calls("", vec![ToolCall {
+                id: "call_echo".into(),
+                name: "echo".into(),
+                arguments: json!({"value": "stored"}),
+            }]),
+            AdapterReply::text("done"),
+        ]);
+        let sink = InspectingSink {
+            session: "sess-tool-finish-persisted",
+            persisted_at_finish: std::sync::Mutex::new(Vec::new()),
+        };
+        tauri::async_runtime::block_on(run_agent_turn(
+            &backend,
+            &keyed_providers(),
+            "openai",
+            "gpt-4o",
+            &[MessageEnvelope::user("u1", "echo")],
+            "",
+            sink.session,
+            &sink,
+        ))
+        .unwrap();
+        assert_eq!(*sink.persisted_at_finish.lock().unwrap(), vec![true]);
+    }
+
+    #[test]
+    fn test_tool_result_append_failure_reports_tool_ran_but_result_not_stored() {
+        struct BlockingSink {
+            events: std::sync::Mutex<Vec<AgentEvent>>,
+        }
+        impl ProgressSink for BlockingSink {
+            fn emit(&self, event: AgentEvent) {
+                if matches!(event, AgentEvent::ToolStarted { .. }) {
+                    // A trigger forces only the tool-result insert to fail, after
+                    // the user and the assistant call have already been stored.
+                    db::open()
+                        .unwrap()
+                        .execute_batch(
+                            "CREATE TRIGGER block_tool_results BEFORE INSERT ON messages \
+                             WHEN NEW.role = 'tool' BEGIN SELECT RAISE(ABORT, 'tool result blocked'); END;",
+                        )
+                        .unwrap();
+                }
+                self.events.lock().unwrap().push(event);
+            }
+        }
+        let _home = crate::test_support::TempHome::new("runtime-tool-result-append-failure");
+        let backend = ScriptedBackend::new(vec![AdapterReply::with_tool_calls(
+            "",
+            vec![ToolCall {
+                id: "call_echo".into(),
+                name: "echo".into(),
+                arguments: json!({"value": "ran"}),
+            }],
+        )]);
+        let sink = BlockingSink {
+            events: std::sync::Mutex::new(Vec::new()),
+        };
+        let error = tauri::async_runtime::block_on(run_agent_turn(
+            &backend,
+            &keyed_providers(),
+            "openai",
+            "gpt-4o",
+            &[MessageEnvelope::user("u1", "echo")],
+            "",
+            "sess-blocked-result",
+            &sink,
+        ))
+        .unwrap_err();
+        assert!(
+            error.contains("ran but its result could not be stored"),
+            "{error}"
+        );
+        let events = sink.events.lock().unwrap();
+        let started_status = events
+            .iter()
+            .find_map(|event| match event {
+                AgentEvent::ToolStarted { status, .. } => Some(status),
+                _ => None,
+            })
+            .unwrap();
+        let (ok, finished_status) = events
+            .iter()
+            .find_map(|event| match event {
+                AgentEvent::ToolFinished { ok, status, .. } => Some((ok, status)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(!ok);
+        assert_eq!(started_status, finished_status);
+        let connection = db::open().unwrap();
+        let stored = db::list_messages(&connection, "sess-blocked-result").unwrap();
+        assert_eq!(
+            stored
+                .iter()
+                .map(|message| message.role.as_str())
+                .collect::<Vec<_>>(),
+            ["user", "assistant"]
+        );
     }
 
     /// D5: `duration_ms` is a real measurement, not a constant. `echo` clones its

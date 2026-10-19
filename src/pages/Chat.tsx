@@ -510,6 +510,12 @@ export function Chat() {
     setMessages(nextMessages);
     setLoading(true);
 
+    // On a failed turn, only SQLite knows which tool calls/results survived.
+    async function reloadSessionMessages(sessionId: string) {
+      const stored = await safeInvoke<MessageEnvelope[]>("list_messages", { sessionId });
+      if (isCurrentTurn(epoch, sessionId)) setMessages(stored);
+    }
+
     // D1: register the channel *before* invoking, so no early event is missed.
     // Events arrive while the command runs and grow the live frame incrementally.
     const channel = createAgentEventChannel((event: AgentEvent) => {
@@ -556,6 +562,25 @@ export function Chat() {
             ? err.message
             : "Failed to send chat message.",
       );
+      try {
+        await reloadSessionMessages(turnSessionId);
+      } catch (reloadError) {
+        // Keep the turn error and the current transcript when recovery fails.
+        if (isCurrentTurn(epoch, turnSessionId)) console.error("list_messages error:", reloadError);
+      }
+      if (!isCurrentTurn(epoch, turnSessionId)) return;
+      try {
+        const next = await safeInvoke<SuperJsonProgress>("super_json_progress", {
+          sessionId: turnSessionId,
+        });
+        if (!isCurrentTurn(epoch, turnSessionId)) return;
+        projectRef.current = next.project_id;
+        setProjectId(next.project_id);
+        setProgress(next);
+        void refreshDetail(next.project_id);
+      } catch (progressError) {
+        if (isCurrentTurn(epoch, turnSessionId)) console.error("super_json_progress error:", progressError);
+      }
     } finally {
       if (isCurrentTurn(epoch, turnSessionId)) {
         activeTurnRef.current = null;
