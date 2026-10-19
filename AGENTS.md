@@ -141,7 +141,10 @@ SPRINT: [N]
 ## 5. Refactor programme
 
 - Phase 1 reviews/synthesis/sprints: `docs/refactor/`.
-- Phase 2 module-decomposition plan: `docs/refactor/phase-2/README.md`.
+- Phase 2 module-decomposition plan and execution log:
+  `docs/refactor/phase-2/README.md`. Phase 2 is complete; production modules are
+  split, but `runtime/agent/tests.rs` is 1,505 test-only lines. Splitting test
+  modules is a future task, not a behavior change.
 - A module move is a refactor: **no behavior change**, and public call sites stay
   stable through `mod.rs` re-exports.
 - Audit `include_str!` paths whenever a file containing one moves; relative paths

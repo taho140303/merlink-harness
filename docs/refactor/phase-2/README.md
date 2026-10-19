@@ -15,7 +15,7 @@
 | P2-S3 | `tools/` | done | `cd5a0da` |
 | P2-S4 | `super_json/` | done | `e06844a` |
 | P2-S5 | `db/` | done | `a3311e2` |
-| P2-S6 | `runtime/` | ready | — |
+| P2-S6 | `runtime/` | done | `79f9cc1` |
 
 ## 1. Why the files look big
 
@@ -210,8 +210,27 @@ Plus:
 
 ## 7. Exit criteria for Phase 2
 
-- All six sprints merged; `main` green.
-- `src-tauri/src/lib.rs` is wiring only; commands live under `commands/`.
-- The four large production modules are folders with focused submodules.
-- No public call site changed without a re-export.
-- `AGENTS.md` records the sprint contract and the model fallback.
+- [x] All six sprints merged; `main` green.
+- [x] `src-tauri/src/lib.rs` is wiring only; commands live under `commands/`.
+- [x] The five large production modules (`commands`, `adapters`, `tools`, `super_json`, `db`, `runtime`) are folders with focused submodules.
+- [x] No public call site changed without a re-export.
+- [x] `AGENTS.md` records the sprint contract and the model fallback.
+
+
+## 8. Execution log
+
+| Sprint | Branch | Commit | Merge into `main` | Model |
+| --- | --- | --- | --- | --- |
+| P2-S1 | `refactor/p2-s1-commands` | `a3fc179` | `84fa87d` | gpt-6-sol (fallback after quota failure) |
+| P2-S2 | `refactor/p2-s2-adapters` | `928bcf4` | `7eb2770` | deepseek-v4.1-flash |
+| P2-S3 | `refactor/p2-s3-tools` | `cd5a0da` | `6661dcb` | deepseek-v4.1-flash |
+| P2-S4 | `refactor/p2-s4-super-json` | `e06844a` | `99a3ecb` | deepseek-v4.1-flash |
+| P2-S5 | `refactor/p2-s5-db` | `a3311e2` | `aef9915` | deepseek-v4.1-flash |
+| P2-S6 | `refactor/p2-s6-runtime` | `79f9cc1` | `f0c0dcd` | deepseek-v4.1-flash |
+
+Final verification on `main`: `cargo test` 127 passed / 3 ignored;
+`pnpm build` passed. The largest remaining file is
+`runtime/agent/tests.rs` (1,505 test lines); all production modules are now
+≤ 360 lines except `super_json/summary.rs` (328 production, 760 total with its
+tests) and `tools/execute.rs` (166 production, 537 total). Splitting test modules
+is a separate phase if total `wc -l` becomes the priority.
