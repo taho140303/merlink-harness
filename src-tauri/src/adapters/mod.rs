@@ -15,7 +15,7 @@ use std::{future::Future, pin::Pin};
 
 use serde_json::Value;
 
-use crate::models::{FetchedModel, MessageEnvelope, ToolCall, TokenUsage};
+use crate::models::{FetchedModel, MessageEnvelope, TokenUsage, ToolCall};
 
 use anthropic::call_anthropic;
 use endpoints::models_endpoint;
@@ -45,7 +45,12 @@ pub struct AdapterReply {
 #[cfg(test)]
 impl AdapterReply {
     fn scripted(content: String, tool_calls: Vec<ToolCall>) -> Self {
-        Self { content, tokens: TokenUsage::default(), tool_calls, reasoning: None }
+        Self {
+            content,
+            tokens: TokenUsage::default(),
+            tool_calls,
+            reasoning: None,
+        }
     }
 
     pub fn text(content: impl Into<String>) -> Self {
@@ -84,14 +89,20 @@ pub type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// dependency; `Send + Sync` is required because Tauri commands return `Send`
 /// futures.
 pub trait LlmBackend: Send + Sync {
-    fn complete<'a>(&'a self, request: ChatRequest) -> BoxedFuture<'a, Result<AdapterReply, String>>;
+    fn complete<'a>(
+        &'a self,
+        request: ChatRequest,
+    ) -> BoxedFuture<'a, Result<AdapterReply, String>>;
 }
 
 #[derive(Default)]
 pub struct HttpBackend;
 
 impl LlmBackend for HttpBackend {
-    fn complete<'a>(&'a self, request: ChatRequest) -> BoxedFuture<'a, Result<AdapterReply, String>> {
+    fn complete<'a>(
+        &'a self,
+        request: ChatRequest,
+    ) -> BoxedFuture<'a, Result<AdapterReply, String>> {
         Box::pin(async move {
             if request.base_url.trim().is_empty() {
                 return Err("Provider base URL is missing".into());

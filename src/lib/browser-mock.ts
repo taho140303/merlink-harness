@@ -99,7 +99,7 @@ function readBrowserProviders(): ProviderConfig[] {
 /* Browser-preview state and tools                                     */
 /* ------------------------------------------------------------------ */
 
-/** Preview subset only: 25 paths, not a second full Rust validator. */
+/** Preview subset only: 81 paths, not a second full Rust validator. */
 interface MockSession {
   projectId: string;
   messages: MessageEnvelope[];
@@ -125,21 +125,6 @@ function uniqueProjectId(base: string): string {
   return candidate;
 }
 
-/** The 11 required paths, used for the mock `missing_required` result (D7). */
-const MOCK_REQUIRED_PATHS = [
-  "require.overview.name",
-  "require.overview.logline.trigger-event",
-  "require.overview.logline.main-character",
-  "require.overview.logline.action",
-  "require.overview.logline.risk",
-  "require.overview.logline.major-loss",
-  "require.overview.plan.arc.count",
-  "require.overview.plan.chapter.count",
-  "require.overview.plan.word.count",
-  "require.genre.primary",
-  "require.theme.question",
-] as const;
-
 function mockIsFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
@@ -147,8 +132,121 @@ function mockIsFilled(value: unknown): boolean {
   return true;
 }
 
+const MOCK_PROJECT_LABELS: Record<string, string> = {
+  "require.project.name": "tên truyện",
+  "require.project.language": "ngôn ngữ",
+  "require.project.plan.arc.count": "số arc",
+  "require.project.plan.chapter.count": "số chương",
+  "require.project.plan.scene.count": "số cảnh",
+  "require.project.plan.word.count": "số từ",
+  "optional.project.author": "tác giả",
+  "optional.project.summarize": "tóm tắt",
+  "optional.project.target-audience": "đối tượng độc giả",
+  "optional.project.plan.arc.tolerance": "sai lệch số arc",
+  "optional.project.plan.chapter.tolerance": "sai lệch số chương",
+  "optional.project.plan.scene.tolerance": "sai lệch số cảnh",
+  "optional.project.plan.word.tolerance": "sai lệch số từ",
+};
+
+const MOCK_REQUIRED_TABLES = [
+  "project_genres", "arcs", "chapters", "scenes", "scene_characters", "characters",
+  "relationships", "relationship_roles", "world_settings", "power_systems", "themes",
+  "theme_arguments",
+] as const;
+
+const MOCK_OPTIONAL_TABLES = [
+  "relationship_motifs", "project_motifs", "scene_versions", "appearance_option_groups",
+  "appearance_options", "character_appearances", "character_distinguishing_marks",
+  "relationship_categories", "relationship_states", "lore_entries", "power_tiers",
+  "power_abilities", "memories", "memory_references", "memory_emotions", "memory_connections",
+  "memory_revisions", "character_knowledge_sources", "competence_domains",
+  "character_competences", "competence_capabilities", "competence_limitations",
+] as const;
+
+const MOCK_TABLE_LABELS: Record<string, string> = {
+  relationship_motifs: "motif quan hệ",
+  project_motifs: "motif dự án",
+  project_genres: "thể loại dự án",
+  arcs: "arc",
+  chapters: "chương",
+  scenes: "cảnh",
+  scene_characters: "nhân vật trong cảnh",
+  scene_versions: "phiên bản cảnh",
+  characters: "nhân vật",
+  appearance_option_groups: "nhóm ngoại hình",
+  appearance_options: "lựa chọn ngoại hình",
+  character_appearances: "ngoại hình nhân vật",
+  character_distinguishing_marks: "dấu đặc biệt",
+  relationships: "quan hệ",
+  relationship_categories: "loại quan hệ",
+  relationship_roles: "vai trò quan hệ",
+  relationship_states: "trạng thái quan hệ",
+  world_settings: "bối cảnh",
+  lore_entries: "lore",
+  power_systems: "hệ thống sức mạnh",
+  power_tiers: "bậc sức mạnh",
+  power_abilities: "năng lực",
+  themes: "chủ đề",
+  theme_arguments: "luận điểm chủ đề",
+  memories: "ký ức",
+  memory_references: "tham chiếu ký ức",
+  memory_emotions: "cảm xúc ký ức",
+  memory_connections: "liên kết ký ức",
+  memory_revisions: "bản sửa ký ức",
+  character_knowledge_sources: "nguồn tri thức",
+  competence_domains: "lĩnh vực năng lực",
+  character_competences: "năng lực nhân vật",
+  competence_capabilities: "khả năng năng lực",
+  competence_limitations: "giới hạn năng lực",
+};
+
+const MOCK_REQUIRED_UNITS = [
+  "require.project.name",
+  "require.project.language",
+  "require.project.plan.arc.count",
+  "require.project.plan.chapter.count",
+  "require.project.plan.scene.count",
+  "require.project.plan.word.count",
+  ...MOCK_REQUIRED_TABLES.map((table) => `require.schema.${table}`),
+];
+
+const MOCK_OPTIONAL_UNITS = [
+  "optional.project.author",
+  "optional.project.summarize",
+  "optional.project.target-audience",
+  "optional.project.plan.arc.tolerance",
+  "optional.project.plan.chapter.tolerance",
+  "optional.project.plan.scene.tolerance",
+  "optional.project.plan.word.tolerance",
+  ...MOCK_OPTIONAL_TABLES.map((table) => `optional.schema.${table}`),
+];
+
+const MOCK_PATH_LABELS: Record<string, string> = (() => {
+  const labels: Record<string, string> = { ...MOCK_PROJECT_LABELS };
+  for (const table of MOCK_REQUIRED_TABLES) {
+    labels[`require.schema.${table}.count`] = `số lượng ${MOCK_TABLE_LABELS[table]}`;
+    labels[`require.schema.${table}.rows`] = `danh sách ${MOCK_TABLE_LABELS[table]}`;
+  }
+  for (const table of MOCK_OPTIONAL_TABLES) {
+    labels[`optional.schema.${table}.count`] = `số lượng ${MOCK_TABLE_LABELS[table]}`;
+    labels[`optional.schema.${table}.rows`] = `danh sách ${MOCK_TABLE_LABELS[table]}`;
+  }
+  return labels;
+})();
+
+const MOCK_PATHS = Object.keys(MOCK_PATH_LABELS);
+
+function mockUnitFilled(values: Map<string, unknown>, unit: string): boolean {
+  if (unit.includes(".project.")) return mockIsFilled(values.get(unit));
+  const [, group, tail] = unit.split(".");
+  const table = tail;
+  const count = values.get(`${group}.schema.${table}.count`);
+  const rows = values.get(`${group}.schema.${table}.rows`);
+  return typeof count === "number" && Array.isArray(rows) && rows.length === count;
+}
+
 function mockMissingRequired(values: Map<string, unknown>): string[] {
-  return MOCK_REQUIRED_PATHS.filter((path) => !mockIsFilled(values.get(path)));
+  return MOCK_REQUIRED_UNITS.filter((unit) => !mockUnitFilled(values, unit));
 }
 
 /** Mirrors the D3 slug rule: lowercase, runs of non-`[a-z0-9]` collapse to `-`. */
@@ -161,12 +259,8 @@ function mockSlug(name: string): string {
   return slug || "project";
 }
 
-/** Inserts `value` at a dotted path, creating the intermediate objects. */
-function assignPath(
-  document: Record<string, unknown>,
-  path: string,
-  value: unknown,
-): void {
+/** Inserts `value` at a dotted project path, creating intermediate objects. */
+function assignPath(document: Record<string, unknown>, path: string, value: unknown): void {
   const segments = path.split(".");
   let cursor = document;
   for (const segment of segments.slice(0, -1)) {
@@ -178,217 +272,99 @@ function assignPath(
 }
 
 function mockSuperJsonDocument(values: Map<string, unknown> = new Map()): Record<string, unknown> {
-  const document: Record<string, unknown> = { require: {}, optional: {} };
-  for (const [path, value] of values) assignPath(document, path, value);
+  const document: Record<string, unknown> = {
+    require: { project: {}, schema: [] },
+    optional: { project: {}, schema: [] },
+  };
+  for (const group of ["require", "optional"] as const) {
+    const tables = group === "require" ? MOCK_REQUIRED_TABLES : MOCK_OPTIONAL_TABLES;
+    const schema = (document[group] as { schema: Array<Record<string, unknown>> }).schema;
+    for (const table of tables) {
+      schema.push({
+        table,
+        count: values.get(`${group}.schema.${table}.count`) ?? null,
+        fields: {},
+        rows: values.get(`${group}.schema.${table}.rows`) ?? [],
+      });
+    }
+  }
+  for (const [path, value] of values) {
+    if (path.includes(".schema.")) continue;
+    const [group, rest] = path.split(/\.(.*)/s);
+    if (rest?.startsWith("project.")) assignPath(document, `${group}.${rest}`, value);
+  }
   return document;
 }
 
-/** How many filled leaf paths sit under `require.` / `optional.`. */
-function countMockFilled(values: Map<string, unknown>, prefix: string): number {
-  let count = 0;
-  for (const [path, value] of values) {
-    if (!path.startsWith(prefix)) continue;
-    if (!mockIsFilled(value)) continue;
-    count += 1;
+function mockRows(values: Map<string, unknown>, table: string): Array<Record<string, unknown>> {
+  for (const group of ["require", "optional"]) {
+    const rows = values.get(`${group}.schema.${table}.rows`);
+    if (Array.isArray(rows)) return rows as Array<Record<string, unknown>>;
   }
-  return count;
+  return [];
 }
 
-/* ------------------------------------------------------------------ */
-/* Sprint 11.11 · the super json as prose (browser preview)            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Mirrors `super_json::summary` (D2/D3/D4). The Rust template is authoritative;
- * this copy only exists so the `Chi tiết` dialog renders real prose without
- * Tauri. Placeholders and enum wording are copied verbatim from the spec.
- */
-const SUMMARY_PLACEHOLDER = "[chưa có thông tin]";
-
-const MOCK_LANGUAGE_LABELS: Record<string, string> = {
-  VI: "tiếng Việt",
-  EN: "tiếng Anh",
-  JA: "tiếng Nhật",
-  ZH_HANT: "chữ Hán phồn thể",
-  ZH_HANS: "chữ Hán giản thể",
-  ZH_CN: "chữ Hán giản thể",
-};
-
-const MOCK_RESOLUTION_LABELS: Record<string, string> = {
-  RESOLVED: "kết thúc rõ ràng",
-  OPEN: "để ngỏ",
-  AMBIGUOUS: "mơ hồ",
-};
-
-const MOCK_SCALE_LABELS: Record<string, string> = {
-  REALM: "cõi",
-  WORLD: "thế giới",
-  REGION: "vùng",
-  COUNTRY: "quốc gia",
-  CITY: "thành phố",
-  TOWN: "thị trấn",
-  FACILITY: "công trình",
-  STREET: "đường phố",
-  ROOM: "căn phòng",
-};
-
-/** `null` for a missing, blank or empty-array leaf; text otherwise. */
-function mockTextAt(values: Map<string, unknown>, path: string): string | null {
-  const value = values.get(path);
-  if (value === null || value === undefined) return null;
-  if (Array.isArray(value)) {
-    const joined = value
-      .filter((item): item is string => typeof item === "string" && item.trim() !== "")
-      .join(", ");
-    return joined || null;
-  }
-  if (typeof value === "string") return value.trim() || null;
-  if (typeof value === "number") return String(value);
-  return null;
+function mockText(row: Record<string, unknown> | undefined, field: string): string | undefined {
+  const value = row?.[field];
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function mockEnumAt(values: Map<string, unknown>, path: string, table: Record<string, string>): string | null {
-  const code = mockTextAt(values, path);
-  return code === null ? null : (table[code] ?? null);
+function mockOr(value: string | undefined): string {
+  return value?.trim() ? value : "[chưa có thông tin]";
 }
 
-function mockOr(value: string | null): string {
-  return value ?? SUMMARY_PLACEHOLDER;
-}
-
-function mockTerminate(text: string): string {
-  const trimmed = text.trimEnd();
-  return /[.?!…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
-}
-
-/** `90000` → `90.000` (the same rule as Rust's `with_thousands`, D5). */
-function mockThousands(value: number): string {
-  const digits = String(Math.abs(Math.trunc(value)));
-  let out = "";
-  for (let index = 0; index < digits.length; index += 1) {
-    if (index > 0 && (digits.length - index) % 3 === 0) out += ".";
-    out += digits[index];
-  }
-  return value < 0 ? `-${out}` : out;
-}
-
-function mockIntAt(values: Map<string, unknown>, path: string): number | null {
-  const value = values.get(path);
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function mockThousandOrPlaceholder(value: number | null): string {
-  return value === null ? SUMMARY_PLACEHOLDER : mockThousands(value);
-}
-
-/**
- * Mirrors the Sprint 11.12 · D5 template: six paragraphs, label sentences when a
- * field is missing, no doubled punctuation and `.` thousands separators. The Rust
- * function is authoritative; this copy exists only so browser preview renders the
- * same prose.
- */
 function mockSummary(values: Map<string, unknown> = new Map()): string {
-  const secondary = mockTextAt(values, "optional.genre.secondary");
-  const secondaryClause = secondary ? `, kèm ${secondary}` : "";
-
-  const author = mockTextAt(values, "optional.overview.author");
-  const authorSentence = author
-    ? `Tác giả là ${mockTerminate(author)}`
-    : `Tác giả: ${SUMMARY_PLACEHOLDER}.`;
-
-  const trigger = mockTextAt(values, "require.overview.logline.trigger-event");
-  const triggerSentence = trigger
-    ? `Câu chuyện bắt đầu khi ${mockTerminate(trigger)}`
-    : `Sự kiện mở đầu: ${SUMMARY_PLACEHOLDER}.`;
-
-  const character = mockTextAt(values, "require.overview.logline.main-character");
-  const action = mockTextAt(values, "require.overview.logline.action");
-  let cast: string;
-  if (character && action) {
-    cast = mockTerminate(`Nhân vật chính là ${character}, ${action}`);
-  } else if (character) {
-    cast = `Nhân vật chính là ${mockTerminate(character)} Hành động chính: ${SUMMARY_PLACEHOLDER}.`;
-  } else if (action) {
-    cast = `Nhân vật chính: ${SUMMARY_PLACEHOLDER}. Hành động chính: ${mockTerminate(action)}`;
-  } else {
-    cast = `Nhân vật chính: ${SUMMARY_PLACEHOLDER}. Hành động chính: ${SUMMARY_PLACEHOLDER}.`;
-  }
-
-  const risk = mockTextAt(values, "require.overview.logline.risk");
-  const loss = mockTextAt(values, "require.overview.logline.major-loss");
-  let stake: string;
-  if (risk && loss) {
-    stake = mockTerminate(`Mối nguy là ${risk}, và cái giá có thể phải chịu là ${loss}`);
-  } else if (risk) {
-    stake = `Mối nguy là ${mockTerminate(risk)} Mất mát lớn: ${SUMMARY_PLACEHOLDER}.`;
-  } else if (loss) {
-    stake = `Rủi ro: ${SUMMARY_PLACEHOLDER}. Cái giá có thể phải chịu là ${mockTerminate(loss)}`;
-  } else {
-    stake = `Rủi ro: ${SUMMARY_PLACEHOLDER}. Mất mát lớn: ${SUMMARY_PLACEHOLDER}.`;
-  }
-
-  const message = mockTextAt(values, "optional.theme.message");
-  const messageSentence = message
-    ? `Thông điệp hướng tới là ${mockTerminate(message)}`
-    : `Thông điệp hướng tới: ${SUMMARY_PLACEHOLDER}.`;
-
-  const resolutionType = mockEnumAt(values, "optional.theme.resolution-type", MOCK_RESOLUTION_LABELS);
-  const resolution = mockTextAt(values, "optional.theme.resolution") ?? SUMMARY_PLACEHOLDER;
-  const answer = resolutionType
-    ? `Cách trả lời được chọn là ${resolutionType}, với nội dung ${mockTerminate(resolution)}`
-    : `Cách trả lời được chọn: ${SUMMARY_PLACEHOLDER}, với nội dung: ${mockTerminate(resolution)}`;
-
-  const arc = mockIntAt(values, "require.overview.plan.arc.count");
-  const chapter = mockIntAt(values, "require.overview.plan.chapter.count");
-  const word = mockIntAt(values, "require.overview.plan.word.count");
-  const plan =
-    arc !== null && chapter !== null && word !== null
-      ? `Dự kiến dài ${mockThousands(arc)} arc, ${mockThousands(chapter)} chương, khoảng ${mockThousands(word)} từ.`
-      : `Số arc dự kiến: ${mockThousandOrPlaceholder(arc)}. Số chương dự kiến: ${mockThousandOrPlaceholder(chapter)}. Tổng số từ mục tiêu: ${mockThousandOrPlaceholder(word)}.`;
-  const arcTolerance = mockIntAt(values, "optional.overview.plan.arc.tolerance");
-  const chapterTolerance = mockIntAt(values, "optional.overview.plan.chapter.tolerance");
-  const wordTolerance = mockIntAt(values, "optional.overview.plan.word.tolerance");
-  const tolerance =
-    arcTolerance !== null || chapterTolerance !== null || wordTolerance !== null
-      ? ` Sai số chấp nhận: ${mockThousandOrPlaceholder(arcTolerance)} arc, ${mockThousandOrPlaceholder(chapterTolerance)} chương, ${mockThousandOrPlaceholder(wordTolerance)} từ.`
-      : "";
-
-  const power = values.get("optional.world.has-power-system");
-  const powerSentence =
-    power === true
-      ? "Thế giới có hệ thống sức mạnh."
-      : power === false
-        ? "Thế giới không có hệ thống sức mạnh."
-        : `Thế giới có hệ thống sức mạnh hay không: ${SUMMARY_PLACEHOLDER}.`;
-  const scale = mockEnumAt(values, "optional.world.setting-scale", MOCK_SCALE_LABELS);
-  const scaleSentence = scale
-    ? `Phạm vi không gian sâu nhất cần dựng là ${mockTerminate(scale)}`
-    : `Phạm vi không gian sâu nhất cần dựng: ${SUMMARY_PLACEHOLDER}.`;
-
-  const description = mockTextAt(values, "optional.overview.description");
-
+  const primary = mockRows(values, "project_genres").find((row) => row.is_primary === true);
+  const cast = mockRows(values, "characters");
+  const theme = mockRows(values, "themes")[0];
+  const world = mockRows(values, "world_settings")[0];
+  const power = mockRows(values, "power_systems")[0];
+  const castText = cast.length
+    ? cast.map((row) => {
+        const name = mockOr(mockText(row, "name"));
+        return row.is_primary === true ? `${name} (chính)` : name;
+      }).join(", ")
+    : "[chưa có thông tin]";
+  const filledRequired = MOCK_REQUIRED_UNITS.filter((unit) => mockUnitFilled(values, unit)).length;
+  const filledOptional = MOCK_OPTIONAL_UNITS.filter((unit) => mockUnitFilled(values, unit)).length;
   return [
-    `Dự án truyện có tên là ${mockOr(mockTextAt(values, "require.overview.name"))}, thuộc thể loại ${mockOr(mockTextAt(values, "require.genre.primary"))}${secondaryClause}. ${authorSentence} Truyện viết bằng ${mockOr(mockEnumAt(values, "optional.overview.language", MOCK_LANGUAGE_LABELS))}, hướng tới độc giả ${mockOr(mockTextAt(values, "optional.overview.target-audience"))}, độ tuổi ${mockTerminate(mockOr(mockTextAt(values, "optional.overview.age-rating")))}`,
-    `${triggerSentence} ${cast} ${stake}`,
-    `Bộ truyện đặt ra câu hỏi: ${mockTerminate(mockOr(mockTextAt(values, "require.theme.question")))} ${messageSentence} ${answer}`,
-    `${plan}${tolerance}`,
-    `${powerSentence} ${scaleSentence}`,
-    `Tóm tắt nội dung: ${mockTerminate(mockOr(description))}`,
+    `Tên dự án: ${mockOr(mockText({ name: values.get("require.project.name") }, "name"))}. ` +
+      `Ngôn ngữ: ${mockOr(values.get("require.project.language") as string | undefined)}. ` +
+      `Thể loại chính: ${mockOr(mockText(primary, "genre_id"))}. ` +
+      `Tác giả: ${mockOr(values.get("optional.project.author") as string | undefined)}. ` +
+      `Đối tượng độc giả: ${mockOr(values.get("optional.project.target-audience") as string | undefined)}.`,
+    `Dàn nhân vật: ${castText}. Số quan hệ đã khai báo: ${mockRows(values, "relationships").length}.`,
+    `Chủ đề: ${mockOr(mockText(theme, "question"))}. Thông điệp: ${mockOr(mockText(theme, "message"))}. ` +
+      `Cách giải quyết: ${mockOr(mockText(theme, "resolution_type"))}, với nội dung: ${mockOr(mockText(theme, "resolution"))}.`,
+    `Kế hoạch: ${mockOr(String(values.get("require.project.plan.arc.count") ?? ""))} arc, ` +
+      `${mockOr(String(values.get("require.project.plan.chapter.count") ?? ""))} chương, ` +
+      `${mockOr(String(values.get("require.project.plan.scene.count") ?? ""))} cảnh, ` +
+      `${mockOr(String(values.get("require.project.plan.word.count") ?? ""))} từ.`,
+    `Bối cảnh: ${mockOr(mockText(world, "name"))}, quy mô ${mockOr(mockText(world, "type"))}. ` +
+      `Hệ thống sức mạnh: ${mockOr(mockText(power, "name"))}. Số lore: ${mockRows(values, "lore_entries").length}.`,
+    `Tóm tắt: ${mockOr(values.get("optional.project.summarize") as string | undefined)}. ` +
+      `Đã hoàn thành ${filledRequired}/${MOCK_REQUIRED_UNITS.length} mục bắt buộc và ` +
+      `${filledOptional}/${MOCK_OPTIONAL_UNITS.length} mục tùy chọn.`,
   ].join("\n\n");
 }
-/** Mirrors `super_json::progress` in Rust (D6/D7). */
+
 function mockProgress(session: MockSession | undefined): SuperJsonProgress {
   const projectId = session?.projectId ?? "";
-  const filled_required = projectId ? countMockFilled(session!.values, "require.") : 0;
-  const filled_optional = projectId ? countMockFilled(session!.values, "optional.") : 0;
+  const values = session?.values ?? new Map<string, unknown>();
+  const filledRequired = projectId
+    ? MOCK_REQUIRED_UNITS.filter((unit) => mockUnitFilled(values, unit)).length
+    : 0;
+  const filledOptional = projectId
+    ? MOCK_OPTIONAL_UNITS.filter((unit) => mockUnitFilled(values, unit)).length
+    : 0;
   const percent = projectId
-    ? Math.round((70 * filled_required) / 11 + (30 * filled_optional) / 14)
+    ? Math.round((70 * filledRequired) / MOCK_REQUIRED_UNITS.length + (30 * filledOptional) / MOCK_OPTIONAL_UNITS.length)
     : 0;
   const label = !projectId
     ? "Chưa có project"
-    : filled_required === 11 && filled_optional === 14
+    : filledRequired === MOCK_REQUIRED_UNITS.length && filledOptional === MOCK_OPTIONAL_UNITS.length
       ? "Độ mạch lạc: tốt"
-      : filled_required === 11
+      : filledRequired === MOCK_REQUIRED_UNITS.length
         ? "Độ mạch lạc tạm chấp nhận"
         : "Đang thu thập thông tin";
   return {
@@ -396,64 +372,31 @@ function mockProgress(session: MockSession | undefined): SuperJsonProgress {
     project_id: projectId,
     percent,
     label,
-    filled_required,
-    required_total: 11,
-    filled_optional,
-    optional_total: 14,
+    filled_required: filledRequired,
+    required_total: MOCK_REQUIRED_UNITS.length,
+    filled_optional: filledOptional,
+    optional_total: MOCK_OPTIONAL_UNITS.length,
   };
 }
 
 /**
  * The values the preview agent proposes when the author says they have no idea.
- * 13 fields; `require.overview.name` is only written when the author stated one.
  */
 const MOCK_SUGGESTIONS: Array<[string, unknown]> = [
-  ["require.overview.logline.trigger-event", "chiếc đồng hồ cuối cùng ngừng chạy"],
-  ["require.overview.logline.main-character", "một người thợ đồng hồ mù"],
-  ["require.overview.logline.action", "truy tìm người đã chế tạo ra chiếc đồng hồ"],
-  ["require.overview.logline.risk", "đánh mất ký ức của chính mình"],
-  ["require.overview.logline.major-loss", "đứa con gái duy nhất"],
-  ["require.overview.plan.arc.count", 5],
-  ["require.overview.plan.chapter.count", 120],
-  ["require.overview.plan.word.count", 90000],
-  ["optional.overview.plan.arc.tolerance", 1],
-  ["optional.overview.plan.chapter.tolerance", 10],
-  ["optional.overview.plan.word.tolerance", 5000],
-  ["require.genre.primary", "trinh thám"],
-  ["require.theme.question", "ký ức có làm nên con người hay không"],
+  ["require.project.plan.arc.count", 5],
+  ["require.project.plan.chapter.count", 120],
+  ["require.project.plan.scene.count", 360],
+  ["require.project.plan.word.count", 90000],
+  ["optional.project.plan.arc.tolerance", 1],
+  ["optional.project.plan.chapter.tolerance", 10],
+  ["optional.project.plan.scene.tolerance", 10],
+  ["optional.project.plan.word.tolerance", 5000],
+  ["require.schema.project_genres.count", 1],
+  ["require.schema.project_genres.rows", [{ genre_id: "trinh thám", is_primary: true }]],
+  ["require.schema.themes.count", 1],
+  ["require.schema.themes.rows", [{ scope: "PROJECT", question: "ký ức có làm nên con người hay không" }]],
+  ["require.project.language", "VI"],
 ];
-
-/**
- * Mirrors `tools::PATH_LABELS` in Rust: the same Vietnamese wording is used for
- * the live phase messages and for the tool-log dialog (D3/D8).
- */
-const MOCK_PATH_LABELS: Record<string, string> = {
-  "require.overview.name": "tên truyện",
-  "require.overview.logline.trigger-event": "sự kiện khởi động",
-  "require.overview.logline.main-character": "nhân vật chính",
-  "require.overview.logline.action": "hành động chính",
-  "require.overview.logline.risk": "rủi ro",
-  "require.overview.logline.major-loss": "mất mát lớn",
-  "require.overview.plan.arc.count": "số arc",
-  "require.overview.plan.chapter.count": "số chương",
-  "require.overview.plan.word.count": "số từ",
-  "require.genre.primary": "thể loại chính",
-  "require.theme.question": "câu hỏi chủ đề",
-  "optional.overview.description": "mô tả truyện",
-  "optional.overview.author": "tác giả",
-  "optional.overview.language": "ngôn ngữ",
-  "optional.overview.target-audience": "đối tượng độc giả",
-  "optional.overview.age-rating": "độ tuổi",
-  "optional.overview.plan.arc.tolerance": "sai lệch số arc",
-  "optional.overview.plan.chapter.tolerance": "sai lệch số chương",
-  "optional.overview.plan.word.tolerance": "sai lệch số từ",
-  "optional.genre.secondary": "thể loại phụ",
-  "optional.theme.resolution-type": "kiểu giải quyết chủ đề",
-  "optional.theme.resolution": "câu trả lời chủ đề",
-  "optional.theme.message": "thông điệp",
-  "optional.world.has-power-system": "có hệ thống sức mạnh",
-  "optional.world.setting-scale": "quy mô thế giới",
-};
 
 function mockStatusMessage(name: string, args: Record<string, unknown>): string {
   switch (name) {
@@ -492,7 +435,7 @@ function mockExecuteTool(
   switch (name) {
     case "project_create": {
       // D7: `name` is optional. Without one the project is created unnamed and
-      // `require.overview.name` is left untouched — never invented.
+      // `require.project.name` is left untouched — never invented.
       if (
         args.name !== undefined &&
         args.name !== null &&
@@ -506,7 +449,7 @@ function mockExecuteTool(
       }
       if (title) {
         session.projectId = uniqueProjectId(mockSlug(title));
-        session.values.set("require.overview.name", title);
+        session.values.set("require.project.name", title);
         return {
           ok: true,
           project_id: session.projectId,
@@ -525,14 +468,14 @@ function mockExecuteTool(
     case "super_json_set": {
       const path = typeof args.path === "string" ? args.path : "";
       if (!path) return { error: "super_json_set requires a string 'path'" };
-      if (!(path in MOCK_PATH_LABELS)) return { error: `Unknown path: ${path}` };
+      if (!MOCK_PATHS.includes(path)) return { error: `Unknown path: ${path}` };
       session.values.set(path, args.value);
       return { ok: true, path, value: args.value };
     }
     case "super_json_get":
       return mockSuperJsonDocument(session.values);
     case "super_json_missing":
-      return { missing: mockMissingRequired(session.values), required_total: 11 };
+      return { missing: mockMissingRequired(session.values), required_total: MOCK_REQUIRED_UNITS.length };
     case "echo":
       return args;
     default:
@@ -590,7 +533,7 @@ function mockSendChat(args: SendChatArgs): Promise<ChatTurn> {
   const toolRounds: Array<Array<{ name: string; args: Record<string, unknown> }>> = [];
   if (!session.projectId) {
     // D7: no stated title -> call project_create without a name. The project is
-    // still created, and require.overview.name stays empty.
+    // still created, and require.project.name stays empty.
     toolRounds.push([
       {
         name: "project_create",
@@ -610,7 +553,7 @@ function mockSendChat(args: SendChatArgs): Promise<ChatTurn> {
     toolRounds.push([
       {
         name: "super_json_set",
-        args: { path: "require.overview.name", value: statedTitle },
+        args: { path: "require.project.name", value: statedTitle },
       },
     ]);
   }

@@ -19,17 +19,10 @@ use serde_json::{Value, json};
 
 use crate::test_support::TempHome;
 use tauri::ipc::{CallbackFn, InvokeBody};
-use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder, mock_context, noop_assets};
-use tauri::webview::InvokeRequest;
-
-// `merlink_handlers!` (D2) keeps the registered command list in `lib.rs` only,
-// but a `macro_rules!` body resolves the command *function paths* at the call
-// site. Bringing them into scope is what lets this module expand the very same
-// list production uses, instead of hand-copying it.
-use crate::{
-    execute_tool, fetch_models, list_messages, load_providers, save_providers, send_chat,
-    super_json_labels, super_json_progress, super_json_read, super_json_summary, context_usage,
+use tauri::test::{
+    INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder, mock_context, noop_assets,
 };
+use tauri::webview::InvokeRequest;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Harness
@@ -152,7 +145,10 @@ impl ContractEntry {
     }
 
     fn snake_keys(&self) -> Vec<String> {
-        self.camel_keys().iter().map(|key| camel_to_snake(key)).collect()
+        self.camel_keys()
+            .iter()
+            .map(|key| camel_to_snake(key))
+            .collect()
     }
 
     /// The same body the frontend sends, with every top-level key renamed to
@@ -302,17 +298,50 @@ fn body_fetch_models() -> Value {
 /// (D5). `test_contract_table_covers_every_registered_command` enforces both
 /// directions.
 static CONTRACT: &[ContractEntry] = &[
-    ContractEntry { cmd: "load_providers", body: body_load_providers },
-    ContractEntry { cmd: "save_providers", body: body_save_providers },
-    ContractEntry { cmd: "send_chat", body: body_send_chat },
-    ContractEntry { cmd: "execute_tool", body: body_execute_tool },
-    ContractEntry { cmd: "super_json_read", body: body_super_json_read },
-    ContractEntry { cmd: "super_json_progress", body: body_super_json_progress },
-    ContractEntry { cmd: "super_json_summary", body: body_super_json_summary },
-    ContractEntry { cmd: "super_json_labels", body: body_super_json_labels },
-    ContractEntry { cmd: "context_usage", body: body_context_usage },
-    ContractEntry { cmd: "list_messages", body: body_list_messages },
-    ContractEntry { cmd: "fetch_models", body: body_fetch_models },
+    ContractEntry {
+        cmd: "load_providers",
+        body: body_load_providers,
+    },
+    ContractEntry {
+        cmd: "save_providers",
+        body: body_save_providers,
+    },
+    ContractEntry {
+        cmd: "send_chat",
+        body: body_send_chat,
+    },
+    ContractEntry {
+        cmd: "execute_tool",
+        body: body_execute_tool,
+    },
+    ContractEntry {
+        cmd: "super_json_read",
+        body: body_super_json_read,
+    },
+    ContractEntry {
+        cmd: "super_json_progress",
+        body: body_super_json_progress,
+    },
+    ContractEntry {
+        cmd: "super_json_summary",
+        body: body_super_json_summary,
+    },
+    ContractEntry {
+        cmd: "super_json_labels",
+        body: body_super_json_labels,
+    },
+    ContractEntry {
+        cmd: "context_usage",
+        body: body_context_usage,
+    },
+    ContractEntry {
+        cmd: "list_messages",
+        body: body_list_messages,
+    },
+    ContractEntry {
+        cmd: "fetch_models",
+        body: body_fetch_models,
+    },
 ];
 
 fn contract_entry(cmd: &str) -> &'static ContractEntry {
@@ -371,7 +400,12 @@ fn test_ipc_context_usage_end_to_end() {
     let usage = harness.ok("context_usage", body_context_usage());
     assert_eq!(usage["has_model"], true);
     assert_eq!(usage["total_tokens"], 128000);
-    assert_eq!(usage["used_tokens"], usage["system_tokens"].as_u64().unwrap() + usage["tool_tokens"].as_u64().unwrap() + usage["message_tokens"].as_u64().unwrap());
+    assert_eq!(
+        usage["used_tokens"],
+        usage["system_tokens"].as_u64().unwrap()
+            + usage["tool_tokens"].as_u64().unwrap()
+            + usage["message_tokens"].as_u64().unwrap()
+    );
 }
 
 #[test]
@@ -383,8 +417,8 @@ fn test_ipc_super_json_progress_end_to_end() {
     let empty = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(empty["has_project"], json!(false));
     assert_eq!(empty["project_id"], json!(""));
-    assert_eq!(empty["required_total"], json!(11));
-    assert_eq!(empty["optional_total"], json!(14));
+    assert_eq!(empty["required_total"], json!(18));
+    assert_eq!(empty["optional_total"], json!(29));
     assert_eq!(empty["filled_required"], json!(0));
     assert_eq!(empty["percent"], json!(0));
 
@@ -399,21 +433,26 @@ fn test_ipc_super_json_progress_end_to_end() {
             "sessionId": "contract-session-progress"
         }),
     );
-    let project_id = created["project_id"].as_str().expect("project id").to_string();
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_string();
     assert!(!project_id.is_empty());
 
     // 3. The same session now reports real progress: `project_create` writes
-    //    exactly one required leaf (`require.overview.name`), which is 70%/11.
+    //    exactly one required unit (`require.project.name`), which is 70%/18.
     let progress = harness.ok("super_json_progress", body_super_json_progress());
     assert_eq!(progress["has_project"], json!(true));
     assert_eq!(progress["project_id"], json!(project_id));
-    assert_eq!(progress["required_total"], json!(11));
-    assert_eq!(progress["optional_total"], json!(14));
+    assert_eq!(progress["required_total"], json!(18));
+    assert_eq!(progress["optional_total"], json!(29));
     assert_eq!(progress["filled_required"], json!(1));
     assert_eq!(progress["filled_optional"], json!(0));
-    assert_eq!(progress["percent"], json!(6));
+    assert_eq!(progress["percent"], json!(4));
     assert!(
-        progress["label"].as_str().is_some_and(|label| !label.is_empty()),
+        progress["label"]
+            .as_str()
+            .is_some_and(|label| !label.is_empty()),
         "the header bar needs a label, got {progress}"
     );
 
@@ -429,14 +468,22 @@ fn test_ipc_unknown_project_reads_do_not_create_ghost_document() {
     let ghost = "contract-ghost";
     let directory = harness.home.path().join("projects").join(ghost);
     for command in ["super_json_read", "super_json_summary"] {
-        let error = harness.call(command, json!({ "projectId": ghost }))
+        let error = harness
+            .call(command, json!({ "projectId": ghost }))
             .expect_err("unknown project must not be read");
         assert_eq!(error_text(&error), format!("Project not found: {ghost}"));
-        assert!(!directory.join("super.json").exists(), "{command} created a ghost document");
-        assert!(!directory.exists(), "{command} created a ghost project directory");
+        assert!(
+            !directory.join("super.json").exists(),
+            "{command} created a ghost document"
+        );
+        assert!(
+            !directory.exists(),
+            "{command} created a ghost project directory"
+        );
     }
     for command in ["super_json_read", "super_json_summary"] {
-        let error = harness.call(command, json!({ "projectId": "  " }))
+        let error = harness
+            .call(command, json!({ "projectId": "  " }))
             .expect_err("blank project id must be rejected");
         assert!(!error_text(&error).is_empty());
     }
@@ -448,21 +495,34 @@ fn test_ipc_super_json_summary_end_to_end() {
 
     // 1. Create an unnamed project first: reads must not create SQLite projects.
     //    Its skeleton still prints the placeholder everywhere as prose.
-    let unnamed = harness.ok("execute_tool", json!({
-        "toolName": "project_create", "args": {},
-        "projectId": "", "sessionId": "contract-session-empty-summary"
-    }));
+    let unnamed = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create", "args": {},
+            "projectId": "", "sessionId": "contract-session-empty-summary"
+        }),
+    );
     let empty_project_id = unnamed["project_id"].as_str().expect("project id");
     let empty_document = harness.ok("super_json_read", json!({ "projectId": empty_project_id }));
-    assert!(empty_document["require"]["overview"]["name"].is_null());
-    let empty = harness.ok("super_json_summary", json!({ "projectId": empty_project_id }));
+    assert!(empty_document["require"]["project"]["name"].is_null());
+    let empty = harness.ok(
+        "super_json_summary",
+        json!({ "projectId": empty_project_id }),
+    );
     let empty = empty.as_str().expect("super_json_summary returns a string");
-    assert_eq!(empty.split("\n\n").count(), 6, "expected six paragraphs:\n{empty}");
+    assert_eq!(
+        empty.split("\n\n").count(),
+        6,
+        "expected six paragraphs:\n{empty}"
+    );
     assert!(
         empty.contains("[chưa có thông tin]"),
         "an empty super json must print placeholders:\n{empty}"
     );
-    assert!(!empty.trim_start().starts_with('{'), "raw JSON came back:\n{empty}");
+    assert!(
+        !empty.trim_start().starts_with('{'),
+        "raw JSON came back:\n{empty}"
+    );
     assert!(!empty.contains("null"), "raw JSON came back:\n{empty}");
     println!("empty super json summary ->\n{empty}");
 
@@ -477,13 +537,24 @@ fn test_ipc_super_json_summary_end_to_end() {
             "sessionId": "contract-session-summary"
         }),
     );
-    let project_id = created["project_id"].as_str().expect("project id").to_string();
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_string();
 
     for (path, value) in [
-        ("optional.overview.language", json!("VI")),
-        ("optional.theme.resolution-type", json!("OPEN")),
-        ("optional.world.setting-scale", json!("CITY")),
-        ("optional.overview.plan.arc.tolerance", json!(1)),
+        ("require.project.language", json!("VI")),
+        ("optional.project.plan.arc.tolerance", json!(1)),
+        ("require.schema.themes.count", json!(1)),
+        (
+            "require.schema.themes.rows",
+            json!([{ "scope": "PROJECT", "question": "Ký ức có làm nên con người?", "resolution_type": "OPEN" }]),
+        ),
+        ("require.schema.world_settings.count", json!(1)),
+        (
+            "require.schema.world_settings.rows",
+            json!([{ "name": "Thành phố", "type": "CITY" }]),
+        ),
     ] {
         harness.ok(
             "execute_tool",
@@ -496,38 +567,36 @@ fn test_ipc_super_json_summary_end_to_end() {
         );
     }
 
-    let filled = harness.ok(
-        "super_json_summary",
-        json!({ "projectId": project_id }),
+    let filled = harness.ok("super_json_summary", json!({ "projectId": project_id }));
+    let filled = filled
+        .as_str()
+        .expect("super_json_summary returns a string");
+    assert_eq!(
+        filled.split("\n\n").count(),
+        6,
+        "expected six paragraphs:\n{filled}"
     );
-    let filled = filled.as_str().expect("super_json_summary returns a string");
-    assert_eq!(filled.split("\n\n").count(), 6, "expected six paragraphs:\n{filled}");
     // Values written over IPC are in the prose ...
-    assert!(filled.contains("Dự án truyện có tên là Nua Dem,"), "{filled}");
+    assert!(filled.contains("Tên dự án: Nua Dem"), "{filled}");
     assert!(filled.contains("tiếng Việt"), "enum not mapped:\n{filled}");
     assert!(filled.contains("để ngỏ"), "enum not mapped:\n{filled}");
     assert!(filled.contains("thành phố"), "enum not mapped:\n{filled}");
-    // D5: counts are incomplete, so the label sentence replaces the broken clause.
     assert!(
-        filled.contains("Số arc dự kiến: [chưa có thông tin]."),
-        "D5 label sentence missing:\n{filled}"
-    );
-    assert!(
-        !filled.contains("dài [chưa có thông tin] arc"),
-        "the broken count clause is back:\n{filled}"
+        filled.contains("Kế hoạch: [chưa có thông tin] arc"),
+        "plan placeholder missing:\n{filled}"
     );
     assert!(filled.contains("Sai số chấp nhận: 1 arc"), "{filled}");
     // ... and the fields still empty still say so.
     assert!(filled.contains("Tác giả: [chưa có thông tin]."), "{filled}");
-    assert!(!filled.contains("null") && !filled.contains("\"name\""), "{filled}");
+    assert!(
+        !filled.contains("null") && !filled.contains("\"name\""),
+        "{filled}"
+    );
     println!("filled super json summary ->\n{filled}");
 
     // 3. The camelCase key is the only accepted spelling (the Sprint 9 trap).
     let snake = harness
-        .call(
-            "super_json_summary",
-            json!({ "project_id": project_id }),
-        )
+        .call("super_json_summary", json!({ "project_id": project_id }))
         .expect_err("snake_case project_id must be rejected");
     assert!(
         error_text(&snake).contains(MISSING_KEY),
@@ -544,11 +613,15 @@ fn test_ipc_super_json_labels_end_to_end() {
     // exact body the frontend sends for `safeInvoke("super_json_labels")`.
     let labels = harness.ok("super_json_labels", body_super_json_labels());
     let map = labels.as_object().expect("labels is a JSON object");
-    assert_eq!(map.len(), 25, "the command must return all 25 labels: {labels}");
+    assert_eq!(
+        map.len(),
+        81,
+        "the command must return all 81 labels: {labels}"
+    );
     assert_eq!(
         map.len(),
         crate::super_json::valid_paths().len(),
-        "the label map and the 25-path whitelist drifted"
+        "the label map and the 81-path whitelist drifted"
     );
 
     // Every path is present, every value is a non-empty Vietnamese label.
@@ -560,9 +633,12 @@ fn test_ipc_super_json_labels_end_to_end() {
             .unwrap_or_else(|| panic!("label for {path} is not a string"));
         assert!(!label.trim().is_empty(), "{path} has an empty label");
     }
-    assert_eq!(map["require.overview.name"], json!("tên truyện"));
-    assert_eq!(map["require.overview.plan.word.count"], json!("số từ"));
-    assert_eq!(map["optional.world.has-power-system"], json!("có hệ thống sức mạnh"));
+    assert_eq!(map["require.project.name"], json!("tên truyện"));
+    assert_eq!(map["require.project.plan.word.count"], json!("số từ"));
+    assert_eq!(
+        map["optional.schema.lore_entries.rows"],
+        json!("danh sách lore")
+    );
 
     // The command is a pure read: it must not create a project either.
     assert!(!harness.home.path().join("projects").exists());
@@ -597,7 +673,11 @@ fn test_ipc_list_messages_end_to_end() {
         json!({ "sessionId": "contract-session-send-chat" }),
     );
     let listed = listed.as_array().expect("messages array");
-    assert_eq!(listed.len(), 2, "expected the user message and the reply: {listed:?}");
+    assert_eq!(
+        listed.len(),
+        2,
+        "expected the user message and the reply: {listed:?}"
+    );
     assert_eq!(listed[0]["role"], json!("user"));
     assert_eq!(listed[0]["id"], json!("contract-user"));
     assert_eq!(listed[1]["role"], json!("assistant"));
@@ -610,7 +690,10 @@ fn test_ipc_list_messages_end_to_end() {
     );
 
     // Sessions stay isolated across the IPC boundary.
-    let other = harness.ok("list_messages", json!({ "sessionId": "contract-session-other" }));
+    let other = harness.ok(
+        "list_messages",
+        json!({ "sessionId": "contract-session-other" }),
+    );
     assert_eq!(other, json!([]));
 }
 
@@ -635,15 +718,18 @@ fn test_ipc_execute_tool_end_to_end() {
     );
     assert_eq!(created["ok"], json!(true));
     assert_eq!(created["name"], json!("Nua Dem"));
-    let project_id = created["project_id"].as_str().expect("project id").to_string();
+    let project_id = created["project_id"]
+        .as_str()
+        .expect("project id")
+        .to_string();
     assert!(!project_id.is_empty());
     assert_eq!(
         created["missing_required"]
             .as_array()
             .expect("missing_required")
             .len(),
-        10,
-        "11 required paths minus the name project_create just wrote"
+        17,
+        "18 required units minus the name project_create just wrote"
     );
 
     // The artifacts really landed in the temp home, not in a real ~/.merlink.
@@ -656,7 +742,7 @@ fn test_ipc_execute_tool_end_to_end() {
     let document: Value =
         serde_json::from_str(&std::fs::read_to_string(&super_json).expect("super.json"))
             .expect("super.json is JSON");
-    assert_eq!(document["require"]["overview"]["name"], json!("Nua Dem"));
+    assert_eq!(document["require"]["project"]["name"], json!("Nua Dem"));
     assert!(harness.home.path().join("merlink.db").is_file());
 
     // Unknown tools surface their real message over IPC instead of a panic.
@@ -681,36 +767,62 @@ fn test_ipc_execute_tool_end_to_end() {
 #[test]
 fn test_ipc_execute_tool_rejects_project_from_another_session() {
     let harness = Harness::new("ipc-execute-tool-project-guard");
-    let created_a = harness.ok("execute_tool", json!({
-        "toolName": "project_create", "args": { "name": "Alpha" },
-        "projectId": "", "sessionId": "session-a"
-    }));
-    let created_b = harness.ok("execute_tool", json!({
-        "toolName": "project_create", "args": { "name": "Beta" },
-        "projectId": "", "sessionId": "session-b"
-    }));
+    let created_a = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create", "args": { "name": "Alpha" },
+            "projectId": "", "sessionId": "session-a"
+        }),
+    );
+    let created_b = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "project_create", "args": { "name": "Beta" },
+            "projectId": "", "sessionId": "session-b"
+        }),
+    );
     let project_a = created_a["project_id"].as_str().unwrap();
     let project_b = created_b["project_id"].as_str().unwrap();
     assert_ne!(project_a, project_b);
 
-    let error = harness.call("execute_tool", json!({
-        "toolName": "super_json_set",
-        "args": { "path": "require.genre.primary", "value": "cross-session" },
-        "projectId": project_b, "sessionId": "session-a"
-    })).expect_err("cross-session project mutation must fail");
-    assert_eq!(error_text(&error), "Project does not belong to this session");
-    assert!(crate::super_json::get(project_b, "require.genre.primary").unwrap().is_null());
+    let error = harness
+        .call(
+            "execute_tool",
+            json!({
+                "toolName": "super_json_set",
+                "args": { "path": "require.schema.project_genres.count", "value": 1 },
+                "projectId": project_b, "sessionId": "session-a"
+            }),
+        )
+        .expect_err("cross-session project mutation must fail");
+    assert_eq!(
+        error_text(&error),
+        "Project does not belong to this session"
+    );
+    assert!(
+        crate::super_json::get(project_b, "require.schema.project_genres.count")
+            .unwrap()
+            .is_null()
+    );
 
-    let bound = harness.ok("execute_tool", json!({
-        "toolName": "super_json_get", "args": {},
-        "projectId": "", "sessionId": "session-a"
-    }));
-    assert_eq!(bound["require"]["overview"]["name"], json!("Alpha"));
+    let bound = harness.ok(
+        "execute_tool",
+        json!({
+            "toolName": "super_json_get", "args": {},
+            "projectId": "", "sessionId": "session-a"
+        }),
+    );
+    assert_eq!(bound["require"]["project"]["name"], json!("Alpha"));
 
-    let unbound = harness.call("execute_tool", json!({
-        "toolName": "super_json_get", "args": {},
-        "projectId": project_a, "sessionId": "session-unbound"
-    })).expect_err("an unbound session must not read another project");
+    let unbound = harness
+        .call(
+            "execute_tool",
+            json!({
+                "toolName": "super_json_get", "args": {},
+                "projectId": project_a, "sessionId": "session-unbound"
+            }),
+        )
+        .expect_err("an unbound session must not read another project");
     assert!(error_text(&unbound).starts_with("This chat is not bound to a project"));
 }
 
@@ -747,7 +859,10 @@ fn test_ipc_send_chat_requires_camel_case_session_id() {
     // is the exact call that used to break the desktop chat.
     let send_chat = contract_entry("send_chat");
     let snake_body = send_chat.body_with_snake_key("sessionId");
-    assert_eq!(snake_body["session_id"], json!("contract-session-send-chat"));
+    assert_eq!(
+        snake_body["session_id"],
+        json!("contract-session-send-chat")
+    );
     assert_eq!(snake_body["providerId"], json!("contract-demo"));
     let snake = harness
         .call("send_chat", snake_body)
@@ -783,11 +898,13 @@ fn test_ipc_snake_case_keys_are_rejected() {
         // Control group: the real frontend spelling never fails on a key.
         match harness.call(entry.cmd, (entry.body)()) {
             Ok(_) => {}
-            Err(error) if error_text(&error).contains(MISSING_KEY) => control_failures.push(format!(
-                "{}: camelCase body was rejected: {}",
-                entry.cmd,
-                error_text(&error)
-            )),
+            Err(error) if error_text(&error).contains(MISSING_KEY) => {
+                control_failures.push(format!(
+                    "{}: camelCase body was rejected: {}",
+                    entry.cmd,
+                    error_text(&error)
+                ))
+            }
             // Any other error (network, unknown state) is fine here: this test
             // is about key spelling, not about the command succeeding.
             Err(_) => {}

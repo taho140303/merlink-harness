@@ -1,52 +1,513 @@
 {
-  "$comment": "SUPER JSON — skeleton khởi tạo của một project. Nguồn: docs/design/super-json.md. Code Rust load file này qua include_str!. Leaf path trong 'require' = field bắt buộc; điền hết thì nút viết dàn ý mới sáng.",
+  "$comment": "SUPER JSON v2 — 1 project root + 34 schema tables. fields = read-only row contract; count = planned rows; rows = actual instances. Source: docs/plan/super-json-v2-plan.md",
   "require": {
-    "overview": {
+    "project": {
       "name": null,
-      "logline": {
-        "trigger-event": null,
-        "main-character": null,
-        "action": null,
-        "risk": null,
-        "major-loss": null
-      },
+      "language": null,
       "plan": {
-        "arc": { "count": null },
-        "chapter": { "count": null },
-        "word": { "count": null }
+        "arc": {
+          "count": null
+        },
+        "chapter": {
+          "count": null
+        },
+        "scene": {
+          "count": null
+        },
+        "word": {
+          "count": null
+        }
       }
     },
-    "genre": {
-      "primary": null
-    },
-    "theme": {
-      "question": null
-    }
+    "schema": [
+      {
+        "table": "project_genres",
+        "count": null,
+        "fields": {
+          "genre_id": null,
+          "is_primary": null
+        },
+        "rows": []
+      },
+      {
+        "table": "arcs",
+        "count": null,
+        "fields": {
+          "name": null,
+          "position": null
+        },
+        "rows": []
+      },
+      {
+        "table": "chapters",
+        "count": null,
+        "fields": {
+          "name": null,
+          "position": null
+        },
+        "rows": []
+      },
+      {
+        "table": "scenes",
+        "count": null,
+        "fields": {
+          "name": null,
+          "chapter_id": null,
+          "position": null
+        },
+        "rows": []
+      },
+      {
+        "table": "scene_characters",
+        "count": null,
+        "fields": {
+          "scene_id": null,
+          "character_id": null,
+          "is_pov": null
+        },
+        "rows": []
+      },
+      {
+        "table": "characters",
+        "count": null,
+        "fields": {
+          "name": null,
+          "is_primary": null
+        },
+        "rows": []
+      },
+      {
+        "table": "relationships",
+        "count": null,
+        "fields": {
+          "from_character_id": null,
+          "to_character_id": null
+        },
+        "rows": []
+      },
+      {
+        "table": "relationship_roles",
+        "count": null,
+        "fields": {
+          "relationship_id": null,
+          "category_id": null,
+          "is_primary": null
+        },
+        "rows": []
+      },
+      {
+        "table": "world_settings",
+        "count": null,
+        "fields": {
+          "name": null,
+          "type": null
+        },
+        "rows": []
+      },
+      {
+        "table": "power_systems",
+        "count": null,
+        "fields": {
+          "name": null,
+          "source": null
+        },
+        "rows": []
+      },
+      {
+        "table": "themes",
+        "count": null,
+        "fields": {
+          "scope": null,
+          "question": null
+        },
+        "rows": []
+      },
+      {
+        "table": "theme_arguments",
+        "count": null,
+        "fields": {
+          "theme_id": null,
+          "character_id": null,
+          "role": null
+        },
+        "rows": []
+      }
+    ]
   },
   "optional": {
-    "overview": {
-      "description": null,
+    "project": {
       "author": null,
-      "language": null,
+      "summarize": null,
       "target-audience": null,
-      "age-rating": null,
       "plan": {
-        "arc": { "tolerance": null },
-        "chapter": { "tolerance": null },
-        "word": { "tolerance": null }
+        "arc": {
+          "tolerance": null
+        },
+        "chapter": {
+          "tolerance": null
+        },
+        "scene": {
+          "tolerance": null
+        },
+        "word": {
+          "tolerance": null
+        }
       }
     },
-    "genre": {
-      "secondary": []
-    },
-    "theme": {
-      "resolution-type": null,
-      "resolution": null,
-      "message": null
-    },
-    "world": {
-      "has-power-system": null,
-      "setting-scale": null
-    }
+    "schema": [
+      {
+        "table": "relationship_motifs",
+        "count": null,
+        "fields": {
+          "motif_id": null,
+          "relationship_id": null
+        },
+        "rows": []
+      },
+      {
+        "table": "project_motifs",
+        "count": null,
+        "fields": {
+          "motif_id": null
+        },
+        "rows": []
+      },
+      {
+        "table": "arcs",
+        "fields": {
+          "code": null,
+          "summarize": null
+        }
+      },
+      {
+        "table": "chapters",
+        "fields": {
+          "code": null,
+          "arc_id": null,
+          "summarize": null
+        }
+      },
+      {
+        "table": "scenes",
+        "fields": {
+          "code": null,
+          "world_setting_id": null,
+          "style_preset_id": null,
+          "narrator_config_id": null,
+          "summarize": null,
+          "content": null
+        }
+      },
+      {
+        "table": "scene_versions",
+        "count": null,
+        "fields": {
+          "parent_id": null,
+          "scene_source": null,
+          "summarize": null,
+          "content": null
+        },
+        "rows": []
+      },
+      {
+        "table": "characters",
+        "fields": {
+          "birth": null,
+          "species": null,
+          "biological_sex": null,
+          "gender_identity": null,
+          "gender_expression": null
+        }
+      },
+      {
+        "table": "appearance_option_groups",
+        "count": null,
+        "fields": {
+          "code": null,
+          "name": null
+        },
+        "rows": []
+      },
+      {
+        "table": "appearance_options",
+        "count": null,
+        "fields": {
+          "group_id": null,
+          "code": null,
+          "label": null,
+          "hex": null,
+          "is_system": null
+        },
+        "rows": []
+      },
+      {
+        "table": "character_appearances",
+        "count": null,
+        "fields": {
+          "character_id": null,
+          "height": null,
+          "height_unit": null,
+          "weight": null,
+          "weight_unit": null,
+          "hair_color_id": null,
+          "hair_length_id": null,
+          "hair_style_id": null,
+          "hair_texture_id": null,
+          "pupil_shape_id": null,
+          "iris_color_id": null,
+          "sclera_color_id": null,
+          "skin_tone_id": null,
+          "skin_texture_id": null,
+          "hair_note": null,
+          "eyes_note": null,
+          "skin_note": null,
+          "outfit_style": null,
+          "default_summary": null
+        },
+        "rows": []
+      },
+      {
+        "table": "character_distinguishing_marks",
+        "count": null,
+        "fields": {
+          "character_id": null,
+          "content": null
+        },
+        "rows": []
+      },
+      {
+        "table": "relationship_categories",
+        "count": null,
+        "fields": {
+          "category": null,
+          "sub_type": null
+        },
+        "rows": []
+      },
+      {
+        "table": "relationship_roles",
+        "fields": {
+          "hierarchy": null
+        }
+      },
+      {
+        "table": "relationship_states",
+        "count": null,
+        "fields": {
+          "parent_id": null,
+          "trust": null,
+          "affection": null,
+          "hostility": null,
+          "fear": null,
+          "respect": null,
+          "familiarity": null,
+          "dependency": null
+        },
+        "rows": []
+      },
+      {
+        "table": "world_settings",
+        "fields": {
+          "code": null,
+          "parent_id": null,
+          "description": null,
+          "access": null,
+          "spatial_features": null,
+          "sensory_visual": null,
+          "sensory_auditory": null,
+          "sensory_tactile": null,
+          "sensory_olfactory": null,
+          "sensory_gustatory": null
+        }
+      },
+      {
+        "table": "lore_entries",
+        "count": null,
+        "fields": {
+          "code": null,
+          "type": null,
+          "scope": null,
+          "name": null,
+          "description": null,
+          "world_setting_id": null,
+          "data": null
+        },
+        "rows": []
+      },
+      {
+        "table": "power_systems",
+        "fields": {
+          "code": null,
+          "scope": null,
+          "description": null,
+          "rules": null,
+          "cost": null,
+          "limitations": null
+        }
+      },
+      {
+        "table": "power_tiers",
+        "count": null,
+        "fields": {
+          "power_system_id": null,
+          "code": null,
+          "name": null,
+          "rank": null,
+          "description": null
+        },
+        "rows": []
+      },
+      {
+        "table": "power_abilities",
+        "count": null,
+        "fields": {
+          "power_system_id": null,
+          "tier_id": null,
+          "name": null,
+          "description": null
+        },
+        "rows": []
+      },
+      {
+        "table": "themes",
+        "fields": {
+          "code": null,
+          "arc_id": null,
+          "parent_theme_id": null,
+          "resolution_type": null,
+          "resolution": null,
+          "message": null
+        }
+      },
+      {
+        "table": "theme_arguments",
+        "fields": {
+          "answer_mode": null,
+          "note": null,
+          "required_knowledge": null,
+          "required_competence": null
+        }
+      },
+      {
+        "table": "memories",
+        "count": null,
+        "fields": {
+          "owner_id": null,
+          "type": null,
+          "summary": null,
+          "recollection": null,
+          "interpretation": null,
+          "certainty": null,
+          "knowledge_source": null,
+          "significance": null,
+          "status": null,
+          "occurred_at": null,
+          "perceived_at": null,
+          "source_scene_id": null
+        },
+        "rows": []
+      },
+      {
+        "table": "memory_references",
+        "count": null,
+        "fields": {
+          "memory_id": null,
+          "entity_type": null,
+          "entity_id": null,
+          "role": null
+        },
+        "rows": []
+      },
+      {
+        "table": "memory_emotions",
+        "count": null,
+        "fields": {
+          "memory_id": null,
+          "emotion": null,
+          "intensity": null
+        },
+        "rows": []
+      },
+      {
+        "table": "memory_connections",
+        "count": null,
+        "fields": {
+          "source_memory_id": null,
+          "target_memory_id": null,
+          "relation": null
+        },
+        "rows": []
+      },
+      {
+        "table": "memory_revisions",
+        "count": null,
+        "fields": {
+          "memory_id": null,
+          "recollection": null,
+          "interpretation": null,
+          "certainty": null,
+          "source_scene_id": null,
+          "reason": null
+        },
+        "rows": []
+      },
+      {
+        "table": "character_knowledge_sources",
+        "count": null,
+        "fields": {
+          "character_id": null,
+          "type": null,
+          "path": null,
+          "certainty": null
+        },
+        "rows": []
+      },
+      {
+        "table": "competence_domains",
+        "count": null,
+        "fields": {
+          "code": null,
+          "name": null,
+          "description": null,
+          "is_system": null
+        },
+        "rows": []
+      },
+      {
+        "table": "character_competences",
+        "count": null,
+        "fields": {
+          "character_id": null,
+          "domain_id": null,
+          "name": null,
+          "level": null,
+          "description": null,
+          "experience": null,
+          "reliability": null,
+          "development_potential": null,
+          "development_current_focus": null,
+          "development_growth_direction": null
+        },
+        "rows": []
+      },
+      {
+        "table": "competence_capabilities",
+        "count": null,
+        "fields": {
+          "competence_id": null,
+          "content": null
+        },
+        "rows": []
+      },
+      {
+        "table": "competence_limitations",
+        "count": null,
+        "fields": {
+          "competence_id": null,
+          "content": null
+        },
+        "rows": []
+      }
+    ]
   }
 }

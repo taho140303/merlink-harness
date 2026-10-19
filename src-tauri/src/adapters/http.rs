@@ -39,16 +39,24 @@ static CHAT_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
 static LIST_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
 
 pub(super) fn client() -> Result<reqwest::Client, String> {
-    CHAT_CLIENT.get_or_init(|| reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|error| error.to_string())).clone()
+    CHAT_CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(120))
+                .build()
+                .map_err(|error| error.to_string())
+        })
+        .clone()
 }
 
 /// Model discovery retains its shorter 30-second timeout.
 pub(super) fn list_client() -> Result<reqwest::Client, String> {
-    LIST_CLIENT.get_or_init(|| reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|error| error.to_string())).clone()
+    LIST_CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .map_err(|error| error.to_string())
+        })
+        .clone()
 }

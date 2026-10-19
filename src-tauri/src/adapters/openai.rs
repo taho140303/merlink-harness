@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use serde_json::{Value, json};
 
-use crate::models::{MessageEnvelope, ToolCall, TokenUsage};
+use crate::models::{MessageEnvelope, TokenUsage, ToolCall};
 
 use super::{
     AdapterReply, ChatRequest,
@@ -72,17 +72,24 @@ pub fn parse_openai_response(body: &Value) -> Result<AdapterReply, String> {
     let mut tool_calls = Vec::new();
     let mut ids = HashSet::new();
     if let Some(raw_calls) = message.get("tool_calls") {
-        let calls = raw_calls.as_array().ok_or("OpenAI tool_calls must be an array")?;
+        let calls = raw_calls
+            .as_array()
+            .ok_or("OpenAI tool_calls must be an array")?;
         for (index, call) in calls.iter().enumerate() {
-            let id = call.get("id").and_then(Value::as_str)
+            let id = call
+                .get("id")
+                .and_then(Value::as_str)
                 .filter(|value| !value.trim().is_empty())
                 .ok_or_else(|| format!("OpenAI tool call {index} missing id"))?;
             if !ids.insert(id) {
                 return Err(format!("OpenAI tool call {index} duplicate id {id}"));
             }
-            let function = call.get("function")
+            let function = call
+                .get("function")
                 .ok_or_else(|| format!("OpenAI tool call {id} missing function.name"))?;
-            let name = function.get("name").and_then(Value::as_str)
+            let name = function
+                .get("name")
+                .and_then(Value::as_str)
                 .filter(|value| !value.trim().is_empty())
                 .ok_or_else(|| format!("OpenAI tool call {id} missing function.name"))?;
             let arguments = match function.get("arguments") {
@@ -92,7 +99,11 @@ pub fn parse_openai_response(body: &Value) -> Result<AdapterReply, String> {
                 Some(_) => return Err(format!("OpenAI tool call {id} invalid arguments type")),
                 None => return Err(format!("OpenAI tool call {id} missing arguments")),
             };
-            tool_calls.push(ToolCall { id: id.to_owned(), name: name.to_owned(), arguments });
+            tool_calls.push(ToolCall {
+                id: id.to_owned(),
+                name: name.to_owned(),
+                arguments,
+            });
         }
     }
 
@@ -169,7 +180,7 @@ mod tests {
                         "type": "function",
                         "function": {
                             "name": "super_json_set",
-                            "arguments": "{\"path\":\"require.overview.name\",\"value\":\"Nửa Đêm\"}"
+                            "arguments": "{\"path\":\"require.project.name\",\"value\":\"Nửa Đêm\"}"
                         }
                     }]
                 }
@@ -188,7 +199,7 @@ mod tests {
         assert_eq!(reply.tool_calls[0].name, "super_json_set");
         assert_eq!(
             reply.tool_calls[0].arguments["path"],
-            json!("require.overview.name")
+            json!("require.project.name")
         );
         assert_eq!(reply.tokens.input_tokens, 176);
     }
@@ -229,7 +240,10 @@ mod tests {
             }]
         });
         let reply = parse_openai_response(&tool_only).unwrap();
-        assert_eq!(reply.reasoning.as_deref(), Some("Tôi sẽ gọi super_json_set."));
+        assert_eq!(
+            reply.reasoning.as_deref(),
+            Some("Tôi sẽ gọi super_json_set.")
+        );
         assert_eq!(reply.tool_calls.len(), 1);
 
         // Blank / missing reasoning is `None`, never an empty panel.
@@ -267,13 +281,17 @@ mod tests {
         assistant.tool_calls = Some(vec![ToolCall {
             id: "call_1".into(),
             name: "super_json_set".into(),
-            arguments: json!({"path": "require.overview.name", "value": "X"}),
+            arguments: json!({"path": "require.project.name", "value": "X"}),
         }]);
-        let tool = MessageEnvelope::tool_result("t1", "call_1", "super_json_set", &json!({"ok": true}));
+        let tool =
+            MessageEnvelope::tool_result("t1", "call_1", "super_json_set", &json!({"ok": true}));
 
         let turns = openai_turns(&[message("u1", "user", "hi"), assistant, tool]);
         assert_eq!(turns[0]["role"], "user");
-        assert_eq!(turns[1]["tool_calls"][0]["function"]["name"], "super_json_set");
+        assert_eq!(
+            turns[1]["tool_calls"][0]["function"]["name"],
+            "super_json_set"
+        );
         // Arguments must be a JSON string on the wire, not an object.
         assert!(turns[1]["tool_calls"][0]["function"]["arguments"].is_string());
         assert_eq!(turns[2]["role"], "tool");
@@ -284,25 +302,47 @@ mod tests {
     fn test_openai_rejects_malformed_tool_calls() {
         for (call, expected) in [
             (json!({"function":{"name":"set","arguments":"{}"}}), "id"),
-            (json!({"id":"  ","function":{"name":"set","arguments":"{}"}}), "id"),
+            (
+                json!({"id":"  ","function":{"name":"set","arguments":"{}"}}),
+                "id",
+            ),
             (json!({"id":"one","function":{"arguments":"{}"}}), "name"),
-            (json!({"id":"one","function":{"name":"  ","arguments":"{}"}}), "name"),
-            (json!({"id":"one","function":{"name":"set","arguments":"{not json"}}), "arguments"),
+            (
+                json!({"id":"one","function":{"name":"  ","arguments":"{}"}}),
+                "name",
+            ),
+            (
+                json!({"id":"one","function":{"name":"set","arguments":"{not json"}}),
+                "arguments",
+            ),
             (json!({"id":"one","function":{"name":"set"}}), "arguments"),
-            (json!({"id":"one","function":{"name":"set","arguments":42}}), "arguments"),
+            (
+                json!({"id":"one","function":{"name":"set","arguments":42}}),
+                "arguments",
+            ),
         ] {
             let body = json!({"choices":[{"message":{"content":"ok","tool_calls":[call]}}]});
-            let error = parse_openai_response(&body).err().expect("malformed call must fail");
+            let error = parse_openai_response(&body)
+                .err()
+                .expect("malformed call must fail");
             assert!(error.contains(expected), "{error}");
         }
         let duplicate = json!({"choices":[{"message":{"content":"ok","tool_calls":[
             {"id":"one","function":{"name":"set","arguments":"{}"}},
             {"id":"one","function":{"name":"get","arguments":{}}}
         ]}}]});
-        assert!(parse_openai_response(&duplicate).err().expect("duplicate must fail").contains("one"));
+        assert!(
+            parse_openai_response(&duplicate)
+                .err()
+                .expect("duplicate must fail")
+                .contains("one")
+        );
         let object = json!({"choices":[{"message":{"tool_calls":[
             {"id":"one","function":{"name":"set","arguments":{"path":"x"}}}
         ]}}]});
-        assert_eq!(parse_openai_response(&object).unwrap().tool_calls[0].arguments, json!({"path":"x"}));
+        assert_eq!(
+            parse_openai_response(&object).unwrap().tool_calls[0].arguments,
+            json!({"path":"x"})
+        );
     }
 }

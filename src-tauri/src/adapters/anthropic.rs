@@ -3,7 +3,7 @@
 
 use serde_json::{Value, json};
 
-use crate::models::{MessageEnvelope, ToolCall, TokenUsage};
+use crate::models::{MessageEnvelope, TokenUsage, ToolCall};
 
 use super::{
     AdapterReply, ChatRequest,
@@ -101,10 +101,16 @@ pub fn parse_anthropic_response(body: &Value) -> Result<AdapterReply, String> {
                 }
             }
             Some("tool_use") => {
-                let id = block.get("id").and_then(Value::as_str)
+                let id = block
+                    .get("id")
+                    .and_then(Value::as_str)
                     .filter(|value| !value.trim().is_empty())
-                    .ok_or_else(|| format!("Anthropic tool_use block {} missing id", tool_calls.len()))?;
-                let name = block.get("name").and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        format!("Anthropic tool_use block {} missing id", tool_calls.len())
+                    })?;
+                let name = block
+                    .get("name")
+                    .and_then(Value::as_str)
                     .filter(|value| !value.trim().is_empty())
                     .ok_or_else(|| format!("Anthropic tool_use {id} missing name"))?;
                 tool_calls.push(ToolCall {
@@ -172,7 +178,7 @@ mod tests {
             ToolCall {
                 id: "toolu_1".into(),
                 name: "super_json_get".into(),
-                arguments: json!({"path": "require.overview.name"}),
+                arguments: json!({"path": "require.project.name"}),
             },
             ToolCall {
                 id: "toolu_2".into(),
@@ -180,13 +186,27 @@ mod tests {
                 arguments: json!({}),
             },
         ]);
-        let first = MessageEnvelope::tool_result("t1", "toolu_1", "super_json_get", &json!({"ok": true}));
-        let second =
-            MessageEnvelope::tool_result("t2", "toolu_2", "super_json_missing", &json!({"missing": []}));
+        let first =
+            MessageEnvelope::tool_result("t1", "toolu_1", "super_json_get", &json!({"ok": true}));
+        let second = MessageEnvelope::tool_result(
+            "t2",
+            "toolu_2",
+            "super_json_missing",
+            &json!({"missing": []}),
+        );
 
-        let turns = anthropic_turns(&[MessageEnvelope::new("u1", "user", "hi"), assistant, first, second]);
+        let turns = anthropic_turns(&[
+            MessageEnvelope::new("u1", "user", "hi"),
+            assistant,
+            first,
+            second,
+        ]);
 
-        assert_eq!(turns.len(), 3, "two tool results must merge into one user turn");
+        assert_eq!(
+            turns.len(),
+            3,
+            "two tool results must merge into one user turn"
+        );
         assert_eq!(turns[1]["content"][0]["type"], "text");
         assert_eq!(turns[1]["content"][1]["type"], "tool_use");
         assert_eq!(turns[1]["content"][1]["id"], "toolu_1");
@@ -220,7 +240,7 @@ mod tests {
             "content": [
                 {"type": "text", "text": "để tôi đặt tên"},
                 {"type": "tool_use", "id": "toolu_1", "name": "super_json_set",
-                 "input": {"path": "require.overview.name", "value": "X"}}
+                 "input": {"path": "require.project.name", "value": "X"}}
             ],
             "usage": {"input_tokens": 10, "output_tokens": 5}
         });
@@ -240,7 +260,9 @@ mod tests {
             (json!({"type":"tool_use","id":"one","name":"  "}), "name"),
         ] {
             let body = json!({"content":[{"type":"text","text":"ok"},block]});
-            let error = parse_anthropic_response(&body).err().expect("malformed call must fail");
+            let error = parse_anthropic_response(&body)
+                .err()
+                .expect("malformed call must fail");
             assert!(error.contains(expected), "{error}");
         }
         let body = json!({"content":[
@@ -249,6 +271,6 @@ mod tests {
         ]});
         let reply = parse_anthropic_response(&body).unwrap();
         assert_eq!(reply.tool_calls[0].arguments, Value::Null);
-        assert_eq!(reply.tool_calls[1].arguments, json!([1,2]));
+        assert_eq!(reply.tool_calls[1].arguments, json!([1, 2]));
     }
 }

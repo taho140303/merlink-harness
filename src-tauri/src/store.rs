@@ -246,7 +246,8 @@ mod tests {
         for seed in catalog_fixture() {
             assert!(
                 !raw.contains(&format!("\"{}\"", seed.id)),
-                "seed `{}` is still on disk: {raw}", seed.id
+                "seed `{}` is still on disk: {raw}",
+                seed.id
             );
         }
     }

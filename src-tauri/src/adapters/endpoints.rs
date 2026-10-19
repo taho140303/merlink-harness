@@ -10,7 +10,12 @@ pub fn parse_context_window(value: &str) -> u64 {
         Some('M') => (&value[..value.len() - 1], 1_000_000_u64),
         _ => (value.as_str(), 1_u64),
     };
-    number.parse::<u64>().ok().and_then(|n| n.checked_mul(multiplier)).filter(|n| *n > 0).unwrap_or(128_000)
+    number
+        .parse::<u64>()
+        .ok()
+        .and_then(|n| n.checked_mul(multiplier))
+        .filter(|n| *n > 0)
+        .unwrap_or(128_000)
 }
 
 pub fn openai_endpoint(base_url: &str) -> String {
@@ -196,7 +201,11 @@ mod tests {
         });
 
         let models = parse_models_response(&body, "openai").unwrap();
-        assert_eq!(models.len(), 1, "only the one real entry survives: {models:?}");
+        assert_eq!(
+            models.len(),
+            1,
+            "only the one real entry survives: {models:?}"
+        );
         assert_eq!(models[0].id, "gpt-4o", "ids are trimmed");
         assert_eq!(models[0].name, "GPT-4o", "names are trimmed");
     }
@@ -240,14 +249,46 @@ mod tests {
     #[test]
     fn test_models_endpoint_completed_urls_and_slashes() {
         for (kind, base, expected) in [
-            ("openai", "https://api.example.com", "https://api.example.com/models"),
-            ("openai", "https://api.example.com/v1/chat/completions", "https://api.example.com/v1/models"),
-            ("custom", "https://api.example.com/v1/chat/completions/", "https://api.example.com/v1/models"),
-            ("openai", "https://api.example.com/v1/models/", "https://api.example.com/v1/models"),
-            ("anthropic", "https://api.example.com/v1/messages", "https://api.example.com/v1/models"),
-            ("anthropic", "https://api.example.com/v1/messages/", "https://api.example.com/v1/models"),
-            ("anthropic", "https://api.example.com/v1/models/", "https://api.example.com/v1/models"),
-            ("anthropic", "https://api.example.com/messages", "https://api.example.com/v1/models"),
+            (
+                "openai",
+                "https://api.example.com",
+                "https://api.example.com/models",
+            ),
+            (
+                "openai",
+                "https://api.example.com/v1/chat/completions",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "custom",
+                "https://api.example.com/v1/chat/completions/",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "openai",
+                "https://api.example.com/v1/models/",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "anthropic",
+                "https://api.example.com/v1/messages",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "anthropic",
+                "https://api.example.com/v1/messages/",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "anthropic",
+                "https://api.example.com/v1/models/",
+                "https://api.example.com/v1/models",
+            ),
+            (
+                "anthropic",
+                "https://api.example.com/messages",
+                "https://api.example.com/v1/models",
+            ),
         ] {
             assert_eq!(models_endpoint(base, kind), expected, "{kind} {base}");
         }
