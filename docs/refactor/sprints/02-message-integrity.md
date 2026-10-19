@@ -1,6 +1,6 @@
 # S2 — Message identity and database integrity
 
-- **Status:** blocked by S1
+- **Status:** pushed
 - **Branch:** `refactor/s2-message-integrity`
 - **Units:** F-01 (backend half), F-20 (database part)
 - **Depends on:** S1

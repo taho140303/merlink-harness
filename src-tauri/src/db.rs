@@ -2,6 +2,8 @@ use rusqlite::{Connection, params};
 
 use crate::{models::MessageEnvelope, paths};
 
+const SCHEMA_VERSION: i64 = 1;
+
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS projects (
     id         TEXT PRIMARY KEY,
@@ -44,19 +46,50 @@ pub fn open() -> Result<Connection, String> {
             let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
         }
     }
-    let connection =
+    let mut connection =
         Connection::open(&path).map_err(|error| format!("Cannot open database: {error}"))?;
     connection
-        .execute_batch(
-            "PRAGMA journal_mode=WAL;\n\
-             PRAGMA foreign_keys=ON;\n\
-             PRAGMA busy_timeout=5000;\n",
-        )
+        .execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")
         .map_err(|error| format!("Cannot configure database: {error}"))?;
+    migrate(&mut connection)?;
     connection
-        .execute_batch(SCHEMA)
-        .map_err(|error| format!("Cannot create schema: {error}"))?;
+        .execute_batch("PRAGMA journal_mode=WAL;")
+        .map_err(|error| format!("Cannot configure database: {error}"))?;
     Ok(connection)
+}
+
+fn migrate(connection: &mut Connection) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("Cannot start schema migration: {error}"))?;
+    let version: i64 = transaction
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|error| format!("Cannot read database schema version: {error}"))?;
+    match version {
+        0 => {
+            // Existing message rowids (including those shifted by historical
+            // REPLACE writes) are left untouched; there is no data backfill.
+            transaction
+                .execute_batch(SCHEMA)
+                .map_err(|error| format!("Cannot create schema: {error}"))?;
+            transaction
+                .execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"))
+                .map_err(|error| format!("Cannot set database schema version: {error}"))?;
+        }
+        SCHEMA_VERSION => {
+            transaction
+                .execute_batch(SCHEMA)
+                .map_err(|error| format!("Cannot create schema: {error}"))?;
+        }
+        _ => {
+            return Err(format!(
+                "database was created by a newer version ({version})"
+            ));
+        }
+    }
+    transaction
+        .commit()
+        .map_err(|error| format!("Cannot commit schema migration: {error}"))
 }
 
 fn now() -> String {
@@ -177,11 +210,15 @@ pub fn append_message(
 ) -> Result<(), String> {
     let payload = serde_json::to_string(message)
         .map_err(|error| format!("Cannot encode message: {error}"))?;
-    connection
+    let changed = connection
         .execute(
-            "INSERT OR REPLACE INTO messages \
-             (id, session_id, role, content, payload_json, created_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO messages (id, session_id, role, content, payload_json, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+             ON CONFLICT(id) DO UPDATE SET \
+                 role = excluded.role, \
+                 content = excluded.content, \
+                 payload_json = excluded.payload_json \
+             WHERE messages.session_id = excluded.session_id",
             params![
                 message.id,
                 session_id,
@@ -192,6 +229,21 @@ pub fn append_message(
             ],
         )
         .map_err(|error| format!("Cannot append message: {error}"))?;
+    if changed == 0 {
+        let stored_session: String = connection
+            .query_row(
+                "SELECT session_id FROM messages WHERE id = ?1",
+                params![message.id],
+                |row| row.get(0),
+            )
+            .map_err(|error| {
+                format!("Cannot read conflicting message '{}': {error}", message.id)
+            })?;
+        return Err(format!(
+            "Cannot append message '{}': ID already belongs to session '{}', not requested session '{}'",
+            message.id, stored_session, session_id
+        ));
+    }
     Ok(())
 }
 
@@ -206,28 +258,35 @@ pub fn list_messages(
 ) -> Result<Vec<MessageEnvelope>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT role, content, payload_json FROM messages \
+            "SELECT id, role, content, payload_json FROM messages \
              WHERE session_id = ?1 ORDER BY rowid ASC",
         )
         .map_err(|error| format!("Cannot read messages: {error}"))?;
     let rows = statement
         .query_map(params![session_id], |row| {
-            let role: String = row.get(0)?;
-            let content: String = row.get(1)?;
-            let payload: Option<String> = row.get(2)?;
-            Ok((role, content, payload))
+            let id: String = row.get(0)?;
+            let role: String = row.get(1)?;
+            let content: String = row.get(2)?;
+            let payload: Option<String> = row.get(3)?;
+            Ok((id, role, content, payload))
         })
         .map_err(|error| format!("Cannot read messages: {error}"))?;
 
     let mut messages = Vec::new();
     for row in rows {
-        let (role, content, payload) =
+        let (id, role, content, payload) =
             row.map_err(|error| format!("Cannot read message row: {error}"))?;
         messages.push(match payload {
-            Some(raw) => serde_json::from_str::<MessageEnvelope>(&raw).unwrap_or_else(|_| {
-                MessageEnvelope::new(format!("recovered-{}", messages.len()), role, content)
-            }),
-            None => MessageEnvelope::new(format!("recovered-{}", messages.len()), role, content),
+            Some(raw) => {
+                let mut message =
+                    serde_json::from_str::<MessageEnvelope>(&raw).map_err(|error| {
+                        format!("Cannot decode message '{id}' in session '{session_id}': {error}")
+                    })?;
+                // The primary key, not the JSON copy, is authoritative.
+                message.id = id;
+                message
+            }
+            None => MessageEnvelope::new(id, role, content),
         });
     }
     Ok(messages)
@@ -258,7 +317,9 @@ mod tests {
         let mut statement = connection
             .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
             .unwrap();
-        let rows = statement.query_map([], |row| row.get::<_, String>(0)).unwrap();
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap();
         rows.map(Result::unwrap).collect()
     }
 
@@ -282,12 +343,8 @@ mod tests {
             name: "super_json_set".into(),
             arguments: json!({"path": "require.overview.name", "value": "Nửa Đêm"}),
         }]);
-        let tool = MessageEnvelope::tool_result(
-            "m3",
-            "call_1",
-            "super_json_set",
-            &json!({"ok": true}),
-        );
+        let tool =
+            MessageEnvelope::tool_result("m3", "call_1", "super_json_set", &json!({"ok": true}));
         let final_message = MessageEnvelope::new("m4", "assistant", "Đã đặt tên xong.");
 
         for message in [&user, &assistant, &tool, &final_message] {
@@ -303,12 +360,214 @@ mod tests {
         assert_eq!(count_messages(&connection, "sess-1").unwrap(), 4);
 
         // Tool wiring must survive the SQLite round trip.
-        assert_eq!(listed[1].tool_calls.as_ref().unwrap()[0].name, "super_json_set");
+        assert_eq!(
+            listed[1].tool_calls.as_ref().unwrap()[0].name,
+            "super_json_set"
+        );
         assert_eq!(listed[2].tool_call_id.as_deref(), Some("call_1"));
         assert_eq!(listed[2].name.as_deref(), Some("super_json_set"));
 
         // Sessions are isolated from each other.
         assert!(list_messages(&connection, "sess-other").unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_append_message_replay_preserves_count_order_and_created_at() {
+        let _home = crate::test_support::TempHome::new("db-message-replay");
+        let connection = open().unwrap();
+        for id in ["first", "middle", "last"] {
+            append_message(&connection, "session-a", &MessageEnvelope::user(id, id)).unwrap();
+        }
+        connection
+            .execute(
+                "UPDATE messages SET created_at = 'original-timestamp' WHERE id = 'middle'",
+                [],
+            )
+            .unwrap();
+        let before: Vec<(i64, String)> = connection
+            .prepare("SELECT rowid, id FROM messages ORDER BY rowid ASC")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+
+        for _ in 0..2 {
+            append_message(
+                &connection,
+                "session-a",
+                &MessageEnvelope::user("middle", "updated"),
+            )
+            .unwrap();
+        }
+
+        let after: Vec<(i64, String)> = connection
+            .prepare("SELECT rowid, id FROM messages ORDER BY rowid ASC")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(count_messages(&connection, "session-a").unwrap(), 3);
+        assert_eq!(
+            after, before,
+            "replay must keep each rowid and transcript order"
+        );
+        assert_eq!(
+            list_messages(&connection, "session-a")
+                .unwrap()
+                .iter()
+                .map(|message| message.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["first", "middle", "last"]
+        );
+        let (created_at, content): (String, String) = connection
+            .query_row(
+                "SELECT created_at, content FROM messages WHERE id = 'middle'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(created_at, "original-timestamp");
+        assert_eq!(content, "updated");
+    }
+
+    #[test]
+    fn test_append_message_rejects_cross_session_duplicate() {
+        let _home = crate::test_support::TempHome::new("db-cross-session-id");
+        let connection = open().unwrap();
+        append_message(
+            &connection,
+            "session-a",
+            &MessageEnvelope::user("shared-id", "original"),
+        )
+        .unwrap();
+
+        let error = append_message(
+            &connection,
+            "session-b",
+            &MessageEnvelope::user("shared-id", "replacement"),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            "Cannot append message 'shared-id': ID already belongs to session 'session-a', not requested session 'session-b'"
+        );
+        assert_eq!(count_messages(&connection, "session-a").unwrap(), 1);
+        assert_eq!(count_messages(&connection, "session-b").unwrap(), 0);
+        assert_eq!(
+            list_messages(&connection, "session-a").unwrap()[0].content,
+            "original"
+        );
+    }
+
+    #[test]
+    fn test_list_messages_reconstructs_null_payload_with_stored_id() {
+        let _home = crate::test_support::TempHome::new("db-legacy-null-payload");
+        let connection = open().unwrap();
+        connection
+            .execute(
+                "INSERT INTO messages (id, session_id, role, content, payload_json, created_at) \
+                 VALUES ('legacy-id', 'session-a', 'tool', 'legacy content', NULL, 'original')",
+                [],
+            )
+            .unwrap();
+
+        let listed = list_messages(&connection, "session-a").unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "legacy-id");
+        assert_eq!(listed[0].role, "tool");
+        assert_eq!(listed[0].content, "legacy content");
+    }
+
+    #[test]
+    fn test_list_messages_reports_corrupt_payload_instead_of_recovery() {
+        let _home = crate::test_support::TempHome::new("db-corrupt-payload");
+        let connection = open().unwrap();
+        connection
+            .execute(
+                "INSERT INTO messages (id, session_id, role, content, payload_json, created_at) \
+                 VALUES ('corrupt-id', 'session-a', 'user', 'original', '{invalid', 'original')",
+                [],
+            )
+            .unwrap();
+
+        let error = list_messages(&connection, "session-a").unwrap_err();
+        assert!(error.contains("corrupt-id"), "{error}");
+        assert!(error.contains("session-a"), "{error}");
+    }
+
+    #[test]
+    fn test_list_messages_uses_stored_id_not_payload_id() {
+        let _home = crate::test_support::TempHome::new("db-mismatched-payload-id");
+        let connection = open().unwrap();
+        append_message(
+            &connection,
+            "session-a",
+            &MessageEnvelope::user("stored-id", "original"),
+        )
+        .unwrap();
+        let payload =
+            serde_json::to_string(&MessageEnvelope::user("wrong-id", "original")).unwrap();
+        connection
+            .execute(
+                "UPDATE messages SET payload_json = ?1 WHERE id = 'stored-id'",
+                params![payload],
+            )
+            .unwrap();
+        assert_eq!(
+            list_messages(&connection, "session-a").unwrap()[0].id,
+            "stored-id"
+        );
+    }
+
+    #[test]
+    fn test_open_migrates_v0_and_reopening_is_idempotent() {
+        let _home = crate::test_support::TempHome::new("db-schema-version");
+        let connection = open().unwrap();
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
+        append_message(
+            &connection,
+            "session-a",
+            &MessageEnvelope::user("one", "original"),
+        )
+        .unwrap();
+        drop(connection);
+
+        let connection = open().unwrap();
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
+        assert_eq!(
+            list_messages(&connection, "session-a").unwrap()[0].id,
+            "one"
+        );
+    }
+
+    #[test]
+    fn test_open_rejects_newer_schema_without_modifying_it() {
+        let _home = crate::test_support::TempHome::new("db-newer-schema");
+        let connection = open().unwrap();
+        connection
+            .execute_batch("PRAGMA user_version = 2;")
+            .unwrap();
+        drop(connection);
+
+        let error = open().unwrap_err();
+        assert!(
+            error.contains("database was created by a newer version"),
+            "{error}"
+        );
+        let connection = Connection::open(paths::db_path().unwrap()).unwrap();
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
     }
 
     #[test]
@@ -318,9 +577,11 @@ mod tests {
         ensure_project(&connection, "default", "First title").unwrap();
         ensure_project(&connection, "default", "Second title").unwrap();
         let title: String = connection
-            .query_row("SELECT title FROM projects WHERE id = 'default'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT title FROM projects WHERE id = 'default'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(title, "First title");
     }

@@ -653,6 +653,47 @@ mod tests {
     }
 
     #[test]
+    fn test_agent_turn_rejects_history_id_from_another_session() {
+        let _home = crate::test_support::TempHome::new("runtime-cross-session-history");
+        let providers = store::catalog_fixture();
+        let backend = ScriptedBackend::default();
+        let original = MessageEnvelope::user("shared-history-id", "original");
+        tauri::async_runtime::block_on(run_agent_turn(
+            &backend,
+            &providers,
+            "openai",
+            "gpt-4o",
+            &[original],
+            "",
+            "session-a",
+            &NoopSink,
+        ))
+        .unwrap();
+
+        let error = tauri::async_runtime::block_on(run_agent_turn(
+            &backend,
+            &providers,
+            "openai",
+            "gpt-4o",
+            &[MessageEnvelope::user("shared-history-id", "replacement")],
+            "",
+            "session-b",
+            &NoopSink,
+        ))
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            "Cannot append message 'shared-history-id': ID already belongs to session 'session-a', not requested session 'session-b'"
+        );
+        assert_eq!(
+            session_messages("session-a").unwrap()[0].content,
+            "original"
+        );
+        assert!(session_messages("session-b").unwrap().is_empty());
+    }
+
+    #[test]
     fn test_mock_chat_without_key_returns_metadata() {
         let _home = crate::test_support::TempHome::new("runtime-demo");
         let providers = store::catalog_fixture();
