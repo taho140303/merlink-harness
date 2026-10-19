@@ -8,7 +8,7 @@ dependency, and update its own status line here.
 | Sprint | Spec | Status | Branch | Units |
 | --- | --- | --- | --- | --- |
 | S0 | [00-oss-baseline.md](00-oss-baseline.md) | pushed | `refactor/s0-oss-baseline` | OSS docs |
-| S1 | [01-session-ownership.md](01-session-ownership.md) | blocked by S0 | `refactor/s1-session-ownership` | F-01 frontend, F-02 |
+| S1 | [01-session-ownership.md](01-session-ownership.md) | ready | `refactor/s1-session-ownership` | F-01 frontend, F-02 |
 | S2 | [02-message-integrity.md](02-message-integrity.md) | blocked by S1 | `refactor/s2-message-integrity` | F-01 backend, F-20 DB |
 | S3 | [03-project-and-json-integrity.md](03-project-and-json-integrity.md) | blocked by S2 | `refactor/s3-project-json-integrity` | F-03, F-04 |
 | S4 | [04-agent-loop-truth.md](04-agent-loop-truth.md) | blocked by S3 | `refactor/s4-agent-loop-truth` | F-05, F-06, F-07 |
