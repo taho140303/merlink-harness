@@ -66,20 +66,6 @@ pub struct ToolCall {
     pub arguments: serde_json::Value,
 }
 
-/// Bookkeeping for one executed tool call. Not persisted on its own: the
-/// `role: "tool"` message already carries the name, the matching call id and the
-/// raw result (including an `error` key when the tool failed).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ToolInvocation {
-    pub id: String,
-    pub name: String,
-    pub arguments: serde_json::Value,
-    pub result: serde_json::Value,
-    pub ok: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageEnvelope {
     pub id: String,

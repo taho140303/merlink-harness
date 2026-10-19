@@ -12,7 +12,7 @@ use crate::{
     db,
     models::{
         AgentEvent, ChatTurn, MessageEnvelope, MessageMeta, ProviderConfig, SuperJsonProgress,
-        TokenUsage, ToolInvocation,
+        TokenUsage,
     },
     store, tools,
 };
@@ -428,24 +428,16 @@ pub async fn run_agent_turn(
             let outcome =
                 tools::execute_tool(&call.name, &call.arguments, &effective_project_id, &session_id);
             let duration_ms = elapsed_ms(tool_started);
-            let (result, ok, error) = match outcome {
-                Ok(value) => (value, true, None),
+            let (result, ok) = match outcome {
+                Ok(value) => (value, true),
                 // A failing tool must not kill the turn: the model gets the error
                 // back and can correct itself.
-                Err(message) => (json!({ "error": message }), false, Some(message)),
-            };
-            let invocation = ToolInvocation {
-                id: call.id.clone(),
-                name: call.name.clone(),
-                arguments: call.arguments.clone(),
-                result: result.clone(),
-                ok,
-                error,
+                Err(message) => (json!({ "error": message }), false),
             };
             // D6: the long-standing stderr log now carries the measured duration.
             eprintln!(
                 "[merlink] tool {} ok={} ms={} args={} result={}",
-                invocation.name, invocation.ok, duration_ms, invocation.arguments, invocation.result
+                call.name, ok, duration_ms, call.arguments, result
             );
             let tool_message =
                 MessageEnvelope::tool_result(new_id("tool"), &call.id, &call.name, &result);
@@ -508,29 +500,28 @@ pub async fn run_agent_turn(
     })
 }
 
-/// Asks the provider which models it serves (Sprint 11.5 · D1).
-///
-/// The network call lives in [`crate::adapters::fetch_models`]; this is the entry
-/// point the Tauri command and the online e2e test share.
-pub async fn fetch_models_internal(
-    kind: &str,
-    base_url: &str,
-    api_key: &str,
-) -> Result<Vec<crate::models::FetchedModel>, String> {
-    crate::adapters::fetch_models(kind, base_url, api_key).await
-}
-
+/// The public tool command must never accept a caller-selected project for a
+/// session-bound super JSON operation. The agent loop already resolves its own
+/// project from the session before calling `tools::execute_tool` directly.
 pub fn execute_tool_internal(
     tool_name: &str,
     args: serde_json::Value,
     project_id: &str,
     session_id: &str,
 ) -> Result<serde_json::Value, String> {
-    tools::execute_tool(tool_name, &args, project_id, session_id)
-}
-
-pub fn super_json_document(project_id: &str) -> Result<serde_json::Value, String> {
-    crate::super_json::load_or_init(project_id)
+    let bound_project = if matches!(tool_name, "super_json_get" | "super_json_set" | "super_json_missing") {
+        let connection = db::open()?;
+        let bound = db::project_for_session(&connection, session_id)?
+            .filter(|id| !id.is_empty())
+            .ok_or("This chat is not bound to a project. Call project_create first.")?;
+        if !project_id.is_empty() && project_id != bound {
+            return Err("Project does not belong to this session".into());
+        }
+        bound
+    } else {
+        project_id.to_owned()
+    };
+    tools::execute_tool(tool_name, &args, &bound_project, session_id)
 }
 
 /// The `Chi tiết` dialog's prose summary (Sprint 11.11 · D2): a template fill
@@ -1956,7 +1947,7 @@ mod tests {
     #[test]
     #[ignore = "requires the local dev endpoint on 127.0.0.1:8045"]
     fn test_real_endpoint_fetch_models() {
-        let models = tauri::async_runtime::block_on(fetch_models_internal(
+        let models = tauri::async_runtime::block_on(crate::adapters::fetch_models(
             "openai",
             "http://127.0.0.1:8045/v1",
             &e2e_api_key(),
@@ -2035,7 +2026,7 @@ mod tests {
     #[test]
     #[ignore = "requires the local dev endpoint on 127.0.0.1:8045"]
     fn test_real_endpoint_fetch_models_bad_key() {
-        let error = tauri::async_runtime::block_on(fetch_models_internal(
+        let error = tauri::async_runtime::block_on(crate::adapters::fetch_models(
             "openai",
             "http://127.0.0.1:8045/v1",
             "invalid-key-for-403-test",

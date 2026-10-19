@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { safeInvoke } from "../lib/tauri";
+import { invokeCommand } from "../lib/ipc";
 import {
   applyTextScale,
   readTextScale,
@@ -20,7 +20,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import type { ProviderConfig, ProviderKind, ModelConfig, FetchedModel } from "../types";
+import type { ProviderConfig, ProviderKind, ModelConfig } from "../types";
 
 export interface SettingsDialogProps {
   open: boolean;
@@ -135,7 +135,7 @@ export function SettingsDialog({
 
   const loadProvidersFromBackend = async () => {
     try {
-      const data = await safeInvoke<ProviderConfig[]>("load_providers");
+      const data = await invokeCommand("load_providers");
       if (Array.isArray(data)) {
         setProviders(data);
       }
@@ -273,7 +273,7 @@ export function SettingsDialog({
     setFetchNotice("");
     try {
       // D11: Tauri expects camelCase keys for Rust parameter names.
-      const fetched = await safeInvoke<FetchedModel[]>("fetch_models", {
+      const fetched = await invokeCommand("fetch_models", {
         providerKind: form.kind,
         baseUrl: providerBaseURL(),
         apiKey: form.apiKey.trim(),
@@ -338,7 +338,7 @@ export function SettingsDialog({
     savingRef.current = true;
     setSaving(true);
     try {
-      await safeInvoke("save_providers", { providers: next });
+      await invokeCommand("save_providers", { providers: next });
       setProviders(next);
       setNotice(successMessage);
       onProvidersChanged();
