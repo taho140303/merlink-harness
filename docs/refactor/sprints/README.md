@@ -15,7 +15,7 @@ dependency, and update its own status line here.
 | S5 | [05-provider-lifecycle.md](05-provider-lifecycle.md) | done | `refactor/s5-provider-lifecycle` | F-08–F-12, F-17 |
 | S6 | [06-ipc-and-preview.md](06-ipc-and-preview.md) | done | `refactor/s6-ipc-preview` | F-13–F-16 |
 | S7 | [07-ui-correctness.md](07-ui-correctness.md) | done | `refactor/s7-ui-correctness` | F-18, F-19 |
-| S8 | [08-platform-and-read-boundary.md](08-platform-and-read-boundary.md) | ready | `refactor/s8-platform-read-boundary` | F-21 |
+| S8 | [08-platform-and-read-boundary.md](08-platform-and-read-boundary.md) | pushed | `refactor/s8-platform-read-boundary` | F-21 |
 
 ## Rules for every sprint subagent
 

@@ -424,13 +424,38 @@ fn test_ipc_super_json_progress_end_to_end() {
 }
 
 #[test]
+fn test_ipc_unknown_project_reads_do_not_create_ghost_document() {
+    let harness = Harness::new("ipc-super-json-ghost");
+    let ghost = "contract-ghost";
+    let directory = harness.home.path().join("projects").join(ghost);
+    for command in ["super_json_read", "super_json_summary"] {
+        let error = harness.call(command, json!({ "projectId": ghost }))
+            .expect_err("unknown project must not be read");
+        assert_eq!(error_text(&error), format!("Project not found: {ghost}"));
+        assert!(!directory.join("super.json").exists(), "{command} created a ghost document");
+        assert!(!directory.exists(), "{command} created a ghost project directory");
+    }
+    for command in ["super_json_read", "super_json_summary"] {
+        let error = harness.call(command, json!({ "projectId": "  " }))
+            .expect_err("blank project id must be rejected");
+        assert!(!error_text(&error).is_empty());
+    }
+}
+
+#[test]
 fn test_ipc_super_json_summary_end_to_end() {
     let harness = Harness::new("ipc-super-json-summary");
 
-    // 1. A project nobody has filled yet: `load_or_init` writes the skeleton and
-    //    the template prints the placeholder everywhere. The result is prose, not
-    //    the raw document.
-    let empty = harness.ok("super_json_summary", body_super_json_summary());
+    // 1. Create an unnamed project first: reads must not create SQLite projects.
+    //    Its skeleton still prints the placeholder everywhere as prose.
+    let unnamed = harness.ok("execute_tool", json!({
+        "toolName": "project_create", "args": {},
+        "projectId": "", "sessionId": "contract-session-empty-summary"
+    }));
+    let empty_project_id = unnamed["project_id"].as_str().expect("project id");
+    let empty_document = harness.ok("super_json_read", json!({ "projectId": empty_project_id }));
+    assert!(empty_document["require"]["overview"]["name"].is_null());
+    let empty = harness.ok("super_json_summary", json!({ "projectId": empty_project_id }));
     let empty = empty.as_str().expect("super_json_summary returns a string");
     assert_eq!(empty.split("\n\n").count(), 6, "expected six paragraphs:\n{empty}");
     assert!(

@@ -134,7 +134,7 @@ fn execute_tool(
 
 #[tauri::command]
 fn super_json_read(project_id: String) -> Result<serde_json::Value, String> {
-    super_json::load_or_init(&project_id)
+    runtime::super_json_document(&project_id)
 }
 
 /// Progress for the chat header (D7). Computed in Rust: the frontend renders the

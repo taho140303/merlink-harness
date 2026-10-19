@@ -110,6 +110,17 @@ pub fn ensure_project(
     Ok(())
 }
 
+/// Check the project row without creating a project or document.
+pub fn project_exists(connection: &Connection, project_id: &str) -> Result<bool, String> {
+    connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?1)",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("Cannot check project: {error}"))
+}
+
 /// Reserve an ID without changing an existing project's title. Only an ID
 /// primary-key conflict is a retryable collision; other constraints are errors.
 pub fn create_project(
@@ -572,6 +583,18 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, 2);
+    }
+
+    #[test]
+    fn test_project_exists_is_read_only() {
+        let _home = crate::test_support::TempHome::new("db-project-exists");
+        let connection = open().unwrap();
+        assert!(!project_exists(&connection, "ghost").unwrap());
+        assert!(list_projects(&connection).unwrap().is_empty());
+        ensure_project(&connection, "real", "Real project").unwrap();
+        assert!(project_exists(&connection, "real").unwrap());
+        assert!(!project_exists(&connection, "ghost").unwrap());
+        assert_eq!(list_projects(&connection).unwrap(), ["real"]);
     }
 
     #[test]
