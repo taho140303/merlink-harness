@@ -72,6 +72,7 @@ misleading behavior or expensive drift; **Low** = maintenance cost.
 | F-18 | Medium | Character/browser storage is trusted; story defaults silently to the first project; portrait reads race | no pattern applies | `src/lib/characters.ts:94-103`; `src/components/CharacterForm.tsx:38-69` | 2/6 | S7 |
 | F-19 | Medium | Settings nested editor claims modality without a focus boundary; theme logic is duplicated | no pattern applies | `src/components/SettingsDialog.tsx:171-193,638-653`; `src/App.tsx:75-89` | 2/6 | S7 |
 | F-20 | Low | `Chat.tsx` (980) and `SettingsDialog.tsx` (1,008) mix session orchestration, rendering, and persistence | Facade / Composite (native React) | `src/pages/Chat.tsx:203-245`; `src/components/SettingsDialog.tsx:65-112` | 2/6 | backlog |
+| F-21 | High on Windows / Medium else | Windows `HOME` is unset and unknown-project reads create ghost documents | no pattern applies | `src-tauri/src/paths.rs:7-15`; `src-tauri/src/lib.rs:135-155`; `src-tauri/src/super_json.rs:218-230` | 1/6 | S8 |
 
 ### Cross-review agreement
 
@@ -293,7 +294,7 @@ Phase 1 is complete when all of the following are true:
       section.
 - [x] This synthesis ranks the merged findings and maps every scheduled unit to
       a sprint.
-- [ ] All eight sprint specs exist and each has a branch pushed with a green
+- [ ] All nine sprint specs exist and each has a branch pushed with a green
       `cargo test` and `pnpm build`.
 - [ ] The root repository has a real README, CONTRIBUTING, and LICENSE.
 - [ ] `main` contains the merged sprint work, and the final tip is verified with
