@@ -653,6 +653,42 @@ fn test_ipc_execute_tool_end_to_end() {
     );
 }
 
+#[test]
+fn test_ipc_execute_tool_rejects_project_from_another_session() {
+    let harness = Harness::new("ipc-execute-tool-project-guard");
+    let created_a = harness.ok("execute_tool", json!({
+        "toolName": "project_create", "args": { "name": "Alpha" },
+        "projectId": "", "sessionId": "session-a"
+    }));
+    let created_b = harness.ok("execute_tool", json!({
+        "toolName": "project_create", "args": { "name": "Beta" },
+        "projectId": "", "sessionId": "session-b"
+    }));
+    let project_a = created_a["project_id"].as_str().unwrap();
+    let project_b = created_b["project_id"].as_str().unwrap();
+    assert_ne!(project_a, project_b);
+
+    let error = harness.call("execute_tool", json!({
+        "toolName": "super_json_set",
+        "args": { "path": "require.genre.primary", "value": "cross-session" },
+        "projectId": project_b, "sessionId": "session-a"
+    })).expect_err("cross-session project mutation must fail");
+    assert_eq!(error_text(&error), "Project does not belong to this session");
+    assert!(crate::super_json::get(project_b, "require.genre.primary").unwrap().is_null());
+
+    let bound = harness.ok("execute_tool", json!({
+        "toolName": "super_json_get", "args": {},
+        "projectId": "", "sessionId": "session-a"
+    }));
+    assert_eq!(bound["require"]["overview"]["name"], json!("Alpha"));
+
+    let unbound = harness.call("execute_tool", json!({
+        "toolName": "super_json_get", "args": {},
+        "projectId": project_a, "sessionId": "session-unbound"
+    })).expect_err("an unbound session must not read another project");
+    assert!(error_text(&unbound).starts_with("This chat is not bound to a project"));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // The Sprint 9 trap: camelCase is the only accepted spelling
 // ─────────────────────────────────────────────────────────────────────────────

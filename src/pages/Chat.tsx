@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
-import { createAgentEventChannel, safeInvoke } from "../lib/tauri";
+import { createAgentEventChannel } from "../lib/tauri";
+import { invokeCommand } from "../lib/ipc";
 import { newMessageId, newSessionId } from "../lib/ids";
 import { Markdown } from "../components/Markdown";
 import { Dialog } from "../components/Dialog";
@@ -24,7 +25,6 @@ import {
 } from "lucide-react";
 import type {
   AgentEvent,
-  ChatTurn,
   MessageEnvelope,
   ProviderConfig,
   SuperJsonProgress,
@@ -282,7 +282,7 @@ export function Chat() {
       return;
     }
     try {
-      const document = await safeInvoke<unknown>("super_json_read", {
+      const document = await invokeCommand("super_json_read", {
         projectId: id,
       });
       if (!isCurrentRead(epoch, session, project)) return;
@@ -307,7 +307,7 @@ export function Chat() {
       return;
     }
     try {
-      const text = await safeInvoke<string>("super_json_summary", {
+      const text = await invokeCommand("super_json_summary", {
         projectId: id,
       });
       if (!isCurrentRead(epoch, session, project)) return;
@@ -332,7 +332,7 @@ export function Chat() {
     const session = sessionRef.current;
     const project = projectRef.current;
     try {
-      const next = await safeInvoke<SuperJsonProgress>("super_json_progress", {
+      const next = await invokeCommand("super_json_progress", {
         sessionId: session,
       });
       if (!isCurrentRead(epoch, session, project)) return;
@@ -350,7 +350,7 @@ export function Chat() {
     const provider = providerRef.current;
     const model = modelRef.current;
     try {
-      const next = await safeInvoke<ContextUsage>("context_usage", { sessionId: session, providerId: provider, modelId: model });
+      const next = await invokeCommand("context_usage", { sessionId: session, providerId: provider, modelId: model });
       if (!isCurrentRead(epoch, session, project) || providerRef.current !== provider || modelRef.current !== model) return;
       setContextUsage(next);
     } catch (err) {
@@ -371,7 +371,7 @@ export function Chat() {
   // hardcoded map in the frontend. Browser mode answers from its mock.
   useEffect(() => {
     let cancelled = false;
-    safeInvoke<Record<string, string>>("super_json_labels")
+    invokeCommand("super_json_labels")
       .then((labels) => {
         if (!cancelled && labels) setPathLabels(labels);
       })
@@ -401,7 +401,7 @@ export function Chat() {
 
   async function loadProviders(isCancelled: () => boolean) {
     try {
-      const list = await safeInvoke<ProviderConfig[]>("load_providers");
+      const list = await invokeCommand("load_providers");
       if (!mountedRef.current || isCancelled() || !Array.isArray(list)) return;
       setProviders(list);
       // Keep the live selection when still valid; otherwise prefer a provider
@@ -512,7 +512,7 @@ export function Chat() {
 
     // On a failed turn, only SQLite knows which tool calls/results survived.
     async function reloadSessionMessages(sessionId: string) {
-      const stored = await safeInvoke<MessageEnvelope[]>("list_messages", { sessionId });
+      const stored = await invokeCommand("list_messages", { sessionId });
       if (isCurrentTurn(epoch, sessionId)) setMessages(stored);
     }
 
@@ -528,7 +528,7 @@ export function Chat() {
       // One turn can append several messages: the assistant's tool request, the
       // tool results, then the final answer. `project_id` is the binding the
       // backend resolved, which may have been created by this very turn.
-      const turn = await safeInvoke<ChatTurn>("send_chat", {
+      const turn = await invokeCommand("send_chat", {
         providerId: selectedProviderId,
         modelId: selectedModelId,
         messages: nextMessages,
@@ -570,7 +570,7 @@ export function Chat() {
       }
       if (!isCurrentTurn(epoch, turnSessionId)) return;
       try {
-        const next = await safeInvoke<SuperJsonProgress>("super_json_progress", {
+        const next = await invokeCommand("super_json_progress", {
           sessionId: turnSessionId,
         });
         if (!isCurrentTurn(epoch, turnSessionId)) return;

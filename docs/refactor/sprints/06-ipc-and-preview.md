@@ -1,6 +1,6 @@
 # S6 — IPC boundary and browser preview
 
-- **Status:** blocked by S5
+- **Status:** pushed
 - **Branch:** `refactor/s6-ipc-preview`
 - **Units:** F-13, F-14, F-15, F-16
 - **Depends on:** S5

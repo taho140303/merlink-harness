@@ -134,7 +134,7 @@ fn execute_tool(
 
 #[tauri::command]
 fn super_json_read(project_id: String) -> Result<serde_json::Value, String> {
-    runtime::super_json_document(&project_id)
+    super_json::load_or_init(&project_id)
 }
 
 /// Progress for the chat header (D7). Computed in Rust: the frontend renders the
@@ -187,7 +187,7 @@ async fn fetch_models(
     base_url: String,
     api_key: String,
 ) -> Result<Vec<models::FetchedModel>, String> {
-    runtime::fetch_models_internal(&provider_kind, &base_url, &api_key).await
+    adapters::fetch_models(&provider_kind, &base_url, &api_key).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
