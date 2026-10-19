@@ -125,13 +125,17 @@ function seedMockSessions(): void {
 
 function mockProjectTitle(projectId: string): string | null {
   if (!projectId) return null;
-  return mockProjects.find((project) => project.id === projectId)?.title ?? projectId;
+  const seeded = mockProjects.find((project) => project.id === projectId);
+  if (seeded) return seeded.title;
+  const owner = [...sessions.values()].find((session) => session.projectId === projectId);
+  const name = owner?.values.get("require.project.name");
+  return typeof name === "string" && name.trim() ? name.trim() : "Dự án chưa đặt tên";
 }
 
 function mockDisplayTitle(session: MockSession): string {
   if (session.title?.trim()) return session.title.trim();
   const firstUser = session.messages.find((message) => message.role === "user")?.content ?? "";
-  const collapsed = firstUser.trim().replace(/\\s+/g, " ");
+  const collapsed = firstUser.trim().replace(/\s+/g, " ");
   if (!collapsed) return "New conversation";
   return collapsed.length > 60 ? `${Array.from(collapsed).slice(0, 60).join("")}…` : collapsed;
 }

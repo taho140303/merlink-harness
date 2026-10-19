@@ -99,6 +99,7 @@ function Shell() {
   const [renameError, setRenameError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const cancelRenameRef = useRef(false);
 
   const loadSessions = async () => {
     try { setSessions(await invokeCommand("list_sessions")); setSessionsError(false); }
@@ -176,6 +177,7 @@ function Shell() {
     if (!activeSessionId) autoExpandedActiveRef.current = null;
   }, [activeSessionId, sessions]);
   const beginRename = (session: SessionSummary) => {
+    cancelRenameRef.current = false;
     setMenuFor(null); setRenamingId(session.id); setRenameValue(session.title); setRenameError(null);
   };
   const saveRename = async (sessionId: string) => {
@@ -206,7 +208,7 @@ function Shell() {
   const renderSession = (session: SessionSummary) => (
     <div className={`merlink-session-row${activeSessionId === session.id ? " merlink-session-open" : ""}`} key={session.id}>
       {renamingId === session.id ? <div className="merlink-session-rename-wrap">
-        <input ref={renameInputRef} className="merlink-session-rename" value={renameValue} aria-label={`Rename ${session.title}`} onChange={(event) => { setRenameValue(event.target.value); setRenameError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void saveRename(session.id); } if (event.key === "Escape") { setRenamingId(null); setRenameError(null); } }} onBlur={() => { void saveRename(session.id); }} />
+        <input ref={renameInputRef} className="merlink-session-rename" value={renameValue} aria-label={`Rename ${session.title}`} onChange={(event) => { setRenameValue(event.target.value); setRenameError(null); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } if (event.key === "Escape") { event.preventDefault(); cancelRenameRef.current = true; event.currentTarget.blur(); setRenamingId(null); setRenameError(null); } }} onBlur={() => { if (cancelRenameRef.current) { cancelRenameRef.current = false; return; } void saveRename(session.id); }} />
         {renameError && <div className="merlink-session-error" role="alert">{renameError}</div>}
       </div> : <NavLink className="merlink-session-title" to={`/chat/${encodeURIComponent(session.id)}`} onClick={() => setMenuFor(null)}>{session.title}</NavLink>}
       <button type="button" className="merlink-session-more" aria-label={`Session actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menuFor === session.id} onClick={() => setMenuFor(menuFor === session.id ? null : session.id)}><MoreVertical size={17} /></button>
