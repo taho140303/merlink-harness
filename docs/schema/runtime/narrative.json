@@ -1,0 +1,41 @@
+{
+    "grammatical_person": {
+        "first_person": {
+            "protagonist": "Tôi là nhân vật chính, đào sâu nội tâm, chỉ biết những gì bản thân trải nghiệm.",
+            "witness_peripheral": "Tôi là nhân chứng hoặc nhân vật phụ, quan sát và kể lại về nhân vật trung tâm.",
+            "unreliable": "Người kể xưng tôi nhưng thiên lệch, dối trá, ảo giác hoặc che giấu sự thật."
+        },
+        "second_person": {
+            "direct_address": "Người kể xưng bạn/mày trực tiếp hướng về một nhân vật cụ thể.",
+            "self_reflection": "Dùng bạn/mày để tự độc thoại, phân tách bản thân với trải nghiệm cá nhân.",
+            "interactive": "Mô phỏng cơ chế game hoặc sách tương tác, đặt người đọc vào vị trí chủ thể hành động."
+        },
+        "third_person": {
+            "omniscient": "Toàn tri, đứng ngoài thấy hết suy nghĩ của mọi người, quá khứ lẫn tương lai.",
+            "limited": "Hạn tri, bám sát góc nhìn và chỉ biết những gì một nhân vật cụ thể nhận thức.",
+            "objective": "Ống kính máy quay, chỉ ghi lại lời thoại và hành động cụ thể, không phơi bày suy nghĩ."
+        }
+    },
+    "focalization_and_pov": {
+        "focalizer_type": "Chỉ định rõ ai là người nhìn/cảm nhận (khác với người cất tiếng kể).",
+        "scope": {
+            "single_pov": "Duy trì xuyên suốt một góc nhìn duy nhất qua toàn bộ phân cảnh.",
+            "multiple_pov": "Chuyển dịch góc nhìn luân phiên giữa các nhân vật qua từng đoạn hoặc chương.",
+            "shifting_omniscient": "Toàn tri nhưng lia ống kính linh hoạt qua nhiều chủ thể trong cùng bối cảnh."
+        }
+    },
+    "narrative_traits": {
+        "reliability": {
+            "is_reliable": true,
+            "bias_cause": "Nếu không đáng tin, nêu rõ: dối trá, hiểu sai, mất trí nhớ, chối bỏ, hoang tưởng."
+        },
+        "narrator_count": {
+            "single": "Chỉ một tiếng nói dẫn chuyện duy nhất.",
+            "polyphonic": "Đa thanh, nhiều người kể đối nghịch nhau về cùng một sự việc."
+        },
+        "metafiction": {
+            "breaks_fourth_wall": false,
+            "meta_commentary": "Người kể tự ý thức về văn bản, bình luận về độc giả hoặc cấu trúc câu chuyện."
+        }
+    }
+}

@@ -1,0 +1,28 @@
+{
+    "character_added_to_the_scene": [
+        {
+            "id": "impact_force",
+            "label": "Tác động lực",
+            "checked": false,
+            "question": "Nhân vật này có hành động nào ép nhân vật khác phải phản ứng hoặc đổi hướng quyết định không?"
+        },
+        {
+            "id": "pressure_creation",
+            "label": "Tạo áp lực",
+            "checked": false,
+            "question": "Nhân vật này có trở thành gánh nặng bắt buộc người khác phải bảo vệ trong hiểm cảnh (tạo thêm rủi ro thực sự) hay chỉ bị cất tạm vào góc?"
+        },
+        {
+            "id": "deletion_test",
+            "label": "Phép thử xóa bỏ",
+            "checked": false,
+            "question": "Thử xóa nhân vật này khỏi phân cảnh, kết quả trận chiến/cuộc đối thoại có giữ nguyên 100% không?",
+            "if_yes": "xóa ngay hoặc gộp vai trò vào nhân vật khác"
+        }
+    ],
+    "Uncategorized": [
+        "Internal contradiction should emerge from the character's established personality, values, history, and circumstances. Do not manufacture psychological conflict merely to make a character appear deep.",
+        "KHÔNG miêu tả lại ngoại hình trừ khi có scene tag 'mirror_scene' hoặc 'new_pov_character'. Chỉ được phép nhắc 1-2 chi tiết ngắn (ví dụ: 'ánh mắt xám bạc thoáng qua') khi cần thiết.",
+        "Cấm tuyệt đối kí tự —, thay thế bằng -"
+    ]
+}

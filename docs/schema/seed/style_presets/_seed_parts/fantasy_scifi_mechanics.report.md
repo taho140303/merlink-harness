@@ -1,0 +1,18 @@
+# fantasy_scifi_mechanics
+- files processed: 5
+- presets emitted: 5
+- vocab items: 15
+- focus items: 15
+- device links: 25 (primary: 5, secondary: 10, avoid: 10)
+- unique devices: 25
+- warnings:
+  - "crafting_enhancement.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+  - "evolution_awakening.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+  - "evolution_awakening.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+  - "hacking_decryption.json: imagery.olfactory='khong' → NONE (typo 'khong')"
+  - "hacking_decryption.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+  - "summoning_ritual.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+  - "time_leap_loop.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+  - "time_leap_loop.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- device description conflicts:
+  - none

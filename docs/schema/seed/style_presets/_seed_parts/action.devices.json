@@ -1,0 +1,234 @@
+[
+  {
+    "code": "an_du",
+    "description": "Ẩn dụ"
+  },
+  {
+    "code": "diep_cau_truc_cau_cut_mo_ho",
+    "description": "Điệp cấu trúc câu cụt mơ hồ"
+  },
+  {
+    "code": "dao_ngu_nhan_khoanh_khac_tiep_xuc",
+    "description": "Đảo ngữ nhấn khoảnh khắc tiếp xúc"
+  },
+  {
+    "code": "tuong_thanh_on",
+    "description": "Tượng thanh ồn"
+  },
+  {
+    "code": "cau_hoi_tu_tu_boc_phat",
+    "description": "Câu hỏi tu từ bộc phát"
+  },
+  {
+    "code": "phep_doi_liet_ke_hon_tap",
+    "description": "Phép đối & liệt kê hỗn tạp"
+  },
+  {
+    "code": "tuong_thanh_don_dap",
+    "description": "Tượng thanh dồn dập"
+  },
+  {
+    "code": "diep_tu_chi_so_luong_dam_dong",
+    "description": "Điệp từ chỉ số lượng đám đông"
+  },
+  {
+    "code": "tap_trung_vao_ca_nhan",
+    "description": "Tập trung vào cá nhân"
+  },
+  {
+    "code": "nhip_van_cham",
+    "description": "Nhịp văn chậm"
+  },
+  {
+    "code": "tuong_thanh_nhip_do_diep_khuc_xa_gan",
+    "description": "Tượng thanh nhịp độ & điệp khúc 'xa/gần'"
+  },
+  {
+    "code": "liet_ke_chuong_ngai",
+    "description": "Liệt kê chướng ngại"
+  },
+  {
+    "code": "cau_cut_lien_tiep_khong_lien_tu",
+    "description": "Câu cụt liên tiếp không liên từ"
+  },
+  {
+    "code": "cau_ghep_dai",
+    "description": "Câu ghép dài"
+  },
+  {
+    "code": "an_du_tru_tinh",
+    "description": "Ẩn dụ trữ tình"
+  },
+  {
+    "code": "diep_dong_tu_manh_tuong_thanh_va_cham",
+    "description": "Điệp động từ mạnh & tượng thanh va chạm"
+  },
+  {
+    "code": "cau_cut_lien_tiep",
+    "description": "Câu cụt liên tiếp"
+  },
+  {
+    "code": "phep_liet_ke_don_danh",
+    "description": "Phép liệt kê đòn đánh"
+  },
+  {
+    "code": "diep_cau_truc_the_dung_nhip_tho",
+    "description": "Điệp cấu trúc thế đứng & nhịp thở"
+  },
+  {
+    "code": "phep_doi_giua_hai_doi_thu",
+    "description": "Phép đối giữa hai đối thủ"
+  },
+  {
+    "code": "so_sanh_chuyen_dong_chinh_xac",
+    "description": "So sánh chuyển động chính xác"
+  },
+  {
+    "code": "tuong_thanh_on_ao",
+    "description": "Tượng thanh ồn ào"
+  },
+  {
+    "code": "mieu_ta_ngoai_canh_dai",
+    "description": "Miêu tả ngoại cảnh dài"
+  },
+  {
+    "code": "liet_ke_don_dap_cau_cut_lien_tiep_tao_hieu_ung_ngop_tho",
+    "description": "Liệt kê dồn dập & câu cụt liên tiếp (tạo hiệu ứng ngộp thở)"
+  },
+  {
+    "code": "tuong_thanh_tieng_dong_duoi_theo",
+    "description": "Tượng thanh tiếng động đuổi theo"
+  },
+  {
+    "code": "dao_ngu_nhan_loi_thoat",
+    "description": "Đảo ngữ nhấn lối thoát"
+  },
+  {
+    "code": "cau_dai",
+    "description": "Câu dài"
+  },
+  {
+    "code": "an_du_triet_ly",
+    "description": "Ẩn dụ triết lý"
+  },
+  {
+    "code": "diep_tu",
+    "description": "Điệp từ"
+  },
+  {
+    "code": "dao_ngu_dua_tan_ngu_trang_ngu_len_truoc",
+    "description": "Đảo ngữ (đưa tân ngữ/trạng ngữ lên trước)"
+  },
+  {
+    "code": "cau_rut_gon_chu_ngu",
+    "description": "Câu rút gọn chủ ngữ"
+  },
+  {
+    "code": "an_du_hoa_my",
+    "description": "Ẩn dụ hoa mỹ"
+  },
+  {
+    "code": "so_sanh_dai_dong",
+    "description": "So sánh dài dòng"
+  },
+  {
+    "code": "cau_hoi_tu_tu",
+    "description": "Câu hỏi tu từ"
+  },
+  {
+    "code": "so_sanh_ngam_an_du_chuyen_doi_cam_giac",
+    "description": "So sánh ngầm (Ẩn dụ chuyển đổi cảm giác)"
+  },
+  {
+    "code": "cau_rut_gon_canh_bao",
+    "description": "Câu rút gọn cảnh báo"
+  },
+  {
+    "code": "liet_ke_huong_dan_di_chuyen_re_tranh_luot",
+    "description": "Liệt kê hướng dẫn di chuyển (rẽ, tránh, lướt)"
+  },
+  {
+    "code": "diep_cau_truc_qua_deu_dan",
+    "description": "Điệp cấu trúc quá đều đặn"
+  },
+  {
+    "code": "phep_doi_canh_nguoi_qua_khu_hien_tai_ben_trong_ben_ngoai",
+    "description": "Phép đối (cảnh - người, quá khứ - hiện tại, bên trong - bên ngoài)"
+  },
+  {
+    "code": "cau_hoi_tu_tu_ve_so_phan",
+    "description": "Câu hỏi tu từ về số phận"
+  },
+  {
+    "code": "an_du_manh_anh_sang_bong_toi_song_nui",
+    "description": "Ẩn dụ mạnh (ánh sáng/bóng tối, sông/núi)"
+  },
+  {
+    "code": "diep_tu_nhan_thoi_khac",
+    "description": "Điệp từ nhấn thời khắc"
+  },
+  {
+    "code": "mia_mai_cham_biem",
+    "description": "Mỉa mai châm biếm"
+  },
+  {
+    "code": "cau_cut_vo_cam",
+    "description": "Câu cụt vô cảm"
+  },
+  {
+    "code": "so_sanh_cam_giac",
+    "description": "So sánh cảm giác"
+  },
+  {
+    "code": "diep_tu_chi_su_met_moi_kiet_suc",
+    "description": "Điệp từ chỉ sự mệt mỏi, kiệt sức"
+  },
+  {
+    "code": "cau_hoi_tu_tu_tham_thi_trong_suy_nghi",
+    "description": "Câu hỏi tu từ thầm thì trong suy nghĩ"
+  },
+  {
+    "code": "lac_quan_thai_qua",
+    "description": "Lạc quan thái quá"
+  },
+  {
+    "code": "tu_ngu_hanh_dong_hon_ho",
+    "description": "Từ ngữ hành động hớn hở"
+  },
+  {
+    "code": "liet_ke_trinh_tu_cau_menh_lenh",
+    "description": "Liệt kê trình tự & câu mệnh lệnh"
+  },
+  {
+    "code": "lap_cau_truc_dieu_kien_neu_thi",
+    "description": "Lặp cấu trúc điều kiện (Nếu... thì...)"
+  },
+  {
+    "code": "so_sanh_doi_chieu_sua_sai",
+    "description": "So sánh đối chiếu sửa sai"
+  },
+  {
+    "code": "diep_tu_cam_xuc",
+    "description": "Điệp từ cảm xúc"
+  },
+  {
+    "code": "liet_ke_toan_canh_diep_cau_truc_so_sanh_luc_luong",
+    "description": "Liệt kê toàn cảnh & điệp cấu trúc so sánh lực lượng"
+  },
+  {
+    "code": "cau_ghep_dai_mang_tinh_thong_ke",
+    "description": "Câu ghép dài mang tính thống kê"
+  },
+  {
+    "code": "an_du_ve_co_vua_hoac_ban_co",
+    "description": "Ẩn dụ về cờ vua hoặc bàn cờ"
+  },
+  {
+    "code": "cam_xuc_ca_nhan",
+    "description": "Cảm xúc cá nhân"
+  },
+  {
+    "code": "tuong_thanh_hon_loan",
+    "description": "Tượng thanh hỗn loạn"
+  }
+]

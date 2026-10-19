@@ -1,0 +1,102 @@
+[
+  {
+    "code": "phep_doi_toi_da_tin_hoa_ra_diep_khoang_lang",
+    "description": "Phép đối 'tôi đã tin – hoá ra' & điệp khoảng lặng"
+  },
+  {
+    "code": "cau_cham_lung_nghen_lai",
+    "description": "Câu chấm lửng nghẹn lại"
+  },
+  {
+    "code": "an_du_vet_thuong",
+    "description": "Ẩn dụ vết thương"
+  },
+  {
+    "code": "ngon_ngu_binh_than",
+    "description": "Ngôn ngữ bình thản"
+  },
+  {
+    "code": "mieu_ta_ngoai_canh_dai",
+    "description": "Miêu tả ngoại cảnh dài"
+  },
+  {
+    "code": "cau_hoi_tu_tu_ve_ban_than_an_du_lot_thuc_chat",
+    "description": "Câu hỏi tu từ về bản thân & ẩn dụ lốt/thực chất"
+  },
+  {
+    "code": "diep_cau_truc_phan_manh",
+    "description": "Điệp cấu trúc phân mảnh"
+  },
+  {
+    "code": "phep_doi_giua_cac_phan_cua_ban_than",
+    "description": "Phép đối giữa các phần của bản thân"
+  },
+  {
+    "code": "cau_khang_dinh_dut_khoat",
+    "description": "Câu khẳng định dứt khoát"
+  },
+  {
+    "code": "ngon_ngu_mia_mai",
+    "description": "Ngôn ngữ mỉa mai"
+  },
+  {
+    "code": "an_du_ve_trong_luong_ganh_nang_cau_hoi_tu_tu_dau_tranh",
+    "description": "Ẩn dụ về trọng lượng (gánh nặng) & câu hỏi tu từ đấu tranh"
+  },
+  {
+    "code": "dong_y_thuc_lap_di_lap_lai",
+    "description": "Dòng ý thức lặp đi lặp lại"
+  },
+  {
+    "code": "phep_doi_ly_tri_cam_xuc",
+    "description": "Phép đối lý trí – cảm xúc"
+  },
+  {
+    "code": "doi_thoai_voi_nguoi_khac",
+    "description": "Đối thoại với người khác"
+  },
+  {
+    "code": "ngon_ngu_hai_huoc",
+    "description": "Ngôn ngữ hài hước"
+  },
+  {
+    "code": "tuong_thanh_am_anh_diep_hinh_anh_qua_khu_xam_nhap",
+    "description": "Tượng thanh ám ảnh & điệp hình ảnh quá khứ xâm nhập"
+  },
+  {
+    "code": "phep_phong_dai_su_mat_kiem_soat",
+    "description": "Phép phóng đại sự mất kiểm soát"
+  },
+  {
+    "code": "cau_cut_hon_loan_khong_dau_phay",
+    "description": "Câu cụt hỗn loạn không dấu phẩy"
+  },
+  {
+    "code": "mach_lac_logic",
+    "description": "Mạch lạc logic"
+  },
+  {
+    "code": "ngon_ngu_binh_tinh",
+    "description": "Ngôn ngữ bình tĩnh"
+  },
+  {
+    "code": "an_du_anh_sang_tu_do_diep_cau_truc_can_xung",
+    "description": "Ẩn dụ ánh sáng / tự do & điệp cấu trúc cân xứng"
+  },
+  {
+    "code": "phep_doi_buong_tay_nam_giu",
+    "description": "Phép đối buông tay – nắm giữ"
+  },
+  {
+    "code": "nhip_dieu_tram_deu",
+    "description": "Nhịp điệu trầm đều"
+  },
+  {
+    "code": "cau_hoi_tu_tu_mia_mai",
+    "description": "Câu hỏi tu từ mỉa mai"
+  },
+  {
+    "code": "ngon_ngu_bi_quan",
+    "description": "Ngôn ngữ bi quan"
+  }
+]

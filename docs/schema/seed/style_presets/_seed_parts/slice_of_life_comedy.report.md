@@ -1,0 +1,14 @@
+# slice_of_life_comedy
+- files processed: 5
+- presets emitted: 5
+- vocab items: 15
+- focus items: 15
+- device links: 25 (primary: 5, secondary: 10, avoid: 10)
+- unique devices: 24
+- warnings:
+  - "daily_routine.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+  - "prank_misunderstanding.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+  - "prank_misunderstanding.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+  - "shopping_preparation.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- device description conflicts:
+  - none

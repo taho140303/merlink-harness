@@ -1,0 +1,52 @@
+{
+  "$comment": "SUPER JSON — skeleton khởi tạo của một project. Nguồn: docs/design/super-json.md. Code Rust load file này qua include_str!. Leaf path trong 'require' = field bắt buộc; điền hết thì nút viết dàn ý mới sáng.",
+  "require": {
+    "overview": {
+      "name": null,
+      "logline": {
+        "trigger-event": null,
+        "main-character": null,
+        "action": null,
+        "risk": null,
+        "major-loss": null
+      },
+      "plan": {
+        "arc": { "count": null },
+        "chapter": { "count": null },
+        "word": { "count": null }
+      }
+    },
+    "genre": {
+      "primary": null
+    },
+    "theme": {
+      "question": null
+    }
+  },
+  "optional": {
+    "overview": {
+      "description": null,
+      "author": null,
+      "language": null,
+      "target-audience": null,
+      "age-rating": null,
+      "plan": {
+        "arc": { "tolerance": null },
+        "chapter": { "tolerance": null },
+        "word": { "tolerance": null }
+      }
+    },
+    "genre": {
+      "secondary": []
+    },
+    "theme": {
+      "resolution-type": null,
+      "resolution": null,
+      "message": null
+    },
+    "world": {
+      "has-power-system": null,
+      "setting-scale": null
+    }
+  }
+}

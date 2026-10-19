@@ -1,0 +1,1 @@
+Sau này nên thêm thuộc tính kiểu như điều kiện để nhân vật trả lời nó cần có knowledge và competence gì, qua arc đó nv chính sẽ kiếm được knowledge và competence đó để trả lời.

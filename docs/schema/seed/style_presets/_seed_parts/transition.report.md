@@ -1,0 +1,14 @@
+# transition
+- files processed: 4
+- presets emitted: 4
+- vocab items: 12
+- focus items: 12
+- device links: 20 (primary: 4, secondary: 8, avoid: 8)
+- unique devices: 20
+- warnings:
+  - "recovery_rest.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+  - "time_skip.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+  - "travel_montage.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+  - "waiting_anticipation.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+- device description conflicts:
+  - none

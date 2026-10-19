@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Story Configuration · Merlink Harness</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <style>
+    .story-page { --sc-ink:#212d46; --sc-muted:#60708a; --sc-faint:#8390a6; --sc-rule:rgba(83,104,148,.16); --sc-accent:#4c57cf; --sc-accent-strong:#3643b5; --sc-accent-tint:rgba(82,96,221,.10); --sc-field:rgba(255,255,255,.40); --sc-card:rgba(239,244,253,.32); color:var(--sc-ink); max-width:1228px; margin:0 auto; padding:14px 38px 124px; position:relative; min-height:100vh; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    :is(html.dark,body.dark,html[data-theme="dark"],body[data-theme="dark"]) .story-page { --sc-ink:#edf1fb; --sc-muted:#b3bfd0; --sc-faint:#91a0b6; --sc-rule:rgba(209,222,248,.13); --sc-accent:#aeb8ff; --sc-accent-strong:#c4caff; --sc-accent-tint:rgba(153,164,255,.16); --sc-field:rgba(51,58,75,.52); --sc-card:rgba(47,54,70,.46); }
+    .story-page *, .story-page *::before, .story-page *::after {box-sizing:border-box}
+    .story-page button,.story-page input,.story-page textarea {font:inherit}
+    .story-page button {cursor:pointer}
+    .story-page :focus-visible {outline:3px solid #8790f6; outline-offset:3px}
+    .sc-top {display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:33px}
+    .sc-top h1 {font-size:clamp(29px,3.3vw,42px);letter-spacing:-.055em;line-height:1.08;font-weight:720;margin:9px 0 10px}
+    .sc-top p {margin:0;max-width:610px;color:var(--sc-muted);font-size:14px;line-height:1.65}
+    .sc-eyebrow {font-size:10px;line-height:1.5;letter-spacing:.17em;text-transform:uppercase;font-weight:780;color:var(--sc-accent-strong)}
+    .sc-top-right {display:flex;align-items:center;gap:13px;flex-shrink:0;padding-top:3px}
+    .sc-status {display:inline-flex;align-items:center;gap:7px;color:var(--sc-muted);font-size:11px;font-weight:650;white-space:nowrap}
+    .sc-status-dot {width:7px;height:7px;border-radius:50%;background:#72bd99;box-shadow:0 0 0 3px rgba(114,189,153,.15)}
+    .sc-status.is-dirty .sc-status-dot {background:#e9ae5d;box-shadow:0 0 0 3px rgba(233,174,93,.16)}
+    .sc-theme {display:flex;align-items:center}
+    .sc-intro {display:flex;justify-content:space-between;align-items:center;gap:26px;border:1px solid var(--sc-rule);border-radius:23px;padding:19px 22px 19px 24px;margin:0 0 25px;position:relative;overflow:hidden}
+    .sc-intro::after {content:"";pointer-events:none;position:absolute;right:-42px;top:-75px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(153,173,255,.20),transparent 69%)}
+    .sc-intro-copy {display:flex;align-items:center;gap:17px;min-width:0;position:relative;z-index:1}
+    .sc-intro-symbol {width:46px;height:46px;display:grid;place-items:center;flex:0 0 auto;border-radius:15px;background:var(--sc-accent-tint);color:var(--sc-accent-strong);border:1px solid var(--sc-rule)}
+    .sc-intro strong {font-size:14px;letter-spacing:-.015em;display:block;margin-bottom:3px}
+    .sc-intro small {color:var(--sc-muted);font-size:12px;line-height:1.55;display:block}
+    .sc-intro-mark {display:flex;align-items:center;gap:7px;color:var(--sc-accent-strong);font-size:11px;font-weight:750;white-space:nowrap;position:relative;z-index:1}
+    .sc-tabs {display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:none;padding:6px;width:max-content;max-width:100%;border-radius:17px;margin-bottom:33px;border:1px solid var(--sc-rule)}
+    .sc-tabs::-webkit-scrollbar{display:none}
+    .sc-tab {display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--sc-muted);padding:11px 15px;white-space:nowrap;font-weight:680;font-size:12px;transition:background .2s,color .2s,transform .2s}
+    .sc-tab:hover {color:var(--sc-ink);background:var(--sc-accent-tint)}
+    .sc-tab[aria-selected="true"] {color:var(--sc-accent-strong);background:var(--sc-field);border-color:var(--sc-rule);box-shadow:-2px -2px 6px rgba(255,255,255,.42),3px 3px 9px rgba(29,44,73,.12)}
+    .story-page .sc-tabs,.story-page .sc-preset-button,.story-page .sc-add button,.story-page .sc-output-item,.story-page .sc-reset {background-color:var(--glass);box-shadow:var(--shadow-sm);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+    .story-page .sc-switch {box-shadow:var(--shadow-sm)}
+    .story-page .sc-switch[aria-checked="true"] {background-color:#656cdb}
+    .story-page .sc-tab[aria-selected="true"],.story-page .sc-output-item.is-selected {background-color:var(--sc-accent-tint)}
+    .sc-section-head {display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:21px}
+    .sc-section-head h2 {font-size:23px;line-height:1.2;letter-spacing:-.04em;margin:6px 0 5px;font-weight:720}
+    .sc-section-head p {color:var(--sc-muted);font-size:12px;line-height:1.55;margin:0;max-width:660px}
+    .sc-section-count {color:var(--sc-faint);font-size:11px;font-weight:700;white-space:nowrap;padding-bottom:3px}
+    .sc-preset-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .sc-preset {min-height:236px;display:flex;flex-direction:column;position:relative;border-radius:21px;border:1px solid var(--sc-rule);overflow:hidden;padding:19px 20px 18px;transition:transform .23s,border-color .23s,box-shadow .23s}
+    .sc-preset:hover {transform:translateY(-3px);box-shadow:0 12px 26px rgba(33,45,86,.09)}
+    .sc-preset.is-selected {border-color:rgba(88,96,211,.60);box-shadow:inset 0 0 0 1px rgba(88,96,211,.25),0 12px 25px rgba(71,77,149,.08)}
+    .sc-preset::before {content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--preset-accent)}
+    .sc-preset-top {display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .sc-preset-icon {width:39px;height:39px;border-radius:13px;display:grid;place-items:center;color:var(--preset-accent);background:var(--preset-tint);border:1px solid var(--sc-rule)}
+    .sc-selected-mark {display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:760;color:var(--sc-accent-strong);background:var(--sc-accent-tint);padding:5px 8px;border-radius:8px}
+    .sc-preset h3 {font-size:15px;letter-spacing:-.023em;margin:16px 0 5px;font-weight:730}
+    .sc-preset p {color:var(--sc-muted);font-size:11.5px;line-height:1.5;min-height:36px;margin:0 0 13px}
+    .sc-preset-sample {font-size:11px;line-height:1.65;color:var(--sc-muted);font-style:italic;border-left:2px solid var(--preset-accent);padding-left:10px;margin:0 0 16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .sc-preset-actions {margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .sc-preset-tags {color:var(--sc-faint);font-size:10px;line-height:1.4}
+    .sc-preset-button {border:1px solid var(--sc-rule);border-radius:10px;padding:7px 12px;color:var(--sc-accent-strong);font-weight:740;font-size:11px;background:var(--sc-field);white-space:nowrap;transition:transform .2s,background .2s}
+    .sc-preset-button:hover:not(:disabled) {transform:translateY(-2px);background:var(--sc-accent-tint)}
+    .sc-preset-button:disabled {cursor:default;opacity:.75}
+    .sc-config-layout {display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;align-items:start}
+    .sc-panel {border:1px solid var(--sc-rule);border-radius:21px;padding:23px}
+    .sc-panel-header {margin-bottom:18px}
+    .sc-panel-header h3,.sc-side h3 {font-size:14px;letter-spacing:-.02em;margin:0 0 5px;font-weight:740}
+    .sc-panel-header p,.sc-side p {margin:0;color:var(--sc-muted);font-size:11.5px;line-height:1.55}
+    .sc-side {border:1px solid var(--sc-rule);border-radius:20px;padding:19px;position:relative;overflow:hidden}
+    .sc-side-icon {width:37px;height:37px;border-radius:11px;background:var(--sc-accent-tint);color:var(--sc-accent-strong);display:grid;place-items:center;margin-bottom:17px}
+    .sc-side p {margin-top:9px}
+    .sc-side-sep {height:1px;background:var(--sc-rule);margin:17px 0}
+    .sc-side ul {padding-left:15px;margin:8px 0 0;color:var(--sc-muted);font-size:11px;line-height:1.85}
+    .sc-rule-row {display:flex;align-items:center;justify-content:space-between;gap:15px;padding:17px 0;border-top:1px solid var(--sc-rule)}
+    .sc-rule-text {display:flex;align-items:flex-start;gap:11px;min-width:0}
+    .sc-rule-icon {display:grid;place-items:center;width:32px;height:32px;flex:0 0 auto;border-radius:10px;background:var(--sc-accent-tint);color:var(--sc-accent-strong)}
+    .sc-rule-row strong {font-size:12px;line-height:1.4;display:block;margin-bottom:3px}
+    .sc-rule-row small {font-size:11px;line-height:1.45;color:var(--sc-muted);display:block}
+    .sc-switch {appearance:none;border:1px solid rgba(98,112,149,.26);background:rgba(119,134,162,.3);width:40px;height:23px;border-radius:13px;flex:0 0 auto;position:relative;transition:background .2s,border-color .2s}
+    .sc-switch::after {content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(26,31,48,.2);transition:transform .2s}
+    .sc-switch[aria-checked="true"] {background:#656cdb;border-color:#656cdb}
+    .sc-switch[aria-checked="true"]::after {transform:translateX(17px)}
+    .sc-custom {border-top:1px solid var(--sc-rule);padding-top:19px;margin-top:5px}
+    .sc-custom h3 {font-size:13px;letter-spacing:-.02em;margin:0 0 4px}
+    .sc-custom p {font-size:11px;color:var(--sc-muted);line-height:1.5;margin:0 0 13px}
+    .sc-add {display:flex;gap:9px}
+    .sc-input,.sc-textarea {width:100%;border:1px solid var(--sc-rule);color:var(--sc-ink);background:var(--sc-field);border-radius:11px;padding:11px 13px;outline:none;font-size:12px;line-height:1.5;box-shadow:inset 1px 1px 3px rgba(39,52,88,.04)}
+    .sc-input::placeholder,.sc-textarea::placeholder {color:var(--sc-faint)}
+    .sc-input:focus,.sc-textarea:focus {border-color:#7c86de;box-shadow:0 0 0 3px rgba(111,120,225,.14)}
+    .sc-textarea {resize:vertical;min-height:135px}
+    .sc-add .sc-textarea {min-height:82px;resize:vertical}
+    .sc-add button,.sc-small-button {display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;border:1px solid var(--sc-rule);border-radius:11px;padding:10px 14px;background:var(--sc-accent-tint);color:var(--sc-accent-strong);font-size:11px;font-weight:760;align-self:flex-end}
+    .sc-add button:hover,.sc-small-button:hover {filter:brightness(.94)}
+    .sc-custom-list {list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+    .sc-custom-list li {display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--sc-rule);border-radius:10px;background:var(--sc-card);padding:9px 10px;font-size:11px;line-height:1.4}
+    .sc-custom-list li span {overflow-wrap:anywhere}
+    .sc-remove {display:grid;place-items:center;flex:0 0 auto;width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--sc-muted)}
+    .sc-remove:hover {background:var(--sc-accent-tint);color:var(--sc-accent-strong)}
+    .sc-slider-row {padding:22px 0;border-top:1px solid var(--sc-rule)}
+    .sc-slider-row:first-child {border-top:0;padding-top:2px}
+    .sc-slider-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+    .sc-slider-heading label {font-size:12px;font-weight:760}
+    .sc-value {font-variant-numeric:tabular-nums;background:var(--sc-accent-tint);border:1px solid var(--sc-rule);color:var(--sc-accent-strong);padding:4px 8px;border-radius:8px;font-size:11px;font-weight:770;min-width:49px;text-align:center}
+    .sc-slider-row p {color:var(--sc-muted);font-size:11px;line-height:1.5;margin:0 0 16px}
+    .sc-range {appearance:none;-webkit-appearance:none;width:100%;height:6px;border-radius:8px;outline:none;background:linear-gradient(to right,#727ce3 0%,#727ce3 var(--progress),rgba(121,140,174,.25) var(--progress),rgba(121,140,174,.25) 100%);display:block;cursor:pointer}
+    .sc-range::-webkit-slider-thumb {appearance:none;width:18px;height:18px;border-radius:50%;background:#f8faff;border:4px solid #6872da;box-shadow:0 2px 7px rgba(56,61,132,.3)}
+    .sc-range::-moz-range-thumb {width:11px;height:11px;border-radius:50%;background:#f8faff;border:4px solid #6872da;box-shadow:0 2px 7px rgba(56,61,132,.3)}
+    .sc-range-ends {display:flex;justify-content:space-between;color:var(--sc-faint);font-size:10px;margin-top:12px}
+    .sc-preview-quote {font-size:15px;letter-spacing:-.03em;line-height:1.65;font-weight:560;margin:0;color:var(--sc-ink)}
+    .sc-output-list {display:grid;gap:11px}
+    .sc-output-item {display:flex;align-items:flex-start;gap:13px;cursor:pointer;padding:16px;border-radius:14px;border:1px solid var(--sc-rule);background:var(--sc-card);transition:border-color .2s,transform .2s}
+    .sc-output-item:hover {transform:translateX(2px)}
+    .sc-output-item.is-selected {border-color:rgba(101,108,219,.68);background:var(--sc-accent-tint)}
+    .sc-output-item input {accent-color:#626bd8;width:17px;height:17px;flex:0 0 auto;margin:1px 0 0}
+    .sc-output-item strong {display:block;font-size:12px;margin-bottom:4px}
+    .sc-output-item small {display:block;color:var(--sc-muted);font-size:11px;line-height:1.5}
+    .sc-template {margin-top:18px;border-top:1px solid var(--sc-rule);padding-top:18px}
+    .sc-template label {display:block;font-size:12px;font-weight:750;margin-bottom:7px}
+    .sc-template small {display:block;font-size:10.5px;color:var(--sc-muted);line-height:1.5;margin-top:8px}
+    .sc-template code,.sc-code {font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em}
+    .sc-example {font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--sc-muted);font-size:10.5px;line-height:1.8;margin:11px 0 0;border:1px solid var(--sc-rule);border-radius:10px;background:var(--sc-card);padding:12px}
+    .sc-adv-input {display:flex;align-items:center;gap:9px;margin:9px 0 14px}
+    .sc-adv-input .sc-input {max-width:130px;font-variant-numeric:tabular-nums}
+    .sc-adv-input span {font-size:11px;color:var(--sc-muted)}
+    .sc-footer {position:sticky;bottom:14px;z-index:12;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 16px 13px 19px;margin-top:35px;border:1px solid var(--sc-rule);border-radius:17px;box-shadow:0 16px 35px rgba(39,50,84,.14)}
+    .sc-footer-copy {display:flex;align-items:center;gap:11px;min-width:0}
+    .sc-footer-icon {display:grid;place-items:center;width:33px;height:33px;flex:0 0 auto;border-radius:10px;background:var(--sc-accent-tint);color:var(--sc-accent-strong)}
+    .sc-footer strong {display:block;font-size:11px;margin-bottom:2px}
+    .sc-footer small {display:block;color:var(--sc-muted);font-size:10px;line-height:1.35}
+    .sc-footer-actions {display:flex;gap:9px;align-items:center}
+    .sc-reset,.sc-save {display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;border-radius:11px;padding:10px 14px;font-size:11px;font-weight:760;transition:transform .2s,filter .2s}
+    .sc-reset {color:var(--sc-muted);border:1px solid var(--sc-rule);background:var(--sc-field)}
+    .sc-save {border:1px solid rgba(65,71,171,.4);background:#505bc9;color:#fff;box-shadow:0 5px 13px rgba(72,82,174,.25)}
+    .sc-reset:hover,.sc-save:hover {transform:translateY(-2px);filter:brightness(1.05)}
+    .sc-toast {position:fixed;right:24px;bottom:97px;z-index:30;border:1px solid var(--sc-rule);border-radius:12px;padding:11px 15px;color:var(--sc-ink);display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;box-shadow:0 14px 28px rgba(24,34,66,.19);animation:sc-appear .2s ease-out}
+    @keyframes sc-appear {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @media(max-width:1050px){.sc-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sc-config-layout{grid-template-columns:minmax(0,1fr) 235px}.story-page{padding-left:25px;padding-right:25px}}
+    @media(max-width:760px){.story-page{padding:24px 16px 105px}.sc-top{gap:12px;margin-bottom:22px}.sc-top h1{font-size:29px}.sc-top p{font-size:12px}.sc-top-right{flex-direction:column-reverse;align-items:flex-end;gap:8px}.sc-intro{padding:16px;margin-bottom:18px}.sc-intro-mark{display:none}.sc-tabs{width:100%;margin-bottom:25px}.sc-tab{padding:10px 12px;font-size:11px}.sc-config-layout{grid-template-columns:1fr}.sc-side{order:2}.sc-footer{bottom:9px;margin-top:26px}.sc-footer small{display:none}}
+    @media(max-width:570px){.sc-preset-grid{grid-template-columns:1fr;gap:12px}.sc-preset{min-height:214px}.sc-top-right .sc-status{display:none}.sc-section-head{align-items:start}.sc-section-count{font-size:10px}.sc-panel{padding:17px}.sc-footer{padding:10px;flex-direction:column;align-items:stretch;gap:9px;min-width:0}.sc-footer-icon{display:none}.sc-footer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:7px;min-width:0}.sc-reset,.sc-save{min-width:0;padding:9px 5px;gap:5px;font-size:10px}.sc-footer strong{font-size:10px}.sc-intro-symbol{width:40px;height:40px}.sc-add{align-items:stretch}.sc-add button{padding:10px}.sc-toast{right:15px;bottom:85px}}
+    @media(prefers-reduced-motion:reduce){.story-page *, .story-page *::before,.story-page *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="shared.css" />
+  <script src="shared.js"></script>
+  <script type="text/babel">
+    const {useState,useEffect,useRef} = React;
+    const {Shell,Icon,ThemeToggle} = window.Merlink;
+    const mock = window.Merlink.mock || {};
+    const presetSource = mock.presets || window.MOCK_STYLE_PRESETS || [];
+    const ruleSource = mock.rules || window.MOCK_WRITING_RULES || [];
+    const toneSource = mock.toneValues || window.MOCK_TONE_VALUES || {};
+    const STORAGE_KEY = 'merlink-story-config';
+    const examples = [
+      {name:'Literary',description:'Poetic precision, rich interiority, and elegant restraint.',sample:'The afternoon folded quietly around the windows.',tag:'Lyrical · reflective',icon:'Feather',accent:'#7774c6',tint:'rgba(119,116,198,.13)'},
+      {name:'Pulp Fiction',description:'Punchy stakes, fast turns, and vivid attitude.',sample:'The train lights vanished. Then the platform moved.',tag:'Fast · vivid',icon:'Zap',accent:'#dc8d70',tint:'rgba(220,141,112,.13)'},
+      {name:'Web Novel',description:'Addictive chapters built for the next page.',sample:'One drawer was open. Nobody remembered opening it.',tag:'Serial · energetic',icon:'BookOpen',accent:'#738fa8',tint:'rgba(115,143,168,.15)'},
+      {name:'Light Novel',description:'Character-forward scenes with playful momentum.',sample:'She recognized his footsteps before he spoke.',tag:'Warm · expressive',icon:'Sparkles',accent:'#c977a1',tint:'rgba(201,119,161,.14)'},
+      {name:'Dark Fantasy',description:'Haunting atmosphere, hard choices, and wonder.',sample:'Beyond the ridge, every map began to disagree.',tag:'Gothic · immersive',icon:'Moon',accent:'#b79a56',tint:'rgba(183,154,86,.15)'},
+      {name:'Isekai',description:'Fresh worlds, improbable beginnings, and discovery.',sample:'The letter arrived. She left it unopened.',tag:'Transportive · bold',icon:'Compass',accent:'#66a59f',tint:'rgba(102,165,159,.14)'}
+    ];
+    const fallbackRules = [
+      {id:'avoid-adverbs',name:'Avoid adverbs',description:'Make verbs specific and let actions carry their own weight.',icon:'PenLine'},
+      {id:'show-dont-tell',name:'Show, don’t tell',description:'Reveal feeling through action, sensation, and detail.',icon:'Eye'},
+      {id:'no-cliches',name:'No clichés',description:'Prefer specific, original imagery over familiar phrases.',icon:'Sparkles'},
+      {id:'limit-pov-shifts',name:'Limit POV shifts',description:'Keep perspective consistent within a scene.',icon:'Focus'},
+      {id:'consistent-tense',name:'Consistent tense',description:'Keep the timeline stable within each scene.',icon:'Clock'}
+    ];
+    const presets = (Array.isArray(presetSource) && presetSource.length ? presetSource : examples).map((item,i)=>{
+      const p=typeof item==='string'?{name:item}:item||{}; const base=examples[i%examples.length];
+      return {id:String(p.id||p.key||p.name||p.title||i),name:p.name||p.title||base.name,description:p.description||p.summary||base.description,sample:p.sample||p.example||p.preview||base.sample,tag:Array.isArray(p.tags)?p.tags.join(' · '):(p.tagline||p.tag||base.tag),icon:p.icon||base.icon,accent:base.accent,tint:base.tint,tone:p.tone||p.toneValues||null};
+    });
+    const rules = (Array.isArray(ruleSource) && ruleSource.length ? ruleSource : fallbackRules).map((item,i)=>{
+      const r=typeof item==='string'?{name:item}:item||{}; const base=fallbackRules[i%fallbackRules.length];
+      return {id:String(r.id||r.key||r.name||r.title||i),name:r.name||r.title||r.label||base.name,description:r.description||r.summary||base.description,icon:base.icon,enabled:r.enabled!==false};
+    });
+    const pickTone=(keys,fallback)=>{
+      for(const key of keys){let value=Array.isArray(toneSource)?toneSource.find(x=>x && (x.id===key||x.key===key||x.name===key))?.value:toneSource?.[key];
+        if(value && typeof value==='object') value=value.value; const n=Number(value); if(value!==undefined && value!==null && Number.isFinite(n)) return Math.max(0,Math.min(100,n<=1?n*100:n)); }
+      return fallback;
+    };
+    const defaults=()=>({presetId:presets[0]?.id||'',rules:Object.fromEntries(rules.map(r=>[r.id,r.enabled])),customRules:[],tone:{formality:pickTone(['formality'],55),darkness:pickTone(['darkness'],38),humor:pickTone(['humor'],28)},output:'markdown',template:'## {scene_title}\n\n{content}\n\n---\nWords: {word_count}',advanced:{maxTokens:2048,temperature:.75,topP:.9,frequencyPenalty:.2,presencePenalty:.1}});
+    function loadConfig(){const base=defaults();try{const raw=JSON.parse(localStorage.getItem(STORAGE_KEY));if(raw && typeof raw==='object') return {...base,...raw,rules:{...base.rules,...raw.rules},tone:{...base.tone,...raw.tone},advanced:{...base.advanced,...raw.advanced},customRules:Array.isArray(raw.customRules)?raw.customRules:[]};}catch(e){}return base;}
+    const tabs=[{id:'presets',name:'Style presets',icon:'WandSparkles'},{id:'rules',name:'Writing rules',icon:'ListChecks'},{id:'tone',name:'Tone & voice',icon:'SlidersHorizontal'},{id:'output',name:'Output format',icon:'FileText'},{id:'advanced',name:'Advanced',icon:'Settings2'}];
+    const toneFields=[{key:'formality',name:'Formality',description:'How refined or conversational the narrative voice feels.',min:'Casual',max:'Formal'},{key:'darkness',name:'Darkness',description:'The emotional shade of your scenes and descriptions.',min:'Light',max:'Grimdark'},{key:'humor',name:'Humor',description:'How often wit and lightness find their way into the story.',min:'Serious',max:'Comedic'}];
+    const formats=[{id:'markdown',name:'Markdown',description:'Clean headings and formatting, ready for notes or publishing.'},{id:'plain',name:'Plain text',description:'Unformatted prose that moves easily between writing apps.'},{id:'html',name:'HTML',description:'Semantic headings and paragraphs for a ready-to-style draft.'},{id:'custom',name:'Custom template',description:'Define your own reusable output layout below.'}];
+    const advFields=[{key:'maxTokens',name:'Maximum tokens',description:'Upper limit for the length of a generated response.',min:256,max:8192,step:128,labels:['Short response','Long response'],format:v=>Number(v).toLocaleString()},{key:'temperature',name:'Temperature',description:'Higher values introduce more variation and surprise.',min:0,max:1,step:.05,labels:['Focused','Experimental'],format:v=>Number(v).toFixed(2)},{key:'topP',name:'Top P',description:'Controls the range of words considered for each response.',min:0,max:1,step:.05,labels:['Selective','Wide range'],format:v=>Number(v).toFixed(2)},{key:'frequencyPenalty',name:'Frequency penalty',description:'Discourages repeating the same words and phrases.',min:0,max:2,step:.05,labels:['Allow repeats','More variety'],format:v=>Number(v).toFixed(2)},{key:'presencePenalty',name:'Presence penalty',description:'Encourages the writing to introduce new topics.',min:0,max:2,step:.05,labels:['Stay on topic','Explore'],format:v=>Number(v).toFixed(2)}];
+    function Range({id,value,min=0,max=100,step=1,onChange,ends}) {const safe=Number.isFinite(Number(value))?Number(value):min;return <><input className="sc-range" id={id} type="range" min={min} max={max} step={step} value={safe} onChange={e=>onChange(Number(e.target.value))} style={{'--progress':`${Math.max(0,Math.min(100,((safe-min)/(max-min))*100))}%`}}/><div className="sc-range-ends"><span>{ends[0]}</span><span>{ends[1]}</span></div></>}
+    function StoryConfig(){
+      const [tab,setTab]=useState('presets'); const [config,setConfig]=useState(loadConfig); const [saved,setSaved]=useState(()=>JSON.stringify(loadConfig())); const [draftRule,setDraftRule]=useState(''); const [toast,setToast]=useState(''); const toastTimer=useRef(null); const tabRefs=useRef({}); const dirty=JSON.stringify(config)!==saved;
+      useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
+      function notify(text){setToast(text);clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),3200)}
+      function patch(name,value){setConfig(prev=>({...prev,[name]:value}))}
+      function nested(section,name,value){setConfig(prev=>({...prev,[section]:{...prev[section],[name]:value}}))}
+      function applyPreset(p){setConfig(prev=>({...prev,presetId:p.id,...(p.tone&&typeof p.tone==='object'?{tone:{...prev.tone,...p.tone}}:{})}));notify(`${p.name} style applied`)}
+      function addRule(e){e.preventDefault();const value=draftRule.trim();if(!value)return;setConfig(prev=>({...prev,customRules:[...prev.customRules,{id:`custom-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,text:value}]}));setDraftRule('');notify('Custom rule added')}
+      function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(config));setSaved(JSON.stringify(config));notify('Story settings saved locally')}catch(e){notify('Could not save; check browser storage settings')}}
+      function reset(){const next=defaults();setConfig(next);setSaved(JSON.stringify(next));setDraftRule('');try{localStorage.removeItem(STORAGE_KEY)}catch(e){}notify('Default settings restored')}
+      function tabKeys(e,index){let next;if(e.key==='ArrowRight')next=(index+1)%tabs.length;else if(e.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;e.preventDefault();setTab(tabs[next].id);requestAnimationFrame(()=>tabRefs.current[tabs[next].id]?.focus())}
+      const activePreset=presets.find(p=>p.id===config.presetId)||presets[0];
+      return <Shell active="story-config">
+        <div className="story-page">
+          <div className="page-topbar"><span className="page-breadcrumb">Workspace / <strong>Story configuration</strong></span><div className="page-topbar-actions"><span className={'sc-status'+(dirty?' is-dirty':'')}><span className="sc-status-dot"/>{dirty?'Unsaved changes':'Settings up to date'}</span></div></div>
+           <section className="sc-intro surface"><div className="sc-intro-copy"><div className="sc-intro-symbol"><Icon name="Sparkles" size={21}/></div><div><strong>Your creative direction, all in one place</strong><small>Changes are saved in this browser and used as a local writing preference.</small></div></div><div className="sc-intro-mark"><Icon name="PenLine" size={15}/> A more intentional first draft</div></section>
+          <nav className="sc-tabs surface" role="tablist" aria-label="Story configuration sections">{tabs.map((item,i)=><button key={item.id} ref={node=>tabRefs.current[item.id]=node} id={'sc-tab-'+item.id} role="tab" aria-selected={tab===item.id} aria-controls={'sc-panel-'+item.id} tabIndex={tab===item.id?0:-1} className="sc-tab" type="button" onClick={()=>setTab(item.id)} onKeyDown={e=>tabKeys(e,i)}><Icon name={item.icon} size={15}/>{item.name}</button>)}</nav>
+          <section id={'sc-panel-'+tab} role="tabpanel" aria-labelledby={'sc-tab-'+tab} tabIndex={0}>
+            {tab==='presets'&&<><div className="sc-section-head"><div><div className="sc-eyebrow">01 / Find your voice</div><h2>Style presets</h2><p>Start with a point of view. Each preset gives your writing a distinct rhythm; fine-tune everything else in the tabs ahead.</p></div><span className="sc-section-count">{presets.length} curated styles</span></div><div className="sc-preset-grid">{presets.map(p=><article key={p.id} className={'sc-preset surface'+(config.presetId===p.id?' is-selected':'')} style={{'--preset-accent':p.accent,'--preset-tint':p.tint}}><div className="sc-preset-top"><div className="sc-preset-icon"><Icon name={p.icon} size={19}/></div>{config.presetId===p.id&&<span className="sc-selected-mark"><Icon name="Check" size={12}/> Active style</span>}</div><h3>{p.name}</h3><p>{p.description}</p><blockquote className="sc-preset-sample">“{p.sample}”</blockquote><div className="sc-preset-actions"><span className="sc-preset-tags">{p.tag}</span><button type="button" className="sc-preset-button" onClick={()=>applyPreset(p)} disabled={config.presetId===p.id}>{config.presetId===p.id?'Applied':'Apply style'}</button></div></article>)}</div></>}
+            {tab==='rules'&&<><div className="sc-section-head"><div><div className="sc-eyebrow">02 / Establish the craft</div><h2>Writing rules</h2><p>Keep your storytelling consistent. Turn guidance on or off, and add instructions that are uniquely yours.</p></div><span className="sc-section-count">{Object.values(config.rules).filter(Boolean).length} enabled</span></div><div className="sc-config-layout"><div className="sc-panel surface"><div className="sc-panel-header"><h3>Core principles</h3><p>A quiet checklist for every piece of prose.</p></div>{rules.map(r=><div className="sc-rule-row" key={r.id}><div className="sc-rule-text"><div className="sc-rule-icon"><Icon name={r.icon} size={16}/></div><div><strong id={'sc-rule-'+r.id}>{r.name}</strong><small>{r.description}</small></div></div><button type="button" className="sc-switch" role="switch" aria-checked={!!config.rules[r.id]} aria-labelledby={'sc-rule-'+r.id} onClick={()=>nested('rules',r.id,!config.rules[r.id])}/></div>)}<div className="sc-custom"><h3>Your own rules</h3><p>Add a particular preference, sentence by sentence.</p><form className="sc-add" onSubmit={addRule}><textarea className="sc-textarea field" value={draftRule} onChange={e=>setDraftRule(e.target.value)} placeholder="e.g. Keep each scene grounded in a physical detail" aria-label="New custom writing rule" maxLength={400}/><button type="submit"><Icon name="Plus" size={14}/> Add rule</button></form>{config.customRules.length>0&&<ul className="sc-custom-list">{config.customRules.map(rule=><li key={rule.id}><span>{rule.text}</span><button className="sc-remove" type="button" aria-label={'Remove rule: '+rule.text} onClick={()=>patch('customRules',config.customRules.filter(x=>x.id!==rule.id))}><Icon name="X" size={15}/></button></li>)}</ul>}</div></div><aside className="sc-side surface-soft"><div className="sc-side-icon"><Icon name="BookOpen" size={18}/></div><h3>Good rules make room for magic.</h3><p>Think of these as guardrails, not a formula. The best stories know when to bend them.</p><div className="sc-side-sep"/><div className="sc-eyebrow">A gentle reminder</div><ul><li>Stay true to the character.</li><li>Keep the scene moving.</li><li>Leave space for surprise.</li></ul></aside></div></>}
+            {tab==='tone'&&<><div className="sc-section-head"><div><div className="sc-eyebrow">03 / Set the mood</div><h2>Tone &amp; voice</h2><p>Small adjustments, a completely different feeling. Move each control until the balance sounds right to you.</p></div><span className="sc-section-count">3 creative dimensions</span></div><div className="sc-config-layout"><div className="sc-panel surface">{toneFields.map(field=><div className="sc-slider-row" key={field.key}><div className="sc-slider-heading"><label htmlFor={'sc-tone-'+field.key}>{field.name}</label><span className="sc-value">{Math.round(config.tone[field.key]??50)}%</span></div><p>{field.description}</p><Range id={'sc-tone-'+field.key} value={config.tone[field.key]??50} ends={[field.min,field.max]} onChange={v=>nested('tone',field.key,v)}/></div>)}</div><aside className="sc-side surface-soft"><div className="sc-side-icon"><Icon name="AudioLines" size={18}/></div><div className="sc-eyebrow">Current voice</div><h3 style={{marginTop:7}}>{activePreset?.name||'Your'} writing</h3><p>Your sliders make each preset feel more like you. Try reading a line aloud while you adjust them.</p><div className="sc-side-sep"/><blockquote className="sc-preview-quote">“A story is a way of holding a moment still — just long enough to see it differently.”</blockquote></aside></div></>}
+            {tab==='output'&&<><div className="sc-section-head"><div><div className="sc-eyebrow">04 / Choose the shape</div><h2>Output format</h2><p>Decide how your drafts arrive. You can change this any time without affecting previously written work.</p></div><span className="sc-section-count">Choose one format</span></div><div className="sc-config-layout"><div className="sc-panel surface"><div className="sc-panel-header"><h3>How should chapters appear?</h3><p>Select the structure that fits your writing workflow.</p></div><div className="sc-output-list">{formats.map(f=><label key={f.id} className={'sc-output-item'+(config.output===f.id?' is-selected':'')}><input type="radio" name="story-output-format" value={f.id} checked={config.output===f.id} onChange={()=>patch('output',f.id)}/><span><strong>{f.name}</strong><small>{f.description}</small></span></label>)}</div>{config.output==='custom'&&<div className="sc-template"><label htmlFor="sc-template">Your chapter template</label><textarea id="sc-template" className="sc-textarea field" value={config.template} onChange={e=>patch('template',e.target.value)} spellCheck="false" placeholder="Add your custom chapter template..."/><small>Use <code>{'{scene_title}'}</code>, <code>{'{content}'}</code> and <code>{'{word_count}'}</code> as placeholders.</small></div>}</div><aside className="sc-side surface-soft"><div className="sc-side-icon"><Icon name="FileText" size={18}/></div><h3>Simple to export, easy to edit.</h3><p>Your format shapes how future mock drafts are organized in the studio.</p><div className="sc-side-sep"/><div className="sc-eyebrow">A glimpse</div><pre className="sc-example">{config.output==='markdown'?'## Chapter 01\n\nThe morning opened quietly...':config.output==='plain'?'Chapter 01\n\nThe morning opened quietly...':config.output==='html'?'<h2>Chapter 01</h2>\n<p>The morning opened quietly...</p>':config.template||'Your custom chapter template'}</pre></aside></div></>}
+            {tab==='advanced'&&<><div className="sc-section-head"><div><div className="sc-eyebrow">05 / Under the hood</div><h2>Advanced controls</h2><p>Fine-tune the behavior behind a draft. The starting values are a considered balance for creative writing.</p></div><span className="sc-section-count">5 generation settings</span></div><div className="sc-config-layout"><div className="sc-panel surface">{advFields.map(field=><div className="sc-slider-row" key={field.key}><div className="sc-slider-heading"><label htmlFor={'sc-adv-'+field.key}>{field.name}</label><span className="sc-value">{field.format(config.advanced[field.key]??field.min)}</span></div><p>{field.description}</p>{field.key==='maxTokens'&&<div className="sc-adv-input"><input type="number" className="sc-input field" aria-label="Maximum tokens numeric value" min={field.min} max={field.max} step={field.step} value={config.advanced[field.key]??field.min} onChange={e=>nested('advanced',field.key,e.target.value===''?'':Number(e.target.value))} onBlur={()=>nested('advanced',field.key,Math.max(field.min,Math.min(field.max,Number(config.advanced[field.key])||2048)))}/><span>tokens per response</span></div>}<Range id={'sc-adv-'+field.key} value={config.advanced[field.key]??field.min} min={field.min} max={field.max} step={field.step} ends={field.labels} onChange={v=>nested('advanced',field.key,v)}/></div>)}</div><aside className="sc-side surface-soft"><div className="sc-side-icon"><Icon name="SlidersHorizontal" size={18}/></div><h3>Made for exploration.</h3><p>These settings simulate creative preferences locally. No model connection or external API call is made from this page.</p><div className="sc-side-sep"/><div className="sc-eyebrow">A good starting point</div><p>Begin with the defaults. Adjust a single setting at a time to understand its effect.</p></aside></div></>}
+          </section>
+          <div className="sc-footer surface"><div className="sc-footer-copy"><div className="sc-footer-icon"><Icon name="ShieldCheck" size={17}/></div><div><strong>{dirty?'Your changes are ready':'Your settings are saved'}</strong><small>{dirty?'Save to keep these choices for this browser.':'Stored only on this device, never sent to a server.'}</small></div></div><div className="sc-footer-actions"><button type="button" className="sc-reset" onClick={reset}><Icon name="RotateCcw" size={14}/> Reset defaults</button><button type="button" className="sc-save" onClick={save}><Icon name="Save" size={14}/> Save settings</button></div></div>
+          {toast&&<div className="sc-toast surface" role="status" aria-live="polite"><Icon name="CheckCircle2" size={15}/>{toast}</div>}
+        </div>
+      </Shell>;
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<StoryConfig/>);
+  </script>
+</body>
+</html>

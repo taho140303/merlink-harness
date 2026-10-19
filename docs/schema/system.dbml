@@ -1,0 +1,1149 @@
+// SYSTEM_PROMPT.MOTIF
+
+enum MotifsType {
+    character_arc [note: 'Phát triển nhân vật']
+    relationship [note: 'Mối quan hệ']
+    symbolic [note: 'Biểu tượng']
+    plot [note: 'Cốt truyện']
+}
+
+Table motifs {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    category MotifsType
+    version varchar
+    is_system boolean [default: false]
+    description text
+    min_chapter int
+    max_chapter int
+
+    indexes {
+        category
+        is_system
+    }
+}
+
+Table genres {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    description text
+
+    Note: 'Thể loại'
+}
+
+Table motif_applicable_genres {
+    id uuid [pk, note: 'UUIDv7']
+    motif_id uuid [ref: > motifs.id]
+    genre_id uuid [ref: > genres.id]
+
+    indexes {
+        (motif_id, genre_id) [unique]
+        genre_id
+    }
+
+    Note: 'Thể loại motif được áp dụng'
+}
+
+Table event_blocks {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    component_id uuid [ref: > components.id]
+    state_id uuid [ref: > states.id]
+    motif_id uuid [ref: > motifs.id]
+
+    indexes {
+        (motif_id, state_id, component_id) [unique]
+        component_id
+        state_id
+    }
+    Note: 'Khối sự kiện chứa component (trigger)-> state'
+}
+
+Table event_transitions {
+    id uuid [pk, note: 'UUIDv7']
+    name varchar
+    from_event_block_id uuid [ref: > event_blocks.id]
+    to_event_block_id uuid [ref: > event_blocks.id]
+    priority int
+
+    indexes {
+        (from_event_block_id, to_event_block_id) [unique]
+        (from_event_block_id, priority)
+        to_event_block_id
+    }
+}
+
+Table states {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique]
+  name varchar
+  description text
+}
+
+Table state_down_by_rules {
+    id uuid [pk, note: 'UUIDv7']
+    state_id uuid [ref: > states.id]
+    state_rule_id uuid [ref: > state_rules.id]
+    is_allowed boolean
+
+    indexes {
+        (state_id, state_rule_id) [unique]
+        state_rule_id
+    }
+}
+
+Table state_rules {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+}
+
+Table emotional_ranges {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+}
+
+Table event_block_emotionals {
+  id uuid [pk, note: 'UUIDv7']
+  emotional_range_id uuid [ref: > emotional_ranges.id]
+  event_block_id uuid [ref: > event_blocks.id]
+
+  indexes {
+    (event_block_id, emotional_range_id) [unique]
+    emotional_range_id
+  }
+}
+
+Table components {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique]
+  name varchar
+  description text
+
+  Note: 'Để trigger states phải trasition qua một eventblock khác'
+}
+
+Table motif_constraints {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    constraint_id uuid [ref: > constraints.id]
+    motif_id uuid [ref: > motifs.id]
+
+    indexes {
+        (motif_id, constraint_id) [unique]
+        constraint_id
+    }
+}
+
+Table constraints {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    require varchar [NOT NULL]
+    reason varchar [NOT NULL]
+}
+
+// SYSTEM_PROMPT.STYLE_PRESET
+
+Enum NarrativeWeight {
+    NONE
+    LOW
+    MEDIUM
+    HIGH
+}
+
+enum SentenceLength {
+  VERY_SHORT
+  SHORT
+  MEDIUM
+  LONG
+}
+
+enum SentenceStructure {
+  SIMPLE
+  COMPOUND
+  COMPLEX
+  FRAGMENT
+  MIXED
+}
+
+enum TonePace {
+    VERY_LOW
+    LOW
+    MODERATE
+    FAST
+    VERY_FAST
+}
+
+Table style_presets {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    category varchar [note: 'type.variants']
+    tone_pace TonePace [default: 'VERY_LOW', note: 'Nhịp độ truyện']
+    tone_emotion varchar [note: 'Cảm xúc bao trùm']
+    is_system boolean [default: false]
+    visual NarrativeWeight [default: 'NONE', note: 'Trọng số thị giác']
+    auditory NarrativeWeight [default: 'NONE', note: 'Trọng số thính giác']
+    tactile NarrativeWeight [default: 'NONE', note: 'Trọng số xúc giác']
+    olfactory NarrativeWeight [default: 'NONE', note: 'Trọng số khứu giác']
+    gustatory NarrativeWeight [default: 'NONE', note: 'Trọng số vị giác']
+    language_abstract NarrativeWeight [default: 'LOW', note: 'Trọng số trừu tượng']
+
+    syntax_sentence SentenceLength [default: 'VERY_SHORT', note: 'Độ dài cú pháp']
+    syntax_variation NarrativeWeight [default: 'LOW', note: 'Độ biến thiên câu']
+    syntax_structure SentenceStructure [default: 'SIMPLE', note: 'Cấu trúc câu']
+
+    indexes {
+        category
+        is_system
+    }
+}
+
+Table rhetorical_devices {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique, note: 'metaphor']
+    description text
+
+    Note: 'Kho từ điển các biện pháp tu từ phổ quát'
+}
+
+Table style_preset_rhetorical_devices {
+    id uuid [pk, note: 'UUIDv7']
+    preset_id uuid [ref: > style_presets.id, not null]
+    rhetorical_device_id uuid [ref: > rhetorical_devices.id, not null]
+    usage_type varchar [note: 'primary | secondary | avoid']
+    custom_instruction varchar [note: 'Ghi chú cụ thể: câu cụt mơ hồ, nhấn tiếp xúc, bộc phát...']
+
+    indexes {
+        (preset_id, rhetorical_device_id, usage_type) [unique]
+        rhetorical_device_id
+    }
+    Note: 'Cấu hình chi tiết thủ pháp nào dùng chính, phụ hay cần né trong preset'
+}
+
+Table style_preset_vocab_items {
+    id uuid [pk, note: 'UUIDv7']
+    preset_id uuid [ref: > style_presets.id, not null]
+    content varchar [not null, note: 'Gợi ý từ vựng: động từ mạnh, từ tượng thanh...']
+
+    indexes {
+        preset_id
+    }
+}
+
+Table style_preset_focus_items {
+    id uuid [pk, note: 'UUIDv7']
+    preset_id uuid [ref: > style_presets.id, not null]
+    content varchar [not null, note: 'Trọng tâm: chuyển động, va chạm...']
+
+    indexes {
+        preset_id
+    }
+}
+
+// SYSTEM_PROMPT.NARRATIVE_DIRECTIVES
+enum GrammaticalPerson {
+  FIRST_PERSON  [note: 'Ngôi thứ nhất: Người kể trực tiếp tham gia hoặc chứng kiến câu chuyện, thường xưng tôi, mình, ta.']
+  SECOND_PERSON [note: 'Ngôi thứ hai: Người kể sử dụng bạn, cậu, ngươi để hướng lời kể đến một đối tượng.']
+  THIRD_PERSON  [note: 'Ngôi thứ ba: Người kể đứng ngoài câu chuyện, sử dụng tên riêng hoặc đại từ ngôi thứ ba.']
+}
+
+enum PersonSubtype {
+  // Ngôi 1
+  PROTAGONIST        [note: 'Nhân vật chính tự thuật câu chuyện qua trải nghiệm, suy nghĩ và cảm xúc của bản thân.']
+  WITNESS_PERIPHERAL [note: 'Nhân vật phụ đóng vai trò người chứng kiến, thuật lại câu chuyện xoay quanh nhân vật khác.']
+  UNRELIABLE_FIRST   [note: 'Người kể không đáng tin cậy do thiên kiến, ký ức sai lệch hoặc cố tình che giấu sự thật.']
+
+  // Ngôi 2
+  DIRECT_ADDRESS     [note: 'Người kể trực tiếp hướng lời đến người đọc hoặc một nhân vật bằng đại từ ngôi thứ hai.']
+  SELF_REFLECTION    [note: 'Nhân vật tự đối thoại hoặc quan sát chính mình dưới góc nhìn ngôi thứ hai.']
+  INTERACTIVE        [note: 'Người đọc được đặt vào vai nhân vật và có thể lựa chọn, tác động đến diễn biến câu chuyện.']
+
+  // Ngôi 3
+  OMNISCIENT         [note: 'Người kể toàn tri, biết suy nghĩ, cảm xúc và những sự kiện ngoài nhận thức của mọi nhân vật.']
+  LIMITED            [note: 'Người kể chỉ tiếp cận nội tâm và nhận thức của một nhân vật tại một thời điểm.']
+  OBJECTIVE          [note: 'Người kể chỉ mô tả hành động, lời nói và sự kiện quan sát được, không trực tiếp tiết lộ nội tâm.']
+}
+
+enum PovScope {
+  SINGLE_POV          [note: 'Duy trì một nhân vật hoặc một điểm nhìn cố định xuyên suốt câu chuyện.']
+  MULTIPLE_POV        [note: 'Luân phiên điểm nhìn giữa nhiều nhân vật qua các chương hoặc cảnh.']
+  SHIFTING_OMNISCIENT [note: 'Người kể toàn tri linh hoạt chuyển sự chú ý giữa các nhân vật, địa điểm và sự kiện.']
+}
+
+Table narrator_configs {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique, note: 'first_person_limited, third_person_omniscient...']
+  name varchar [not null]
+  
+  person GrammaticalPerson [not null]
+  person_subtype PersonSubtype [not null]
+  pov_scope PovScope [default: 'SINGLE_POV']
+  
+  is_reliable boolean [default: true, note: 'Độ tin cậy của người kể']
+  breaks_fourth_wall boolean [default: false, note: 'Có phá vỡ bức tường thứ 4 hay không']
+
+  Note: 'Template người kể chuyện thuần túy, không dính líu tới character cụ thể'
+}
+
+// SYSTEM_PROMPT.{PROSE_PRINCIPLES, INFORMATION_CONTROL}
+enum DirectiveCategory {
+  PROSE_PRINCIPLE
+  RESTRAINT
+  INFORMATION_CONTROL
+}
+
+Table style_preset_narratives {
+    id uuid [pk, note: 'UUIDv7']
+    style_preset_id uuid [ref: > style_presets.id, not null]
+    narrative_directives_id uuid [ref: > narrative_directives.id]
+    weight NarrativeWeight [default: 'NONE']
+
+    indexes {
+        (style_preset_id, narrative_directives_id) [unique]
+        narrative_directives_id
+    }
+}
+
+Table narrative_directives {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique, note: 'clarity, show_dont_tell, technique_rotation...']
+    description text
+    category DirectiveCategory [not null]
+    is_system boolean [default: false]
+
+    indexes {
+        category
+        is_system
+    }
+}
+
+
+// VFILL (TÍNH SAU)
+
+Table character_motifs {
+    id uuid [pk, note: 'UUIDv7']
+    motif_id uuid [ref: > motifs.id]
+    character_id uuid [ref: > characters.id]
+
+    indexes {
+        (character_id, motif_id) [unique]
+        motif_id
+    }
+}
+
+Table relationship_motifs {
+    id uuid [pk, note: 'UUIDv7']
+    motif_id uuid [ref: > motifs.id]
+    relationship_id uuid [ref: > relationships.id]
+
+    indexes {
+        (relationship_id, motif_id) [unique]
+        motif_id
+    }
+}
+
+// DATA.CONTENT
+enum ContentStatus {
+    DRAFT
+    REVISING
+    COMPLETED
+
+}
+
+enum Language {
+    VI
+    EN
+    JA
+    ZH_HANT
+    ZH_HANS
+}
+
+Table projects {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    author varchar
+    summarize text [note: 'Tóm tắt']
+    language Language [default: 'VI']
+    created_at timestamp
+    updated_at timestamp
+
+    indexes {
+        created_at
+    }
+}
+
+Table project_motifs {
+    id uuid [pk, note: 'UUIDv7']
+    motif_id uuid [ref: > motifs.id]
+    project_id uuid [ref: > projects.id]
+
+    indexes {
+        (project_id, motif_id) [unique]
+        motif_id
+    }
+}
+
+
+Table project_genres {
+    id uuid [pk, note: 'UUIDv7']
+    project_id uuid [ref: > projects.id]
+    genre_id uuid [ref: > genres.id]
+    is_primary boolean
+
+    indexes {
+        (project_id, genre_id) [unique]
+        genre_id
+        (project_id, is_primary)
+    }
+}
+
+Table arcs {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    project_id uuid [ref: > projects.id]
+    position int
+    summarize text
+
+    indexes {
+        (project_id, position)
+    }
+}
+
+Table chapters {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    arc_id uuid [ref: > arcs.id]
+    position int
+    summarize text
+
+    indexes {
+        (arc_id, position)
+    }
+}
+
+enum SceneStatus {
+    GENERATING [note: 'Người dùng bấm “generate”, AI đang chạy. Scene khóa sửa tay']
+    DRAFF [note: 'AI sinh xong, tạo v1. Chưa ai đọc hay đụng vào.']
+    REVISING [note: 'Phiên chỉnh sửa của người dùng hoặc AI']
+    APPROVED [note: 'Người dùng thấy oke, bấm chốt']
+    FAILED [note: 'Quá trình tạo sinh thất bại']
+}
+
+enum SceneSource {
+    AI_GENERATED [note: 'Đánh dấu AI đã chỉnh sửa']
+    HUMAN_EDITED [note: 'Đánh dấu người dùng đã chỉnh sửa']
+    RESTORE [note: 'Đánh dấu ghi lại']
+}
+
+Table scenes {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique]
+    name varchar
+    chapter_id uuid [ref: > chapters.id]
+    world_setting_id uuid [ref: > world_settings.id, note: 'Địa điểm chính của scene']
+    style_preset_id uuid [ref: > style_presets.id]
+    narrator_config_id uuid [ref: > narrator_configs.id]
+    summarize text
+    content text
+    word_count int
+    position int [note: 'Thứ tự trong chương']
+
+    indexes {
+        (chapter_id, position)
+        style_preset_id
+        narrator_config_id
+        world_setting_id
+    }
+}
+
+Table scene_characters {
+    id uuid [pk, note: 'UUIDv7']
+    character_id uuid [ref: > characters.id]
+    scene_id uuid [ref: > scenes.id]
+    is_pov boolean [default: false, note: 'Nhân vật này có là điểm nhìn của scene?']
+
+    indexes {
+        (scene_id, character_id) [unique]
+        character_id
+    }
+}
+
+Table scene_versions {
+    id uuid [pk, note: 'UUIDv7']
+    parent_id uuid [ref: > scenes.id]
+    version_number int [note: 'Số phiên bản']
+    scene_source SceneSource [note: 'Ghi nhận phiên bản đó do ai sửa']
+    summarize text
+    content text
+    word_count int
+    created_at timestamp
+
+    indexes {
+        (parent_id, version_number) [unique]
+        created_at
+    }
+}
+
+// Table
+
+// DATA.META
+
+enum gender {
+    MALE
+    FEMALE
+}
+
+enum MeasurementUnit {
+    MM
+    CM
+    M
+    HA
+    KM
+    ML
+    L
+    MG
+    G
+    KG
+}
+
+Table characters {
+    id uuid [pk, note: 'UUIDv7']
+    name varchar
+    birth timestamp
+    species varchar
+    biological_sex gender [note: 'Giới tính sinh học']
+    gender_identity gender [note: 'Bản dạng giới: nhân vật tự nhận thức']
+    gender_expression gender [note: 'Biểu hiện giới thông qua ngoại hình']
+
+    indexes {
+        name
+        species
+    }
+}
+
+
+
+Table appearance_option_groups {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique, note: 'color, texture, hair_length, hair_style, pupil_shape...']
+    name varchar [not null]
+}
+
+Table appearance_options {
+    id uuid [pk, note: 'UUIDv7']
+    group_id uuid [ref: > appearance_option_groups.id, not null]
+    code varchar [not null]
+    label varchar [not null]
+    hex varchar [note: 'Chỉ cho nhóm màu, để UI hiện ô màu']
+    is_system boolean [default: false]
+
+    indexes {
+        (group_id, code) [unique]
+    }
+}
+
+Table character_appearances {
+    id uuid [pk, note: 'UUIDv7']
+    character_id uuid [ref: - characters.id, unique, not null, note: '1-1']
+    height int
+    height_unit MeasurementUnit [default: 'CM']
+    weight int
+    weight_unit MeasurementUnit [default: 'KG']
+
+    hair_color_id uuid [ref: > appearance_options.id]
+    hair_length_id uuid [ref: > appearance_options.id]
+    hair_style_id uuid [ref: > appearance_options.id]
+    hair_texture_id uuid [ref: > appearance_options.id]
+    pupil_shape_id uuid [ref: > appearance_options.id]
+    iris_color_id uuid [ref: > appearance_options.id]
+    sclera_color_id uuid [ref: > appearance_options.id]
+    skin_tone_id uuid [ref: > appearance_options.id]
+    skin_texture_id uuid [ref: > appearance_options.id]
+
+    hair_note text
+    eyes_note text
+    skin_note text
+    outfit_style text
+    default_summary text
+}
+
+Table character_distinguishing_marks {
+    id uuid [pk, note: 'UUIDv7']
+    character_id uuid [ref: > characters.id, not null]
+    content varchar [not null]
+
+    indexes {
+        character_id
+    }
+}
+
+enum Hierarchy {
+    SUPERIOR
+    EQUAL
+    INFERIOR
+}
+
+enum RelationDimensionLevel {
+    NONE
+    LOW
+    MODERATE
+    HIGH
+    ABSOLUTE
+}
+
+Table relationships {
+    id uuid [pk, note: 'UUIDv7']
+    from_character_id uuid [ref: > characters.id]
+    to_character_id uuid [ref: > characters.id]
+
+    indexes {
+        (from_character_id, to_character_id) [unique]
+        to_character_id
+    }
+}
+
+enum CategoryGroup {
+    FAMILY
+    ROMANTIC
+    SOCIAL
+    PROFESSIONAL
+    ANTAGONISTIC
+}
+
+Table relationship_categories {
+    id uuid [pk, note: 'UUIDv7']
+    category CategoryGroup [note: 'Quan hệ bậc 1']
+    sub_type varchar unique
+
+    indexes {
+        category
+    }
+}
+
+Table relationship_roles {
+    id uuid [pk, note: 'UUIDv7']
+    hierarchy Hierarchy [default: 'EQUAL', note: 'Thứ bật quan hệ']
+    category_id uuid [ref: > relationship_categories.id]
+    relationship_id uuid [ref: > relationships.id]
+    is_primary boolean
+
+    indexes {
+        relationship_id
+        category_id
+        (relationship_id, is_primary)
+    }
+}
+
+Table relationship_states {
+    id uuid [pk, note: 'UUIDv7']
+    parent_id uuid [ref: > relationships.id]
+
+    trust RelationDimensionLevel [note: 'A cảm thấy có thể dựa vào B không']
+    affection RelationDimensionLevel [note: 'A cảm thấy ấm áp với B không']
+    hostility RelationDimensionLevel [note: 'A cảm thấy muốn hại B không']
+    fear RelationDimensionLevel [note: 'A cảm thấy B đe doạ mình không']
+    respect RelationDimensionLevel [note: 'A đánh giá năng lực/phẩm giá B']
+    familiarity RelationDimensionLevel [note: 'A biết B bao nhiêu']
+    dependency RelationDimensionLevel [note: 'A cần B bao nhiêu']
+
+    created_at timestamp
+
+    indexes {
+        (parent_id, created_at)
+    }
+}
+
+// ==========================================
+// DATA.META - WORLD BUILDING
+// ==========================================
+
+enum LocationType {
+  REALM    [note: 'Cõi / tầng thực tại rộng nhất']
+  WORLD    [note: 'Thế giới']
+  REGION   [note: 'Vùng']
+  COUNTRY  [note: 'Quốc gia']
+  CITY     [note: 'Thành phố']
+  TOWN     [note: 'Thị trấn']
+  FACILITY [note: 'Công trình: cung điện, chiến hạm, học viện...']
+  STREET   [note: 'Đường / khu vực nhỏ']
+  ROOM     [note: 'Phòng, không gian kín']
+}
+
+enum LocationAccess {
+  PUBLIC
+  PRIVATE
+  SECRET
+  LOCKED
+  GUARDED
+  RESTRICTED
+}
+
+Table world_settings {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique, not null, note: 'facility001']
+  name varchar [not null]
+  type LocationType [not null]
+  parent_id uuid [ref: > world_settings.id, note: 'Cha trong cây không gian; null = gốc']
+  description text
+  access LocationAccess [default: 'PUBLIC']
+
+  spatial_features text [note: 'Đặc điểm không gian: hành lang hẹp, trần cao phủ kết giới...']
+  sensory_visual text
+  sensory_auditory text
+  sensory_tactile text
+  sensory_olfactory text
+  sensory_gustatory text
+
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    type
+    parent_id
+    (parent_id, type)
+  }
+
+  Note: 'Không gian truyện (meta/world-building/settings): realm > world > region > country > city > town > facility > street > room'
+}
+
+enum LoreType {
+  CULTURE [note: 'Văn hóa: phong tục, tín ngưỡng, ngôn ngữ, lễ hội']
+  HISTORY [note: 'Lịch sử: biến cố, thời kỳ, triều đại']
+  FACTION [note: 'Phe phái, tổ chức, quốc gia']
+  ITEM    [note: 'Vật phẩm, bảo vật, cổ vật']
+}
+
+Table lore_entries {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique, not null]
+  type LoreType [not null]
+  scope varchar [note: 'project | arc | code của world_settings / lore_entries khác']
+  name varchar [not null]
+  description text
+
+  world_setting_id uuid [ref: > world_settings.id, note: 'Địa bàn lore gắn vào']
+
+  data json [note: 'Trường riêng theo type (timeline, taboos, goals...) - mở rộng dần']
+
+  indexes {
+    type
+    world_setting_id
+    (type, scope)
+  }
+
+  Note: 'Lore dùng chung (meta/world-building/lore): văn hóa, lịch sử, phe phái, vật phẩm'
+}
+
+Table power_systems {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique, not null]
+  name varchar [not null]
+  scope varchar [note: 'project | arc | code của world_settings']
+  description text
+
+  source text [note: 'Nguồn sức mạnh: mana, huyết mạch, công nghệ...']
+  rules text [note: 'Quy luật vận hành']
+  cost text [note: 'Cái giá / điều kiện đánh đổi']
+  limitations text [note: 'Giới hạn, điều cấm']
+
+  indexes {
+    scope
+  }
+
+  Note: 'Hệ thống sức mạnh (meta/world-building/power-system)'
+}
+
+Table power_tiers {
+  id uuid [pk, note: 'UUIDv7']
+  power_system_id uuid [ref: > power_systems.id, not null]
+  code varchar [not null]
+  name varchar [not null]
+  rank int [note: 'Thứ bậc, nhỏ = thấp']
+  description text
+
+  indexes {
+    (power_system_id, code) [unique]
+    (power_system_id, rank)
+  }
+
+  Note: 'Bậc / cảnh giới trong một hệ thống sức mạnh'
+}
+
+Table power_abilities {
+  id uuid [pk, note: 'UUIDv7']
+  power_system_id uuid [ref: > power_systems.id, not null]
+  tier_id uuid [ref: > power_tiers.id]
+  name varchar [not null]
+  description text
+
+  indexes {
+    power_system_id
+    tier_id
+  }
+
+  Note: 'Kỹ năng / năng lực thuộc hệ thống hoặc bậc'
+}
+
+// ==========================================
+// DATA.META - THEME
+// ==========================================
+
+enum ThemeScope {
+  PROJECT [note: 'Chủ đề gốc của toàn truyện']
+  ARC     [note: 'Chủ đề riêng của một arc, kế thừa theme gốc']
+}
+
+enum ThemeResolutionType {
+  RESOLVED  [note: 'Có câu trả lời rõ ràng']
+  OPEN      [note: 'Để ngỏ cho người đọc tự trả lời']
+  AMBIGUOUS [note: 'Mơ hồ, không chốt được']
+}
+
+enum ThemeArgumentRole {
+  PRIMARY    [note: 'Hành trình/kết cục của nhân vật là câu trả lời chính thức của theme']
+  ANTITHESIS [note: 'Đại diện giá trị đối lập, bị bác bỏ']
+  CAUTIONARY [note: 'Có phần đúng nhưng thiếu, thất bại vì thiếu']
+  WITNESS    [note: 'Góp mặt, không mang lập trường riêng, chỉ củng cố phe primary']
+}
+
+enum ThemeAnswerMode {
+  VERBAL   [note: 'Trả lời bằng lời thoại / độc thoại']
+  ACTION   [note: 'Trả lời bằng hành động']
+  OUTCOME  [note: 'Trả lời bằng kết cục nhân vật nhận được']
+  IMPLICIT [note: 'Ngầm hiểu, không nói ra']
+}
+
+Table themes {
+  id uuid [pk, note: 'UUIDv7']
+  code varchar [unique, note: 'Trùng id trong meta/theme.json']
+  scope ThemeScope [not null]
+
+  project_id uuid [ref: > projects.id, not null]
+  arc_id uuid [ref: > arcs.id, note: 'null khi scope = PROJECT hoặc truyện single-arc']
+  parent_theme_id uuid [ref: > themes.id, note: 'Theme gốc mà theme này kế thừa (multi-arc)']
+
+  question varchar [not null, note: 'Câu hỏi chủ đề, vd: Sức mạnh có tha hoá con người?']
+
+  resolution_type ThemeResolutionType [default: 'OPEN']
+  resolution text [note: 'Câu trả lời cuối cùng của truyện']
+  message varchar [note: 'Thông điệp rút ra, có thể null']
+
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    project_id
+    arc_id
+    parent_theme_id
+    (project_id, scope)
+    (arc_id, scope)
+  }
+
+  Note: 'Chủ đề tư tưởng (meta/theme.json): project -> arc, có thể lồng nhau'
+}
+
+Table theme_arguments {
+  id uuid [pk, note: 'UUIDv7']
+  theme_id uuid [ref: > themes.id, not null]
+  character_id uuid [ref: > characters.id, not null]
+
+  role ThemeArgumentRole [not null]
+  answer_mode ThemeAnswerMode
+  note text [note: 'Vì sao nhân vật mang lập trường này']
+
+  // VFILL: điều kiện để nhân vật trả lời được theme (xem notes/narrative/theme-answer-optimize.md)
+  required_knowledge text [note: 'Kiến thức cần có để trả lời; VFILL']
+  required_competence text [note: 'Năng lực cần có để trả lời; VFILL']
+
+  indexes {
+    (theme_id, character_id) [unique]
+    character_id
+    (theme_id, role)
+  }
+
+  Note: 'respondents trong notes/narrative/chatgpt-note.md / thematic-arguments trong theme.json'
+}
+
+// ==========================================
+// MEMORY SYSTEM
+// ==========================================
+
+enum MemoryType {
+  EPISODIC [note: 'Ký ức về sự kiện hoặc trải nghiệm cụ thể']
+  SEMANTIC [note: 'Kiến thức, thông tin hoặc sự thật mà nhân vật ghi nhớ']
+  PROCEDURAL [note: 'Ký ức về cách thực hiện kỹ năng hoặc hành động']
+}
+
+enum MemoryCertainty {
+  CERTAIN [note: 'Chủ thể hoàn toàn tin tưởng ký ức']
+  PROBABLE [note: 'Chủ thể cho rằng ký ức có khả năng đúng']
+  UNCERTAIN [note: 'Chủ thể không chắc chắn về ký ức']
+}
+
+enum MemorySource {
+  FIRSTHAND [note: 'Trực tiếp chứng kiến hoặc trải nghiệm']
+  HEARSAY [note: 'Tiếp nhận thông tin từ người khác']
+  INFERENCE [note: 'Tự suy luận từ những thông tin đã biết']
+}
+
+enum MemoryStatus {
+  ACTIVE [note: 'Ký ức đang được chủ thể lưu giữ']
+  SUPPRESSED [note: 'Ký ức bị kìm nén']
+  FORGOTTEN [note: 'Ký ức đã bị quên']
+  DISTORTED [note: 'Ký ức bị bóp méo']
+}
+
+// ==========================================
+// MEMORIES
+// ==========================================
+
+Table memories {
+  id uuid [pk, note: 'UUIDv7']
+
+  owner_id uuid [not null, ref: > characters.id]
+
+  type MemoryType [not null]
+
+  summary text [not null]
+  recollection text
+  interpretation text
+
+  certainty MemoryCertainty
+  knowledge_source MemorySource
+
+  significance float [default: 0.5]
+  status MemoryStatus [default: 'ACTIVE']
+
+  occurred_at varchar [note: 'Thời điểm sự kiện diễn ra trong thế giới truyện']
+  perceived_at varchar [note: 'Thời điểm chủ thể tiếp nhận hoặc hình thành nhận thức']
+
+  source_scene_id uuid [ref: > scenes.id]
+
+  indexes {
+    owner_id
+    type
+    status
+    source_scene_id
+  }
+
+  Note: 'Ký ức và nhận thức chủ quan của nhân vật'
+}
+
+// ==========================================
+// MEMORY REFERENCES
+// ==========================================
+
+Table memory_references {
+  id uuid [pk, note: 'UUIDv7']
+
+  memory_id uuid [not null, ref: > memories.id]
+
+  entity_type varchar [not null]
+  entity_id uuid [not null]
+
+  role varchar
+
+  indexes {
+    (memory_id, entity_type, entity_id, role) [unique]
+    (entity_type, entity_id)
+  }
+
+  Note: 'Liên kết ký ức với nhân vật, địa điểm, vật thể, quan hệ hoặc sự kiện'
+}
+
+// ==========================================
+// MEMORY EMOTIONS
+// ==========================================
+
+Table memory_emotions {
+  id uuid [pk, note: 'UUIDv7']
+
+  memory_id uuid [not null, ref: > memories.id]
+
+  emotion varchar [not null]
+  intensity float [default: 0.5]
+
+  indexes {
+    (memory_id, emotion) [unique]
+  }
+
+  Note: 'Những cảm xúc gắn liền với ký ức'
+}
+
+// ==========================================
+// MEMORY CONNECTIONS
+// ==========================================
+
+Table memory_connections {
+  id uuid [pk, note: 'UUIDv7']
+
+  source_memory_id uuid [not null, ref: > memories.id]
+  target_memory_id uuid [not null, ref: > memories.id]
+
+  relation varchar [not null]
+
+  indexes {
+    (source_memory_id, target_memory_id, relation) [unique]
+    target_memory_id
+  }
+
+  Note: 'Quan hệ giữa các ký ức: củng cố, mâu thuẫn, liên tưởng...'
+}
+
+// ==========================================
+// MEMORY REVISIONS
+// ==========================================
+
+Table memory_revisions {
+  id uuid [pk, note: 'UUIDv7']
+
+  memory_id uuid [not null, ref: > memories.id]
+
+  revision_number int [not null]
+
+  recollection text
+  interpretation text
+
+  certainty MemoryCertainty
+
+  source_scene_id uuid [ref: > scenes.id]
+
+  reason text
+
+  indexes {
+    (memory_id, revision_number) [unique]
+  }
+
+  Note: 'Lịch sử thay đổi nhận thức của nhân vật trong diễn biến truyện'
+}
+
+enum KnowledgeSourceType {
+  INITIAL [note: 'Tri thức nền ban đầu của nhân vật']
+  LORE [note: 'Tri thức được tham chiếu từ lore của thế giới truyện']
+}
+
+enum CertaintyLevel {
+  LOW [note: 'Độ chắc chắn thấp']
+  MEDIUM [note: 'Độ chắc chắn trung bình']
+  HIGH [note: 'Độ chắc chắn cao']
+}
+
+Table character_knowledge_sources {
+  id uuid [pk, note: 'UUIDv7']
+
+  character_id uuid [not null, ref: > characters.id]
+
+  type KnowledgeSourceType [not null]
+
+  path varchar [not null, note: 'Đường dẫn đến tài liệu tri thức']
+
+  certainty CertaintyLevel [default: 'HIGH']
+
+  indexes {
+    character_id
+    (character_id, type, path) [unique]
+  }
+
+  Note: 'Nguồn tri thức được gán cho nhân vật'
+}
+
+// ==========================================
+// COMPETENCE DOMAINS
+// ==========================================
+
+Table competence_domains {
+  id uuid [pk, note: 'UUIDv7']
+
+  code varchar [unique, not null]
+  name varchar [not null]
+  description text
+
+  is_system boolean [default: false]
+
+  Note: 'Danh mục lĩnh vực năng lực, hỗ trợ mở rộng bởi người dùng'
+}
+
+// ==========================================
+// CHARACTER COMPETENCES
+// ==========================================
+
+Table character_competences {
+  id uuid [pk, note: 'UUIDv7']
+
+  character_id uuid [not null, ref: > characters.id]
+
+  domain_id uuid [not null, ref: > competence_domains.id]
+
+  name varchar [not null]
+  level varchar
+  description text
+
+  experience text
+
+  reliability CertaintyLevel [default: 'HIGH']
+
+  development_potential text
+  development_current_focus text
+  development_growth_direction text
+
+  indexes {
+    character_id
+    domain_id
+    (character_id, domain_id)
+  }
+
+  Note: 'Năng lực và quá trình phát triển kỹ năng của nhân vật'
+}
+
+// ==========================================
+// COMPETENCE CAPABILITIES
+// ==========================================
+
+Table competence_capabilities {
+  id uuid [pk, note: 'UUIDv7']
+
+  competence_id uuid [not null, ref: > character_competences.id]
+
+  content text [not null]
+
+  indexes {
+    competence_id
+  }
+
+  Note: 'Những hành động nhân vật có khả năng thực hiện'
+}
+
+// ==========================================
+// COMPETENCE LIMITATIONS
+// ==========================================
+
+Table competence_limitations {
+  id uuid [pk, note: 'UUIDv7']
+
+  competence_id uuid [not null, ref: > character_competences.id]
+
+  content text [not null]
+
+  indexes {
+    competence_id
+  }
+
+  Note: 'Giới hạn và điểm yếu của năng lực'
+}
+
+Table symbolic_motifs {
+    id uuid [pk, note: 'UUIDv7']
+    symbolic_id uuid [ref: > symbolics.id]
+    motif_id uuid [ref: > motifs.id]
+}
+
+Table symbolics {
+    id uuid [pk, note: 'UUIDv7']
+}
+

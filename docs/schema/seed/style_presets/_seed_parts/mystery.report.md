@@ -1,0 +1,24 @@
+# mystery
+- files processed: 6
+- presets emitted: 6
+- vocab items: 18
+- focus items: 18
+- device links: 30 (primary: 6, secondary: 12, avoid: 12)
+- unique devices: 30
+- warnings:
+  - "alibi_check.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+  - "alibi_check.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "clue_hunting.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "clue_hunting.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "deduction.json: imagery.tactile=\"khong\" → NONE (typo \"khong\")"
+  - "deduction.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+  - "deduction.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "disguise_investigation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "disguise_investigation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "interrogation.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+  - "interrogation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "revelation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "revelation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - Sprint 2.1: 'thấp đến trung bình' → LOW per RULES 1.5 patch (alibi_check)
+- device description conflicts:
+  - none

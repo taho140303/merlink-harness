@@ -1,0 +1,98 @@
+[
+  {
+    "code": "phep_so_sanh_la_quen_an_du_kham_pha",
+    "description": "Phép so sánh lạ – quen & ẩn dụ khám phá"
+  },
+  {
+    "code": "liet_ke_chi_tiet_ky_la",
+    "description": "Liệt kê chi tiết kỳ lạ"
+  },
+  {
+    "code": "cau_hoi_tu_tu_kinh_ngac",
+    "description": "Câu hỏi tu từ kinh ngạc"
+  },
+  {
+    "code": "ngon_ngu_qua_doi_thuong",
+    "description": "Ngôn ngữ quá đỗi thường"
+  },
+  {
+    "code": "mieu_ta_kho_khan",
+    "description": "Miêu tả khô khan"
+  },
+  {
+    "code": "phep_liet_ke_dia_danh_diep_cau_truc_khai_mo",
+    "description": "Phép liệt kê địa danh & điệp cấu trúc khai mở"
+  },
+  {
+    "code": "an_du_buc_man_duoc_ven_len",
+    "description": "Ẩn dụ bức màn được vén lên"
+  },
+  {
+    "code": "cau_cam_than_hao_hung",
+    "description": "Câu cảm thán hào hứng"
+  },
+  {
+    "code": "ngon_ngu_cham_chap_nang_ne",
+    "description": "Ngôn ngữ chậm chạp, nặng nề"
+  },
+  {
+    "code": "mieu_ta_chi_tiet_may_moc",
+    "description": "Miêu tả chi tiết máy móc"
+  },
+  {
+    "code": "diep_cau_truc_buoc_tien_liet_ke_cot_moc",
+    "description": "Điệp cấu trúc bước tiến & liệt kê cột mốc"
+  },
+  {
+    "code": "phep_doi_giua_duong_di_va_can_tro",
+    "description": "Phép đối giữa đường đi và cản trở"
+  },
+  {
+    "code": "tuong_thanh_nhip_buoc",
+    "description": "Tượng thanh nhịp bước"
+  },
+  {
+    "code": "ngon_ngu_gap_gap",
+    "description": "Ngôn ngữ gấp gáp"
+  },
+  {
+    "code": "mieu_ta_noi_tam_dai",
+    "description": "Miêu tả nội tâm dài"
+  },
+  {
+    "code": "an_du_bi_mat_chon_vui_diep_cau_truc_do_duong",
+    "description": "Ẩn dụ bí mật chôn vùi & điệp cấu trúc dò đường"
+  },
+  {
+    "code": "liet_ke_co_vat",
+    "description": "Liệt kê cổ vật"
+  },
+  {
+    "code": "cau_hoi_tu_tu_ve_qua_khu",
+    "description": "Câu hỏi tu từ về quá khứ"
+  },
+  {
+    "code": "ngon_ngu_hien_dai_tuc",
+    "description": "Ngôn ngữ hiện đại, tục"
+  },
+  {
+    "code": "tuong_thanh_on_ao",
+    "description": "Tượng thanh ồn ào"
+  },
+  {
+    "code": "phep_liet_ke_manh_moi_diep_cau_truc_duoi_theo",
+    "description": "Phép liệt kê manh mối & điệp cấu trúc đuổi theo"
+  },
+  {
+    "code": "cau_hoi_tu_tu_cang_thang",
+    "description": "Câu hỏi tu từ căng thẳng"
+  },
+  {
+    "code": "phep_doi_nguoi_thang_ke_thua",
+    "description": "Phép đối người thắng – kẻ thua"
+  },
+  {
+    "code": "ngon_ngu_cham_rai",
+    "description": "Ngôn ngữ chậm rãi"
+  }
+]

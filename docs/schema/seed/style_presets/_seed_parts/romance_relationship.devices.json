@@ -1,0 +1,118 @@
+[
+  {
+    "code": "an_du_tinh_cam_cau_cham_lung_do_du",
+    "description": "Ẩn dụ tình cảm & câu chấm lửng do dự"
+  },
+  {
+    "code": "diep_dong_tu_boc_lo_cam_xuc",
+    "description": "Điệp động từ bộc lộ cảm xúc"
+  },
+  {
+    "code": "phep_doi_khoang_lang_va_loi_noi",
+    "description": "Phép đối khoảng lặng và lời nói"
+  },
+  {
+    "code": "ngon_ngu_kho_khan_lanh_lung",
+    "description": "Ngôn ngữ khô khan, lạnh lùng"
+  },
+  {
+    "code": "cau_hoi_tu_tu_mia_mai",
+    "description": "Câu hỏi tu từ mỉa mai"
+  },
+  {
+    "code": "diep_cau_truc_vui_ve_liet_ke_dieu_nho_nhat",
+    "description": "Điệp cấu trúc vui vẻ & liệt kê điều nhỏ nhặt"
+  },
+  {
+    "code": "cau_hoi_quan_tam",
+    "description": "Câu hỏi quan tâm"
+  },
+  {
+    "code": "phep_doi_giua_hai_nhan_vat",
+    "description": "Phép đối giữa hai nhân vật"
+  },
+  {
+    "code": "cam_than_gian_du",
+    "description": "Cảm thán giận dữ"
+  },
+  {
+    "code": "ngon_ngu_cang_thang",
+    "description": "Ngôn ngữ căng thẳng"
+  },
+  {
+    "code": "an_du_mat_mat_diep_tu_u_am",
+    "description": "Ẩn dụ mất mát & điệp từ u ám"
+  },
+  {
+    "code": "cau_cham_lung_hut_hoi",
+    "description": "Câu chấm lửng hụt hơi"
+  },
+  {
+    "code": "phep_doi_ky_uc_hien_tai",
+    "description": "Phép đối ký ức – hiện tại"
+  },
+  {
+    "code": "ngon_ngu_vui_ve",
+    "description": "Ngôn ngữ vui vẻ"
+  },
+  {
+    "code": "cau_cao_buoc_lap_cau_hoi_tu_tu_sac_ben",
+    "description": "Câu cáo buộc lặp & câu hỏi tu từ sắc bén"
+  },
+  {
+    "code": "diep_giong_cao_don_dap",
+    "description": "Điệp giọng cao dồn dập"
+  },
+  {
+    "code": "phep_doi_anh_ta_toi",
+    "description": "Phép đối 'anh ta – tôi'"
+  },
+  {
+    "code": "doan_mieu_ta_dai",
+    "description": "Đoạn miêu tả dài"
+  },
+  {
+    "code": "ngon_ngu_buon_tham",
+    "description": "Ngôn ngữ buồn thảm"
+  },
+  {
+    "code": "so_sanh_voi_ky_uc_diep_cau_noi_dang_do",
+    "description": "So sánh với ký ức & điệp câu nói dang dở"
+  },
+  {
+    "code": "phep_doi_truoc_sau_theo_thoi_gian",
+    "description": "Phép đối 'trước – sau' theo thời gian"
+  },
+  {
+    "code": "cau_cham_lung_nghen_ngao",
+    "description": "Câu chấm lửng nghẹn ngào"
+  },
+  {
+    "code": "ngon_ngu_tho_o",
+    "description": "Ngôn ngữ thờ ơ"
+  },
+  {
+    "code": "ke_su_kien_kho_khan",
+    "description": "Kể sự kiện khô khan"
+  },
+  {
+    "code": "an_du_gan_ket_diep_cau_truc_trang_trong_can_xung",
+    "description": "Ẩn dụ gắn kết & điệp cấu trúc trang trọng cân xứng"
+  },
+  {
+    "code": "phep_doi_loi_the",
+    "description": "Phép đối lời thề"
+  },
+  {
+    "code": "liet_ke_khoanh_khac_chuyen_giao",
+    "description": "Liệt kê khoảnh khắc chuyển giao"
+  },
+  {
+    "code": "cau_cut_thieu_chu_ngu",
+    "description": "Câu cụt thiếu chủ ngữ"
+  },
+  {
+    "code": "ngon_ngu_bi_quan",
+    "description": "Ngôn ngữ bi quan"
+  }
+]

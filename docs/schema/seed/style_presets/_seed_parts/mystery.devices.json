@@ -1,0 +1,122 @@
+[
+  {
+    "code": "phep_liet_ke_doi_chieu_thoi_gian",
+    "description": "Phép liệt kê & đối chiếu thời gian"
+  },
+  {
+    "code": "phep_so_sanh_mau_thuan",
+    "description": "Phép so sánh mâu thuẫn"
+  },
+  {
+    "code": "diep_cau_truc_xac_minh",
+    "description": "Điệp cấu trúc xác minh"
+  },
+  {
+    "code": "cau_hoi_tu_tu",
+    "description": "Câu hỏi tu từ"
+  },
+  {
+    "code": "ngon_ngu_cam_xuc_manh",
+    "description": "Ngôn ngữ cảm xúc mạnh"
+  },
+  {
+    "code": "phep_liet_ke_chi_tiet_nhan_chi_tiet_bat_thuong",
+    "description": "Phép liệt kê chi tiết & nhấn chi tiết bất thường"
+  },
+  {
+    "code": "diep_cau_truc_quan_sat",
+    "description": "Điệp cấu trúc quan sát"
+  },
+  {
+    "code": "phep_doi_dau_vet",
+    "description": "Phép đối dấu vết"
+  },
+  {
+    "code": "cau_cam_than_ngan",
+    "description": "Câu cảm thán ngắn"
+  },
+  {
+    "code": "phong_dai",
+    "description": "Phóng đại"
+  },
+  {
+    "code": "phep_tam_doan_luan_diep_cau_truc_suy_luan",
+    "description": "Phép tam đoạn luận & điệp cấu trúc suy luận"
+  },
+  {
+    "code": "phep_loai_suy",
+    "description": "Phép loại suy"
+  },
+  {
+    "code": "phep_liet_ke_chung_cu",
+    "description": "Phép liệt kê chứng cứ"
+  },
+  {
+    "code": "cau_hoi_tu_tu_boc_phat",
+    "description": "Câu hỏi tu từ bộc phát"
+  },
+  {
+    "code": "ngon_ngu_an_du_mo_ho",
+    "description": "Ngôn ngữ ẩn dụ mơ hồ"
+  },
+  {
+    "code": "phep_doi_giua_than_phan_gia_va_that",
+    "description": "Phép đối giữa thân phận giả và thật"
+  },
+  {
+    "code": "liet_ke_hanh_vi_nhap_vai",
+    "description": "Liệt kê hành vi nhập vai"
+  },
+  {
+    "code": "diep_cau_truc_quan_sat_canh_giac",
+    "description": "Điệp cấu trúc quan sát cảnh giác"
+  },
+  {
+    "code": "doc_thoai_noi_tam_dai",
+    "description": "Độc thoại nội tâm dài"
+  },
+  {
+    "code": "phong_dai_kich_tinh",
+    "description": "Phóng đại kịch tính"
+  },
+  {
+    "code": "phep_diep_cau_hoi_don_dap_lap_y_gai_bay",
+    "description": "Phép điệp câu hỏi dồn dập & lặp ý gài bẫy"
+  },
+  {
+    "code": "cau_hoi_tu_tu_gay_ap_luc",
+    "description": "Câu hỏi tu từ gây áp lực"
+  },
+  {
+    "code": "phep_doi_giua_hoi_va_tranh",
+    "description": "Phép đối giữa hỏi và tránh"
+  },
+  {
+    "code": "doan_mieu_ta_dai",
+    "description": "Đoạn miêu tả dài"
+  },
+  {
+    "code": "ngon_ngu_hai_huoc",
+    "description": "Ngôn ngữ hài hước"
+  },
+  {
+    "code": "phep_dao_ngu_nhan_hoa_ra_thi_ra",
+    "description": "Phép đảo ngữ & nhấn 'hoá ra / thì ra'"
+  },
+  {
+    "code": "cau_cut_dut_khoat",
+    "description": "Câu cụt dứt khoát"
+  },
+  {
+    "code": "phep_liet_ke_su_that",
+    "description": "Phép liệt kê sự thật"
+  },
+  {
+    "code": "ngon_ngu_mo_ho_do_du",
+    "description": "Ngôn ngữ mơ hồ, do dự"
+  },
+  {
+    "code": "trao_phung",
+    "description": "Trào phúng"
+  }
+]

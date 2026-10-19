@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Characters · Merlink Harness</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="stylesheet" href="./shared.css" />
+  <style>
+    .ch-page {
+      --ch-ink: #243047;
+      --ch-muted: #576780;
+      --ch-faint: #687891;
+      --ch-line: rgba(100, 119, 158, .21);
+      --ch-wash: rgba(228, 235, 249, .42);
+      --ch-glass: rgba(230, 237, 250, .44);
+      --ch-indigo: #4f55aa;
+      --ch-indigo-strong: #363c92;
+      --ch-white: #fff;
+      color: var(--ch-ink);
+      max-width: 1510px;
+      padding: 14px clamp(20px, 3.2vw, 52px) 100px;
+      margin: 0 auto;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html.dark .ch-page, html[data-theme="dark"] .ch-page, body.dark .ch-page, body[data-theme="dark"] .ch-page {
+      --ch-ink: #f0f3fb;
+      --ch-muted: #bac6d7;
+      --ch-faint: #aebcd0;
+      --ch-line: rgba(200, 215, 249, .18);
+      --ch-wash: rgba(45, 53, 71, .62);
+      --ch-glass: rgba(42, 48, 64, .4);
+      --ch-indigo: #aab4ff;
+      --ch-indigo-strong: #c5ccff;
+      --ch-white: #262e3d;
+    }
+    .ch-page *, .ch-page *::before, .ch-page *::after { box-sizing: border-box; }
+    .ch-page button, .ch-page input, .ch-page select, .ch-page textarea { font: inherit; }
+    .ch-page button { cursor: pointer; }
+    .ch-page button:focus-visible, .ch-page input:focus-visible, .ch-page select:focus-visible,
+    .ch-page textarea:focus-visible, .ch-dialog-body button:focus-visible, .ch-dialog-body input:focus-visible,
+    .ch-dialog-body textarea:focus-visible, .ch-dialog-body select:focus-visible {
+      outline: 2px solid #7379e8; outline-offset: 3px;
+    }
+    .ch-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 30px; }
+    .ch-breadcrumb { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ch-muted); }
+    .ch-breadcrumb svg { opacity: .67; }
+    .ch-breadcrumb strong { color: var(--ch-indigo-strong); font-weight: 800; }
+    .ch-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; padding: 46px 0 34px; }
+    .ch-eyebrow, .ch-smallcaps { display: block; color: var(--ch-indigo-strong); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; font-weight: 850; }
+    .ch-eyebrow { display: flex; align-items: center; gap: 10px; }
+    .ch-eyebrow::before { content: ''; width: 21px; height: 1px; background: currentColor; }
+    .ch-intro h1 { font-size: clamp(43px, 5.3vw, 74px); line-height: 1.02; letter-spacing: -.065em; font-weight: 700; margin: 14px 0 14px; }
+    .ch-intro h1 span { font-weight: 360; font-style: italic; color: var(--ch-indigo); }
+    .ch-intro p { color: var(--ch-muted); line-height: 1.65; font-size: 14px; margin: 0; max-width: 570px; }
+    .ch-intro-side { text-align: right; min-width: 155px; padding-bottom: 2px; }
+    .ch-intro-number { display: block; font-weight: 320; font-size: 45px; line-height: 1; letter-spacing: -.075em; color: var(--ch-indigo-strong); }
+    .ch-intro-side .ch-smallcaps { margin-top: 8px; color: var(--ch-muted); letter-spacing: .13em; }
+    .ch-controls { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; padding: 13px; border: 1px solid var(--ch-line); border-radius: 22px; background: var(--ch-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: -2px -2px 6px rgba(255,255,255,.55), 4px 4px 12px rgba(0,0,0,.10); }
+    html.dark .ch-controls, html[data-theme="dark"] .ch-controls, body.dark .ch-controls, body[data-theme="dark"] .ch-controls { box-shadow: -2px -2px 6px rgba(255,255,255,.06), 4px 4px 12px rgba(0,0,0,.32); }
+    .ch-search { flex: 1 1 260px; position: relative; min-width: 180px; }
+    .ch-search svg { position: absolute; top: 50%; left: 15px; transform: translateY(-50%); color: var(--ch-muted); pointer-events: none; }
+    .ch-search input { width: 100%; padding: 12px 14px 12px 43px; font-size: 13px; color: var(--ch-ink); border: 1px solid var(--ch-line); border-radius: 13px; background: var(--ch-wash); outline: none; box-shadow: inset 2px 2px 6px rgba(63,77,110,.07); }
+    .ch-search input::placeholder { color: var(--ch-faint); opacity: 1; }
+    .ch-select-wrap { position: relative; flex: 0 1 auto; }
+    .ch-select-wrap select { min-height: 43px; min-width: 146px; max-width: 215px; appearance: none; border: 1px solid var(--ch-line); border-radius: 13px; padding: 10px 35px 10px 14px; color: var(--ch-ink); font-size: 12px; font-weight: 650; background: var(--ch-wash); box-shadow: inset 2px 2px 6px rgba(63,77,110,.07); cursor: pointer; }
+    .ch-select-wrap select option, .ch-form select option { color: #263044; background: #f4f6fc; }
+    .ch-select-wrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ch-muted); pointer-events: none; }
+    .ch-create { min-height: 43px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; flex-shrink: 0; padding: 10px 17px; border: 1px solid rgba(255,255,255,.4); border-radius: 13px; background: #454ca3; color: #fff; font-size: 12px; font-weight: 750; letter-spacing: .015em; box-shadow: -2px -2px 6px rgba(255,255,255,.5), 4px 4px 12px rgba(29,35,96,.24); transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
+    .ch-create:hover { transform: translateY(-2px); background: #343a92; box-shadow: 0 9px 22px rgba(51,58,137,.23); }
+    .ch-collection-line { display: flex; align-items: center; gap: 14px; margin: 29px 0 17px; }
+    .ch-collection-line .ch-smallcaps { white-space: nowrap; color: var(--ch-muted); letter-spacing: .16em; }
+    .ch-rule { flex: 1; height: 1px; background: var(--ch-line); }
+    .ch-collection-line span:last-child { color: var(--ch-faint); font-size: 11px; white-space: nowrap; }
+    .ch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(17px, 2vw, 27px); }
+    .ch-card { position: relative; aspect-ratio: 3 / 5; min-height: 460px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255,255,255,.45); border-radius: 23px; background: var(--ch-glass); box-shadow: -2px -2px 6px rgba(255,255,255,.8), 4px 4px 12px rgba(0,0,0,.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease; animation: ch-rise .5s both; animation-delay: calc(var(--ch-i, 0) * 55ms); }
+    html.dark .ch-card, html[data-theme="dark"] .ch-card, body.dark .ch-card, body[data-theme="dark"] .ch-card { border-color: rgba(255,255,255,.1); box-shadow: -2px -2px 6px rgba(255,255,255,.06), 4px 4px 12px rgba(0,0,0,.5); }
+    .ch-card:hover, .ch-card:focus-within { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(44,53,91,.20); border-color: rgba(139,151,210,.56); }
+    .ch-portrait { position: relative; height: 60%; flex: 0 0 60%; overflow: hidden; isolation: isolate; background: var(--ch-default-art, linear-gradient(150deg,#8da1b0,#283f58)); }
+    .ch-portrait::after { content: ''; position: absolute; inset: 0; z-index: 4; background: linear-gradient(to bottom,rgba(16,25,46,.18),transparent 25%,transparent 52%,rgba(18,26,45,.45)); pointer-events: none; }
+    .ch-portrait::before { content: ''; position: absolute; inset: 0; z-index: 1; opacity: .47; background: radial-gradient(ellipse at 54% 35%,rgba(255,255,255,.54),transparent 42%), repeating-linear-gradient(105deg,transparent 0px,transparent 3px,rgba(255,255,255,.07) 4px,transparent 5px); mix-blend-mode: screen; pointer-events: none; }
+    .ch-portrait--uploaded { background-position: center; background-size: cover; }
+    .ch-portrait--uploaded .ch-art-halo, .ch-portrait--uploaded .ch-art-figure, .ch-portrait--uploaded .ch-art-neck, .ch-portrait--uploaded .ch-art-head, .ch-portrait--uploaded .ch-art-hair { display: none; }
+    .ch-art-halo { position: absolute; top: 13%; left: 12%; width: 78%; aspect-ratio: 1; z-index: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,.34); box-shadow: 0 0 0 25px rgba(255,255,255,.055), 0 0 0 75px rgba(255,255,255,.025), inset 0 0 72px rgba(255,255,255,.17); }
+    .ch-art-figure { position: absolute; z-index: 2; bottom: -25%; left: 15%; width: 81%; height: 69%; transform: rotate(var(--ch-tilt, -8deg)); border-radius: 50% 50% 10% 10%; background: linear-gradient(112deg, rgba(11,18,37,.94) 0%,var(--ch-cloak, #293957) 48%,rgba(7,17,33,.9) 100%); box-shadow: -18px 0 42px rgba(5,20,33,.16), inset 15px 3px 25px rgba(255,255,255,.12); }
+    .ch-art-figure::before { content: ''; position: absolute; top: 4%; left: 24%; width: 54%; height: 110%; border-left: 1px solid rgba(255,255,255,.28); transform: rotate(-16deg); opacity: .85; }
+    .ch-art-neck { position: absolute; z-index: 2; bottom: 30%; left: 46%; width: 15%; height: 21%; transform: rotate(var(--ch-tilt,-8deg)); border-radius: 37%; background: linear-gradient(90deg,var(--ch-skin-shadow,#927469),var(--ch-skin,#d0a793) 50%,var(--ch-skin-shadow,#927469)); }
+    .ch-art-head { position: absolute; z-index: 3; top: 26%; left: 37%; width: 31%; height: 37%; transform: rotate(var(--ch-tilt,-8deg)); border-radius: 48% 49% 47% 46% / 45% 48% 53% 55%; background: linear-gradient(90deg,var(--ch-skin-shadow,#927469) 0%,var(--ch-skin,#d0a793) 49%,var(--ch-skin-shadow,#927469) 100%); box-shadow: inset 0 -14px 17px rgba(58,37,53,.24), 0 12px 16px rgba(14,25,41,.12); }
+    .ch-art-head::after { content: ''; position: absolute; left: 55%; top: 48%; width: 18%; height: 3%; border-radius: 100%; transform: rotate(-7deg); background: rgba(44,36,49,.63); box-shadow: -29px 0 0 rgba(44,36,49,.63), -14px 37px 0 -1px rgba(83,42,52,.52); }
+    .ch-art-hair { position: absolute; z-index: 3; top: 19%; left: 33%; width: 38%; height: 34%; transform: rotate(var(--ch-tilt,-8deg)); border-radius: 62% 38% 29% 48%; background: linear-gradient(112deg,var(--ch-hair,#1d2434),var(--ch-hair-light,#495267)); box-shadow: 5px -6px 12px rgba(12,18,38,.17); clip-path: polygon(2% 60%,6% 24%,31% 3%,68% 1%,97% 19%,92% 62%,72% 37%,51% 30%,28% 46%,21% 100%,9% 90%); }
+    .ch-card:nth-child(3n + 2) .ch-art-hair { clip-path: polygon(4% 63%,8% 17%,35% 0,74% 4%,99% 39%,88% 78%,83% 100%,66% 39%,31% 30%,21% 95%); }
+    .ch-card:nth-child(3n) .ch-art-hair { clip-path: polygon(5% 65%,9% 21%,38% 0,72% 11%,97% 41%,88% 72%,60% 29%,27% 31%,18% 95%); }
+    .ch-portrait-mark { position: absolute; z-index: 5; top: 17px; left: 17px; color: rgba(255,255,255,.94); font-size: 10px; font-weight: 750; letter-spacing: .15em; text-transform: uppercase; text-shadow: 0 1px 9px rgba(10,15,30,.35); }
+    .ch-portrait-num { position: absolute; z-index: 5; top: 14px; right: 16px; color: rgba(255,255,255,.94); font-size: 12px; font-weight: 650; letter-spacing: .08em; text-shadow: 0 1px 9px rgba(10,15,30,.35); }
+    .ch-portrait-seal { position: absolute; z-index: 5; bottom: 16px; right: 17px; width: 31px; height: 31px; border: 1px solid rgba(255,255,255,.57); border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(20,29,49,.22); backdrop-filter: blur(7px); }
+    .ch-portrait-name { position: absolute; z-index: 5; bottom: 20px; left: 17px; max-width: calc(100% - 74px); color: #fff; font-size: clamp(19px, 2vw, 27px); line-height: 1; font-weight: 650; letter-spacing: -.045em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 15px rgba(9,17,29,.55); }
+    .ch-trait-options { display: flex; flex-wrap: wrap; gap: 7px; }
+    .ch-trait-option { border: 1px solid var(--ch-line); border-radius: 8px; background: var(--ch-wash); color: var(--ch-muted); padding: 6px 9px; font-size: 11px; font-weight: 650; line-height: 1.2; }
+    .ch-trait-option[aria-pressed="true"] { border-color: #7078c3; background: rgba(94,105,186,.18); color: var(--ch-indigo-strong); box-shadow: inset 0 0 0 1px rgba(94,105,186,.15); }
+    .ch-trait-option:hover { border-color: var(--ch-indigo); }
+    .ch-card-body { min-height: 0; flex: 1 1 40%; display: flex; flex-direction: column; padding: clamp(15px, 1.5vw, 22px) clamp(16px, 1.65vw, 23px) clamp(15px, 1.5vw, 21px); }
+    .ch-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .ch-role { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--ch-indigo-strong); line-height: 1.4; }
+    .ch-age { color: var(--ch-faint); font-size: 11px; white-space: nowrap; }
+    .ch-card h2 { margin: 5px 0 5px; font-size: clamp(21px, 2.3vw, 29px); line-height: 1.12; letter-spacing: -.05em; font-weight: 670; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ch-story { margin: 0; color: var(--ch-muted); font-size: 11px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ch-story svg { display: inline-block; vertical-align: -2px; margin-right: 4px; }
+    .ch-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 auto; min-height: 23px; align-content: flex-start; }
+    .ch-tag { display: inline-flex; align-items: center; max-width: 100%; padding: 4px 8px; border: 1px solid var(--ch-line); border-radius: 7px; background: var(--ch-wash); color: var(--ch-muted); font-size: 9px; font-weight: 650; line-height: 1.2; white-space: nowrap; }
+    .ch-bottom { border-top: 1px solid var(--ch-line); display: flex; align-items: center; justify-content: space-between; gap: 9px; padding-top: 11px; margin-top: 10px; }
+    .ch-stats { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .ch-stats span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 10px; color: var(--ch-muted); }
+    .ch-stats svg { color: var(--ch-indigo); }
+    .ch-view { display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--ch-line); background: var(--ch-wash); color: var(--ch-indigo-strong); font-size: 10px; font-weight: 800; transition: background .2s ease, transform .2s ease; }
+    .ch-view:hover { background: rgba(117,132,210,.19); transform: translateX(2px); }
+    .ch-empty { text-align: center; padding: 66px 20px; border: 1px dashed var(--ch-line); border-radius: 22px; background: var(--ch-glass); }
+    .ch-empty-icon { margin: 0 auto 18px; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--ch-wash); color: var(--ch-indigo); }
+    .ch-empty h2 { font-size: 23px; margin: 0 0 7px; letter-spacing: -.04em; }
+    .ch-empty p { color: var(--ch-muted); margin: 0 auto 20px; max-width: 370px; line-height: 1.6; font-size: 13px; }
+    .ch-empty button { border-radius: 10px; border: 1px solid var(--ch-line); background: var(--ch-wash); color: var(--ch-indigo-strong); padding: 10px 16px; font-weight: 750; }
+    .ch-toast { position: fixed; z-index: 2000; bottom: 28px; right: 28px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.28); border-radius: 14px; background: #343b74; color: #fff; box-shadow: 0 14px 40px rgba(19,27,56,.24); padding: 12px 18px; font-size: 13px; animation: ch-rise .25s both; }
+    .ch-dialog-body { --ch-ink: #243047; --ch-muted: #576780; --ch-faint: #687891; --ch-line: rgba(100, 119, 158, .21); --ch-wash: rgba(228, 235, 249, .42); --ch-indigo: #4f55aa; --ch-indigo-strong: #363c92; color: var(--ch-ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    html.dark .ch-dialog-body, html[data-theme="dark"] .ch-dialog-body, body.dark .ch-dialog-body, body[data-theme="dark"] .ch-dialog-body { --ch-ink: #f0f3fb; --ch-muted: #bac6d7; --ch-faint: #aebcd0; --ch-line: rgba(200,215,249,.18); --ch-wash: rgba(45,53,71,.62); --ch-indigo: #aab4ff; --ch-indigo-strong: #c5ccff; }
+    .ch-detail { display: grid; grid-template-columns: minmax(190px, .73fr) minmax(0, 1.27fr); gap: clamp(21px, 3vw, 42px); padding: 4px 0 6px; }
+    .ch-detail .ch-portrait { height: auto; min-height: 460px; align-self: stretch; border-radius: 17px; border: 1px solid var(--ch-line); }
+    .ch-detail .ch-portrait-mark { font-size: 9px; }
+    .ch-detail-content { min-width: 0; }
+    .ch-detail-overline { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 2px 0 10px; }
+    .ch-detail-index { font-size: 10px; color: var(--ch-faint); font-weight: 750; letter-spacing: .12em; }
+    .ch-detail h2 { margin: 0 0 7px; color: var(--ch-ink); font-size: clamp(30px, 3.8vw, 45px); letter-spacing: -.055em; line-height: 1.08; }
+    .ch-detail-sub { margin: 0; color: var(--ch-muted); line-height: 1.5; font-size: 13px; }
+    .ch-detail-tags { margin: 16px 0 20px; display: flex; gap: 7px; flex-wrap: wrap; }
+    .ch-detail-tags .ch-tag { font-size: 10px; padding: 6px 10px; }
+    .ch-detail-rule { border: 0; border-top: 1px solid var(--ch-line); margin: 0 0 20px; }
+    .ch-detail-block { margin-bottom: 20px; }
+    .ch-detail-block h3 { margin: 0 0 8px; color: var(--ch-indigo-strong); text-transform: uppercase; letter-spacing: .16em; font-size: 10px; font-weight: 850; }
+    .ch-detail-block p { color: var(--ch-muted); line-height: 1.68; font-size: 12px; margin: 0; }
+    .ch-detail-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 20px; }
+    .ch-detail-fact { min-width: 0; padding: 11px 10px; border: 1px solid var(--ch-line); border-radius: 11px; background: var(--ch-wash); }
+    .ch-detail-fact strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ch-ink); font-size: 13px; margin-bottom: 4px; }
+    .ch-detail-fact span { display: block; color: var(--ch-faint); text-transform: uppercase; font-weight: 750; font-size: 8px; letter-spacing: .09em; }
+    .ch-relationship-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+    .ch-relationship-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--ch-line); border-radius: 10px; background: var(--ch-wash); padding: 9px 11px; font-size: 11px; }
+    .ch-relationship-list li strong { font-weight: 700; }
+    .ch-relationship-list li span { color: var(--ch-muted); text-align: right; }
+    .ch-form { display: flex; flex-direction: column; gap: 18px; padding: 3px 0 2px; }
+    .ch-form-note { margin: 0; color: var(--ch-muted); font-size: 12px; line-height: 1.5; }
+    .ch-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    .ch-form-field { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
+    .ch-form-field--full { grid-column: 1 / -1; }
+    .ch-form-field label { color: var(--ch-ink); font-size: 11px; font-weight: 750; }
+    .ch-form-field label span { color: var(--ch-faint); font-weight: 500; }
+    .ch-form input, .ch-form select, .ch-form textarea { min-height: 40px; width: 100%; border: 1px solid var(--ch-line); border-radius: 11px; background: var(--ch-wash); color: var(--ch-ink); padding: 10px 12px; font-size: 12px; outline: none; }
+    .ch-form textarea { min-height: 77px; resize: vertical; line-height: 1.55; }
+    .ch-form input::placeholder, .ch-form textarea::placeholder { color: var(--ch-faint); opacity: 1; }
+    .ch-upload { display: flex; align-items: center; gap: 11px; border: 1px dashed var(--ch-line); border-radius: 11px; padding: 11px 13px; background: var(--ch-wash); color: var(--ch-muted); font-size: 11px; cursor: pointer; }
+    .ch-upload svg { color: var(--ch-indigo); }
+    .ch-upload input { position: absolute; opacity: 0; width: 1px; height: 1px; padding: 0; }
+    .ch-upload:focus-within { outline: 2px solid #7379e8; outline-offset: 3px; }
+    .ch-upload-preview { width: 35px; height: 35px; object-fit: cover; border-radius: 8px; }
+    .ch-form-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; padding-top: 15px; border-top: 1px solid var(--ch-line); }
+    .ch-form-actions button { min-height: 40px; padding: 9px 16px; border-radius: 11px; font-size: 12px; font-weight: 750; }
+    .ch-cancel { color: var(--ch-ink); background: var(--ch-wash); border: 1px solid var(--ch-line); }
+    .ch-submit { color: #fff; background: #454ca3; border: 1px solid rgba(255,255,255,.3); box-shadow: 3px 4px 10px rgba(29,35,96,.16); }
+    .ch-submit:hover { background: #343a92; }
+    @keyframes ch-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @media (min-width: 1530px) { .ch-card { max-height: 635px; } }
+    @media (max-width: 1160px) { .ch-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .ch-card { max-height: 650px; } }
+    @media (max-width: 900px) { .ch-grid { grid-template-columns: minmax(0,1fr); max-width: 390px; margin-inline: auto; } .ch-card { min-width: 0; } }
+    @media (max-width: 740px) {
+      .ch-page { padding: 25px 18px 75px; }
+      .ch-intro { padding: 35px 0 26px; }
+      .ch-intro-side { display: none; }
+      .ch-intro h1 { font-size: clamp(39px, 8.9vw, 59px); }
+      .ch-grid { gap: 15px; }
+      .ch-card { min-height: 0; }
+      .ch-card-body { padding: 14px; }
+      .ch-card h2 { font-size: 21px; }
+      .ch-stats span { font-size: 9px; }
+      .ch-detail { grid-template-columns: 1fr; }
+      .ch-detail .ch-portrait { min-height: 0; height: 270px; }
+      .ch-detail-content { padding-top: 2px; }
+    }
+    @media (max-width: 570px) {
+      .ch-controls { padding: 10px; gap: 8px; }
+      .ch-search { flex-basis: 100%; }
+      .ch-select-wrap { flex: 1 1 calc(50% - 4px); }
+      .ch-select-wrap select { min-width: 0; max-width: none; width: 100%; }
+      .ch-create { width: 100%; }
+      .ch-grid { grid-template-columns: 1fr; max-width: 450px; margin: auto; }
+      .ch-card { min-height: 0; max-height: none; }
+      .ch-card-body { padding: 18px 20px; }
+      .ch-card h2 { font-size: 26px; }
+      .ch-collection-line { margin-top: 24px; }
+      .ch-form-grid { grid-template-columns: 1fr; }
+      .ch-form-field--full { grid-column: auto; }
+      .ch-toast { right: 15px; left: 15px; bottom: 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .ch-card, .ch-toast { animation: none; } .ch-card, .ch-view, .ch-create { transition: none; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./shared.js"></script>
+  <script type="text/babel">
+    const { useEffect, useMemo, useState } = React;
+    const { Shell, Icon, ThemeToggle, Dialog } = window.Merlink;
+    const PALETTES = [
+      { art: 'linear-gradient(148deg,#a3b9b8 2%,#70899a 43%,#273b5a 100%)', cloak:'#25344a', skin:'#d4ab8c', shadow:'#9c796e', hair:'#252e38', hairLight:'#526275', tilt:'-9deg' },
+      { art: 'linear-gradient(150deg,#d3a9ab 0%,#a36e83 45%,#474661 100%)', cloak:'#4b374a', skin:'#e5b597', shadow:'#a87773', hair:'#282737', hairLight:'#6a4b5b', tilt:'7deg' },
+      { art: 'linear-gradient(145deg,#b2bfc5 0%,#778fa1 43%,#344f64 100%)', cloak:'#263a45', skin:'#be9376', shadow:'#78574f', hair:'#232e32', hairLight:'#566c73', tilt:'-4deg' },
+      { art: 'linear-gradient(150deg,#d8bfad 0%,#a48684 45%,#665b73 100%)', cloak:'#533e4b', skin:'#dfb996', shadow:'#9a6f67', hair:'#342d31', hairLight:'#765c5b', tilt:'6deg' },
+      { art: 'linear-gradient(145deg,#a8bad0 0%,#7c89ae 44%,#343d63 100%)', cloak:'#313455', skin:'#c4a28c', shadow:'#816b6d', hair:'#292a3d', hairLight:'#565678', tilt:'-7deg' },
+      { art: 'linear-gradient(148deg,#c6ccc5 0%,#8ca9a6 43%,#476277 100%)', cloak:'#375363', skin:'#d1a88e', shadow:'#876c68', hair:'#25313a', hairLight:'#566b69', tilt:'9deg' },
+      { art: 'linear-gradient(150deg,#d6b1bd 0%,#aa8ca6 42%,#5a5975 100%)', cloak:'#44394e', skin:'#e0b79e', shadow:'#987478', hair:'#333044', hairLight:'#6a566e', tilt:'-8deg' },
+      { art: 'linear-gradient(148deg,#bec7bb 0%,#8c9b8c 45%,#4d686a 100%)', cloak:'#324545', skin:'#cba586', shadow:'#846b61', hair:'#283537', hairLight:'#586965', tilt:'8deg' },
+      { art: 'linear-gradient(150deg,#bac4d5 0%,#858caf 45%,#495376 100%)', cloak:'#313b58', skin:'#d9ab94', shadow:'#956f75', hair:'#2c3045', hairLight:'#555b78', tilt:'-5deg' }
+    ];
+    const STORAGE_KEY = 'merlink-custom-characters';
+    const PERSONALITY_TRAITS = ['Curious','Resilient','Guarded','Loyal','Ambitious','Compassionate','Witty','Secretive','Brave','Patient','Restless','Hopeful'];
+    const EMPTY_FORM = { name:'', role:'Main', age:'', gender:'', story:'', tags:[], appearance:'', backstory:'', bio:'', uploadedImage:'' };
+    const assetIsPhoto = (item) => Boolean(item.uploadedImage || /^data:image\//i.test(item.image || '') || /^(?:https?:|\.\/|assets\/)/i.test(item.image || ''));
+    const projectName = (story, projects) => projects.find((project) => String(project.id) === String(story) || project.title === story)?.title || story || 'Unassigned story';
+    function readCustomCharacters() {
+      try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(saved) ? saved : []; }
+      catch (_) { return []; }
+    }
+    function portraitStyle(item, index) {
+      const p = PALETTES[index % PALETTES.length];
+      const image = item.uploadedImage || item.image;
+      return {
+        background: image ? (assetIsPhoto(item) ? `url("${image}") center / cover` : image) : p.art,
+        '--ch-default-art': p.art, '--ch-cloak': p.cloak, '--ch-skin': p.skin, '--ch-skin-shadow': p.shadow,
+        '--ch-hair': p.hair, '--ch-hair-light': p.hairLight, '--ch-tilt': p.tilt
+      };
+    }
+    function Portrait({ item, index, label }) {
+      return <div className={'ch-portrait' + (assetIsPhoto(item) ? ' ch-portrait--uploaded' : '')} style={portraitStyle(item,index)} role="img" aria-label={`Illustrated portrait of ${item.name}`}>
+        <span className="ch-art-halo" /><span className="ch-art-figure" /><span className="ch-art-neck" /><span className="ch-art-head" /><span className="ch-art-hair" />
+        <span className="ch-portrait-mark">{label || 'Character file'}</span><span className="ch-portrait-num">{String(index+1).padStart(2,'0')} / ARCHIVE</span>
+        <span className="ch-portrait-name">{item.name}</span><span className="ch-portrait-seal" aria-hidden="true"><Icon name="Sparkles" size={15} /></span>
+      </div>;
+    }
+    function CharacterCard({ item, index, projects, onView }) {
+      const tagList = Array.isArray(item.tags) ? item.tags : [];
+      return <article className="ch-card surface" style={{'--ch-i':index}}>
+        <Portrait item={item} index={index} />
+        <div className="ch-card-body">
+          <div className="ch-card-top"><span className="ch-role">{item.role || 'Character'}</span><span className="ch-age">{item.age ? `Age ${item.age}` : 'Age unknown'}</span></div>
+          <h2 title={item.name}>{item.name}</h2>
+          <p className="ch-story" title={projectName(item.story,projects)}><Icon name="BookOpen" size={12} />{projectName(item.story,projects)}</p>
+          <div className="ch-tags">{tagList.slice(0,3).map((tag,i) => <span className="ch-tag pill" key={`${tag}-${i}`}>{tag}</span>)}</div>
+          <div className="ch-bottom"><div className="ch-stats"><span title="Relationships"><Icon name="UsersRound" size={13}/>{item.relationships?.length || 0}</span><span title="Dialogue scenes"><Icon name="MessageCircle" size={13}/>{item.dialogueCount || 0} scenes</span></div>
+            <button type="button" className="ch-view surface-interactive" onClick={() => onView(item)} aria-label={`View ${item.name}'s character profile`}>View <Icon name="ArrowUpRight" size={13}/></button>
+          </div>
+        </div>
+      </article>;
+    }
+    function CharacterDetail({ item, index, projects }) {
+      const relationships = Array.isArray(item.relationships) ? item.relationships : [];
+      return <div className="ch-dialog-body ch-detail">
+        <Portrait item={item} index={index} label="Character portrait" />
+        <div className="ch-detail-content">
+          <div className="ch-detail-overline"><span className="ch-smallcaps">The character archive</span><span className="ch-detail-index">PROFILE NO. {String(index+1).padStart(2,'0')}</span></div>
+          <h2>{item.name}</h2><p className="ch-detail-sub">{item.role || 'Character'} · {projectName(item.story,projects)}</p>
+          <div className="ch-detail-tags">{(item.tags || []).map((tag,i) => <span className="ch-tag pill" key={`${tag}-${i}`}>{tag}</span>)}</div>
+          <hr className="ch-detail-rule" />
+          <div className="ch-detail-facts"><div className="ch-detail-fact"><strong>{item.age || '—'}</strong><span>Age</span></div><div className="ch-detail-fact"><strong>{item.gender || '—'}</strong><span>Gender</span></div><div className="ch-detail-fact"><strong>{item.dialogueCount || 0}</strong><span>Dialogue scenes</span></div></div>
+          <section className="ch-detail-block"><h3>At a glance</h3><p>{item.bio || item.appearance || 'This character is waiting for their story to unfold.'}</p></section>
+          {item.appearance && <section className="ch-detail-block"><h3>Appearance</h3><p>{item.appearance}</p></section>}
+          <section className="ch-detail-block"><h3>Backstory</h3><p>{item.backstory || 'Their past is still being written.'}</p></section>
+          <section className="ch-detail-block"><h3>Connections · {relationships.length}</h3>{relationships.length ? <ul className="ch-relationship-list">{relationships.map((relationship,i) => <li key={i}><strong>{typeof relationship === 'string' ? relationship : relationship.name}</strong><span>{typeof relationship === 'string' ? 'Connection' : relationship.relation || 'Connection'}</span></li>)}</ul> : <p>No relationships mapped yet. Every great story begins with a connection.</p>}</section>
+        </div>
+      </div>;
+    }
+    function CharacterForm({ projects, onClose, onCreate }) {
+      const [form,setForm] = useState(EMPTY_FORM);
+      const [uploadError,setUploadError] = useState('');
+      function field(name) { return {value:form[name], onChange:(event) => setForm(current => ({...current,[name]:event.target.value}))}; }
+      function toggleTrait(trait) { setForm(current => ({...current,tags:current.tags.includes(trait) ? current.tags.filter(value => value !== trait) : [...current.tags,trait].slice(0,5)})); }
+      function upload(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { setUploadError('Choose a JPG, PNG, or WebP image.'); return; }
+        if (file.size > 1500000) { setUploadError('Choose an image smaller than 1.5 MB.'); return; }
+        setUploadError('');
+        const reader = new FileReader();
+        reader.onload = () => setForm(current => ({...current,uploadedImage:String(reader.result)}));
+        reader.readAsDataURL(file);
+      }
+      function submit(event) {
+        event.preventDefault();
+        if (!form.name.trim() || !form.role.trim()) return;
+        const character = {
+          id:`custom-${Date.now()}`, name:form.name.trim(), role:form.role.trim(), age:form.age.trim(), gender:form.gender,
+          story:form.story || projects[0]?.id || '', tags:form.tags,
+          appearance:form.appearance.trim(), bio:form.bio.trim() || form.appearance.trim() || `${form.name.trim()} is a ${form.role.trim().toLowerCase()} whose story is just beginning.`,
+          backstory:form.backstory.trim(), relationships:[], dialogueCount:0, uploadedImage:form.uploadedImage
+        };
+        onCreate(character);
+      }
+      return <form className="ch-dialog-body ch-form" onSubmit={submit}>
+        <p className="ch-form-note">Give someone a place in your world. You can start with a few details and let the rest emerge as you write.</p>
+        <div className="ch-form-grid">
+          <div className="ch-form-field"><label htmlFor="ch-name">Full name *</label><input id="ch-name" autoFocus required maxLength="65" placeholder="e.g. Mara Voss" {...field('name')} /></div>
+          <div className="ch-form-field"><label htmlFor="ch-role">Role *</label><select id="ch-role" required {...field('role')}><option value="Main">Main character</option><option value="Supporting">Supporting character</option><option value="Antagonist">Antagonist</option></select></div>
+          <div className="ch-form-field"><label htmlFor="ch-age">Age <span>optional</span></label><input id="ch-age" type="number" min="0" max="999" placeholder="28" {...field('age')} /></div>
+          <div className="ch-form-field"><label htmlFor="ch-gender">Gender <span>optional</span></label><input id="ch-gender" maxLength="40" placeholder="e.g. Woman, nonbinary" {...field('gender')} /></div>
+          <div className="ch-form-field ch-form-field--full"><label htmlFor="ch-story">Story</label><select id="ch-story" {...field('story')}><option value="">Select a story</option>{projects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}</select></div>
+          <div className="ch-form-field ch-form-field--full"><label id="ch-traits-label">Personality traits <span>choose up to five</span></label><div className="ch-trait-options" role="group" aria-labelledby="ch-traits-label">{PERSONALITY_TRAITS.map(trait => <button key={trait} type="button" className="ch-trait-option pill" aria-pressed={form.tags.includes(trait)} onClick={()=>toggleTrait(trait)}>{trait}</button>)}</div></div>
+          <div className="ch-form-field ch-form-field--full"><label htmlFor="ch-appearance">Appearance</label><textarea id="ch-appearance" maxLength="600" placeholder="The details that make them recognizable…" {...field('appearance')} /></div>
+          <div className="ch-form-field ch-form-field--full"><label htmlFor="ch-backstory">Backstory</label><textarea id="ch-backstory" maxLength="1500" placeholder="What happened before the first page?" {...field('backstory')} /></div>
+          <div className="ch-form-field ch-form-field--full"><label htmlFor="ch-upload">Portrait <span>optional, up to 1.5 MB</span></label><label className="ch-upload" htmlFor="ch-upload">{form.uploadedImage ? <img className="ch-upload-preview" src={form.uploadedImage} alt="Portrait preview" /> : <Icon name="ImagePlus" size={18}/>}<span>{form.uploadedImage ? 'Portrait ready · click to replace' : 'Upload a portrait, or use the illustrated silhouette'}</span><input id="ch-upload" type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} /></label>{uploadError && <span role="alert" style={{fontSize:11,color:'#bb4353'}}>{uploadError}</span>}</div>
+        </div>
+        <div className="ch-form-actions"><button type="button" className="ch-cancel btn" onClick={onClose}>Cancel</button><button type="submit" className="ch-submit btn btn-primary">Create character</button></div>
+      </form>;
+    }
+    function CharactersPage() {
+      const projects = window.Merlink.mock?.projects || [];
+      const baseCharacters = window.Merlink.mock?.characters || [];
+      const [custom,setCustom] = useState(readCustomCharacters);
+      const [search,setSearch] = useState('');
+      const [story,setStory] = useState('all');
+      const [genre,setGenre] = useState('all');
+      const [selected,setSelected] = useState(null);
+      const [creating,setCreating] = useState(false);
+      const [toast,setToast] = useState('');
+      const allCharacters = useMemo(() => [...baseCharacters,...custom], [baseCharacters,custom]);
+      const genres = useMemo(() => [...new Set(projects.map(item=>item.genre).filter(Boolean))].sort((a,b)=>a.localeCompare(b)), [projects]);
+      const visible = useMemo(() => allCharacters.filter(item => {
+        const matchStory = story === 'all' || String(item.story) === story || projectName(item.story,projects) === story;
+        const linkedProject = projects.find(project => String(project.id) === String(item.story) || project.title === item.story);
+        const matchGenre = genre === 'all' || linkedProject?.genre === genre;
+        const q = search.trim().toLowerCase();
+        const matchSearch = !q || [item.name,item.role,projectName(item.story,projects),...(item.tags || [])].join(' ').toLowerCase().includes(q);
+        return matchStory && matchGenre && matchSearch;
+      }),[allCharacters,story,genre,search,projects]);
+      useEffect(() => { if (!toast) return; const timer = setTimeout(()=>setToast(''),3500); return ()=>clearTimeout(timer); },[toast]);
+      function create(item) {
+        const next = [item,...custom]; setCustom(next);
+        try { localStorage.setItem(STORAGE_KEY,JSON.stringify(next)); setToast(`${item.name} has joined your character archive.`); }
+        catch (_) { setToast(`${item.name} was added for this session. Image storage is full.`); }
+        setCreating(false); setStory('all'); setGenre('all'); setSearch('');
+      }
+      return <Shell active="characters"><main className="ch-page">
+        <div className="page-topbar"><span className="page-breadcrumb">Workspace / <strong>Characters</strong></span><div className="page-topbar-actions"><button type="button" className="ch-create btn btn-primary" onClick={()=>setCreating(true)}><Icon name="Plus" size={16}/> New character</button></div></div>
+         <section className="ch-controls" aria-label="Character filters">
+          <div className="ch-search"><Icon name="Search" size={16}/><input aria-label="Search characters" type="search" placeholder="Search names, traits, or stories..." value={search} onChange={event=>setSearch(event.target.value)} /></div>
+          <div className="ch-select-wrap"><select aria-label="Filter by story" value={story} onChange={event=>setStory(event.target.value)}><option value="all">All stories</option>{projects.map(project=><option key={project.id} value={String(project.id)}>{project.title}</option>)}</select><Icon name="ChevronDown" size={14}/></div>
+          <div className="ch-select-wrap"><select aria-label="Filter by genre" value={genre} onChange={event=>setGenre(event.target.value)}><option value="all">All genres</option>{genres.map(value=><option key={value} value={value}>{value}</option>)}</select><Icon name="ChevronDown" size={14}/></div>
+        </section>
+        <div className="ch-collection-line"><span className="ch-smallcaps">The collection</span><span className="ch-rule"/><span>{visible.length} {visible.length === 1 ? 'character' : 'characters'} {visible.length !== allCharacters.length ? 'found' : 'on record'}</span></div>
+        {visible.length ? <section className="ch-grid" aria-label="Character profiles">{visible.map(item => <CharacterCard key={item.id} item={item} index={allCharacters.indexOf(item)} projects={projects} onView={setSelected}/>)}</section> : <div className="ch-empty"><div className="ch-empty-icon"><Icon name="UsersRound" size={25}/></div><h2>No characters found</h2><p>{allCharacters.length ? 'Try another search or clear your filters to see your whole cast.' : 'Your archive is waiting for its first story. Create a character to begin.'}</p><button type="button" onClick={()=>{setSearch('');setStory('all');setGenre('all'); if (!allCharacters.length) setCreating(true);}}>{allCharacters.length ? 'Clear filters' : 'Create a character'}</button></div>}
+        <Dialog open={Boolean(selected)} onClose={()=>setSelected(null)} title="Character profile" wide>{selected && <CharacterDetail item={selected} index={allCharacters.indexOf(selected)} projects={projects}/>}</Dialog>
+        <Dialog open={creating} onClose={()=>setCreating(false)} title="Create a character" wide>{creating && <CharacterForm projects={projects} onClose={()=>setCreating(false)} onCreate={create}/>}</Dialog>
+        {toast && <div className="ch-toast" role="status"><Icon name="CheckCircle2" size={18}/>{toast}</div>}
+      </main></Shell>;
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<CharactersPage />);
+  </script>
+</body>
+</html>

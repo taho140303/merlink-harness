@@ -1,0 +1,110 @@
+[
+  {
+    "code": "an_du_bong_toi_loi_noi_bong_gio",
+    "description": "Ẩn dụ bóng tối & lời nói bóng gió"
+  },
+  {
+    "code": "phep_doi_trung_thanh_phan_boi",
+    "description": "Phép đối trung thành – phản bội"
+  },
+  {
+    "code": "diep_cau_truc_trao_doi_nua_chung",
+    "description": "Điệp cấu trúc trao đổi nửa chừng"
+  },
+  {
+    "code": "ngon_ngu_thang_thung",
+    "description": "Ngôn ngữ thẳng thừng"
+  },
+  {
+    "code": "hai_huoc",
+    "description": "Hài hước"
+  },
+  {
+    "code": "diep_cau_truc_tuyen_the_an_du_vuong_mien_nang_triu",
+    "description": "Điệp cấu trúc tuyên thệ & ẩn dụ vương miện nặng trĩu"
+  },
+  {
+    "code": "phep_doi_ke_tri_nguoi_tri",
+    "description": "Phép đối kẻ trị – người trị"
+  },
+  {
+    "code": "liet_ke_bieu_tuong_quyen_luc",
+    "description": "Liệt kê biểu tượng quyền lực"
+  },
+  {
+    "code": "ngon_ngu_doi_thuong",
+    "description": "Ngôn ngữ đời thường"
+  },
+  {
+    "code": "an_du_re_bi_nho_diep_cau_truc_ngoanh_lai",
+    "description": "Ẩn dụ rễ bị nhổ & điệp cấu trúc ngoảnh lại"
+  },
+  {
+    "code": "phep_doi_truoc_sau_khi_luu_day",
+    "description": "Phép đối trước – sau khi lưu đày"
+  },
+  {
+    "code": "cau_cham_lung_nghen",
+    "description": "Câu chấm lửng nghẹn"
+  },
+  {
+    "code": "ngon_ngu_vui_ve",
+    "description": "Ngôn ngữ vui vẻ"
+  },
+  {
+    "code": "mieu_ta_ngoai_canh_dai",
+    "description": "Miêu tả ngoại cảnh dài"
+  },
+  {
+    "code": "phep_doi_hai_phe_lap_dieu_kien_de_nhan",
+    "description": "Phép đối hai phe & lặp điều kiện để nhấn"
+  },
+  {
+    "code": "cau_hoi_tu_tu_tham_do",
+    "description": "Câu hỏi tu từ thăm dò"
+  },
+  {
+    "code": "liet_ke_dieu_khoan",
+    "description": "Liệt kê điều khoản"
+  },
+  {
+    "code": "ngon_ngu_cam_xuc",
+    "description": "Ngôn ngữ cảm xúc"
+  },
+  {
+    "code": "diep_cau_truc_keu_goi_cau_hoi_tu_tu_thuyet_phuc",
+    "description": "Điệp cấu trúc kêu gọi & câu hỏi tu từ thuyết phục"
+  },
+  {
+    "code": "phep_liet_ke_nguyen_vong",
+    "description": "Phép liệt kê nguyện vọng"
+  },
+  {
+    "code": "phep_doi_hom_nay_ngay_mai",
+    "description": "Phép đối hôm nay – ngày mai"
+  },
+  {
+    "code": "ngon_ngu_rut_re",
+    "description": "Ngôn ngữ rụt rè"
+  },
+  {
+    "code": "cau_chu_lung_cung",
+    "description": "Câu chữ lủng củng"
+  },
+  {
+    "code": "phep_lap_cau_hoi_doi_chat_liet_ke_chung_cu",
+    "description": "Phép lặp câu hỏi đối chất & liệt kê chứng cứ"
+  },
+  {
+    "code": "phep_doi_buoc_toi_bao_chua",
+    "description": "Phép đối buộc tội – bào chữa"
+  },
+  {
+    "code": "cau_hoi_tu_tu_gay_ap_luc",
+    "description": "Câu hỏi tu từ gây áp lực"
+  },
+  {
+    "code": "ngon_ngu_cam_xuc_ca_nhan",
+    "description": "Ngôn ngữ cảm xúc cá nhân"
+  }
+]

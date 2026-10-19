@@ -1,0 +1,82 @@
+[
+  {
+    "code": "an_du_chua_lanh_diep_nhip_em_diu",
+    "description": "Ẩn dụ chữa lành & điệp nhịp êm dịu"
+  },
+  {
+    "code": "phep_doi_truoc_sau",
+    "description": "Phép đối trước – sau"
+  },
+  {
+    "code": "tuong_thanh_nhe_nhang",
+    "description": "Tượng thanh nhẹ nhàng"
+  },
+  {
+    "code": "ngon_ngu_gap_gap",
+    "description": "Ngôn ngữ gấp gáp"
+  },
+  {
+    "code": "kich_tinh",
+    "description": "Kịch tính"
+  },
+  {
+    "code": "phep_liet_ke_mua_thang_phep_doi_truoc_sau",
+    "description": "Phép liệt kê mùa / tháng & phép đối trước – sau"
+  },
+  {
+    "code": "an_du_dong_song_thoi_gian",
+    "description": "Ẩn dụ dòng sông thời gian"
+  },
+  {
+    "code": "cau_lung_hoai_niem",
+    "description": "Câu lửng hoài niệm"
+  },
+  {
+    "code": "mieu_ta_chi_tiet_tung_ngay",
+    "description": "Miêu tả chi tiết từng ngày"
+  },
+  {
+    "code": "cau_chu_dai_dong",
+    "description": "Câu chữ dài dòng"
+  },
+  {
+    "code": "phep_liet_ke_chang_duong_diep_cau_truc_cat_canh",
+    "description": "Phép liệt kê chặng đường & điệp cấu trúc cắt cảnh"
+  },
+  {
+    "code": "phep_doi_vung_dat_nay_vung_dat_kia",
+    "description": "Phép đối vùng đất này – vùng đất kia"
+  },
+  {
+    "code": "tuong_thanh_nhip_di_chuyen",
+    "description": "Tượng thanh nhịp di chuyển"
+  },
+  {
+    "code": "mieu_ta_tinh_lang_keo_dai",
+    "description": "Miêu tả tĩnh lặng kéo dài"
+  },
+  {
+    "code": "suy_tu_noi_tam_dai",
+    "description": "Suy tư nội tâm dài"
+  },
+  {
+    "code": "diep_cau_truc_chua_an_du_thoi_gian_cham_lai",
+    "description": "Điệp cấu trúc 'chưa...' & ẩn dụ thời gian chậm lại"
+  },
+  {
+    "code": "liet_ke_dau_hieu_mong_manh",
+    "description": "Liệt kê dấu hiệu mong manh"
+  },
+  {
+    "code": "cau_hoi_tu_tu_lo_lang",
+    "description": "Câu hỏi tu từ lo lắng"
+  },
+  {
+    "code": "ngon_ngu_on_ao",
+    "description": "Ngôn ngữ ồn ào"
+  },
+  {
+    "code": "hanh_dong_don_dap",
+    "description": "Hành động dồn dập"
+  }
+]

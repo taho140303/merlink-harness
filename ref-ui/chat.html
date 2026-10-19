@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Chat Studio — Merlink Harness</title>
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    .chat-page {
+      --chat-ink: #1c2a44;
+      --chat-muted: #66738a;
+      --chat-line: rgba(255,255,255,.47);
+      --chat-tint: rgba(190,204,233,.4);
+      --chat-subtle: rgba(219,229,245,.35);
+      --chat-solid: #263a8b;
+      --chat-accent: #4559ae;
+      --chat-shadow: -2px -2px 6px rgba(255,255,255,.9),4px 4px 12px rgba(0,0,0,.25);
+      --chat-hover: rgba(255,255,255,.37);
+      color: var(--chat-ink);
+      min-width: 0;
+      width: 100%;
+      max-width: none;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    .dark .chat-page, [data-theme="dark"] .chat-page, .chat-page[data-theme="dark"] {
+      --chat-ink: #f0f3fb;
+      --chat-muted: #b3bdd0;
+      --chat-line: rgba(255,255,255,.11);
+      --chat-tint: rgba(42,48,64,.4);
+      --chat-subtle: rgba(44,51,66,.35);
+      --chat-solid: #a6b4ff;
+      --chat-accent: #bbc5ff;
+      --chat-shadow: -2px -2px 6px rgba(255,255,255,.15),4px 4px 12px rgba(0,0,0,.5);
+      --chat-hover: rgba(143,162,214,.14);
+    }
+    .chat-page *, .chat-page *::before, .chat-page *::after { box-sizing: border-box; }
+    .chat-page button,.chat-page input,.chat-page textarea { font: inherit; }
+    .chat-page button { cursor: pointer; }
+    .chat-page button:disabled { cursor: not-allowed; opacity: .48; }
+    .chat-page :is(button,input,textarea):focus-visible { outline: 2px solid #6178e0; outline-offset: 3px; }
+    .chat-page .chat-glass {
+      background: var(--chat-tint);
+      border: 1px solid var(--chat-line);
+      box-shadow: var(--chat-shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .chat-topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin: 0 0 20px; }
+    .chat-topline { display:flex; align-items:center; gap:11px; color:var(--chat-accent); font-size:10px; letter-spacing:.19em; font-weight:800; text-transform:uppercase; margin-bottom:10px; }
+    .chat-topline::before { content:""; width:23px; height:1px; background:currentColor; opacity:.85; }
+    .chat-headline { font-size:clamp(27px,3.1vw,39px); letter-spacing:-.055em; line-height:1.07; font-weight:650; margin:0; }
+    .chat-subtitle { color:var(--chat-muted); font-size:13px; margin:9px 0 0; line-height:1.5; }
+    .chat-header-actions { display:flex; align-items:center; gap:10px; padding-bottom:2px; flex-shrink:0; }
+    .chat-compact-button,.chat-icon-button,.chat-project-trigger,.chat-model-trigger,.chat-create-button,.chat-tool-button,.chat-send-button,.chat-session-row,.chat-popover-item {
+      color:var(--chat-ink); background:var(--chat-tint); border:1px solid var(--chat-line); box-shadow:var(--chat-shadow); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .chat-compact-button:hover:not(:disabled),.chat-icon-button:hover:not(:disabled),.chat-project-trigger:hover,.chat-model-trigger:hover,.chat-create-button:hover,.chat-tool-button:hover:not(:disabled),.chat-session-row:hover,.chat-popover-item:hover { transform:translateY(-2px); background:var(--chat-hover); }
+    .chat-compact-button { border-radius:13px; display:inline-flex; gap:8px; align-items:center; padding:10px 14px; font-size:12px; font-weight:700; white-space:nowrap; min-height:42px; }
+    .chat-icon-button { height:36px; width:36px; border-radius:12px; display:grid; place-items:center; flex:none; }
+    .chat-icon-button.chat-ghost { background:transparent; border-color:transparent; box-shadow:none; color:var(--chat-muted); }
+    .chat-icon-button.chat-ghost:hover { background:var(--chat-hover); color:var(--chat-ink); }
+    .chat-workspace { display:flex; height:calc(100vh - 120px); min-height:610px; max-height:1050px; }
+    .chat-workspace > .chat-conversation { flex:1; min-width:0; }
+    .merlink-app.has-sidebar-extra { --sidebar-width:252px; }
+    .merlink-app.has-sidebar-extra.is-collapsed { --sidebar-width:72px; }
+    .merlink-app.has-sidebar-extra:not(.is-collapsed) .merlink-content { margin-left:282px; }
+    .merlink-sidebar-extra { min-height:0; flex:1; display:flex; flex-direction:column; overflow:hidden; margin-top:20px; border-top:1px solid var(--line); }
+    .merlink-app.is-collapsed .merlink-sidebar-extra { display:none; }
+    .merlink-history-expand { display:grid; place-items:center; width:43px; height:42px; margin:17px auto 0; border:0; border-radius:12px; background:var(--glass-soft); color:var(--accent); }
+    .merlink-drawer-close,.merlink-sidebar-backdrop { display:none; }
+    .merlink-sidebar-extra .chat-session-panel { flex:1; min-height:0; padding:18px 0 0; display:flex; flex-direction:column; overflow:hidden; }
+    .merlink-sidebar-extra .chat-session-heading { padding:0 5px; }
+    .merlink-sidebar-extra .chat-section-label { color:var(--ink); font-size:11px; letter-spacing:.11em; }
+    .merlink-sidebar-extra .chat-session-list { flex:1; min-height:0; padding:0 3px 8px; }
+    .merlink-sidebar-extra .chat-session-row { min-height:52px; padding:9px 31px 8px 11px; }
+    .merlink-sidebar-extra .chat-session-preview { display:none; }
+    .merlink-sidebar-extra .chat-session-time { margin-top:3px; }
+    .merlink-sidebar-extra .chat-search { margin:14px 4px 10px; }
+    .merlink-sidebar-extra .chat-create-button { width:calc(100% - 8px); margin:0 4px 13px; padding:9px; }
+    .chat-group-toggle { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 5px 12px; color:var(--chat-muted); font-size:11px; font-weight:650; }
+    .chat-switch { width:31px; height:19px; flex:none; border:1px solid rgba(100,116,154,.4); border-radius:20px; padding:2px; background:rgba(113,127,157,.28); transition:background .2s; }
+    .chat-switch::after { content:""; display:block; width:13px; height:13px; border-radius:50%; background:white; box-shadow:0 1px 3px #29334d55; transition:transform .2s; }
+    .chat-switch[aria-checked="true"] { background:#5269c3; }
+    .chat-switch[aria-checked="true"]::after { transform:translateX(12px); }
+    .chat-history-group { margin:0 0 11px; }
+    .chat-group-heading { display:flex; align-items:center; gap:7px; margin:0 4px 5px; padding:7px 3px 4px; border-top:1px solid var(--chat-line); color:var(--chat-muted); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .chat-group-heading span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .chat-group-heading small { margin-left:auto; font-size:10px; font-weight:700; }
+    .chat-history-open { display:none; }
+    .merlink-sidebar-extra .chat-session-list { gap:0; }
+    .merlink-sidebar-extra .chat-session-row:hover { transform:none; }
+    .merlink-sidebar-extra .chat-session-row[aria-current="true"] { background:var(--glass-strong); }
+    .merlink-sidebar-extra .chat-session-delete { opacity:1; }
+    .merlink-sidebar-extra .chat-session-delete:hover { color:#ae4254; }
+    .chat-session-panel,.chat-conversation { min-height:0; overflow:hidden; border-radius:25px; }
+    .chat-session-panel { display:flex; flex-direction:column; padding:20px 13px 13px; }
+    .chat-session-heading { padding:0 7px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .chat-section-label { margin:0; color:var(--chat-muted); text-transform:uppercase; font-size:10px; font-weight:800; letter-spacing:.17em; }
+    .chat-session-count { color:var(--chat-accent); font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .chat-search { margin:16px 5px 11px; display:flex; align-items:center; gap:9px; padding:0 12px; border-radius:12px; height:41px; color:var(--chat-muted); background:var(--chat-subtle); border:1px solid var(--chat-line); box-shadow:inset 2px 2px 5px rgba(53,67,91,.07); }
+    .chat-search input { width:100%; min-width:0; outline:0; border:0; background:transparent; color:var(--chat-ink); font-size:12px; }
+    .chat-search input::placeholder,.chat-composer textarea::placeholder { color:var(--chat-muted); opacity:.9; }
+    .chat-create-button { display:flex; align-items:center; gap:10px; padding:12px 13px; width:calc(100% - 10px); margin:0 5px 16px; border-radius:12px; font-size:12px; font-weight:750; text-align:left; color:var(--chat-accent); }
+    .chat-create-button .chat-create-plus { width:22px; height:22px; display:grid; place-items:center; color:white; background:#4d62bf; border-radius:7px; }
+    .chat-list-divider { height:1px; margin:0 7px 11px; background:var(--chat-line); }
+    .chat-list-caption { color:var(--chat-muted); padding:0 7px 10px; font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+    .chat-session-list { overflow-y:auto; padding:0 5px 8px; display:flex; flex-direction:column; gap:7px; scrollbar-color:rgba(116,132,174,.45) transparent; scrollbar-width:thin; }
+    .chat-session-row { position:relative; width:100%; min-height:70px; text-align:left; border-radius:13px; padding:12px 33px 11px 14px; background:transparent; box-shadow:none; border:1px solid transparent; }
+    .chat-session-row[aria-current="true"] { background:var(--chat-tint); border-color:var(--chat-line); box-shadow:var(--chat-shadow); }
+    .chat-session-row[aria-current="true"]::before { content:""; position:absolute; width:3px; border-radius:5px; background:#6476da; top:15px; bottom:15px; left:0; }
+    .chat-session-title { display:block; font-size:12px; font-weight:700; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chat-session-preview { display:block; color:var(--chat-muted); font-size:11px; line-height:1.4; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chat-session-time { display:block; margin-top:8px; color:var(--chat-muted); font-size:10px; font-weight:600; }
+    .chat-session-delete { position:absolute; right:8px; top:9px; opacity:0; transition:opacity .15s; }
+    .chat-session-row:hover .chat-session-delete,.chat-session-row:focus-within .chat-session-delete { opacity:1; }
+    @media (hover:none) { .chat-session-delete { opacity:1; } }
+    .chat-session-empty { color:var(--chat-muted); font-size:12px; text-align:center; padding:35px 18px; line-height:1.55; }
+    .chat-panel-footer { margin-top:auto; border-top:1px solid var(--chat-line); padding:15px 7px 0; display:flex; gap:8px; color:var(--chat-muted); font-size:10px; line-height:1.5; }
+    .chat-panel-footer svg { color:#5f75c9; flex:none; }
+    .chat-conversation { display:flex; flex-direction:column; position:relative; }
+    .chat-conversation-top { min-height:81px; display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 24px; border-bottom:1px solid var(--chat-line); position:relative; z-index:3; }
+    .chat-context-group { display:flex; gap:13px; align-items:center; min-width:0; }
+    .chat-context-icon { width:38px; height:38px; border-radius:12px; background:linear-gradient(145deg,#6781ce,#d4a5bd 85%); display:grid; place-items:center; color:#fff; flex:none; box-shadow:inset 0 1px 2px rgba(255,255,255,.55),0 3px 10px rgba(65,75,130,.17); }
+    .chat-context-copy { min-width:0; }
+    .chat-context-kicker { display:block; color:var(--chat-muted); font-size:9px; letter-spacing:.16em; font-weight:800; text-transform:uppercase; margin-bottom:3px; }
+    .chat-context-title { display:block; font-size:14px; font-weight:740; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chat-context-subtitle { display:block; color:var(--chat-muted); font-size:11px; margin-top:2px; }
+    .chat-project-wrap,.chat-model-wrap { position:relative; }
+    .chat-project-trigger { min-height:39px; display:flex; gap:9px; align-items:center; padding:5px 9px 5px 6px; border-radius:12px; font-size:11px; font-weight:700; max-width:215px; }
+    .chat-project-cover { width:27px; height:27px; flex:none; border-radius:7px; display:grid; place-items:center; color:white; overflow:hidden; }
+    .chat-project-cover img { width:100%; height:100%; object-fit:cover; }
+    .chat-project-trigger span:not(.chat-project-cover) { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .chat-model-trigger { display:flex; align-items:center; gap:7px; padding:9px 11px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap; min-height:39px; }
+    .chat-model-spark { color:#6782cf; }
+    .chat-popover { position:absolute; top:calc(100% + 10px); right:0; z-index:20; width:245px; padding:8px; border-radius:17px; background:rgba(233,239,250,.93); border:1px solid rgba(255,255,255,.66); box-shadow:0 18px 45px rgba(35,48,88,.23),inset 0 1px 0 rgba(255,255,255,.72); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); animation:chat-pop .17s ease both; }
+    .dark .chat-popover,[data-theme="dark"] .chat-popover { background:rgba(42,48,64,.96); border-color:rgba(255,255,255,.13); box-shadow:0 18px 45px rgba(0,0,0,.43); }
+    .chat-popover-title { color:var(--chat-muted); font-size:10px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; padding:8px 9px; }
+    .chat-popover-item { width:100%; display:flex; align-items:center; gap:9px; background:transparent; border:1px solid transparent; box-shadow:none; border-radius:10px; padding:8px; text-align:left; font-size:11px; }
+    .chat-popover-item[aria-selected="true"] { background:var(--chat-tint); border-color:var(--chat-line); }
+    .chat-popover-item .chat-popover-name { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:650; }
+    .chat-popover-item svg:last-child { color:#667ccf; }
+    .chat-model-menu { width:240px; }
+    .chat-model-menu .chat-popover-item { display:block; }
+    .chat-model-menu small { display:block; color:var(--chat-muted); margin-top:2px; font-size:10px; }
+    .chat-transcript { flex:1; min-height:0; overflow-y:auto; padding:24px clamp(18px,3.3vw,50px) 19px; scrollbar-color:rgba(121,135,170,.4) transparent; scrollbar-width:thin; }
+    .chat-transcript-inner { max-width:810px; margin:0 auto; }
+    .chat-day-divider { display:flex; align-items:center; justify-content:center; gap:13px; color:var(--chat-muted); font-size:10px; font-weight:750; letter-spacing:.12em; text-transform:uppercase; margin:0 0 28px; }
+    .chat-day-divider::before,.chat-day-divider::after { content:""; height:1px; max-width:80px; flex:1; background:var(--chat-line); }
+    .chat-message { display:flex; gap:12px; margin:0 0 23px; position:relative; animation:chat-enter .28s ease both; }
+    .chat-message.chat-user { flex-direction:row-reverse; }
+    .chat-avatar { width:32px; height:32px; display:grid; place-items:center; border-radius:11px; color:white; flex:none; margin-top:2px; box-shadow:0 3px 10px rgba(45,57,101,.16),inset 0 1px rgba(255,255,255,.3); }
+    .chat-avatar.chat-assistant-avatar { background:linear-gradient(145deg,#5369bc,#8c9bd3); }
+    .chat-avatar.chat-user-avatar { background:linear-gradient(145deg,#49667f,#8196a6); }
+    .chat-message-main { max-width:min(82%,610px); min-width:0; }
+    .chat-user .chat-message-main { display:flex; flex-direction:column; align-items:flex-end; }
+    .chat-message-meta { display:flex; align-items:center; gap:9px; margin:0 0 7px 2px; color:var(--chat-muted); font-size:10px; }
+    .chat-message-meta strong { color:var(--chat-ink); font-size:11px; font-weight:760; }
+    .chat-message-bubble { font-size:12.5px; line-height:1.72; letter-spacing:.002em; white-space:pre-wrap; overflow-wrap:anywhere; padding:14px 17px; border-radius:4px 17px 17px 17px; color:var(--chat-ink); background:var(--chat-subtle); border:1px solid var(--chat-line); box-shadow:var(--chat-shadow); }
+    .chat-user .chat-message-bubble { border-radius:17px 4px 17px 17px; background:rgba(91,113,197,.19); border-color:rgba(107,130,210,.23); }
+    .dark .chat-user .chat-message-bubble,[data-theme="dark"] .chat-user .chat-message-bubble { background:rgba(94,111,191,.26); border-color:rgba(151,166,236,.17); }
+    .chat-message-actions { margin:6px 0 0 1px; display:flex; gap:8px; }
+    .chat-message-action { border:0; background:transparent; color:var(--chat-muted); display:inline-flex; gap:4px; align-items:center; padding:4px 5px; border-radius:6px; font-size:10px; font-weight:650; }
+    .chat-message-action:hover { color:var(--chat-accent); background:var(--chat-hover); }
+    .chat-empty-thread { max-width:490px; height:100%; min-height:300px; margin:0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+    .chat-empty-mark { width:64px; height:64px; border-radius:21px; display:grid; place-items:center; background:linear-gradient(145deg,rgba(106,130,216,.25),rgba(241,175,205,.2)); border:1px solid var(--chat-line); box-shadow:var(--chat-shadow); color:var(--chat-accent); margin-bottom:21px; }
+    .chat-empty-thread h2 { font-size:23px; letter-spacing:-.045em; font-weight:650; margin:0 0 9px; }
+    .chat-empty-thread p { color:var(--chat-muted); font-size:12px; line-height:1.7; margin:0; }
+    .chat-typing { display:flex; align-items:center; gap:9px; font-size:11px; color:var(--chat-muted); margin:0 0 18px 44px; }
+    .chat-dots { display:flex; gap:4px; }
+    .chat-dots i { width:5px; height:5px; border-radius:50%; background:#7c8fd1; animation:chat-dot 1s infinite ease-in-out; }
+    .chat-dots i:nth-child(2) { animation-delay:.15s; }.chat-dots i:nth-child(3) { animation-delay:.3s; }
+    .chat-composer-wrap { flex:none; border-top:1px solid var(--chat-line); padding:15px clamp(16px,3.3vw,50px) 16px; }
+    .chat-composer-inner { max-width:810px; margin:auto; }
+    .chat-attachment-list { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .chat-attachment { display:inline-flex; align-items:center; gap:5px; color:var(--chat-ink); font-size:10px; border-radius:8px; padding:5px 7px; background:var(--chat-subtle); border:1px solid var(--chat-line); }
+    .chat-attachment button { display:grid; place-items:center; padding:1px; color:var(--chat-muted); border:0; background:none; }
+    .chat-composer { border:1px solid var(--chat-line); border-radius:17px; background:var(--chat-subtle); box-shadow:inset 2px 2px 6px rgba(57,70,107,.055),var(--chat-shadow); padding:10px 10px 9px 15px; }
+    .chat-composer textarea { resize:none; display:block; width:100%; min-height:42px; max-height:156px; border:0; outline:none; background:transparent; color:var(--chat-ink); font-size:12.5px; line-height:1.6; padding:5px 3px; overflow-y:auto; }
+    .chat-composer-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:3px; }
+    .chat-composer-tools { display:flex; align-items:center; gap:6px; }
+    .chat-tool-button { display:inline-flex; align-items:center; gap:6px; color:var(--chat-muted); border-radius:10px; padding:8px; box-shadow:none; background:transparent; border-color:transparent; font-size:11px; font-weight:660; }
+    .chat-tool-button:hover { color:var(--chat-accent); }
+    .chat-send-button { display:inline-flex; align-items:center; gap:8px; padding:9px 13px; background:#344a9f; color:#fff; border-color:rgba(255,255,255,.22); border-radius:10px; font-size:11px; font-weight:750; box-shadow:0 4px 11px rgba(50,68,151,.25),inset 0 1px rgba(255,255,255,.25); }
+    .chat-send-button:hover:not(:disabled) { background:#455fb8; transform:translateY(-2px); }
+    .chat-composer-note { display:flex; justify-content:space-between; gap:12px; color:var(--chat-muted); font-size:10px; margin-top:9px; line-height:1.4; }
+    .chat-composer-note span:last-child { white-space:nowrap; }
+    .chat-toast { position:fixed; bottom:23px; right:25px; z-index:80; background:#263b75; color:white; padding:10px 15px; border-radius:11px; box-shadow:0 10px 30px rgba(21,33,70,.26); font-size:12px; animation:chat-pop .2s ease both; }
+    .chat-delete-copy { color:var(--muted); margin:0 0 22px; font-size:13px; line-height:1.6; }
+    .chat-dialog-actions { display:flex; justify-content:flex-end; gap:9px; }
+    .chat-dialog-danger,.chat-dialog-danger:hover { background:#a43f53; border-color:#a43f53; color:white; }
+    @keyframes chat-enter { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes chat-pop { from { opacity:0; transform:translateY(-4px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes chat-dot { 0%,70%,100% { transform:translateY(0); opacity:.55; } 35% { transform:translateY(-4px); opacity:1; } }
+    @media (max-width:1100px) { .chat-conversation-top { padding:13px 17px; } .chat-context-subtitle { display:none; } }
+    @media (max-width:800px) {
+      .chat-page { height:calc(100vh - 65px); height:calc(100dvh - 65px); display:flex; flex-direction:column; }
+      .chat-topbar { align-items:flex-start; gap:12px; flex:none; }
+      .chat-workspace { flex:1; height:auto; max-height:none; min-height:0; }
+      .chat-conversation { flex:1; height:auto; min-height:0; }
+      .chat-session-delete { opacity:1; }
+    }
+    @media (max-width:600px) {
+      .merlink-app.has-sidebar-extra .merlink-sidebar { width:56px!important; }
+      .merlink-app.has-sidebar-extra .merlink-content,.merlink-app.has-sidebar-extra:not(.is-collapsed) .merlink-content { margin-left:72px; }
+      .merlink-app.has-sidebar-extra .merlink-sidebar-extra,.merlink-app.has-sidebar-extra .merlink-history-expand { display:none; }
+      .merlink-app.has-sidebar-extra.sidebar-drawer-open .merlink-sidebar { z-index:52; width:min(290px,calc(100vw - 55px))!important; padding:15px 11px!important; }
+      .merlink-app.sidebar-drawer-open .merlink-sidebar-extra { display:flex; }
+      .merlink-app.sidebar-drawer-open .merlink-brand { padding:2px 3px; margin-bottom:24px; }
+      .merlink-app.sidebar-drawer-open .merlink-brand-home { justify-content:flex-start; }
+      .merlink-app.sidebar-drawer-open .merlink-brand-text { display:block!important; }
+      .merlink-app.sidebar-drawer-open .merlink-nav-label { font-size:9px; height:auto; }
+      .merlink-app.sidebar-drawer-open .merlink-nav-link,.merlink-app.sidebar-drawer-open.is-collapsed .merlink-nav-link { width:auto; justify-content:flex-start; padding:0 12px; margin:0; }
+      .merlink-app.sidebar-drawer-open .merlink-nav-link span,.merlink-app.sidebar-drawer-open .merlink-local-copy { display:block!important; }
+      .merlink-app.sidebar-drawer-open .merlink-local-mode { justify-content:flex-start!important; padding:10px; }
+      .merlink-sidebar-backdrop { display:block; position:fixed; inset:0; z-index:51; border:0; background:rgba(20,29,53,.55); }
+      .merlink-drawer-close { display:grid; place-items:center; position:absolute; right:13px; top:21px; width:32px; height:32px; border:0; border-radius:10px; background:var(--glass-strong); color:var(--ink); }
+      .chat-history-open { display:inline-flex; }
+    }
+    @media (max-width:580px) {
+      .chat-topbar { margin:2px 0 18px; }
+      .chat-headline { font-size:28px; }.chat-subtitle { font-size:11px; }
+      .chat-header-actions .chat-compact-button { font-size:0; gap:0; width:41px; justify-content:center; padding:9px; }
+      .chat-header-actions .chat-compact-button svg { flex:none; }
+      .chat-workspace { gap:12px; }
+      .chat-conversation { height:auto; }
+      .chat-conversation-top { padding:12px; gap:8px; flex-wrap:wrap; }
+      .chat-context-group { flex:1; }
+      .chat-context-title { max-width:190px; }
+      .chat-project-trigger { max-width:142px; }.chat-project-trigger span:not(.chat-project-cover) { max-width:73px; }
+      .chat-model-trigger { max-width:112px; overflow:hidden; text-overflow:ellipsis; }
+      .chat-model-trigger span { overflow:hidden; text-overflow:ellipsis; }
+      .chat-transcript { padding:18px 11px; }
+      .chat-message { gap:7px; margin-bottom:20px; }.chat-avatar { width:26px; height:26px; border-radius:9px; }
+      .chat-message-main { max-width:85%; }.chat-message-bubble { padding:11px 12px; font-size:12px; }
+      .chat-composer-wrap { padding:11px 11px 13px; }.chat-composer-note span:last-child { display:none; }
+      .chat-popover { right:0; }.chat-project-wrap .chat-popover { right:-70px; }
+    }
+    @media (max-width:400px) {
+      .chat-topbar { flex-wrap:wrap; gap:8px; }
+      .chat-topbar > div:first-child { min-width:0; }
+      .chat-headline { font-size:25px; }
+      .chat-subtitle { margin-top:5px; }
+      .chat-project-trigger { width:40px; padding:5px; justify-content:center; }
+      .chat-model-trigger { width:40px; justify-content:center; padding:8px; }
+      .chat-project-trigger span:not(.chat-project-cover),.chat-project-trigger > svg:last-child,.chat-model-trigger span,.chat-model-trigger > svg:last-child { display:none; }
+      .chat-project-wrap .chat-popover { right:-53px; }
+    }
+    @media (max-width:360px) {
+      .chat-composer { padding-left:9px; padding-right:8px; }
+      .chat-composer-controls { gap:4px; min-width:0; }
+      .chat-composer-tools { gap:1px; min-width:0; }
+      .chat-composer-tools .chat-tool-button { width:29px; height:33px; padding:6px; justify-content:center; font-size:0; overflow:hidden; white-space:nowrap; }
+      .chat-composer-tools .chat-tool-button svg { flex:none; }
+      .chat-send-button { flex:none; gap:3px; padding:8px 7px; }
+    }
+    @media (prefers-reduced-motion:reduce) { .chat-page * { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="shared.js"></script>
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+    const { Shell, Icon, ThemeToggle, Dialog } = window.Merlink;
+    const seed = window.Merlink.mock || {};
+    const projectColors = [
+      'linear-gradient(145deg,#233f68 0%,#6485a5 52%,#ddacc2 100%)',
+      'linear-gradient(145deg,#4e597b,#bc9caa 56%,#e9c6a5)',
+      'linear-gradient(145deg,#435762,#709a94 55%,#c5bba5)',
+      'linear-gradient(145deg,#493f66,#8583bb 59%,#d9afd2)',
+      'linear-gradient(145deg,#6b625c,#a69d89 50%,#d6b4a0)'
+    ];
+    const noProject = {id:'none', title:'No project selected'};
+    const projectList = Array.isArray(seed.projects) ? seed.projects.slice(0,5) : [];
+    const sourceChats = Array.isArray(seed.chats) ? seed.chats : [];
+    const modelChoices = Array.isArray(seed.providers) ? seed.providers.flatMap(p => {
+      const models = Array.isArray(p.models) ? p.models : [];
+      return models.slice(0,2).map(m => ({ id: typeof m === 'string' ? m : (m.id || m.name || String(m)), name: typeof m === 'string' ? m : (m.name || m.id || String(m)), provider:p.name || 'Model' }));
+    }).slice(0,8) : [];
+    const starterFallback = [
+      {role:'user',content:'The lighthouse goes dark just as Mara reaches the shore. What does she find inside?',time:'10:24 AM'},
+      {role:'assistant',content:'The door gives way beneath her palm. Inside, the air tastes of salt and extinguished matches. A logbook sits open beneath the cold lamp, its last entry written in a hand she knows better than her own: “If the light goes out, do not follow the sound of the sea.”',time:'10:24 AM'},
+      {role:'user',content:'Make the warning feel more personal. This is the first time she has seen her father’s handwriting in years.',time:'10:26 AM'},
+      {role:'assistant',content:'Mara traces the final letter with one finger. Her father always put a tiny hook beneath his y’s, as though each word might catch on something and stay. For seven years she had forgotten that detail. Now it is the only thing in the room she can bear to look at.',time:'10:26 AM'},
+      {role:'user',content:'Continue from the moment she hears footsteps on the stairs. Keep the tension quiet, not theatrical.',time:'10:28 AM'},
+      {role:'assistant',content:'A stair creaks overhead. Then another. Mara closes the logbook gently, keeping one finger between its pages. The sound stops at the landing. In the sudden stillness, she realizes the steps were moving down, not up.',time:'10:28 AM'}
+    ];
+    function normalizeMessage(message, index) {
+      const roleText = String(message.role || message.sender || message.type || '').toLowerCase();
+      const role = ['user','human','you'].includes(roleText) ? 'user' : ((index % 2 === 0 && !roleText) ? 'user' : 'assistant');
+      const raw = message.content ?? message.text ?? message.body ?? message.message ?? '';
+      return {id: message.id || `msg-${index}`, role, content: typeof raw === 'string' ? raw : String(raw), time: message.time || message.timestamp || message.createdAt || ''};
+    }
+    function normalizeChat(chat,index) {
+      const rawMessages = Array.isArray(chat.messages) ? chat.messages : [];
+      return {id:chat.id || `session-${index}`, title:chat.title || `Untitled conversation ${index+1}`, projectId:chat.projectId || projectList[0]?.id || 'none', updatedAt:chat.updatedAt || Date.now(), messages:rawMessages.map(normalizeMessage)};
+    }
+    function updatedTimestamp(value) {
+      if (typeof value === 'number') return value;
+      const text = String(value || '').trim().toLowerCase();
+      const now = new Date();
+      const today = new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+      if (text === 'just now' || text === 'today') return Date.now();
+      if (text === 'yesterday') return today - 1;
+      if (text === 'last week') return new Date(now.getFullYear(),now.getMonth(),now.getDate()-8).getTime();
+      const relative = text.match(/^(\d+)\s+(day|week|hour|minute)s?\s+ago$/);
+      if (relative) return Date.now() - Number(relative[1]) * ({day:86400000,week:604800000,hour:3600000,minute:60000}[relative[2]]);
+      const parsed = new Date(value).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    function dateSection(value) {
+      const stamp = updatedTimestamp(value);
+      const now = new Date();
+      const today = new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+      const yesterday = new Date(now.getFullYear(),now.getMonth(),now.getDate()-1).getTime();
+      const weekAgo = new Date(now.getFullYear(),now.getMonth(),now.getDate()-7).getTime();
+      return stamp >= today ? 'Today' : stamp >= yesterday ? 'Yesterday' : stamp >= weekAgo ? 'Previous 7 days' : 'Older';
+    }
+    function formatTime(value) {
+      if (!value) return 'Just now';
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        const today = new Date();
+        if (d.toDateString() === today.toDateString()) return d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+        return d.toLocaleDateString([], {month:'short',day:'numeric'});
+      }
+      return String(value);
+    }
+    function messageTime(value) { if (!value) return new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); return formatTime(value); }
+    function projectBackground(index) { return projectColors[index % projectColors.length]; }
+    function localCover(cover) { return typeof cover === 'string' && /^(?:\.\.?\/|assets\/|data:image\/)/.test(cover); }
+    function ProjectCover({project,index}) {
+      const cover = project?.cover;
+      const gradient = typeof cover === 'string' && /gradient\(/.test(cover) ? cover : projectBackground(index);
+      return <span className="chat-project-cover" style={{background:gradient}} aria-hidden="true">
+        {localCover(cover) ? <img alt="" src={cover} /> : <Icon name="BookOpen" size={13} />}
+      </span>;
+    }
+    function App() {
+      const [chats,setChats] = useState(() => sourceChats.length ? sourceChats.map(normalizeChat) : [{id:'initial-session',title:'The lighthouse after dark',projectId:projectList[0]?.id || 'none',updatedAt:Date.now(),messages:starterFallback}]);
+      const [selectedId,setSelectedId] = useState(() => sourceChats[0]?.id || 'initial-session');
+      const [search,setSearch] = useState('');
+      const [groupByProject,setGroupByProject] = useState(false);
+      const [drawerOpen,setDrawerOpen] = useState(false);
+      const [draft,setDraft] = useState('');
+      const [attachments,setAttachments] = useState([]);
+      const [model,setModel] = useState(modelChoices[0] || {id:'claude-sonnet-4',name:'Claude Sonnet 4',provider:'Anthropic'});
+      const [menu,setMenu] = useState(null);
+      const [deleteId,setDeleteId] = useState(null);
+      const [typingId,setTypingId] = useState(null);
+      const [toast,setToast] = useState('');
+      const transcriptRef = useRef(null);
+      const textareaRef = useRef(null);
+      const attachRef = useRef(null);
+      const toastTimer = useRef(null);
+      const responseTimer = useRef(null);
+      const selected = chats.find(c => c.id === selectedId) || chats[0] || null;
+      const project = projectList.find(p => String(p.id) === String(selected?.projectId)) || projectList[0] || noProject;
+      const projectIndex = Math.max(0,projectList.findIndex(p => String(p.id) === String(project.id)));
+      const filtered = useMemo(() => chats.filter(c => c.title.toLowerCase().includes(search.toLowerCase()) || (c.messages[0]?.content || '').toLowerCase().includes(search.toLowerCase())).sort((a,b) => updatedTimestamp(b.updatedAt)-updatedTimestamp(a.updatedAt)),[chats,search]);
+      const historyGroups = useMemo(() => {
+        const groups = new Map();
+        filtered.forEach(chat => {
+          const key = groupByProject ? String(chat.projectId) : dateSection(chat.updatedAt);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(chat);
+        });
+        return [...groups].map(([key,items]) => ({key,label:groupByProject ? (projectList.find(p => String(p.id)===key)?.title || 'No project') : key,items}));
+      },[filtered,groupByProject]);
+      const activeProject = project.title || 'Untitled project';
+      function notice(text) { setToast(text); if(toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current=setTimeout(() => setToast(''),3200); }
+      useEffect(() => () => { clearTimeout(toastTimer.current); clearTimeout(responseTimer.current); }, []);
+      useEffect(() => { if(textareaRef.current) { textareaRef.current.style.height='auto'; textareaRef.current.style.height=Math.min(156,Math.max(42,textareaRef.current.scrollHeight))+'px'; } },[draft]);
+      useEffect(() => { if(transcriptRef.current) transcriptRef.current.scrollTop=transcriptRef.current.scrollHeight; },[selectedId,selected?.messages.length,typingId]);
+      useEffect(() => { function onKey(event) { if(event.key==='Escape') setMenu(null); } window.addEventListener('keydown',onKey); return () => window.removeEventListener('keydown',onKey); },[]);
+      const sidebarExtra = <section className="chat-session-panel" aria-label="Conversations">
+        <div className="chat-session-heading"><h2 className="chat-section-label">Conversations</h2><span className="chat-session-count">{String(chats.length).padStart(2,'0')}</span></div>
+        <label className="chat-search"><Icon name="Search" size={15}/><input aria-label="Search conversations" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search conversations..." /></label>
+        <button className="chat-create-button" type="button" onClick={newChat}><span className="chat-create-plus"><Icon name="Plus" size={14}/></span> New conversation</button>
+        <div className="chat-group-toggle"><span>Group by project</span><button type="button" className="chat-switch" role="switch" aria-label="Group conversations by project" aria-checked={groupByProject} onClick={() => setGroupByProject(value => !value)} /></div>
+        <div className="chat-session-list" aria-label="Conversation history">
+          {historyGroups.length ? historyGroups.map(group => <section className="chat-history-group" key={group.key} aria-label={group.label}>
+            <h3 className="chat-group-heading"><span>{group.label}</span><small>{group.items.length}</small></h3>
+            {group.items.map(c => <div role="group" aria-label={c.title} className="chat-session-row" aria-current={c.id === selected?.id ? 'true' : undefined} key={c.id}>
+              <button type="button" onClick={() => {setSelectedId(c.id); setMenu(null); setDrawerOpen(false);}} aria-label={`Open ${c.title}`} style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0,background:'transparent',borderRadius:'inherit',zIndex:0}} />
+              <span className="chat-session-title" style={{position:'relative',pointerEvents:'none'}}>{c.title}</span>
+              <span className="chat-session-time" style={{position:'relative',pointerEvents:'none'}}>{formatTime(c.updatedAt)}</span>
+              <button className="chat-icon-button chat-ghost chat-session-delete" style={{width:25,height:25,zIndex:1}} title={`Delete ${c.title}`} aria-label={`Delete ${c.title}`} type="button" onClick={() => setDeleteId(c.id)}><Icon name="Trash2" size={13}/></button>
+            </div>)}
+          </section>) : <div className="chat-session-empty">{search ? 'No conversations match your search.' : 'No conversations yet. Begin a new one.'}</div>}
+        </div>
+      </section>;
+      function newChat() {
+        const id = `local-${Date.now()}`;
+        setChats(prev => [{id,title:'New conversation',projectId:project.id === 'none' ? projectList[0]?.id || 'none' : project.id,updatedAt:Date.now(),messages:[]},...prev]);
+        setSelectedId(id); setDraft(''); setAttachments([]); setMenu(null); setDrawerOpen(false);
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
+      function updateProject(id) { if(!selected) return; setChats(prev => prev.map(c => c.id === selected.id ? {...c,projectId:id} : c)); setMenu(null); }
+      function sendMessage() {
+        if(!selected || (!draft.trim() && !attachments.length) || typingId) return;
+        const text = draft.trim() + (attachments.length ? `${draft.trim() ? '\n\n' : ''}[Attached for this mock conversation: ${attachments.map(a => a.name).join(', ')}]` : '');
+        const chatId = selected.id;
+        const first = selected.messages.length === 0;
+        const id = `user-${Date.now()}`;
+        setChats(prev => prev.map(c => c.id === chatId ? {...c,title:first ? (draft.trim().replace(/\s+/g,' ').slice(0,39) || 'Attached reference') : c.title,updatedAt:Date.now(),messages:[...c.messages,{id,role:'user',content:text,time:Date.now()}]} : c));
+        setDraft(''); setAttachments([]); setTypingId(chatId);
+        const responses = [
+          'The detail lands softly, but it changes the whole room. She waits long enough to hear the old house settle around her, then notices what has been left in plain sight: a small, deliberate sign that someone expected her to come back.',
+          'For a moment, nothing moves. Then the scene finds its rhythm again in the smallest sounds—the brush of fabric, a breath held too long, the quiet certainty that the next choice will matter.',
+          'She does not answer at once. Instead, she studies the space between what was said and what was meant, sensing that the story has finally arrived at its turning point.'
+        ];
+        responseTimer.current=setTimeout(() => {
+          setChats(prev => prev.map(c => c.id === chatId ? {...c,updatedAt:Date.now(),messages:[...c.messages,{id:`ai-${Date.now()}`,role:'assistant',content:responses[c.messages.length % responses.length],time:Date.now()}]} : c));
+          setTypingId(null);
+        },1000);
+      }
+      function enhance() {
+        if(!draft.trim()) { setDraft('Continue this scene with vivid sensory detail, restrained tension, and character-driven dialogue.'); notice('Added a writing prompt to your composer.'); return; }
+        setDraft(draft.trim() + '\n\nKeep the prose vivid and character-led. Show the emotional shift through concrete detail rather than explanation.'); notice('Prompt enriched locally — no API call made.'); textareaRef.current?.focus();
+      }
+      function addFiles(event) { const added=Array.from(event.target.files || []).map(f => ({id:`${f.name}-${Date.now()}-${Math.random()}`,name:f.name})); setAttachments(prev => [...prev,...added]); event.target.value=''; if(added.length) notice(`${added.length} reference ${added.length===1?'file':'files'} staged for this mock chat.`); }
+      function copy(text) {
+        if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => notice('Message copied to clipboard.')).catch(() => fallbackCopy(text));
+        else fallbackCopy(text);
+      }
+      function fallbackCopy(text) { const node=document.createElement('textarea'); node.value=text; node.style.position='fixed'; node.style.opacity='0'; document.body.appendChild(node); node.select(); const copied=document.execCommand('copy'); document.body.removeChild(node); notice(copied?'Message copied to clipboard.':'Clipboard unavailable in this browser.'); }
+      function regenerate(messageId) {
+        const variants=[
+          'She pauses at the threshold. Beyond it, everything is familiar and a little wrong: the floorboards, the angle of the light, the feeling that the house remembers a version of her she has spent years trying to forget.',
+          'The answer comes not as a revelation but as a detail she nearly overlooks. There, at the edge of the page, is one small mark—a quiet invitation to keep looking.'
+        ];
+        setChats(prev => prev.map(c => c.id===selected.id ? {...c,messages:c.messages.map(m => m.id===messageId ? {...m,content:variants[(m.revisions || 0)%variants.length],revisions:(m.revisions || 0)+1,time:Date.now()} : m)} : c));
+        notice('A new mock variation is ready.');
+      }
+      function deleteSession() {
+        if(!deleteId) return;
+        const remaining=chats.filter(c => c.id!==deleteId);
+        setChats(remaining); if(selectedId===deleteId) setSelectedId(remaining[0]?.id || null); setDeleteId(null); notice('Conversation removed from this session.');
+      }
+      return <Shell active="chat" fullWidth sidebarExtra={sidebarExtra} sidebarDrawer={drawerOpen} onCloseSidebarDrawer={() => setDrawerOpen(false)}>
+        <div className="chat-page">
+          <div className="page-topbar chat-topbar">
+            <span className="page-breadcrumb">Workspace / <strong>Chat</strong></span>
+            <div className="page-topbar-actions chat-header-actions">
+              <button type="button" className="chat-compact-button chat-history-open" onClick={() => setDrawerOpen(true)} aria-label="Open conversations"><Icon name="PanelLeft" size={15}/>Conversations</button>
+              <button type="button" className="chat-compact-button" onClick={newChat} aria-label="Start a new chat"><Icon name="Plus" size={15}/>New chat</button>
+            </div>
+          </div>
+          <div className="chat-workspace">
+            <section className="chat-conversation chat-glass" aria-label="Chat conversation">
+              <div className="chat-conversation-top">
+                <div className="chat-context-group"><span className="chat-context-icon"><Icon name="Feather" size={18}/></span><div className="chat-context-copy"><span className="chat-context-kicker">Current session</span><span className="chat-context-title">{selected?.title || 'A new chapter awaits'}</span><span className="chat-context-subtitle">A creative partner for the page ahead</span></div></div>
+                <div style={{display:'flex',alignItems:'center',gap:7}}>
+                  <div className="chat-project-wrap">
+                    <button type="button" className="chat-project-trigger" aria-haspopup="listbox" aria-expanded={menu==='projects'} aria-label={`Project: ${activeProject}. Change project`} onClick={() => setMenu(menu==='projects' ? null : 'projects')}><ProjectCover project={project} index={projectIndex}/><span>{activeProject}</span><Icon name="ChevronDown" size={13}/></button>
+                    {menu==='projects' && <div className="chat-popover" role="listbox" aria-label="Select project"><div className="chat-popover-title">Writing project</div>{projectList.length ? projectList.map((p,i) => <button role="option" aria-selected={String(p.id)===String(project.id)} type="button" key={p.id} className="chat-popover-item" onClick={() => updateProject(p.id)}><ProjectCover project={p} index={i}/><span className="chat-popover-name">{p.title}</span>{String(p.id)===String(project.id) && <Icon name="Check" size={14}/>}</button>) : <div className="chat-session-empty" style={{padding:12}}>Create a project to link this chat.</div>}</div>}
+                  </div>
+                  <div className="chat-model-wrap">
+                    <button type="button" className="chat-model-trigger" aria-haspopup="listbox" aria-expanded={menu==='models'} onClick={() => setMenu(menu==='models' ? null : 'models')} aria-label={`Model: ${model.name}. Change model`}><Icon name="Sparkles" size={14} className="chat-model-spark"/><span>{model.name}</span><Icon name="ChevronDown" size={12}/></button>
+                    {menu==='models' && <div role="listbox" aria-label="Select writing model" className="chat-popover chat-model-menu"><div className="chat-popover-title">Model for this session</div>{(modelChoices.length ? modelChoices : [model]).map((choice,i) => <button role="option" aria-selected={choice.id===model.id} className="chat-popover-item" type="button" key={`${choice.id}-${i}`} onClick={() => {setModel(choice);setMenu(null);notice(`Using ${choice.name} for this mock session.`);}}><strong>{choice.name}</strong><small>{choice.provider}</small></button>)}</div>}
+                  </div>
+                </div>
+              </div>
+              <div className="chat-transcript" ref={transcriptRef} role="log" aria-live="polite" aria-relevant="additions text">
+                {selected?.messages.length ? <div className="chat-transcript-inner"><div className="chat-day-divider">The conversation so far</div>
+                  {selected.messages.map((m,i) => <article key={m.id || i} className={`chat-message ${m.role==='user' ? 'chat-user' : 'chat-assistant'}`} style={{animationDelay:`${Math.min(i,6)*30}ms`}} aria-label={`${m.role==='user' ? 'You' : 'Merlink'} said`}>
+                    <span className={`chat-avatar ${m.role==='user' ? 'chat-user-avatar' : 'chat-assistant-avatar'}`} aria-hidden="true"><Icon name={m.role==='user'?'UserRound':'Sparkles'} size={15}/></span>
+                    <div className="chat-message-main"><div className="chat-message-meta"><strong>{m.role==='user' ? 'You' : 'Merlink'}</strong><time>{messageTime(m.time)}</time></div><div className="chat-message-bubble">{m.content}</div>{m.role!=='user' && <div className="chat-message-actions"><button type="button" className="chat-message-action" onClick={() => copy(m.content)} aria-label="Copy response"><Icon name="Copy" size={12}/> Copy</button><button type="button" className="chat-message-action" onClick={() => regenerate(m.id)} aria-label="Regenerate response"><Icon name="RotateCcw" size={12}/> Regenerate</button></div>}</div>
+                  </article>)}
+                  {typingId===selected.id && <div className="chat-typing" role="status"><div className="chat-dots" aria-hidden="true"><i/><i/><i/></div> Merlink is finding the next line...</div>}
+                </div> : <div className="chat-empty-thread"><div className="chat-empty-mark"><Icon name="Feather" size={28}/></div><h2>A blank page, full of possibility.</h2><p>Bring a scene, a question, or the tiniest spark of an idea. We’ll find a way in together.</p></div>}
+              </div>
+              <div className="chat-composer-wrap"><div className="chat-composer-inner">
+                {!!attachments.length && <div className="chat-attachment-list" aria-label="Staged attachments">{attachments.map(a => <span className="chat-attachment" key={a.id}><Icon name="Paperclip" size={11}/>{a.name}<button type="button" title={`Remove ${a.name}`} aria-label={`Remove ${a.name}`} onClick={() => setAttachments(prev => prev.filter(x => x.id!==a.id))}><Icon name="X" size={11}/></button></span>)}</div>}
+                <div className="chat-composer"><textarea ref={textareaRef} aria-label="Write a message" rows="1" placeholder="Ask a question, sketch a scene, follow a thought..." value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {if(event.key==='Enter' && !event.shiftKey && !event.nativeEvent.isComposing){event.preventDefault();sendMessage();}}}/><div className="chat-composer-controls"><div className="chat-composer-tools"><input ref={attachRef} type="file" style={{display:'none'}} multiple onChange={addFiles} aria-label="Choose reference files"/><button type="button" className="chat-tool-button" title="Attach a reference file" aria-label="Attach a reference file" onClick={() => attachRef.current?.click()}><Icon name="Paperclip" size={15}/></button><button type="button" className="chat-tool-button" onClick={enhance} title="Enhance prompt" aria-label="Enhance prompt"><Icon name="WandSparkles" size={15}/> Enhance prompt</button></div><button type="button" className="chat-send-button" onClick={sendMessage} disabled={(!draft.trim() && !attachments.length) || !selected || !!typingId} aria-label="Send message">Send <Icon name="ArrowUp" size={15}/></button></div></div>
+                <div className="chat-composer-note"><span>Story-first ideas. Private, local mock conversations.</span><span>Enter to send · Shift + Enter for a new line</span></div>
+              </div></div>
+            </section>
+          </div>
+        </div>
+        {toast && <div className="chat-toast" role="status">{toast}</div>}
+        <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} title="Delete conversation?"><p className="chat-delete-copy">This removes the conversation from your current session. Your other writing threads will stay right where they are.</p><div className="chat-dialog-actions"><button type="button" className="btn" onClick={() => setDeleteId(null)}>Keep conversation</button><button type="button" className="btn chat-dialog-danger" onClick={deleteSession}>Delete conversation</button></div></Dialog>
+      </Shell>;
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

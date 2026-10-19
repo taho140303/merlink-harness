@@ -1,0 +1,19 @@
+# psychological_drama
+- files processed: 5
+- presets emitted: 5
+- vocab items: 15
+- focus items: 15
+- device links: 25 (primary: 5, secondary: 10, avoid: 10)
+- unique devices: 25
+- warnings:
+  - "betrayal.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "betrayal.json: imagery.gustatory=\"thap (vị đắng, máu)\" → LOW (typo \"thap\")"
+  - "identity_crisis.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+  - "identity_crisis.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "inner_monologue.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+  - "inner_monologue.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "nightmare_flashback.json: imagery.gustatory=\"thap (vị đắng, máu, tanh)\" → LOW (typo \"thap\")"
+  - "sacrifice.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "sacrifice.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- device description conflicts:
+  - none

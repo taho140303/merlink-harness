@@ -1,0 +1,102 @@
+[
+  {
+    "code": "phep_liet_ke_cong_doan_diep_cau_truc_nang_cap",
+    "description": "Phép liệt kê công đoạn & điệp cấu trúc nâng cấp"
+  },
+  {
+    "code": "phep_so_sanh_truoc_sau",
+    "description": "Phép so sánh trước – sau"
+  },
+  {
+    "code": "tuong_thanh_che_tac",
+    "description": "Tượng thanh chế tác"
+  },
+  {
+    "code": "cau_cut_coc_loc",
+    "description": "Câu cụt cộc lốc"
+  },
+  {
+    "code": "ngon_ngu_cam_xuc_thai_qua",
+    "description": "Ngôn ngữ cảm xúc thái quá"
+  },
+  {
+    "code": "phep_phong_dai_suc_manh_diep_cau_truc_vuot_gioi_han",
+    "description": "Phép phóng đại sức mạnh & điệp cấu trúc vượt giới hạn"
+  },
+  {
+    "code": "an_du_lua_song",
+    "description": "Ẩn dụ lửa / sóng"
+  },
+  {
+    "code": "cau_cam_than_bung_no",
+    "description": "Câu cảm thán bùng nổ"
+  },
+  {
+    "code": "ngon_ngu_yeu_ot",
+    "description": "Ngôn ngữ yếu ớt"
+  },
+  {
+    "code": "mieu_ta_cham_chap",
+    "description": "Miêu tả chậm chạp"
+  },
+  {
+    "code": "diep_cau_truc_tan_cong_tung_lop_an_du_dot_nhap",
+    "description": "Điệp cấu trúc tấn công từng lớp & ẩn dụ đột nhập"
+  },
+  {
+    "code": "phep_liet_ke_ma_lenh",
+    "description": "Phép liệt kê mã lệnh"
+  },
+  {
+    "code": "so_sanh_khong_gian_mang_thuc_dia",
+    "description": "So sánh không gian mạng – thực địa"
+  },
+  {
+    "code": "ngon_ngu_thong_tuc_ngoai_le",
+    "description": "Ngôn ngữ thông tục ngoài lề"
+  },
+  {
+    "code": "mieu_ta_ngoai_canh_dai",
+    "description": "Miêu tả ngoại cảnh dài"
+  },
+  {
+    "code": "diep_cau_truc_than_chu_an_du_ranh_gioi_the_gioi",
+    "description": "Điệp cấu trúc thần chú & ẩn dụ ranh giới thế giới"
+  },
+  {
+    "code": "liet_ke_bieu_tuong",
+    "description": "Liệt kê biểu tượng"
+  },
+  {
+    "code": "cau_cam_than_hai_hung",
+    "description": "Câu cảm thán hãi hùng"
+  },
+  {
+    "code": "ngon_ngu_doi_thuong",
+    "description": "Ngôn ngữ đời thường"
+  },
+  {
+    "code": "hai_huoc",
+    "description": "Hài hước"
+  },
+  {
+    "code": "phep_diep_toan_canh_lap_lai_phep_doi_giua_cac_lan_thu",
+    "description": "Phép điệp toàn cảnh lặp lại & phép đối giữa các lần thử"
+  },
+  {
+    "code": "cau_hoi_tu_tu_ve_dinh_menh",
+    "description": "Câu hỏi tu từ về định mệnh"
+  },
+  {
+    "code": "an_du_cat_chay_nguoc",
+    "description": "Ẩn dụ cát chảy ngược"
+  },
+  {
+    "code": "cau_chu_dut_doan_hon_loan",
+    "description": "Câu chữ đứt đoạn hỗn loạn"
+  },
+  {
+    "code": "ngon_ngu_tuyet_vong_tuyet_doi",
+    "description": "Ngôn ngữ tuyệt vọng tuyệt đối"
+  }
+]

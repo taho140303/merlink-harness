@@ -1,0 +1,10 @@
+{
+    "id": "project-name-chapter001",
+    "name": "chapter1: tesst",
+    "scenes": [
+        "project-name-chapter001-scene01",
+        "project-name-chapter001-scene02",
+        "project-name-chapter001-scene03"
+    ],
+    "": ""
+}

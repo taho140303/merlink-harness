@@ -1,0 +1,20 @@
+# romance_relationship
+- files processed: 6
+- presets emitted: 6
+- vocab items: 18
+- focus items: 18
+- device links: 30 (primary: 6, secondary: 12, avoid: 12)
+- unique devices: 29
+- warnings:
+  - "confession.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "confession.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "date.json: imagery.gustatory=\"thap (nếu có ăn uống)\" → LOW (typo \"thap\")"
+  - "heartbreak.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "heartbreak.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "jealousy_confrontation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "jealousy_confrontation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "reunion.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+  - "reunion.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+  - "wedding_ceremony.json: imagery.gustatory=\"thap (rượu, bánh)\" → LOW (typo \"thap\")"
+- device description conflicts:
+  - none

@@ -1,0 +1,29 @@
+{
+    "id": "project-name-chapter001-scene01",
+    "scene-name": "scene-name",
+    "character": [
+        "character-a",
+        "character-b",
+        "character-c",
+        "character-d"
+    ],
+    "summary": "Character-a ...",
+    "pov": {
+        "narrator": "third_person.limited",
+        "focalizer": "character-b",
+        "scope": "single_pov",
+        "reliability": {
+            "is_reliable": false,
+            "bias_cause": "pla pla pla"
+        },
+        "metafiction": {
+            "break_fourth_wall": false
+        }
+    },
+    "styles_preset": {
+        "primary": "fantasy_scifi_mechanics/evolution_awakening",
+        "secondary": "transition/waiting_anticipation",
+        "background": "action/warfare"
+    },
+    "content_path": "absolute_path.md"
+}

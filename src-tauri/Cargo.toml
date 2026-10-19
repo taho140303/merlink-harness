@@ -1,0 +1,47 @@
+[package]
+name = "merlink-harness"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "merlink_harness_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tokio = { version = "1", features = ["time"] }
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+
+# Sprint 11.6 · D1 — the only manifest change this sprint allows.
+#
+# `tauri::test` (feature `test`) drives the real IPC deserialisation path without
+# a webview, so a wrong argument name fails `cargo test` instead of failing
+# silently in the app (the Sprint 9 `session_id`/`sessionId` bug).
+# Dev-dependencies are not compiled into the release binary.
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

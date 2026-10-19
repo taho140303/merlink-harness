@@ -1,0 +1,32 @@
+# action
+- files processed: 12
+- presets emitted: 12
+- vocab items: 34
+- focus items: 46
+- device links: 63 (primary: 12, secondary: 25, avoid: 26)
+- unique devices: 58
+- warnings:
+  - "assassination.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "battle.json: imagery.gustatory=\"thap\" → LOW (typo normalization)"
+  - "chase.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "chase.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "combat.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "combat.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "duel.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "duel.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "escape.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "escape.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "execution.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "execution.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "infiltration.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "infiltration.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "showdown.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "showdown.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "training.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "training.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - "warfare.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+  - "warfare.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+  - SKIP example.json (different from action/combat.json; user explicitly chose to skip)
+  - Sprint 2.1: 'rất thấp' → LOW per RULES 1.5 patch (execution, assassination)
+- device description conflicts:
+  - none

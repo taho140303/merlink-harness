@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Story Projects — Merlink Harness</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    .projects-page {
+      --project-ink: #212b42;
+      --project-subtle: #52627a;
+      --project-muted: #6c7c93;
+      --project-rule: rgba(69, 89, 133, .16);
+      --project-accent: #5557bf;
+      --project-accent-soft: rgba(89, 91, 191, .12);
+      --project-paper: rgba(244, 248, 255, .56);
+      --project-white: #fff;
+      max-width: 1510px;
+      padding: 14px clamp(22px, 3.8vw, 66px) 96px;
+      margin: 0 auto;
+      color: var(--project-ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html.dark .projects-page, html[data-theme="dark"] .projects-page {
+      --project-ink: #eef1f9;
+      --project-subtle: #bac6d8;
+      --project-muted: #9baac0;
+      --project-rule: rgba(207, 218, 241, .14);
+      --project-accent: #a4a6ff;
+      --project-accent-soft: rgba(170, 174, 255, .15);
+      --project-paper: rgba(39, 45, 61, .66);
+      --project-white: #f5f6ff;
+    }
+    .projects-page * { box-sizing: border-box; }
+    .projects-page button, .project-overlay button, .project-form button { cursor: pointer; }
+    .projects-page button:focus-visible, .project-overlay button:focus-visible, .project-form button:focus-visible,
+    .project-form input:focus-visible, .project-form textarea:focus-visible, .project-form select:focus-visible,
+    .projects-page input:focus-visible { outline: 2px solid #7774f4; outline-offset: 3px; }
+    .project-kicker {
+      display: inline-flex; align-items: center; gap: 10px;
+      color: var(--project-accent); font-size: 11px; font-weight: 800;
+      letter-spacing: .17em; text-transform: uppercase;
+    }
+    .project-kicker::before { content: ""; width: 20px; height: 1px; background: currentColor; opacity: .8; }
+    .projects-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+    .projects-heading { padding-top: 4px; }
+    .projects-heading h1 {
+      margin: 18px 0 9px; font-size: clamp(37px, 4vw, 54px); letter-spacing: -.062em;
+      line-height: 1.05; font-weight: 720; color: var(--project-ink);
+    }
+    .projects-heading p { max-width: 510px; margin: 0; color: var(--project-subtle); font-size: 14px; line-height: 1.65; }
+    .projects-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-top: 5px; }
+    .project-create-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 44px; padding: 0 18px; border-radius: 13px; font-size: 13px; font-weight: 700;
+      white-space: nowrap; border: 1px solid rgba(68, 66, 160, .16);
+      background: #5956bc; color: #fff; box-shadow: 0 9px 20px rgba(67, 65, 139, .17), inset 1px 1px 1px rgba(255,255,255,.25);
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .project-create-btn:hover { transform: translateY(-2px); background: #4949aa; box-shadow: 0 12px 23px rgba(67,65,139,.24); }
+    .projects-toolbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      margin-top: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--project-rule);
+    }
+    .project-library-title { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
+    .project-library-title strong { font-size: 12px; text-transform: uppercase; letter-spacing: .15em; font-weight: 800; }
+    .project-count { display: inline-flex; align-items: center; justify-content: center; min-width: 27px; height: 24px; padding: 0 7px; border-radius: 8px; background: var(--project-accent-soft); color: var(--project-accent); font-size: 11px; font-weight: 800; }
+    .project-toolbar-side { display: flex; align-items: center; gap: 14px; }
+    .project-sort-label { display: inline-flex; gap: 7px; align-items: center; font-size: 12px; color: var(--project-muted); white-space: nowrap; }
+    .project-search-wrap { position: relative; width: min(260px, 32vw); }
+    .project-search-wrap .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--project-muted); pointer-events: none; }
+    .project-search { width: 100%; min-height: 40px; border-radius: 11px; padding: 9px 14px 9px 40px; color: var(--project-ink); font-size: 12px; outline: none; }
+    .project-search::placeholder { color: var(--project-muted); opacity: .85; }
+    .project-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 17px 0 27px; }
+    .project-filter-label { display: flex; align-items: center; gap: 8px; margin-right: 9px; color: var(--project-muted); font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .project-filter {
+      min-height: 33px; padding: 0 14px; border-radius: 10px; color: var(--project-subtle); font-size: 12px; font-weight: 650;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+    .project-filter:hover { transform: translateY(-1px); color: var(--project-ink); }
+    .project-filter.is-selected { background: var(--project-accent-soft); color: var(--project-accent); border-color: rgba(116, 112, 225, .27); }
+    .project-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+    .project-card {
+      min-width: 0; border-radius: 19px; padding: 10px; overflow: hidden; cursor: pointer;
+      transition: transform .22s ease, box-shadow .22s ease;
+      animation: project-entrance .5s backwards;
+    }
+    .project-card:focus-visible { outline: 3px solid var(--project-accent); outline-offset: 3px; }
+    .project-card:nth-child(2) { animation-delay: .055s; } .project-card:nth-child(3) { animation-delay: .11s; }
+    .project-card:nth-child(4) { animation-delay: .165s; } .project-card:nth-child(5) { animation-delay: .22s; }
+    .project-card:nth-child(6) { animation-delay: .275s; }
+    .project-card:hover { transform: translateY(-4px); box-shadow: -2px -2px 8px rgba(255,255,255,.8), 8px 12px 25px rgba(32,43,74,.14); }
+    html.dark .project-card:hover, html[data-theme="dark"] .project-card:hover { box-shadow: -2px -2px 8px rgba(255,255,255,.08), 8px 12px 25px rgba(0,0,0,.3); }
+    .project-cover {
+      position: relative; overflow: hidden; isolation: isolate; aspect-ratio: 16 / 9;
+      border-radius: 13px; background-color: #545f83; background-size: cover; background-position: center;
+    }
+    .project-cover::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(160deg, rgba(13,21,43,.2) 12%, transparent 50%, rgba(10,18,36,.43)); }
+    .project-cover::before {
+      content: ""; position: absolute; width: 64%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,.46);
+      border-radius: 50%; top: -64%; right: -22%; box-shadow: 0 0 0 34px rgba(255,255,255,.035), 0 0 0 89px rgba(255,255,255,.025);
+      transform: rotate(-20deg); transition: transform .45s ease;
+    }
+    .project-card:hover .project-cover::before { transform: translate(-11px, 9px) scale(1.07); }
+    .project-cover-label { position: absolute; top: 17px; left: 19px; color: rgba(255,255,255,.95); font-size: 9px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; text-shadow: 0 1px 10px rgba(0,0,0,.24); }
+    .project-cover-index { position: absolute; bottom: 13px; right: 17px; font-size: 46px; font-weight: 300; line-height: 1; letter-spacing: -.08em; color: rgba(255,255,255,.64); font-family: Georgia, serif; }
+    .project-cover-caption { position: absolute; left: 18px; bottom: 17px; max-width: 72%; color: white; font-size: 11px; font-weight: 630; line-height: 1.35; letter-spacing: .025em; text-shadow: 0 1px 12px rgba(0,0,0,.3); }
+    .project-card-body { padding: 17px 9px 5px; }
+    .project-card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .project-card-title { min-width: 0; margin: 0; font-size: 17px; letter-spacing: -.035em; font-weight: 740; line-height: 1.35; }
+    .project-status { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 5px 8px; border-radius: 7px; background: rgba(74,153,120,.12); color: #38765d; font-size: 10px; font-weight: 750; line-height: 1.2; }
+    .project-status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .project-status.is-draft { color: #8b6942; background: rgba(178,143,84,.14); }
+    .project-status.is-paused, .project-status.is-archived { color: #6d7189; background: rgba(116,122,154,.13); }
+    html.dark .project-status, html[data-theme="dark"] .project-status { color: #8dd5b2; }
+    html.dark .project-status.is-draft, html[data-theme="dark"] .project-status.is-draft { color: #e8c88d; }
+    html.dark .project-status.is-paused, html[data-theme="dark"] .project-status.is-paused,
+    html.dark .project-status.is-archived, html[data-theme="dark"] .project-status.is-archived { color: #b3bddb; }
+    .project-card-genre { margin: 4px 0 0; font-size: 11px; color: var(--project-muted); }
+    .project-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 25px; margin: 16px 0 18px; }
+    .project-tag { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 5px 8px; border-radius: 7px; font-size: 10px; font-weight: 680; color: var(--project-subtle); }
+    .project-meta { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--project-rule); padding: 13px 0 15px; color: var(--project-muted); font-size: 11px; }
+    .project-meta span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .project-view {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 36px; border-radius: 10px; color: var(--project-accent); font-size: 11px; font-weight: 780;
+      transition: background .2s ease, transform .2s ease;
+    }
+    .project-view:hover { background: var(--project-accent-soft); transform: translateY(-1px); }
+    .project-empty { grid-column: 1 / -1; padding: 68px 25px; border-radius: 20px; text-align: center; }
+    .project-empty-icon { display: flex; justify-content: center; color: var(--project-accent); margin-bottom: 18px; }
+    .project-empty h2 { margin: 0 0 7px; font-size: 23px; letter-spacing: -.04em; }
+    .project-empty p { color: var(--project-subtle); font-size: 13px; margin: 0 auto 18px; max-width: 410px; line-height: 1.6; }
+    .project-empty button { color: var(--project-accent); font-size: 12px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
+    .projects-footnote { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--project-rule); margin-top: 36px; padding-top: 20px; color: var(--project-muted); font-size: 11px; }
+    .projects-footnote span { display: inline-flex; align-items: center; gap: 6px; }
+    .project-overlay {
+      position: fixed; inset: 0; z-index: 90; display: grid; grid-template-columns: minmax(335px, 39%) minmax(0, 1fr);
+      color: var(--project-ink); background: #eef2f7; animation: project-fade .22s ease both;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html.dark .project-overlay, html[data-theme="dark"] .project-overlay { background: #1a1d24; }
+    .project-detail-left { min-height: 0; padding: 26px clamp(22px, 3vw, 46px) 28px; overflow-y: auto; border-right: 1px solid var(--project-rule); background: var(--project-paper); }
+    .project-detail-right { min-height: 0; padding: 30px clamp(24px, 4.4vw, 82px) 75px; overflow-y: auto; }
+    .project-back { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; color: var(--project-subtle); font-size: 12px; font-weight: 680; }
+    .project-back:hover { color: var(--project-accent); }
+    .project-detail-cover { margin-top: 26px; aspect-ratio: 1.28; border-radius: 19px; box-shadow: 0 23px 44px rgba(30,41,75,.14); }
+    .project-detail-cover .project-cover-label { top: 22px; left: 24px; font-size: 10px; }
+    .project-detail-cover .project-cover-caption { left: 24px; bottom: 28px; font-size: clamp(17px, 1.8vw, 27px); line-height: 1.15; font-weight: 700; letter-spacing: -.04em; }
+    .project-detail-cover .project-cover-index { right: 25px; bottom: 20px; font-size: 60px; }
+    .project-detail-eyebrow { margin: 29px 0 10px; color: var(--project-accent); font-size: 10px; font-weight: 820; letter-spacing: .16em; text-transform: uppercase; }
+    .project-detail-left h2 { max-width: 470px; margin: 0; color: var(--project-ink); font-size: clamp(28px, 3vw, 43px); line-height: 1.12; letter-spacing: -.055em; font-weight: 740; }
+    .project-description { margin: 13px 0 0; max-width: 495px; color: var(--project-subtle); font-size: 13px; line-height: 1.7; }
+    .project-detail-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+    .project-detail-tags .project-tag { padding: 7px 10px; font-size: 11px; }
+    .project-detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: 25px; padding: 19px 0; border-top: 1px solid var(--project-rule); }
+    .project-detail-facts div { min-width: 0; }
+    .project-detail-facts span { display: block; margin-bottom: 4px; color: var(--project-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .09em; }
+    .project-detail-facts strong { display: block; overflow-wrap: anywhere; color: var(--project-ink); font-size: 12px; font-weight: 720; }
+    .project-detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 17px 0 4px; border-top: 1px solid var(--project-rule); }
+    .project-detail-stats div { min-width: 0; }
+    .project-detail-stats strong { display: block; font-size: clamp(17px, 1.5vw, 22px); line-height: 1.3; font-weight: 720; letter-spacing: -.04em; }
+    .project-detail-stats span { display: block; margin-top: 4px; color: var(--project-muted); font-size: 10px; }
+    .project-detail-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .project-action { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border-radius: 10px; color: var(--project-subtle); font-size: 11px; font-weight: 700; }
+    .project-action:hover { color: var(--project-accent); background: var(--project-accent-soft); }
+    .project-action.is-danger:hover { color: #b34d58; background: rgba(202,81,95,.12); }
+    .project-action.is-prominent { color: #fff; background: #5956bc; }
+    .project-action.is-prominent:hover { color: #fff; background: #4949aa; }
+    .project-chapters-head { margin: 37px 0 22px; }
+    .project-chapters-head .project-kicker { margin-bottom: 13px; }
+    .project-chapters-head h3 { margin: 0; font-size: clamp(26px, 2.7vw, 37px); letter-spacing: -.055em; line-height: 1.15; font-weight: 720; }
+    .project-chapters-head p { margin: 9px 0 0; color: var(--project-subtle); font-size: 12px; line-height: 1.6; }
+    .project-chapter-list { display: flex; flex-direction: column; gap: 10px; }
+    .project-chapter { border-radius: 14px; overflow: hidden; }
+    .project-chapter.is-open { background: var(--project-paper); }
+    .project-chapter-trigger { display: flex; align-items: center; width: 100%; gap: 17px; padding: 17px 19px; text-align: left; color: var(--project-ink); }
+    .project-chapter-number { min-width: 31px; align-self: flex-start; color: var(--project-accent); font-family: Georgia, serif; font-size: 23px; font-style: italic; line-height: 1.2; }
+    .project-chapter-text { flex: 1; min-width: 0; }
+    .project-chapter-title { display: block; font-size: 14px; font-weight: 720; letter-spacing: -.025em; line-height: 1.35; }
+    .project-chapter-meta { display: block; margin-top: 6px; color: var(--project-muted); font-size: 10px; }
+    .project-chapter-chevron { color: var(--project-muted); transition: transform .2s ease; }
+    .project-chapter.is-open .project-chapter-chevron { transform: rotate(180deg); color: var(--project-accent); }
+    .project-chapter-content { padding: 0 24px 27px 67px; animation: project-fade .25s ease; }
+    .project-chapter-content p { margin: 0 0 1.1em; max-width: 740px; color: var(--project-subtle); font-family: Georgia, "Times New Roman", serif; font-size: 15px; line-height: 1.85; }
+    .project-chapter-content p:first-child::first-letter { font-size: 2.7em; font-weight: 500; float: left; line-height: .84; margin: 6px 8px 0 0; color: var(--project-accent); }
+    .project-chapter-content p:last-child { margin-bottom: 0; }
+    .project-chapter-empty { color: var(--project-muted) !important; font-family: inherit !important; font-size: 12px !important; }
+    .project-dialog-body { --project-ink: #212b42; --project-subtle: #52627a; --project-muted: #6c7c93; --project-rule: rgba(69,89,133,.16); --project-accent: #5557bf; --project-accent-soft: rgba(89,91,191,.12); color: var(--project-ink); }
+    html.dark .project-dialog-body, html[data-theme="dark"] .project-dialog-body { --project-ink: #eef1f9; --project-subtle: #bac6d8; --project-muted: #9baac0; --project-rule: rgba(207,218,241,.14); --project-accent: #a4a6ff; --project-accent-soft: rgba(170,174,255,.15); }
+    .project-form-intro { margin: 0 0 23px; color: var(--project-subtle); font-size: 12px; line-height: 1.6; }
+    .project-form { display: grid; grid-template-columns: 1fr 1fr; column-gap: 17px; row-gap: 17px; }
+    .project-form-group { min-width: 0; }
+    .project-form-group.is-wide, .project-form-footer { grid-column: 1 / -1; }
+    .project-form-label { display: block; margin-bottom: 8px; color: var(--project-ink); font-size: 11px; font-weight: 750; }
+    .project-form-label .is-optional { color: var(--project-muted); font-weight: 500; }
+    .project-form .field { display: block; width: 100%; min-height: 42px; padding: 10px 13px; border-radius: 11px; color: var(--project-ink); font-family: inherit; font-size: 12px; outline: 0; }
+    .project-form .field::placeholder { color: var(--project-muted); opacity: .82; }
+    .project-form textarea.field { resize: vertical; min-height: 91px; line-height: 1.55; }
+    .project-form select.field { appearance: auto; }
+    .project-motif-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .project-motif { padding: 7px 11px; color: var(--project-subtle); border-radius: 9px; font-size: 11px; font-weight: 630; }
+    .project-motif.is-selected { color: var(--project-accent); background: var(--project-accent-soft); border-color: rgba(116,112,225,.26); }
+    .project-upload { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 78px; padding: 12px 14px; border: 1px dashed var(--project-rule); border-radius: 12px; color: var(--project-subtle); text-align: left; }
+    .project-upload:hover { border-color: var(--project-accent); background: var(--project-accent-soft); }
+    .project-upload-icon { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 37px; height: 37px; border-radius: 10px; color: var(--project-accent); }
+    .project-upload strong { display: block; color: var(--project-ink); font-size: 11px; }
+    .project-upload small { display: block; color: var(--project-muted); margin-top: 4px; font-size: 10px; }
+    .project-form-error { grid-column: 1 / -1; margin: -8px 0 0; color: #bc465b; font-size: 11px; }
+    .project-form-footer { display: flex; justify-content: flex-end; gap: 9px; border-top: 1px solid var(--project-rule); padding-top: 17px; margin-top: 1px; }
+    .project-form-footer .btn { min-height: 39px; padding: 0 16px; border-radius: 10px; font-size: 11px; font-weight: 730; }
+    .project-form-footer .btn-primary { color: #fff; background: #5956bc; }
+    .project-confirm-copy { margin: 0 0 24px; color: var(--project-subtle); font-size: 13px; line-height: 1.65; }
+    .project-confirm-copy strong { color: var(--project-ink); }
+    .project-danger-btn { color: white !important; background: #b84f5e !important; }
+    .project-toast { position: fixed; z-index: 140; right: 28px; bottom: 25px; display: flex; align-items: center; gap: 10px; padding: 12px 17px; border-radius: 11px; color: var(--project-ink); background: var(--project-paper); backdrop-filter: blur(15px); box-shadow: 0 9px 30px rgba(22,34,68,.18); border: 1px solid var(--project-rule); font-size: 12px; font-weight: 660; animation: project-entrance .25s ease; }
+    .project-toast svg { color: #4c9b79; }
+    @keyframes project-entrance { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes project-fade { from { opacity: 0; } to { opacity: 1; } }
+    @media (max-width: 1200px) { .project-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 900px) {
+      .projects-toolbar { flex-wrap: wrap; }
+      .project-toolbar-side { flex: 1 1 100%; min-width: 0; }
+      .project-search-wrap { flex: 1; min-width: 0; width: auto; }
+    }
+    @media (max-width: 880px) {
+      .projects-page { padding: 32px 23px 70px; }
+      .project-overlay { grid-template-columns: minmax(300px, 38%) minmax(0, 1fr); }
+      .project-detail-left { padding: 25px 22px; }
+      .project-detail-right { padding: 25px 26px 70px; }
+      .project-action { padding: 0 9px; }
+      .project-detail-cover { aspect-ratio: 1; }
+    }
+    @media (max-width: 680px) {
+      .projects-page { padding: 23px 17px 70px; }
+      .projects-header { flex-direction: column; gap: 16px; }
+      .projects-heading h1 { margin-top: 12px; font-size: 39px; }
+      .projects-header-right { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
+      .project-create-btn { flex: 1; }
+      .projects-toolbar { margin-top: 33px; align-items: flex-start; flex-direction: column; gap: 14px; }
+      .project-toolbar-side, .project-search-wrap { width: 100%; }
+      .project-toolbar-side .project-sort-label { display: none; }
+      .project-search-wrap { flex: 1; min-width: 0; }
+      .project-filters { gap: 8px; margin: 16px 0 23px; }
+      .project-filter-label { width: 100%; }
+      .project-grid { grid-template-columns: 1fr; gap: 15px; }
+      .project-cover { aspect-ratio: 16 / 8.3; }
+      .project-card { max-width: 530px; width: 100%; margin: 0 auto; }
+      .project-card-body { padding: 14px 8px 4px; }
+      .project-overlay { display: block; overflow-y: auto; }
+      .project-detail-left, .project-detail-right { overflow: visible; }
+      .project-detail-left { padding: 17px 20px 25px; border-right: 0; border-bottom: 1px solid var(--project-rule); }
+      .project-detail-right { padding: 20px 20px 66px; }
+      .project-detail-cover { margin-top: 15px; aspect-ratio: 16 / 8.5; }
+      .project-detail-cover .project-cover-caption { font-size: 19px; }
+      .project-detail-left h2 { font-size: 31px; }
+      .project-detail-eyebrow { margin-top: 23px; }
+      .project-detail-facts { margin-top: 19px; padding-top: 16px; }
+      .project-detail-actions { justify-content: flex-start; gap: 7px; }
+      .project-chapters-head { margin-top: 25px; }
+      .project-chapter-trigger { padding: 15px 13px; gap: 10px; }
+      .project-chapter-content { padding: 0 15px 22px 53px; }
+      .project-chapter-content p { font-size: 14px; }
+      .project-toast { left: 17px; right: 17px; bottom: 17px; }
+      .project-form { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 380px) { .project-sort-label { display: none; } .project-meta { font-size: 10px; } .project-action { font-size: 10px; } }
+    @media (prefers-reduced-motion: reduce) { .project-card, .project-toast, .project-overlay, .project-chapter-content { animation: none; } .project-card, .project-filter, .project-cover::before, .project-create-btn { transition: none; } }
+  </style>
+  <script src="shared.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+    const { Shell, Icon, ThemeToggle, Dialog } = window.Merlink;
+    const numberFormat = new Intl.NumberFormat('en-US');
+    const fallbackCovers = [
+      'linear-gradient(135deg, #8d829f, #dbc7b8 56%, #333d6f)',
+      'linear-gradient(145deg, #183e65, #5ca6a3 56%, #d4ad7c)',
+      'linear-gradient(135deg, #97647d, #d7a1a6 55%, #394562)',
+      'linear-gradient(135deg, #343f70, #888ac1 56%, #d9b5a8)',
+      'linear-gradient(135deg, #526774, #b4bbb3 52%, #bea486)',
+      'linear-gradient(135deg, #435970, #88a4ad 54%, #efbd95)'
+    ];
+    const motifSuggestions = ['Found family', 'Memory', 'Mystery', 'Identity', 'The sea', 'Second chances', 'Time', 'Belonging'];
+    const initialProjects = Array.isArray(window.Merlink.mock?.projects) ? window.Merlink.mock.projects : [];
+    const filterGenres = ['Fantasy', 'Sci-fi', 'Romance', 'Mystery', 'Horror'];
+    const allGenres = [...filterGenres, 'Magical realism', 'Literary Fiction', 'Contemporary', 'Young adult', 'Historical Fiction', 'Thriller', 'Adventure'];
+    const initialForm = { title: '', genre: '', motifs: [], description: '', cover: '' };
+
+    function formatDate(input) {
+      if (!input) return 'Recently';
+      const date = new Date(input);
+      return Number.isNaN(date.getTime()) ? String(input) : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+    }
+    function matchesGenre(projectGenre, filter) {
+      if (filter === 'All stories') return true;
+      const value = (projectGenre || '').toLowerCase();
+      if (filter === 'Sci-fi') return /sci.?fi|science fiction/.test(value);
+      if (filter === 'Fantasy') return /fantasy|magical realism/.test(value);
+      if (filter === 'Romance') return /romance|romantic/.test(value);
+      if (filter === 'Mystery') return /mystery|crime|thriller/.test(value);
+      return value.includes(filter.toLowerCase());
+    }
+    function getCover(project, index) { return project?.cover || fallbackCovers[index % fallbackCovers.length]; }
+    function projectIdFromHash(projects) {
+      let id;
+      try { id = decodeURIComponent(window.location.hash.slice(1)); } catch (_) { return null; }
+      return projects.some(project => String(project.id) === id) ? id : null;
+    }
+    function statusClass(status) { return /draft/i.test(status || '') ? 'is-draft' : /paused|archived/i.test(status || '') ? 'is-paused' : ''; }
+    function chapterStatus(status) { return /draft/i.test(status || '') ? 'Drafted' : /written|published|complete/i.test(status || '') ? 'Published' : (status || 'Drafted'); }
+    function getWordCount(project) { return Number(project.wordCount) || (project.chapters || []).reduce((total, chapter) => total + (Number(chapter.wordCount) || 0), 0); }
+    function ProjectCover({ project, index, detail = false }) {
+      return <div className={'project-cover ' + (detail ? 'project-detail-cover' : '')} style={{ background: getCover(project, index), backgroundSize: 'cover', backgroundPosition: 'center' }} role="img" aria-label={'Cover artwork for ' + project.title}>
+        <span className="project-cover-label">MERLINK · STORY FILE</span>
+        <span className="project-cover-caption">{detail ? project.title : project.genre}</span>
+        <span className="project-cover-index">{String(index + 1).padStart(2, '0')}</span>
+      </div>;
+    }
+    function ProjectCard({ project, index, onOpen }) {
+      const chapters = project.chapters || [];
+      return <article className="project-card surface" role="button" tabIndex={0} aria-label={'View details for ' + project.title} onClick={() => onOpen(project.id)} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpen(project.id); } }}>
+        <ProjectCover project={project} index={index} />
+        <div className="project-card-body">
+          <div className="project-card-title-row">
+            <h2 className="project-card-title">{project.title}</h2>
+            <span className={'project-status ' + statusClass(project.status)}>{project.status || 'Draft'}</span>
+          </div>
+          <p className="project-card-genre">{project.genre || 'Uncategorized'} · {numberFormat.format(getWordCount(project))} words</p>
+          <div className="project-tags" aria-label="Genre and story motifs">
+            <span className="project-tag surface-soft">{project.genre || 'Story'}</span>
+            {(project.motifs || []).slice(0, 2).map((motif, i) => <span className="project-tag surface-soft" key={motif + i}>{motif}</span>)}
+          </div>
+          <div className="project-meta"><span><Icon name="BookOpen" size={13} /> {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'}</span><span><Icon name="Clock3" size={13} /> {formatDate(project.updatedAt)}</span></div>
+          <button type="button" className="project-view surface-soft" onClick={event => { event.stopPropagation(); onOpen(project.id); }} aria-label={'View details for ' + project.title}>View Details <Icon name="ArrowUpRight" size={14} /></button>
+        </div>
+      </article>;
+    }
+    function ProjectDetail({ project, index, onClose, onEdit, onDelete, onExport, blocked = false }) {
+      const chapters = project.chapters || [];
+      const [openChapter, setOpenChapter] = useState(chapters[0]?.id ?? 0);
+      const backRef = useRef(null);
+      useEffect(() => {
+        const oldOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        backRef.current?.focus();
+        return () => { document.body.style.overflow = oldOverflow; };
+      }, []);
+      useEffect(() => {
+        function onKeyDown(event) { if (event.key === 'Escape' && !blocked) onClose(); }
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [onClose, blocked]);
+      return <section className="project-overlay" role="dialog" aria-modal={blocked ? undefined : 'true'} aria-hidden={blocked ? 'true' : undefined} inert={blocked ? '' : undefined} aria-label={'Story details: ' + project.title}>
+        <div className="project-detail-left">
+          <button ref={backRef} className="project-back" type="button" onClick={onClose}><Icon name="ArrowLeft" size={17} /> Back to projects</button>
+          <ProjectCover project={project} index={index} detail />
+          <p className="project-detail-eyebrow">{project.genre || 'Story project'} · {project.status || 'Draft'}</p>
+          <h2>{project.title}</h2>
+          <p className="project-description">{project.description || 'A story taking shape, one chapter at a time. Every draft is a new place to begin.'}</p>
+          <div className="project-detail-tags">{(project.motifs || []).map((motif, i) => <span className="project-tag surface-soft" key={motif + i}>{motif}</span>)}</div>
+          <div className="project-detail-facts" aria-label="Project information">
+            <div><span>Author</span><strong>{project.author || 'Your writing studio'}</strong></div>
+            <div><span>Created</span><strong>{formatDate(project.createdAt || project.updatedAt)}</strong></div>
+            <div><span>Status</span><strong>{project.status || 'Draft'}</strong></div>
+            <div><span>Word count</span><strong>{numberFormat.format(getWordCount(project))} words</strong></div>
+          </div>
+          <div className="project-detail-stats">
+            <div><strong>{String(chapters.length).padStart(2, '0')}</strong><span>Chapters</span></div>
+            <div><strong>{numberFormat.format(getWordCount(project))}</strong><span>Words written</span></div>
+            <div><strong>{formatDate(project.updatedAt)}</strong><span>Last updated</span></div>
+          </div>
+        </div>
+        <div className="project-detail-right">
+          <div className="project-detail-actions" aria-label="Project actions">
+            <button className="project-action surface-soft" type="button" onClick={onEdit}><Icon name="Pencil" size={14} /> Edit</button>
+            <button className="project-action surface-soft is-danger" type="button" onClick={onDelete}><Icon name="Trash2" size={14} /> Delete</button>
+            <button className="project-action is-prominent" type="button" onClick={onExport}><Icon name="Download" size={14} /> Export</button>
+          </div>
+          <div className="project-chapters-head">
+            <span className="project-kicker">Inside the manuscript</span>
+            <h3>Chapter collection</h3>
+            <p>Follow the story from its first line. Select a chapter to read the draft.</p>
+          </div>
+          <div className="project-chapter-list">
+            {chapters.length ? chapters.map((chapter, chapterIndex) => {
+              const isOpen = openChapter === chapter.id;
+              const panelId = 'chapter-content-' + chapterIndex;
+              return <article className={'project-chapter surface ' + (isOpen ? 'is-open' : '')} key={chapter.id ?? chapterIndex}>
+                <h4 style={{ margin: 0 }}><button className="project-chapter-trigger" type="button" aria-expanded={isOpen} aria-controls={panelId} onClick={() => setOpenChapter(isOpen ? null : chapter.id)}>
+                  <span className="project-chapter-number">{String(chapterIndex + 1).padStart(2, '0')}</span>
+                  <span className="project-chapter-text"><span className="project-chapter-title">{chapter.title}</span><span className="project-chapter-meta">{numberFormat.format(Number(chapter.wordCount) || 0)} words · {chapterStatus(chapter.status)}</span></span>
+                  <Icon name="ChevronDown" size={17} className="project-chapter-chevron" />
+                </button></h4>
+                {isOpen && <div className="project-chapter-content" id={panelId}>{chapter.content?.length ? chapter.content.map((paragraph, i) => <p key={i}>{paragraph}</p>) : <p className="project-chapter-empty">This chapter is ready for its first line.</p>}</div>}
+              </article>;
+            }) : <div className="project-empty surface"><div className="project-empty-icon"><Icon name="BookOpen" size={30} /></div><h2>Blank pages, endless possibility.</h2><p>Your chapter collection is waiting for its first draft.</p></div>}
+          </div>
+        </div>
+      </section>;
+    }
+    function ProjectForm({ open, onClose, onSubmit, editingProject }) {
+      const [form, setForm] = useState(initialForm);
+      const [error, setError] = useState('');
+      const [uploadName, setUploadName] = useState('');
+      const fileRef = useRef(null);
+      useEffect(() => {
+        if (open) {
+          setForm(editingProject ? { title: editingProject.title || '', genre: editingProject.genre || '', motifs: [...(editingProject.motifs || [])], description: editingProject.description || '', cover: editingProject.cover || '' } : { ...initialForm, motifs: [] });
+          setError(''); setUploadName('');
+        }
+      }, [open, editingProject]);
+      function toggleMotif(motif) { setForm(prev => ({ ...prev, motifs: prev.motifs.includes(motif) ? prev.motifs.filter(item => item !== motif) : [...prev.motifs, motif] })); }
+      function onFileChange(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { setError('Choose an image file for the cover.'); return; }
+        if (file.size > 3 * 1024 * 1024) { setError('Cover image must be smaller than 3 MB.'); return; }
+        const reader = new FileReader();
+        reader.onload = () => { setForm(prev => ({ ...prev, cover: `linear-gradient(180deg, rgba(13,23,46,.1), rgba(13,23,46,.24)), url("${reader.result}")` })); setUploadName(file.name); setError(''); };
+        reader.onerror = () => setError('Could not read that image. Try another file.');
+        reader.readAsDataURL(file);
+      }
+      function submit(event) {
+        event.preventDefault();
+        if (!form.title.trim()) { setError('Give your story a title before continuing.'); return; }
+        if (!form.genre) { setError('Choose a genre for your story.'); return; }
+        onSubmit({ ...form, title: form.title.trim(), description: form.description.trim() });
+      }
+      const motifs = [...new Set([...motifSuggestions, ...((editingProject?.motifs) || [])])];
+      return <Dialog open={open} onClose={onClose} title={editingProject ? 'Edit story project' : 'Create a new story'} wide>
+        <div className="project-dialog-body"><p className="project-form-intro">{editingProject ? 'Refine the details of your story. Your chapters will stay just where they are.' : 'Every great story begins somewhere. Give yours a name and a world to grow into.'}</p>
+          <form className="project-form" onSubmit={submit}>
+            <div className="project-form-group"><label className="project-form-label" htmlFor="project-title">Story title *</label><input className="field surface-soft" id="project-title" value={form.title} maxLength="80" placeholder="e.g. The Atlas of Lost Hours" onChange={e => { setForm({ ...form, title: e.target.value }); setError(''); }} autoFocus /></div>
+            <div className="project-form-group"><label className="project-form-label" htmlFor="project-genre">Genre *</label><select className="field surface-soft" id="project-genre" value={form.genre} onChange={e => { setForm({ ...form, genre: e.target.value }); setError(''); }}><option value="">Choose a genre</option>{[...new Set([...allGenres, ...(editingProject?.genre ? [editingProject.genre] : [])])].map(genre => <option value={genre} key={genre}>{genre}</option>)}</select></div>
+            <div className="project-form-group is-wide"><span className="project-form-label">Story motifs <span className="is-optional">· choose a few</span></span><div className="project-motif-options">{motifs.map(motif => <button className={'project-motif surface-soft ' + (form.motifs.includes(motif) ? 'is-selected' : '')} type="button" aria-pressed={form.motifs.includes(motif)} onClick={() => toggleMotif(motif)} key={motif}>{motif}</button>)}</div></div>
+            <div className="project-form-group is-wide"><label className="project-form-label" htmlFor="project-description">Description <span className="is-optional">· optional</span></label><textarea className="field surface-soft" id="project-description" maxLength="500" value={form.description} placeholder="What happens when your story begins?" onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+            <div className="project-form-group is-wide"><span className="project-form-label">Cover artwork <span className="is-optional">· optional</span></span><input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange} aria-label="Choose cover image" /><button type="button" className="project-upload surface-soft" onClick={() => fileRef.current?.click()}><span className="project-upload-icon surface"><Icon name="Upload" size={18} /></span><span><strong>{uploadName || 'Upload your own cover image'}</strong><small>{uploadName ? 'Ready to use · click to change' : 'PNG, JPG or WebP · up to 3 MB. Otherwise we’ll create an atmospheric cover.'}</small></span></button></div>
+            {error && <p className="project-form-error" role="alert">{error}</p>}
+            <div className="project-form-footer"><button type="button" className="btn surface-soft" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary">{editingProject ? 'Save changes' : 'Create project'}</button></div>
+          </form>
+        </div>
+      </Dialog>;
+    }
+    function App() {
+      const [projects, setProjects] = useState(() => initialProjects.map(project => ({ ...project, motifs: [...(project.motifs || [])], chapters: [...(project.chapters || [])] })));
+      const [query, setQuery] = useState('');
+      const [genre, setGenre] = useState('All stories');
+      const [selectedId, setSelectedId] = useState(() => projectIdFromHash(initialProjects));
+      const [formOpen, setFormOpen] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [deleteOpen, setDeleteOpen] = useState(false);
+      const [toast, setToast] = useState('');
+      useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 3500); return () => clearTimeout(timer); }, [toast]);
+      useEffect(() => {
+        const syncHash = () => setSelectedId(projectIdFromHash(projects));
+        window.addEventListener('hashchange', syncHash);
+        window.addEventListener('popstate', syncHash);
+        return () => { window.removeEventListener('hashchange', syncHash); window.removeEventListener('popstate', syncHash); };
+      }, [projects]);
+      function openProject(id) {
+        window.history.pushState(null, '', '#' + encodeURIComponent(id));
+        setSelectedId(id);
+      }
+      function closeProject() {
+        if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search);
+        setSelectedId(null);
+      }
+      const genreOptions = ['All stories', ...filterGenres];
+      const filtered = useMemo(() => projects.filter(project => {
+        const searchText = [project.title, project.genre, ...(project.motifs || [])].join(' ').toLowerCase();
+        return matchesGenre(project.genre, genre) && searchText.includes(query.trim().toLowerCase());
+      }), [projects, query, genre]);
+      const selected = projects.find(project => project.id === selectedId);
+      const editing = projects.find(project => project.id === editingId);
+      const selectedIndex = selected ? projects.findIndex(project => project.id === selected.id) : -1;
+      function openCreate() { setEditingId(null); setFormOpen(true); }
+      function openEdit() { setEditingId(selectedId); setFormOpen(true); }
+      function saveProject(form) {
+        if (editingId != null) {
+          setProjects(prev => prev.map(project => project.id === editingId ? { ...project, ...form, updatedAt: new Date().toISOString() } : project));
+          setToast('Story details updated.');
+        } else {
+          const newProject = { ...form, id: 'local-' + Date.now(), cover: form.cover || fallbackCovers[projects.length % fallbackCovers.length], author: 'You', status: 'Draft', chapters: [], wordCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+          setProjects(prev => [newProject, ...prev]);
+          setGenre('All stories'); setQuery(''); openProject(newProject.id);
+          setToast('Your new story is ready.');
+        }
+        setFormOpen(false); setEditingId(null);
+      }
+      function removeProject() {
+        if (!selected) return;
+        const title = selected.title;
+        setProjects(prev => prev.filter(project => project.id !== selected.id));
+        closeProject(); setDeleteOpen(false); setToast('“' + title + '” was removed from this local session.');
+      }
+      function exportProject() {
+        if (!selected) return;
+        const text = [selected.title, `${selected.genre || 'Story'} · ${selected.status || 'Draft'}`, selected.description || '', ...(selected.chapters || []).flatMap((chapter, i) => ['', `Chapter ${i + 1}: ${chapter.title}`, '', ...(chapter.content || [])])].join('\n\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = (selected.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'story') + '.txt';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setToast('Manuscript exported as a text file.');
+      }
+      return <Shell active="projects">
+        <main className="projects-page">
+          <div className="page-topbar"><span className="page-breadcrumb">Workspace / <strong>Projects</strong></span><div className="page-topbar-actions"><button className="project-create-btn btn-primary" type="button" onClick={openCreate}><Icon name="Plus" size={17} /> New Project</button></div></div>
+           <div className="projects-toolbar"><div className="project-library-title"><strong>THE COLLECTION</strong><span className="project-count">{projects.length}</span></div><div className="project-toolbar-side"><span className="project-sort-label"><Icon name="Layers" size={13} /> Curated stories</span><div className="project-search-wrap"><Icon name="Search" size={16} className="search-icon" /><input className="project-search field surface-soft" type="search" placeholder="Search stories or motifs..." aria-label="Search stories or motifs" value={query} onChange={e => setQuery(e.target.value)} /></div></div></div>
+          <nav className="project-filters" aria-label="Filter projects by genre"><span className="project-filter-label"><Icon name="SlidersHorizontal" size={14} /> Genre</span>{genreOptions.map(option => <button type="button" className={'project-filter surface-soft ' + (genre === option ? 'is-selected' : '')} aria-pressed={genre === option} key={option} onClick={() => setGenre(option)}>{option}</button>)}</nav>
+          <section className="project-grid" aria-label="Story projects">
+            {filtered.length ? filtered.map((project) => <ProjectCard key={project.id} project={project} index={projects.findIndex(item => item.id === project.id)} onOpen={openProject} />) : <div className="project-empty surface"><div className="project-empty-icon"><Icon name="BookOpen" size={32} /></div><h2>{projects.length ? 'No stories in this chapter.' : 'Your library starts here.'}</h2><p>{projects.length ? 'Try another search or genre to find the story you’re looking for.' : 'Create a project to begin shaping your first story.'}</p><button type="button" onClick={projects.length ? () => { setQuery(''); setGenre('All stories'); } : openCreate}>{projects.length ? 'Clear filters' : 'Create a project'}</button></div>}
+          </section>
+          <footer className="projects-footnote"><span><Icon name="BookOpen" size={13} /> {filtered.length} {filtered.length === 1 ? 'story' : 'stories'} on this shelf</span><span>Made for the stories only you can tell.</span></footer>
+          {selected && <ProjectDetail key={selected.id} project={selected} index={selectedIndex} blocked={formOpen || deleteOpen} onClose={closeProject} onEdit={openEdit} onDelete={() => setDeleteOpen(true)} onExport={exportProject} />}
+          <ProjectForm open={formOpen} onClose={() => { setFormOpen(false); setEditingId(null); }} onSubmit={saveProject} editingProject={editing} />
+          <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete this project?">
+            <div className="project-dialog-body"><p className="project-confirm-copy">Are you sure you want to remove <strong>{selected?.title}</strong>? This removes it from your current local session. Export a copy first if you'd like to keep the manuscript.</p><div className="project-form-footer"><button className="btn surface-soft" type="button" onClick={() => setDeleteOpen(false)}>Keep project</button><button className="btn project-danger-btn" type="button" onClick={removeProject}>Delete project</button></div></div>
+          </Dialog>
+          {toast && <div className="project-toast" role="status"><Icon name="Check" size={16} />{toast}</div>}
+        </main>
+      </Shell>;
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

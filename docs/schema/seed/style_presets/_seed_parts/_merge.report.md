@@ -1,0 +1,99 @@
+# Style preset seed merge report
+- source folders: action, exploration_discovery, fantasy_scifi_mechanics, mystery, political_social, psychological_drama, romance_relationship, slice_of_life_comedy, transition
+- presets emitted: 54
+- vocab items: 160
+- focus items: 172
+- device links: 273
+- unique devices: 243
+- warnings: 79
+## Warnings
+- action: "assassination.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "battle.json: imagery.gustatory=\"thap\" → LOW (typo normalization)"
+- action: "chase.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "chase.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "combat.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "combat.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "duel.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "duel.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "escape.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "escape.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "execution.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "execution.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "infiltration.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "infiltration.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "showdown.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "showdown.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "training.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "training.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- action: "warfare.json: imagery.olfactory=\"thap\" → LOW (typo normalization)"
+- action: "warfare.json: imagery.gustatory=\"khong\" → NONE (typo normalization)"
+- exploration_discovery: "first_contact.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+- exploration_discovery: "map_unlocking.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+- exploration_discovery: "navigation_journey.json: imagery.gustatory=\"thap\" → LOW (unaccented/typo value)"
+- exploration_discovery: "ruin_delving.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+- exploration_discovery: "treasure_hunt.json: imagery.olfactory=\"thap\" → LOW (unaccented/typo value)"
+- exploration_discovery: "treasure_hunt.json: imagery.gustatory=\"thap\" → LOW (unaccented/typo value)"
+- fantasy_scifi_mechanics: "crafting_enhancement.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- fantasy_scifi_mechanics: "evolution_awakening.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+- fantasy_scifi_mechanics: "evolution_awakening.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- fantasy_scifi_mechanics: "hacking_decryption.json: imagery.olfactory='khong' → NONE (typo 'khong')"
+- fantasy_scifi_mechanics: "hacking_decryption.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- fantasy_scifi_mechanics: "summoning_ritual.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- fantasy_scifi_mechanics: "time_leap_loop.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+- fantasy_scifi_mechanics: "time_leap_loop.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- mystery: "alibi_check.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "alibi_check.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "clue_hunting.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- mystery: "clue_hunting.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "deduction.json: imagery.tactile=\"khong\" → NONE (typo \"khong\")"
+- mystery: "deduction.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "deduction.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "disguise_investigation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- mystery: "disguise_investigation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "interrogation.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "interrogation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- mystery: "revelation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- mystery: "revelation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- political_social: conspiracy_meeting.json: imagery.olfactory="thap" → LOW (typo 'thap')
+- political_social: coronation_succession.json: imagery.gustatory="thap" → LOW (typo 'thap')
+- political_social: exile_expulsion.json: imagery.olfactory="thap" → LOW (typo 'thap')
+- political_social: exile_expulsion.json: imagery.gustatory="thap (vị đắng)" → LOW (typo 'thap')
+- political_social: public_speech.json: imagery.olfactory="thap" → LOW (typo 'thap')
+- psychological_drama: "betrayal.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- psychological_drama: "betrayal.json: imagery.gustatory=\"thap (vị đắng, máu)\" → LOW (typo \"thap\")"
+- psychological_drama: "identity_crisis.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+- psychological_drama: "identity_crisis.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- psychological_drama: "inner_monologue.json: imagery.olfactory=\"khong\" → NONE (typo \"khong\")"
+- psychological_drama: "inner_monologue.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- psychological_drama: "nightmare_flashback.json: imagery.gustatory=\"thap (vị đắng, máu, tanh)\" → LOW (typo \"thap\")"
+- psychological_drama: "sacrifice.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- psychological_drama: "sacrifice.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- romance_relationship: "confession.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- romance_relationship: "confession.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- romance_relationship: "date.json: imagery.gustatory=\"thap (nếu có ăn uống)\" → LOW (typo \"thap\")"
+- romance_relationship: "heartbreak.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- romance_relationship: "heartbreak.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- romance_relationship: "jealousy_confrontation.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- romance_relationship: "jealousy_confrontation.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- romance_relationship: "reunion.json: imagery.olfactory=\"thap\" → LOW (typo \"thap\")"
+- romance_relationship: "reunion.json: imagery.gustatory=\"khong\" → NONE (typo \"khong\")"
+- romance_relationship: "wedding_ceremony.json: imagery.gustatory=\"thap (rượu, bánh)\" → LOW (typo \"thap\")"
+- slice_of_life_comedy: "daily_routine.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- slice_of_life_comedy: "prank_misunderstanding.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+- slice_of_life_comedy: "prank_misunderstanding.json: imagery.gustatory='khong' → NONE (typo 'khong')"
+- slice_of_life_comedy: "shopping_preparation.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- transition: "recovery_rest.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- transition: "time_skip.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+- transition: "travel_montage.json: imagery.gustatory='thap' → LOW (typo 'thap')"
+- transition: "waiting_anticipation.json: imagery.olfactory='thap' → LOW (typo 'thap')"
+## Device description conflicts
+- none
+## Within-folder description conflicts
+- none
+## Root example.json
+- SKIP example.json (different SHA-256 from action/combat.json; user chose to skip in Sprint 2).
+
+## Sprint 2.1 — File deletions
+- docs/library/style_presets/example.json
+  reason: mẫu format cho author; thiếu field `settings` (khác combat.json); không phải preset runtime.
+  backup: /tmp/sprint2.1-backup/example.json

@@ -1,0 +1,15 @@
+# political_social
+- files processed: 6
+- presets emitted: 6
+- vocab items: 18
+- focus items: 18
+- device links: 30 (primary: 6, secondary: 12, avoid: 12)
+- unique devices: 27
+- warnings:
+  - conspiracy_meeting.json: imagery.olfactory="thap" → LOW (typo 'thap')
+  - coronation_succession.json: imagery.gustatory="thap" → LOW (typo 'thap')
+  - exile_expulsion.json: imagery.olfactory="thap" → LOW (typo 'thap')
+  - exile_expulsion.json: imagery.gustatory="thap (vị đắng)" → LOW (typo 'thap')
+  - public_speech.json: imagery.olfactory="thap" → LOW (typo 'thap')
+- device description conflicts:
+  - none

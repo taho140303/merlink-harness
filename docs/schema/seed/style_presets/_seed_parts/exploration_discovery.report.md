@@ -1,0 +1,17 @@
+# exploration_discovery
+- files processed: 5
+- presets emitted: 5
+- vocab items: 15
+- focus items: 15
+- device links: 25 (primary: 5, secondary: 10, avoid: 10)
+- unique devices: 24
+- warnings:
+  - "first_contact.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+  - "map_unlocking.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+  - "navigation_journey.json: imagery.gustatory=\"thap\" → LOW (unaccented/typo value)"
+  - "ruin_delving.json: imagery.gustatory=\"khong\" → NONE (unaccented/typo value)"
+  - "treasure_hunt.json: imagery.olfactory=\"thap\" → LOW (unaccented/typo value)"
+  - "treasure_hunt.json: imagery.gustatory=\"thap\" → LOW (unaccented/typo value)"
+  - Sprint 2.1: 'thấp đến trung bình' → LOW per RULES 1.5 patch (navigation_journey)
+- device description conflicts:
+  - none
