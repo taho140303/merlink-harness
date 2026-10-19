@@ -1,4 +1,4 @@
-//! Provider-facing JSON schemas for the five tools.
+//! Provider-facing JSON schemas for the seven tools.
 
 use serde_json::{Value, json};
 
@@ -19,6 +19,10 @@ pub fn tool_specs() -> Vec<Value> {
             read_paths.push(json!(format!("{}.schema.{table}", group.as_str())));
         }
     }
+    let tables: Vec<Value> = super_json::schema_tables()
+        .iter()
+        .map(|table| json!(table))
+        .collect();
     let required = super_json::required_paths();
     let required_list = required.join(", ");
     let read_path_property = || {
@@ -86,12 +90,14 @@ pub fn tool_specs() -> Vec<Value> {
             "type": "function",
             "function": {
                 "name": "super_json_set",
-                "description": "Set exactly one whitelisted field of the project's super json. \
-                    Call this whenever the user states a value instead of merely replying in prose. \
-                    `count` is an integer; `rows` is an array of objects whose keys come from that \
-                    table's read-only `fields`. `count` must equal `rows.length`; for characters \
-                    exactly one row carries `is_primary: true`. `fields` itself is never writable. \
-                    Counts must be numbers, not strings. Unknown paths are rejected.",
+                "description": "Replace one whole whitelisted value of the project's super json. \
+                    Bulk writes only: for one new row use `super_json_add_row`, for one field of an \
+                    existing row use `super_json_add_field`. Call this whenever the user states a \
+                    value instead of merely replying in prose. `count` is an integer; `rows` is the \
+                    complete array of objects whose keys come from that table's read-only `fields`. \
+                    `count` must equal `rows.length`; for characters exactly one row carries \
+                    `is_primary: true`. `fields` itself is never writable. Counts must be numbers, \
+                    not strings. Unknown paths are rejected.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -103,6 +109,68 @@ pub fn tool_specs() -> Vec<Value> {
                         }
                     },
                     "required": ["path", "value"]
+                }
+            }
+        }),
+        json!({
+            "type": "function",
+            "function": {
+                "name": "super_json_add_row",
+                "description": "Append ONE draft row to a table, without reading or replacing the \
+                    existing rows. The tool assigns `_json_index` (the row's 0-based position) and \
+                    manages `count`; never write `count` after an add. A draft row may omit required \
+                    fields, which `super_json_add_field` can fill later. When the target row has no \
+                    id yet, point at it with `<field>_json_index` instead of inventing an id; never \
+                    put a name, slug or code where an id is expected.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "table": {
+                            "type": "string",
+                            "enum": tables,
+                            "description": "One of the 34 schema tables."
+                        },
+                        "row": {
+                            "type": "object",
+                            "description": "The row to append. Keys must come from that table's \
+                                read-only `fields`; required keys may be left out in a draft row."
+                        }
+                    },
+                    "required": ["table", "row"]
+                }
+            }
+        }),
+        json!({
+            "type": "function",
+            "function": {
+                "name": "super_json_add_field",
+                "description": "Set exactly ONE field of one existing row. Read the table first and \
+                    pass the row's `_json_index`. Rejects the synthetic `_json_index` itself and any \
+                    key outside the table's read-only `fields`. Use this instead of replacing \
+                    `rows` when the author adds a single detail.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "table": {
+                            "type": "string",
+                            "enum": tables,
+                            "description": "One of the 34 schema tables."
+                        },
+                        "json_index": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "0-based position in that table's `rows`."
+                        },
+                        "field": {
+                            "type": "string",
+                            "description": "Column name from that table's read-only `fields`."
+                        },
+                        "value": {
+                            "description": "New value. Type must match the field: string, \
+                                integer >= 0, boolean, or one of the allowed enum values."
+                        }
+                    },
+                    "required": ["table", "json_index", "field", "value"]
                 }
             }
         }),
@@ -179,5 +247,44 @@ mod tests {
         );
         assert!(readable.contains(&json!("require.schema.characters")));
         assert!(readable.contains(&json!("optional.schema.lore_entries")));
+    }
+
+    #[test]
+    fn test_tool_specs_cover_seven_tools() {
+        let specs = tool_specs();
+        assert_eq!(TOOL_NAMES.len(), 7);
+        assert_eq!(specs.len(), 7);
+        for name in ["super_json_add_row", "super_json_add_field"] {
+            let spec = specs
+                .iter()
+                .find(|spec| spec["function"]["name"] == name)
+                .unwrap_or_else(|| panic!("missing spec for {name}"));
+            let tables = spec["function"]["parameters"]["properties"]["table"]["enum"]
+                .as_array()
+                .unwrap();
+            assert_eq!(tables.len(), 34, "{name} must expose all 34 tables");
+            assert!(tables.contains(&json!("characters")));
+            assert!(tables.contains(&json!("competence_limitations")));
+        }
+        let add_row = specs
+            .iter()
+            .find(|spec| spec["function"]["name"] == "super_json_add_row")
+            .unwrap();
+        assert!(
+            add_row["function"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("_json_index")
+        );
+        let set = specs
+            .iter()
+            .find(|spec| spec["function"]["name"] == "super_json_set")
+            .unwrap();
+        assert!(
+            set["function"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("Bulk writes only")
+        );
     }
 }

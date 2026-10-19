@@ -131,6 +131,16 @@ pub fn status_message(name: &str, args: &Value) -> String {
         }
         "super_json_missing" => "Đang kiểm tra các mục còn thiếu".to_owned(),
         "super_json_get" => "Đang đọc siêu JSON".to_owned(),
+        "super_json_add_row" => {
+            let table = args.get("table").and_then(Value::as_str).unwrap_or("");
+            let label = table_label(table).unwrap_or(table);
+            format!("Đang thêm 1 {label}")
+        }
+        "super_json_add_field" => {
+            let table = args.get("table").and_then(Value::as_str).unwrap_or("");
+            let label = table_label(table).unwrap_or(table);
+            format!("Đang cập nhật {label}")
+        }
         "super_json_set" => {
             let path = args.get("path").and_then(Value::as_str).unwrap_or("");
             if let Some(label) = path_label(path) {
@@ -159,6 +169,11 @@ pub fn tool_path(name: &str, args: &Value) -> Option<String> {
     match name {
         "super_json_set" | "super_json_get" => {
             args.get("path").and_then(Value::as_str).map(str::to_owned)
+        }
+        "super_json_add_row" | "super_json_add_field" => {
+            let table = args.get("table").and_then(Value::as_str)?;
+            crate::super_json::schema_table_group(table)
+                .map(|group| format!("{}.schema.{table}", group.as_str()))
         }
         _ => None,
     }
@@ -195,6 +210,27 @@ mod tests {
         );
         assert_eq!(message, "Đang ghi nhận 3 nhân vật");
         assert!(!message.contains("Hoàng"));
+    }
+
+    #[test]
+    fn test_add_tools_have_status_and_table_path() {
+        assert_eq!(
+            status_message("super_json_add_row", &json!({"table": "characters"})),
+            "Đang thêm 1 nhân vật"
+        );
+        assert_eq!(
+            status_message("super_json_add_field", &json!({"table": "scenes"})),
+            "Đang cập nhật cảnh"
+        );
+        assert_eq!(
+            tool_path("super_json_add_row", &json!({"table": "characters"})),
+            Some("require.schema.characters".to_owned())
+        );
+        assert_eq!(
+            tool_path("super_json_add_field", &json!({"table": "scenes"})),
+            Some("optional.schema.scenes".to_owned())
+        );
+        assert_eq!(tool_path("super_json_add_row", &json!({})), None);
     }
 
     #[test]

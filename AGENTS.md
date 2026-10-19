@@ -12,6 +12,8 @@ planning or delegating work in this repository.
   `projects/<id>/super.json` (one document per project).
 - Agent loop: model -> tools -> model, **maximum 5 tool rounds**.
 - Super JSON: **81 writable paths** (13 project leaves + 34 tables × count/rows), **12 required / 35 optional units**, 70/30 progress.
+- Draft refs: `_json_index` and `<field>_json_index` are synthetic row columns (not paths);
+  `super_json_add_row`/`super_json_add_field` complete the **7-tool** surface.
 - IPC: Tauri lower-camel-cases Rust parameter names. JS sends `sessionId`,
   `projectId`, `providerId`; never snake_case. Register commands only through
   `merlink_handlers!`.

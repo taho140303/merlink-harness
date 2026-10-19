@@ -200,6 +200,43 @@ const MOCK_TABLE_LABELS: Record<string, string> = {
   competence_limitations: "giới hạn năng lực",
 };
 
+const MOCK_TABLE_FIELDS: Record<string, readonly string[]> = {
+  project_genres: ["genre_id", "is_primary"],
+  arcs: ["name", "position", "code", "summarize"],
+  characters: ["name", "is_primary", "birth", "species", "biological_sex", "gender_identity", "gender_expression"],
+  project_motifs: ["motif_id", "scope", "arc_id", "chapter_id"],
+  themes: ["scope", "question", "code", "arc_id", "parent_theme_id", "resolution_type", "resolution", "message"],
+  theme_arguments: ["theme_id", "character_id", "role", "answer_mode", "note", "required_knowledge", "required_competence"],
+  relationship_motifs: ["motif_id", "relationship_id"],
+  chapters: ["name", "position", "code", "arc_id", "summarize"],
+  scenes: ["name", "chapter_id", "position", "code", "world_setting_id", "style_preset_id", "narrator_config_id", "summarize", "content"],
+  scene_characters: ["scene_id", "character_id", "is_pov"],
+  scene_versions: ["parent_id", "scene_source", "summarize", "content"],
+  appearance_option_groups: ["code", "name"],
+  appearance_options: ["group_id", "code", "label", "hex", "is_system"],
+  character_appearances: ["character_id", "height", "height_unit", "weight", "weight_unit", "hair_color_id", "hair_length_id", "hair_style_id", "hair_texture_id", "pupil_shape_id", "iris_color_id", "sclera_color_id", "skin_tone_id", "skin_texture_id", "hair_note", "eyes_note", "skin_note", "outfit_style", "default_summary"],
+  character_distinguishing_marks: ["character_id", "content"],
+  relationships: ["from_character_id", "to_character_id"],
+  relationship_categories: ["category", "sub_type"],
+  relationship_roles: ["relationship_id", "category_id", "is_primary", "hierarchy"],
+  relationship_states: ["parent_id", "trust", "affection", "hostility", "fear", "respect", "familiarity", "dependency"],
+  world_settings: ["name", "type", "code", "parent_id", "description", "access", "spatial_features", "sensory_visual", "sensory_auditory", "sensory_tactile", "sensory_olfactory", "sensory_gustatory"],
+  lore_entries: ["code", "type", "scope", "name", "description", "world_setting_id", "data"],
+  power_systems: ["name", "source", "code", "scope", "description", "rules", "cost", "limitations"],
+  power_tiers: ["power_system_id", "code", "name", "rank", "description"],
+  power_abilities: ["power_system_id", "tier_id", "name", "description"],
+  memories: ["owner_id", "type", "summary", "recollection", "interpretation", "certainty", "knowledge_source", "significance", "status", "occurred_at", "perceived_at", "source_scene_id"],
+  memory_references: ["memory_id", "entity_type", "entity_id", "role"],
+  memory_emotions: ["memory_id", "emotion", "intensity"],
+  memory_connections: ["source_memory_id", "target_memory_id", "relation"],
+  memory_revisions: ["memory_id", "recollection", "interpretation", "certainty", "source_scene_id", "reason"],
+  character_knowledge_sources: ["character_id", "type", "path", "certainty"],
+  competence_domains: ["code", "name", "description", "is_system"],
+  character_competences: ["character_id", "domain_id", "name", "level", "description", "experience", "reliability", "development_potential", "development_current_focus", "development_growth_direction"],
+  competence_capabilities: ["competence_id", "content"],
+  competence_limitations: ["competence_id", "content"],
+};
+
 const MOCK_REQUIRED_UNITS = [
   "require.project.name",
   "require.project.language",
@@ -247,6 +284,101 @@ function mockUnitFilled(values: Map<string, unknown>, unit: string): boolean {
 
 function mockMissingRequired(values: Map<string, unknown>): string[] {
   return MOCK_REQUIRED_UNITS.filter((unit) => !mockUnitFilled(values, unit));
+}
+
+function mockTableGroup(table: string): "require" | "optional" | null {
+  if ((MOCK_REQUIRED_TABLES as readonly string[]).includes(table)) return "require";
+  if ((MOCK_OPTIONAL_TABLES as readonly string[]).includes(table)) return "optional";
+  return null;
+}
+
+/** Mirrors `tables::warnings` closely enough to exercise the result shape. */
+function mockWarnings(values: Map<string, unknown>): string[] {
+  const warnings: string[] = [];
+  const scenes = mockRows(values, "scenes");
+  if (scenes.length > 0 && !mockRows(values, "scene_characters").some((row) => row.is_pov === true)) {
+    warnings.push(
+      `scene_characters needs at least one is_pov row while scenes has ${scenes.length} row(s)`,
+    );
+  }
+  if (!mockRows(values, "project_motifs").some((row) => row.scope === "project")) {
+    warnings.push('project_motifs needs at least one row with scope = "project"');
+  }
+  return warnings;
+}
+
+/** Mirrors `io::add_row`: append, assign `_json_index`, follow count (D2). */
+function mockAddRow(args: Record<string, unknown>, values: Map<string, unknown>): unknown {
+  const table = typeof args.table === "string" ? args.table : "";
+  const group = mockTableGroup(table);
+  if (!group) return { error: `Unknown super json table: ${table}` };
+  if (typeof args.row !== "object" || args.row === null || Array.isArray(args.row)) {
+    return { error: `Invalid value for ${table}.rows: row must be an object` };
+  }
+  const rowsPath = `${group}.schema.${table}.rows`;
+  const countPath = `${group}.schema.${table}.count`;
+  const stored = values.get(rowsPath);
+  const rows = Array.isArray(stored) ? [...(stored as Array<Record<string, unknown>>)] : [];
+  const oldLength = rows.length;
+  const current = values.get(countPath);
+  const count =
+    typeof current === "number" && current !== oldLength ? current : oldLength + 1;
+  const jsonIndex = oldLength;
+  const row = { ...(args.row as Record<string, unknown>), _json_index: jsonIndex };
+  rows.push(row);
+  values.set(rowsPath, rows);
+  values.set(countPath, count);
+  return {
+    ok: true,
+    table,
+    json_index: jsonIndex,
+    count,
+    row,
+    missing_required: mockMissingRequired(values),
+    warnings: mockWarnings(values),
+  };
+}
+
+/** Mirrors `io::add_field`: one field of one existing row. */
+function mockAddField(args: Record<string, unknown>, values: Map<string, unknown>): unknown {
+  const table = typeof args.table === "string" ? args.table : "";
+  const group = mockTableGroup(table);
+  if (!group) return { error: `Unknown super json table: ${table}` };
+  const field = typeof args.field === "string" ? args.field : "";
+  if (!field) return { error: "super_json_add_field requires a string 'field'" };
+  if (field === "_json_index") {
+    return { error: "_json_index is assigned by the tool and cannot be written" };
+  }
+  const fields = MOCK_TABLE_FIELDS[table] ?? [];
+  const base = field.endsWith("_json_index")
+    ? field.slice(0, -"_json_index".length)
+    : "";
+  if (!fields.includes(field) && !(base !== "" && fields.includes(base))) {
+    return {
+      error: `Unknown field "${field}" for ${table}; allowed fields are: ${fields.join(", ")}`,
+    };
+  }
+  if (typeof args.json_index !== "number" || !Number.isInteger(args.json_index)) {
+    return { error: "super_json_add_field requires an integer 'json_index'" };
+  }
+  const jsonIndex = args.json_index;
+  const rowsPath = `${group}.schema.${table}.rows`;
+  const stored = values.get(rowsPath);
+  const rows = Array.isArray(stored) ? [...(stored as Array<Record<string, unknown>>)] : [];
+  if (jsonIndex < 0 || jsonIndex >= rows.length) {
+    return { error: `Row ${jsonIndex} not found in ${table}.rows` };
+  }
+  rows[jsonIndex] = { ...rows[jsonIndex], [field]: args.value };
+  values.set(rowsPath, rows);
+  return {
+    ok: true,
+    table,
+    json_index: jsonIndex,
+    field,
+    value: args.value,
+    missing_required: mockMissingRequired(values),
+    warnings: mockWarnings(values),
+  };
 }
 
 /** Mirrors the D3 slug rule: lowercase, runs of non-`[a-z0-9]` collapse to `-`. */
@@ -412,6 +544,14 @@ function mockStatusMessage(name: string, args: Record<string, unknown>): string 
       const path = typeof args.path === "string" ? args.path : "";
       return `Đang ghi nhận ${MOCK_PATH_LABELS[path] ?? path}`;
     }
+    case "super_json_add_row": {
+      const table = typeof args.table === "string" ? args.table : "";
+      return `Đang thêm 1 ${MOCK_TABLE_LABELS[table] ?? table}`;
+    }
+    case "super_json_add_field": {
+      const table = typeof args.table === "string" ? args.table : "";
+      return `Đang cập nhật ${MOCK_TABLE_LABELS[table] ?? table}`;
+    }
     case "echo":
       return "Đang kiểm tra kết nối tool";
     default:
@@ -428,7 +568,15 @@ function mockExecuteTool(
 ): unknown {
   const session = mockSession(sessionId);
   // Match the native IPC guard for document tools, without reimplementing validation.
-  if (["super_json_get", "super_json_set", "super_json_missing"].includes(name)) {
+  if (
+    [
+      "super_json_get",
+      "super_json_set",
+      "super_json_add_row",
+      "super_json_add_field",
+      "super_json_missing",
+    ].includes(name)
+  ) {
     if (!session.projectId) return { error: "This chat is not bound to a project. Call project_create first." };
     if (projectId && projectId !== session.projectId) return { error: "Project does not belong to this session" };
   }
@@ -470,8 +618,18 @@ function mockExecuteTool(
       if (!path) return { error: "super_json_set requires a string 'path'" };
       if (!MOCK_PATHS.includes(path)) return { error: `Unknown path: ${path}` };
       session.values.set(path, args.value);
-      return { ok: true, path, value: args.value };
+      return {
+        ok: true,
+        path,
+        value: args.value,
+        missing_required: mockMissingRequired(session.values),
+        warnings: mockWarnings(session.values),
+      };
     }
+    case "super_json_add_row":
+      return mockAddRow(args, session.values);
+    case "super_json_add_field":
+      return mockAddField(args, session.values);
     case "super_json_get":
       return mockSuperJsonDocument(session.values);
     case "super_json_missing":

@@ -95,6 +95,20 @@ function describe(entry: ToolLogEntry, labels: Record<string, string>): ToolSent
     };
   }
 
+  if (entry.call.name === "super_json_add_row") {
+    const table = typeof args.table === "string" ? args.table : "";
+    return entry.ok
+      ? { text: `Đã thêm một dòng vào ${table}`, error: null }
+      : { text: `Chưa thêm được dòng vào ${table}`, error };
+  }
+
+  if (entry.call.name === "super_json_add_field") {
+    const table = typeof args.table === "string" ? args.table : "";
+    return entry.ok
+      ? { text: `Đã cập nhật một trường của ${table}`, error: null }
+      : { text: `Chưa cập nhật được trường của ${table}`, error };
+  }
+
   if (entry.call.name === "project_create") {
     if (entry.ok) {
       // D7: a project created without a name reports no `name` key at all.

@@ -62,6 +62,27 @@ Một document cho một project. Gốc là **một** `project`; 34 bảng còn 
 Tổng **81 path** = 13 project + 34×2. `fields` và `table` không phải path.
 Resolver tìm entry theo tên bảng, không dùng index mảng.
 
+### 2.1 Draft references (Sprint 16.1)
+
+- `_json_index` = **vị trí 0-based** của row trong `rows` của bảng đó. Tool gán và ghi đè mọi giá
+  trị model gửi; mọi lần ghi `rows`/`add_row` đều chuẩn hoá lại `_json_index = vị trí`.
+- Mỗi field khai báo kết thúc bằng `_id` có thêm cột synthetic `<field>_json_index` (int ≥ 0) để
+  trỏ tới row draft của bảng đích, ví dụ `from_character_id_json_index: 0`.
+- Ref **thay thế** required `_id`: row `relationships` chỉ cần 2 ref là hợp lệ; field `_id` tương ứng
+  để null hoặc bỏ hẳn.
+- Range check: nếu `(table, field)` nằm trong `tables::REF_TARGETS`, `<field>_json_index` phải
+  `< target.rows.len()`. Bảng đích ngoài draft (`motifs`, `genres`, `style_presets`,
+  `narrator_configs`) chỉ check int ≥ 0.
+- `_json_index` và `<field>_json_index` là synthetic trong `table_fields()`; **không** thêm vào
+  `fields` của `super.json` (giữ nguyên 81 path / 34 bảng). Table selector của `super_json_get`
+  trả thêm key `refs`.
+- `validate_rows` có hai mode: **Draft** (`super_json_add_row`: cho phép thiếu required, bỏ
+  count-equality, characters-primary và document rule) và **Complete** (`super_json_set` trên
+  `.rows`: đòi đủ mọi rule).
+- Hai tool ghi tăng dần: `super_json_add_row` (append, tool gán `_json_index`, tự quản `count`) và
+  `super_json_add_field` (đúng 1 field của 1 row; reject `_json_index`). Cả ba tool ghi trả
+  `warnings` mềm (POV/motif), không chặn ghi và không đổi progress.
+
 ## 3. Require / optional
 
 - require = phải biết để viết chương 1.
@@ -138,7 +159,12 @@ Doc v2 (bảng nằm sai group, hoặc có entry thứ hai fields-only) được
 - Không tool nào nhận path cũ; không có nhánh tương thích trong `get/set`.
 - Mỗi bảng có đúng một entry; không có entry fields-only thứ hai.
 - `super_json_missing` trả unit thiếu (project leaf hoặc `require.schema.<table>`).
-- `super_json_get` table selector trả `{table, count, fields, rows}` đã merge hai group.
+- `super_json_get` table selector trả `{table, count, fields, rows}` đã merge hai group, cộng thêm
+  `refs` (các cột `<field>_json_index` synthetic).
+- `_json_index` do tool gán bằng vị trí row; `<field>_json_index` thay được required `_id` và được
+  range check theo `tables::REF_TARGETS`. Cả hai là synthetic, không phải path.
+- `super_json_set`, `super_json_add_row`, `super_json_add_field` trả `warnings` mềm cho POV/motif;
+  warning không chặn ghi, không đổi `SuperJsonProgress` và không đổi 2 rule hoàn tất.
 - `project_motifs` là bảng require nhưng chỉ filled khi có row `scope == "project"`; row
   `scope = arc|chapter` là tuỳ chọn. `scope` nhận `project | arc | chapter`.
 - Summary 6 đoạn đọc từ document, deterministic, placeholder `[chưa có thông tin]`.
