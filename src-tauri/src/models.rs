@@ -242,6 +242,14 @@ pub struct SuperJsonProgress {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct OutlineStageState {
+    pub stage: String,
+    /// `empty`, `review` or `committed`.
+    pub status: String,
+    pub total: u32,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct OutlineStatus {
     pub ok: bool,
     pub stage: String,
@@ -251,6 +259,9 @@ pub struct OutlineStatus {
     pub counts: serde_json::Value,
     pub next_stage: Option<String>,
     pub blockers: Vec<String>,
+    /// One row per generated stage, so the rail can label every tab without
+    /// guessing from the run's current stage.
+    pub stages: Vec<OutlineStageState>,
     pub usage: serde_json::Value,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -261,6 +272,24 @@ pub struct OutlineItem {
     pub status: String,
     pub title: String,
     pub error: Option<String>,
+    /// Proposal fields flattened for the review board, so a card can render an
+    /// arc or a chapter without re-parsing the stored payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summarize: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chapters: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beats: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arc: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scene_count: Option<u64>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OutlineRunResult {

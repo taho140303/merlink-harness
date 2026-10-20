@@ -1,7 +1,7 @@
 import type { Channel } from "@tauri-apps/api/core";
 import type {
   AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope,
-  OutlineAnchorResult, OutlineStatusResult,
+  CommitReport, OutlineAnchorResult, OutlineEvent, OutlineItem, OutlineRunResult, OutlineStatus,
   ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress,
 } from "../types";
 import { safeInvoke, type AgentEventChannel } from "./tauri";
@@ -32,12 +32,12 @@ export interface CommandMap {
   super_json_summary: { args: { projectId: string }; result: string };
   super_json_labels: { args: never; result: Record<string, string> };
   outline_anchor: { args: { projectId: string }; result: OutlineAnchorResult };
-  outline_status: { args: { sessionId: string }; result: OutlineStatusResult };
-  outline_start: { args: { projectId: string; sessionId: string }; result: OutlineStatusResult };
-  outline_run: { args: { sessionId: string; providerId: string; modelId: string; stage: string; range?: string; channel: Channel<unknown> }; result: unknown };
-  outline_items: { args: { sessionId: string; stage: string }; result: unknown[] };
-  outline_regenerate: { args: { sessionId: string; providerId: string; modelId: string; stage: string; key: string; note: string }; result: unknown };
-  outline_commit: { args: { sessionId: string; stage: string; keys?: string[] }; result: unknown };
+  outline_status: { args: { sessionId: string }; result: OutlineStatus };
+  outline_start: { args: { projectId: string; sessionId: string }; result: OutlineStatus };
+  outline_run: { args: { sessionId: string; providerId: string; modelId: string; stage: string; range?: string; channel: Channel<OutlineEvent> | { onmessage: (event: OutlineEvent) => void } }; result: OutlineRunResult };
+  outline_items: { args: { sessionId: string; stage: string }; result: OutlineItem[] };
+  outline_regenerate: { args: { sessionId: string; providerId: string; modelId: string; stage: string; key: string; note: string }; result: OutlineRunResult };
+  outline_commit: { args: { sessionId: string; stage: string; keys?: string[] }; result: CommitReport };
   outline_accept: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
   outline_reject: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
   outline_cancel: { args: { sessionId: string }; result: void };

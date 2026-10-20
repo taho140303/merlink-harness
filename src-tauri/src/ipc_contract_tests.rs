@@ -1300,18 +1300,7 @@ fn test_contract_table_covers_every_registered_command() {
 /// The bodies above were copied out of the frontend, so the keys must literally
 /// appear there. Commands the frontend does not call yet are listed explicitly
 /// rather than silently skipped.
-const RUST_ONLY_COMMANDS: &[&str] = &[
-    "execute_tool",
-    "list_messages",
-    "outline_start",
-    "outline_run",
-    "outline_items",
-    "outline_regenerate",
-    "outline_commit",
-    "outline_accept",
-    "outline_reject",
-    "outline_cancel",
-];
+const RUST_ONLY_COMMANDS: &[&str] = &["execute_tool", "list_messages"];
 
 #[test]
 fn test_every_contract_entry_uses_camel_case_keys() {
@@ -1319,6 +1308,9 @@ fn test_every_contract_entry_uses_camel_case_keys() {
     const PROJECTS_TSX: &str = include_str!("../../src/pages/Projects.tsx");
     const PROJECT_DETAIL_TSX: &str = include_str!("../../src/pages/ProjectDetail.tsx");
     const SETTINGS_DIALOG_TSX: &str = include_str!("../../src/components/SettingsDialog.tsx");
+    // Phase 2 funnels its calls through one typed helper module, so that file is
+    // the real call site for the outline commands.
+    const OUTLINE_TS: &str = include_str!("../../src/lib/outline.ts");
 
     for entry in CONTRACT {
         let keys = entry.camel_keys();
@@ -1344,8 +1336,9 @@ fn test_every_contract_entry_uses_camel_case_keys() {
                 CHAT_TSX.contains(key.as_str())
                     || PROJECTS_TSX.contains(key.as_str())
                     || PROJECT_DETAIL_TSX.contains(key.as_str())
-                    || SETTINGS_DIALOG_TSX.contains(key.as_str()),
-                "{}: key `{key}` is not sent by Chat.tsx or SettingsDialog.tsx — \
+                    || SETTINGS_DIALOG_TSX.contains(key.as_str())
+                    || OUTLINE_TS.contains(key.as_str()),
+                "{}: key `{key}` is not sent by any frontend call site — \
                  the contract table is guessing",
                 entry.cmd
             );
