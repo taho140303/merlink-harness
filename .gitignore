@@ -42,3 +42,7 @@ projects/
 
 # Planning notes that quote local accounts / identity — never public
 docs/plan/sprint-12.md
+
+# Python bytecode from local helper scripts
+__pycache__/
+*.pyc

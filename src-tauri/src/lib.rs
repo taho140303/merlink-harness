@@ -1,8 +1,10 @@
 mod adapters;
+mod catalog;
 #[macro_use]
 mod commands;
 mod db;
 mod models;
+mod outline;
 mod paths;
 mod runtime;
 mod store;
@@ -11,8 +13,9 @@ mod tools;
 #[allow(unused_imports)]
 use commands::{
     context_usage, delete_session, execute_tool, fetch_models, get_project, get_session,
-    list_messages, list_projects, list_sessions, load_providers, rename_session, save_providers,
-    send_chat, super_json_labels, super_json_progress, super_json_read, super_json_summary,
+    list_messages, list_projects, list_sessions, load_providers, outline_anchor, outline_status,
+    rename_session, save_providers, send_chat, super_json_labels, super_json_progress,
+    super_json_read, super_json_summary,
 };
 /// Shared handler list for `run()` and IPC contract tests.
 macro_rules! merlink_handlers {
@@ -34,7 +37,9 @@ macro_rules! merlink_handlers {
             crate::commands::sessions::list_sessions,
             crate::commands::sessions::get_session,
             crate::commands::sessions::rename_session,
-            crate::commands::sessions::delete_session
+            crate::commands::sessions::delete_session,
+            crate::commands::outline::outline_anchor,
+            crate::commands::outline::outline_status
         ]
     };
 }

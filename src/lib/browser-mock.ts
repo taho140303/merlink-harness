@@ -1000,6 +1000,39 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
     case "super_json_labels":
       // Mirrors the Rust label map for the same 25 preview paths.
       return MOCK_PATH_LABELS;
+    case "outline_anchor": {
+      const { projectId } = args as { projectId: string };
+      return {
+        project_id: projectId,
+        text: "Dự án: Mẫu [vi] | Thể loại: Tiên hiệp (xianxia) | Kế hoạch: 100k từ, 3 arc, 30 chương, 90 cảnh.\n\nArc 1 (seq 1): Khởi đầu -> [chưa có: require.schema.arcs.rows[0].outcome]\n\nNhân vật chính: Tiêu Viêm | Vai trò: protagonist | Archetype: chosen-one | Tóm tắt: Thiếu niên kiên định | Mô tả: Tóc đen áo vải. Tuyến đối trọng: [chưa có: require.schema.characters.rows].\n\nMotif chủ đạo: Nhẫn cổ | Phạm vi: global | Mô tả: Chiếc nhẫn chứa linh hồn dược lão | Ý nghĩa: Bàn đạp sức mạnh.\n\nTheme: Ý chí sinh tồn | Tuyên ngôn: Nghịch cảnh tôi luyện bản lĩnh | Trọng số: 0.9.\n\nXung đột tư tưởng: Tiêu Viêm | Quan điểm: Dựa vào chính mình [SUPPORT] phản biện: Định mệnh an bài.",
+        json: {
+          project: {
+            name: "Mẫu",
+            language: "vi",
+            genre: "Tiên hiệp",
+            genre_code: "xianxia",
+            plan: { word: 100000, arc: 3, chapter: 30, scene: 90 },
+          },
+          arcs: [{ id: "arc-1", name: "Khởi đầu", sequence: 1, goal: "Tu luyện", outcome: null }],
+          protagonist: { name: "Tiêu Viêm", role: "protagonist", archetype: "chosen-one", summary: "Thiếu niên kiên định", description: "Tóc đen áo vải" },
+          cast: [],
+          motif: { name: "Nhẫn cổ", scope: "global", description: "Chiếc nhẫn chứa linh hồn dược lão", significance: "Bàn đạp sức mạnh" },
+          theme: { name: "Ý chí sinh tồn", statement: "Nghịch cảnh tôi luyện bản lĩnh", weight: 0.9 },
+          argument: { character: "Tiêu Viêm", claim: "Dựa vào chính mình", polarity: "SUPPORT", counter_claim: "Định mệnh an bài" },
+        },
+      };
+    }
+    case "outline_status": {
+      const { sessionId } = args as { sessionId: string };
+      const sess = sessions.get(sessionId);
+      return {
+        ok: true,
+        stage: "seed",
+        active: false,
+        note: "outline engine arrives in sprint 17.2",
+        project_id: sess?.projectId ?? "p-mock",
+      };
+    }
     case "context_usage": {
       const request = args as { providerId?: string; modelId?: string } | undefined;
       if (!request?.providerId || !request?.modelId) {

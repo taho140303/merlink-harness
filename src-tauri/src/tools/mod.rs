@@ -15,7 +15,7 @@ pub use specs::tool_specs;
 
 /// Tools exposed to the model. `project_create` is listed first because the other
 /// six are unusable until a chat has a project.
-pub const TOOL_NAMES: [&str; 7] = [
+pub const TOOL_NAMES: [&str; 8] = [
     "project_create",
     "super_json_get",
     "super_json_set",
@@ -23,4 +23,5 @@ pub const TOOL_NAMES: [&str; 7] = [
     "super_json_add_field",
     "super_json_missing",
     "echo",
+    "outline",
 ];

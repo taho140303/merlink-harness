@@ -200,6 +200,24 @@ pub fn tool_specs() -> Vec<Value> {
                 }
             }
         }),
+        json!({
+            "type": "function",
+            "function": {
+                "name": "outline",
+                "description": "Returns the outline anchor extracted from state as context for phase 2. Does not write state.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["status", "anchor"],
+                            "description": "The outline action to perform: status or anchor."
+                        }
+                    },
+                    "required": ["action"]
+                }
+            }
+        }),
     ]
 }
 
@@ -250,10 +268,10 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_specs_cover_seven_tools() {
+    fn test_tool_specs_cover_eight_tools() {
         let specs = tool_specs();
-        assert_eq!(TOOL_NAMES.len(), 7);
-        assert_eq!(specs.len(), 7);
+        assert_eq!(TOOL_NAMES.len(), 8);
+        assert_eq!(specs.len(), 8);
         for name in ["super_json_add_row", "super_json_add_field"] {
             let spec = specs
                 .iter()

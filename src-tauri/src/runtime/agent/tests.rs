@@ -597,11 +597,11 @@ fn test_prompt_explains_json_index_refs() {
     assert!(prompt.contains("Never put a name, a slug or a code where an id is expected."));
 }
 
-/// Sprint 16.1 · T5: every tool the model can call is listed.
+/// Sprint 17.1 · T5: every tool the model can call is listed.
 #[test]
-fn test_prompt_lists_seven_tools() {
+fn test_prompt_lists_eight_tools() {
     let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
-    assert_eq!(crate::tools::TOOL_NAMES.len(), 7);
+    assert_eq!(crate::tools::TOOL_NAMES.len(), 8);
     for name in crate::tools::TOOL_NAMES {
         assert!(
             prompt.contains(&format!("`{name}`")),

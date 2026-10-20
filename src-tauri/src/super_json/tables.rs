@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_rows_reject_unknown_field() {
-        let rows = json!([{ "name": "Hoàng", "is_primary": true, "archetype": "hero" }]);
+        let rows = json!([{ "name": "Hoàng", "is_primary": true, "superpower": "flying" }]);
         let error =
             validate_rows("characters", &rows, Some(1), None, RowMode::Complete).unwrap_err();
         assert!(error.contains("unknown field"), "{error}");

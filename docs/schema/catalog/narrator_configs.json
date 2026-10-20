@@ -1,0 +1,128 @@
+[
+  {
+    "code": "first_person_meta_fourth_wall",
+    "name": "Ngôi 1 - Tự thức phá vỡ bức tường thứ 4",
+    "person": "FIRST_PERSON",
+    "person_subtype": "PROTAGONIST",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": true
+  },
+  {
+    "code": "first_person_multi_pov",
+    "name": "Ngôi 1 - Đa điểm nhìn luân phiên",
+    "person": "FIRST_PERSON",
+    "person_subtype": "PROTAGONIST",
+    "pov_scope": "MULTIPLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "first_person_protagonist",
+    "name": "Ngôi 1 - Nhân vật chính độc thoại nội tâm",
+    "person": "FIRST_PERSON",
+    "person_subtype": "PROTAGONIST",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "first_person_unreliable",
+    "name": "Ngôi 1 - Kẻ dẫn chuyện không đáng tin cậy",
+    "person": "FIRST_PERSON",
+    "person_subtype": "UNRELIABLE_FIRST",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": false,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "first_person_witness_peripheral",
+    "name": "Ngôi 1 - Nhân chứng ngoại vi quan sát",
+    "person": "FIRST_PERSON",
+    "person_subtype": "WITNESS_PERIPHERAL",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "second_person_direct_address",
+    "name": "Ngôi 2 - Hướng lời trực tiếp tới đối tượng",
+    "person": "SECOND_PERSON",
+    "person_subtype": "DIRECT_ADDRESS",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "second_person_interactive",
+    "name": "Ngôi 2 - Tương tác nhập vai mô phỏng",
+    "person": "SECOND_PERSON",
+    "person_subtype": "INTERACTIVE",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "second_person_self_reflection",
+    "name": "Ngôi 2 - Độc thoại tự phân tách nội tâm",
+    "person": "SECOND_PERSON",
+    "person_subtype": "SELF_REFLECTION",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "third_person_editorial_fourth_wall",
+    "name": "Ngôi 3 - Bình luận thế sự phá vỡ khoảng cách",
+    "person": "THIRD_PERSON",
+    "person_subtype": "OMNISCIENT",
+    "pov_scope": "SHIFTING_OMNISCIENT",
+    "is_reliable": true,
+    "breaks_fourth_wall": true
+  },
+  {
+    "code": "third_person_limited",
+    "name": "Ngôi 3 - Hạn tri bám sát nhân vật tiêu điểm",
+    "person": "THIRD_PERSON",
+    "person_subtype": "LIMITED",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "third_person_limited_multi_pov",
+    "name": "Ngôi 3 - Hạn tri đa điểm nhìn chương hồi",
+    "person": "THIRD_PERSON",
+    "person_subtype": "LIMITED",
+    "pov_scope": "MULTIPLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "third_person_objective_camera",
+    "name": "Ngôi 3 - Ống kính khách quan hành vi",
+    "person": "THIRD_PERSON",
+    "person_subtype": "OBJECTIVE",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "third_person_omniscient",
+    "name": "Ngôi 3 - Toàn tri thấu thị nội tâm",
+    "person": "THIRD_PERSON",
+    "person_subtype": "OMNISCIENT",
+    "pov_scope": "SINGLE_POV",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  },
+  {
+    "code": "third_person_shifting_omniscient",
+    "name": "Ngôi 3 - Toàn tri dịch chuyển góc nhìn linh hoạt",
+    "person": "THIRD_PERSON",
+    "person_subtype": "OMNISCIENT",
+    "pov_scope": "SHIFTING_OMNISCIENT",
+    "is_reliable": true,
+    "breaks_fourth_wall": false
+  }
+]

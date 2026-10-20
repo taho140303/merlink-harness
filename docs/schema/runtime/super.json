@@ -1,5 +1,5 @@
 {
-  "$comment": "SUPER JSON v2.1 — 1 project root + 34 schema tables. fields = read-only row contract; count = planned rows; rows = actual instances. v2.1: scenes/chapters/relationships/world/power + relation tables are optional; project_motifs is required at project scope. Source: docs/plan/super-json-v2-plan.md",
+  "$comment": "SUPER JSON v3 — 1 project root + 34 schema tables. fields = read-only row contract; count = planned rows; rows = actual instances. v3: added fields for phase 2 outline engine (scenes directives/rules/status, chapters beats, character archetypes/descriptions, theme arguments/weights). Source: docs/plan/sprint-17.md",
   "require": {
     "project": {
       "name": null,
@@ -25,7 +25,9 @@
         "count": null,
         "fields": {
           "genre_id": null,
-          "is_primary": null
+          "is_primary": null,
+          "genre_code": null,
+          "note": null
         },
         "rows": []
       },
@@ -36,7 +38,9 @@
           "name": null,
           "position": null,
           "code": null,
-          "summarize": null
+          "summarize": null,
+          "goal": null,
+          "outcome": null
         },
         "rows": []
       },
@@ -50,7 +54,15 @@
           "species": null,
           "biological_sex": null,
           "gender_identity": null,
-          "gender_expression": null
+          "gender_expression": null,
+          "role": null,
+          "archetype": null,
+          "motivation": null,
+          "want": null,
+          "need": null,
+          "flaw": null,
+          "summary": null,
+          "description": null
         },
         "rows": []
       },
@@ -61,7 +73,10 @@
           "motif_id": null,
           "scope": null,
           "arc_id": null,
-          "chapter_id": null
+          "chapter_id": null,
+          "name": null,
+          "description": null,
+          "significance": null
         },
         "rows": []
       },
@@ -76,7 +91,10 @@
           "parent_theme_id": null,
           "resolution_type": null,
           "resolution": null,
-          "message": null
+          "message": null,
+          "name": null,
+          "statement": null,
+          "weight": null
         },
         "rows": []
       },
@@ -90,7 +108,10 @@
           "answer_mode": null,
           "note": null,
           "required_knowledge": null,
-          "required_competence": null
+          "required_competence": null,
+          "claim": null,
+          "counter_claim": null,
+          "polarity": null
         },
         "rows": []
       }
@@ -134,7 +155,11 @@
           "position": null,
           "code": null,
           "arc_id": null,
-          "summarize": null
+          "summarize": null,
+          "beats": null,
+          "scene_count": null,
+          "goal": null,
+          "outcome": null
         },
         "rows": []
       },
@@ -150,7 +175,16 @@
           "style_preset_id": null,
           "narrator_config_id": null,
           "summarize": null,
-          "content": null
+          "content": null,
+          "style_preset_code": null,
+          "narrator_code": null,
+          "directives": null,
+          "rules": null,
+          "relationships": null,
+          "target_words": null,
+          "content_path": null,
+          "word_count": null,
+          "status": null
         },
         "rows": []
       },
@@ -236,7 +270,10 @@
         "count": null,
         "fields": {
           "from_character_id": null,
-          "to_character_id": null
+          "to_character_id": null,
+          "summary": null,
+          "origin": null,
+          "is_primary": null
         },
         "rows": []
       },

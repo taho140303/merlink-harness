@@ -1,6 +1,7 @@
 import type { Channel } from "@tauri-apps/api/core";
 import type {
   AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope,
+  OutlineAnchorResult, OutlineStatusResult,
   ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress,
 } from "../types";
 import { safeInvoke, type AgentEventChannel } from "./tauri";
@@ -30,6 +31,8 @@ export interface CommandMap {
   super_json_progress: { args: { sessionId: string }; result: SuperJsonProgress };
   super_json_summary: { args: { projectId: string }; result: string };
   super_json_labels: { args: never; result: Record<string, string> };
+  outline_anchor: { args: { projectId: string }; result: OutlineAnchorResult };
+  outline_status: { args: { sessionId: string }; result: OutlineStatusResult };
   context_usage: { args: { sessionId: string; providerId: string; modelId: string }; result: ContextUsage };
   fetch_models: { args: { providerKind: string; baseUrl: string; apiKey: string }; result: FetchedModel[] };
   execute_tool: { args: { toolName: string; args: Record<string, unknown>; projectId: string; sessionId: string }; result: unknown };

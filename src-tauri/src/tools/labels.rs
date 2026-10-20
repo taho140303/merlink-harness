@@ -159,6 +159,7 @@ pub fn status_message(name: &str, args: &Value) -> String {
             format!("Đang ghi nhận {path}")
         }
         "echo" => "Đang kiểm tra kết nối tool".to_owned(),
+        "outline" => "Đang đọc khối dàn ý".to_owned(),
         other => format!("Đang chạy {other}"),
     }
 }
