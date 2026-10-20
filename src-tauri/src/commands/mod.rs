@@ -8,7 +8,10 @@ pub(crate) mod super_json;
 #[allow(unused_imports)]
 pub(crate) use chat::{context_usage, list_messages, send_chat};
 #[allow(unused_imports)]
-pub(crate) use outline::{outline_anchor, outline_status};
+pub(crate) use outline::{
+    outline_accept, outline_anchor, outline_cancel, outline_commit, outline_items,
+    outline_regenerate, outline_reject, outline_run, outline_start, outline_status,
+};
 #[allow(unused_imports)]
 pub(crate) use project::{execute_tool, get_project, list_projects};
 #[allow(unused_imports)]

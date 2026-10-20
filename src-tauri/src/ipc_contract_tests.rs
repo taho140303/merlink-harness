@@ -286,6 +286,30 @@ fn body_outline_anchor() -> Value {
 fn body_outline_status() -> Value {
     json!({ "sessionId": "contract-session-history" })
 }
+fn body_outline_start() -> Value {
+    json!({"projectId":"contract-project","sessionId":"contract-session-history"})
+}
+fn body_outline_run() -> Value {
+    json!({"sessionId":"contract-session-history","providerId":"provider","modelId":"model","stage":"arcs","range":"all","channel":null})
+}
+fn body_outline_items() -> Value {
+    json!({"sessionId":"contract-session-history","stage":"arcs"})
+}
+fn body_outline_regenerate() -> Value {
+    json!({"sessionId":"contract-session-history","providerId":"provider","modelId":"model","stage":"arcs","key":"arc-01","note":""})
+}
+fn body_outline_commit() -> Value {
+    json!({"sessionId":"contract-session-history","stage":"arcs","keys":null})
+}
+fn body_outline_accept() -> Value {
+    json!({"sessionId":"contract-session-history","stage":"arcs","keys":null})
+}
+fn body_outline_reject() -> Value {
+    json!({"sessionId":"contract-session-history","stage":"arcs","keys":null})
+}
+fn body_outline_cancel() -> Value {
+    json!({"sessionId":"contract-session-history"})
+}
 
 fn body_context_usage() -> Value {
     json!({"sessionId":"contract-session-context", "providerId":"openai", "modelId":"gpt-4o"})
@@ -400,6 +424,38 @@ static CONTRACT: &[ContractEntry] = &[
     ContractEntry {
         cmd: "outline_status",
         body: body_outline_status,
+    },
+    ContractEntry {
+        cmd: "outline_start",
+        body: body_outline_start,
+    },
+    ContractEntry {
+        cmd: "outline_run",
+        body: body_outline_run,
+    },
+    ContractEntry {
+        cmd: "outline_items",
+        body: body_outline_items,
+    },
+    ContractEntry {
+        cmd: "outline_regenerate",
+        body: body_outline_regenerate,
+    },
+    ContractEntry {
+        cmd: "outline_commit",
+        body: body_outline_commit,
+    },
+    ContractEntry {
+        cmd: "outline_accept",
+        body: body_outline_accept,
+    },
+    ContractEntry {
+        cmd: "outline_reject",
+        body: body_outline_reject,
+    },
+    ContractEntry {
+        cmd: "outline_cancel",
+        body: body_outline_cancel,
     },
 ];
 
@@ -1244,7 +1300,18 @@ fn test_contract_table_covers_every_registered_command() {
 /// The bodies above were copied out of the frontend, so the keys must literally
 /// appear there. Commands the frontend does not call yet are listed explicitly
 /// rather than silently skipped.
-const RUST_ONLY_COMMANDS: &[&str] = &["execute_tool", "list_messages"];
+const RUST_ONLY_COMMANDS: &[&str] = &[
+    "execute_tool",
+    "list_messages",
+    "outline_start",
+    "outline_run",
+    "outline_items",
+    "outline_regenerate",
+    "outline_commit",
+    "outline_accept",
+    "outline_reject",
+    "outline_cancel",
+];
 
 #[test]
 fn test_every_contract_entry_uses_camel_case_keys() {

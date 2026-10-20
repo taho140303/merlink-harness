@@ -159,7 +159,17 @@ pub fn status_message(name: &str, args: &Value) -> String {
             format!("Đang ghi nhận {path}")
         }
         "echo" => "Đang kiểm tra kết nối tool".to_owned(),
-        "outline" => "Đang đọc khối dàn ý".to_owned(),
+        "outline" => match args.get("action").and_then(Value::as_str) {
+            Some("anchor") => "Đang đọc khối dàn ý".to_owned(),
+            Some("status") => "Đang kiểm tra lượt dàn ý".to_owned(),
+            Some("start") => "Đang mở lượt dàn ý".to_owned(),
+            Some("run") => "Đang sinh đề xuất dàn ý".to_owned(),
+            Some("regenerate") => "Đang viết lại một đề xuất".to_owned(),
+            Some("items") => "Đang đọc danh sách đề xuất".to_owned(),
+            Some("commit") => "Đang ghi dàn ý vào state".to_owned(),
+            Some("cancel") => "Đang dừng lượt dàn ý".to_owned(),
+            _ => "Đang đọc khối dàn ý".to_owned(),
+        },
         other => format!("Đang chạy {other}"),
     }
 }

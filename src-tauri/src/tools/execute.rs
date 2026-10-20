@@ -220,13 +220,10 @@ pub fn execute_tool(
                 None => return Err("Missing required argument `action` for tool `outline`".into()),
             };
             match action {
-                "status" => Ok(json!({
-                    "ok": true,
-                    "stage": "seed",
-                    "active": false,
-                    "note": "outline engine arrives in sprint 17.2",
-                    "project_id": project_id,
-                })),
+                "status" => serde_json::to_value(crate::outline::status(session_id)?)
+                    .map_err(|error| format!("Cannot serialise outline status: {error}")),
+                "start" => serde_json::to_value(crate::outline::start(project_id, session_id)?)
+                    .map_err(|error| format!("Cannot serialise outline status: {error}")),
                 "anchor" => {
                     let doc = super_json::load_or_init(project_id)?;
                     let text = crate::outline::anchor(&doc);
@@ -240,8 +237,87 @@ pub fn execute_tool(
                         "json": json,
                     }))
                 }
+                // Generation is a fan-out of provider calls: it runs in the
+                // background so the chat turn is not blocked, and the author
+                // watches `status` / the outline screen for the proposals.
+                "run" | "regenerate" => {
+                    let stage = crate::outline::stage::Stage::parse(
+                        args.get("stage").and_then(Value::as_str).unwrap_or("arcs"),
+                    )?;
+                    let (provider, model) = outline_target(args)?;
+                    let session = session_id.to_owned();
+                    let range = args.get("range").and_then(Value::as_str).map(str::to_owned);
+                    let note = args
+                        .get("note")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned();
+                    let key = args
+                        .get("keys")
+                        .and_then(Value::as_array)
+                        .and_then(|keys| keys.first())
+                        .and_then(Value::as_str)
+                        .map(str::to_owned);
+                    let regenerate = action == "regenerate";
+                    tauri::async_runtime::spawn(async move {
+                        let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel();
+                        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                        if regenerate {
+                            if let Some(key) = key {
+                                let _ = crate::outline::regenerate(
+                                    &session, &provider, &model, stage, &key, &note,
+                                )
+                                .await;
+                            }
+                        } else {
+                            let _ = crate::outline::run(
+                                &session,
+                                &provider,
+                                &model,
+                                stage,
+                                range.as_deref(),
+                                sender,
+                                cancel,
+                            )
+                            .await;
+                        }
+                    });
+                    Ok(json!({
+                        "ok": true,
+                        "started": true,
+                        "action": action,
+                        "stage": stage.as_str(),
+                        "note": "Đang sinh đề xuất ở nền. Đọc tiến độ bằng action status.",
+                    }))
+                }
+                "items" => {
+                    let stage = crate::outline::stage::Stage::parse(
+                        args.get("stage").and_then(Value::as_str).unwrap_or("arcs"),
+                    )?;
+                    let items = crate::outline::items(session_id, stage)?;
+                    Ok(json!({ "ok": true, "stage": stage.as_str(), "items": items }))
+                }
+                "commit" => {
+                    let stage = crate::outline::stage::Stage::parse(
+                        args.get("stage").and_then(Value::as_str).unwrap_or("arcs"),
+                    )?;
+                    let keys: Option<Vec<String>> =
+                        args.get("keys").and_then(Value::as_array).map(|keys| {
+                            keys.iter()
+                                .filter_map(Value::as_str)
+                                .map(str::to_owned)
+                                .collect()
+                        });
+                    let report = crate::outline::commit(session_id, stage, keys.as_deref())?;
+                    Ok(json!({ "ok": true, "stage": stage.as_str(), "report": report }))
+                }
+                "cancel" => {
+                    crate::outline::cancel(session_id)?;
+                    Ok(json!({ "ok": true, "cancelled": true }))
+                }
                 other => Err(format!(
-                    "Unknown outline action: {other}. Available actions: status, anchor"
+                    "Unknown outline action: {other}. Available actions: status, start, anchor, \
+                     run, regenerate, items, commit, cancel"
                 )),
             }
         }
@@ -250,6 +326,33 @@ pub fn execute_tool(
             TOOL_NAMES.join(", ")
         )),
     }
+}
+
+/// The provider/model pair the outline fan-out should use. The chat turn already
+/// knows both (`provider_id`/`model_id` are sent with every message), so the tool
+/// only has to resolve the same ids the UI has selected.
+fn outline_target(
+    args: &Value,
+) -> Result<(crate::models::ProviderConfig, crate::models::ModelConfig), String> {
+    let provider_id = args
+        .get("provider_id")
+        .and_then(Value::as_str)
+        .ok_or("outline requires a string 'provider_id'")?;
+    let model_id = args
+        .get("model_id")
+        .and_then(Value::as_str)
+        .ok_or("outline requires a string 'model_id'")?;
+    let providers = crate::store::load_providers()?;
+    let provider = providers
+        .iter()
+        .find(|provider| provider.id == provider_id)
+        .ok_or("Provider not found")?;
+    let model = provider
+        .models
+        .iter()
+        .find(|model| model.id == model_id)
+        .ok_or("Model does not belong to provider")?;
+    Ok((provider.clone(), model.clone()))
 }
 
 #[cfg(test)]
@@ -268,7 +371,8 @@ mod tests {
         assert_eq!(status_res["ok"], json!(true));
         assert_eq!(status_res["stage"], json!("seed"));
         assert_eq!(status_res["active"], json!(false));
-        assert_eq!(status_res["project_id"], json!("proj1"));
+        assert_eq!(status_res["next_stage"], json!("arcs"));
+        assert_eq!(status_res["counts"]["total"], json!(0));
 
         let anchor_res =
             execute_tool("outline", &json!({"action": "anchor"}), "proj1", "s").unwrap();

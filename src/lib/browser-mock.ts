@@ -1023,16 +1023,22 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
       };
     }
     case "outline_status": {
-      const { sessionId } = args as { sessionId: string };
-      const sess = sessions.get(sessionId);
-      return {
-        ok: true,
-        stage: "seed",
-        active: false,
-        note: "outline engine arrives in sprint 17.2",
-        project_id: sess?.projectId ?? "p-mock",
-      };
+      return { ok: true, stage: "seed", active: false, run_status: "active", stage_status: "pending", counts: {}, next_stage: "arcs", blockers: [], usage: {} };
     }
+    case "outline_start":
+      return { ok: true, stage: "seed", active: false, run_status: "active", stage_status: "pending", counts: {}, next_stage: "arcs", blockers: [], usage: {} };
+    case "outline_run":
+    case "outline_regenerate":
+      return { stage: "arcs", shards: 1, calls: 0, items: 0, failures: 0, tokens_in: 0, tokens_out: 0 };
+    case "outline_items":
+      return [];
+    case "outline_accept":
+    case "outline_reject":
+      return 0;
+    case "outline_commit":
+      return { committed: 0, skipped: 0, missing: [], warnings: [] };
+    case "outline_cancel":
+      return undefined;
     case "context_usage": {
       const request = args as { providerId?: string; modelId?: string } | undefined;
       if (!request?.providerId || !request?.modelId) {

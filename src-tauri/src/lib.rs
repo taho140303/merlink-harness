@@ -13,9 +13,10 @@ mod tools;
 #[allow(unused_imports)]
 use commands::{
     context_usage, delete_session, execute_tool, fetch_models, get_project, get_session,
-    list_messages, list_projects, list_sessions, load_providers, outline_anchor, outline_status,
-    rename_session, save_providers, send_chat, super_json_labels, super_json_progress,
-    super_json_read, super_json_summary,
+    list_messages, list_projects, list_sessions, load_providers, outline_accept, outline_anchor,
+    outline_cancel, outline_commit, outline_items, outline_regenerate, outline_reject, outline_run,
+    outline_start, outline_status, rename_session, save_providers, send_chat, super_json_labels,
+    super_json_progress, super_json_read, super_json_summary,
 };
 /// Shared handler list for `run()` and IPC contract tests.
 macro_rules! merlink_handlers {
@@ -39,7 +40,15 @@ macro_rules! merlink_handlers {
             crate::commands::sessions::rename_session,
             crate::commands::sessions::delete_session,
             crate::commands::outline::outline_anchor,
-            crate::commands::outline::outline_status
+            crate::commands::outline::outline_status,
+            crate::commands::outline::outline_start,
+            crate::commands::outline::outline_run,
+            crate::commands::outline::outline_items,
+            crate::commands::outline::outline_regenerate,
+            crate::commands::outline::outline_commit,
+            crate::commands::outline::outline_accept,
+            crate::commands::outline::outline_reject,
+            crate::commands::outline::outline_cancel
         ]
     };
 }

@@ -204,14 +204,40 @@ pub fn tool_specs() -> Vec<Value> {
             "type": "function",
             "function": {
                 "name": "outline",
-                "description": "Returns the outline anchor extracted from state as context for phase 2. Does not write state.",
+                "description": "Phase 2 outline engine. One entry point for the whole outline pipeline: seed the anchor, generate one stage with parallel subagents, review the proposals, and commit the ones the author approved. Generation runs in the background and never writes state; only `commit` writes, in dependency order. Call it only after all 12 required units are filled.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "action": {
                             "type": "string",
-                            "enum": ["status", "anchor"],
-                            "description": "The outline action to perform: status or anchor."
+                            "enum": ["status", "start", "anchor", "run", "regenerate", "items", "commit", "cancel"],
+                            "description": "status reads the run, start opens it, anchor returns the six-paragraph brief, run generates proposals, regenerate re-runs one proposal with a note from the author, items lists proposals, commit writes the approved ones, cancel stops the run."
+                        },
+                        "stage": {
+                            "type": "string",
+                            "enum": ["seed", "arcs", "chapters", "cast", "world", "scenes"],
+                            "description": "The stage to run, list or commit. Chapters needs arcs committed; scenes needs both cast and world."
+                        },
+                        "range": {
+                            "type": "string",
+                            "description": "Chapter range such as '1-10' or 'all'. Empty means the whole plan. Only used by run for chapters."
+                        },
+                        "keys": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Proposal keys from `items`, for example [\"arc-01\"]. For commit this is the author's approval; for regenerate pass exactly one key."
+                        },
+                        "note": {
+                            "type": "string",
+                            "description": "One Vietnamese sentence telling the generator what to change. Used by regenerate."
+                        },
+                        "provider_id": {
+                            "type": "string",
+                            "description": "Provider id currently selected in the UI. Required by run and regenerate."
+                        },
+                        "model_id": {
+                            "type": "string",
+                            "description": "Model id belonging to that provider. Required by run and regenerate."
                         }
                     },
                     "required": ["action"]

@@ -9,11 +9,6 @@
 //! `include_str!`, so the shipped binary parses no SQL and needs no database
 //! table for reference data.
 
-// Sprint 17.1 ships the data layer; its consumers (`outline::seed`, the 17.2
-// fan-out prompt builder and the scene commit validators) land in the next
-// sprint, so nothing in production reads these entries yet.
-#![allow(dead_code)]
-
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
@@ -44,7 +39,8 @@ impl Kind {
         }
     }
 
-    /// Every kind, for tests and for tools that list the whole catalogue.
+    /// Every kind. Tests iterate the whole catalogue with it.
+    #[cfg(test)]
     pub const ALL: [Kind; 6] = [
         Kind::Genres,
         Kind::Motifs,
@@ -61,7 +57,9 @@ impl Kind {
 pub struct Entry {
     pub code: String,
     pub name: String,
-    pub description: String,
+    /// Raw catalogue row. Sprint 17.5 reads the style weights, vocabulary and
+    /// rhetorical devices from here; nothing consumes it before that.
+    #[allow(dead_code)]
     pub data: Value,
 }
 
@@ -95,7 +93,6 @@ fn parse(raw: &str, kind: Kind) -> Vec<Entry> {
             Entry {
                 code: code.to_owned(),
                 name: item["name"].as_str().unwrap_or(code).to_owned(),
-                description: item["description"].as_str().unwrap_or_default().to_owned(),
                 data: item.clone(),
             }
         })
@@ -137,40 +134,19 @@ pub fn all(kind: Kind) -> &'static [Entry] {
         .unwrap_or(&[])
 }
 
-/// Looks a catalogue entry up by its `code`.
-pub fn get(kind: Kind, code: &str) -> Option<&'static Entry> {
-    all(kind)
-        .binary_search_by(|entry| entry.code.as_str().cmp(code))
-        .ok()
-        .map(|index| &all(kind)[index])
-}
-
-/// `true` when `code` exists in `kind`; the commit step uses this to reject
-/// invented preset/narrator/directive codes.
-pub fn contains(kind: Kind, code: &str) -> bool {
-    get(kind, code).is_some()
-}
-
-/// How many entries a catalogue has.
-pub fn count(kind: Kind) -> usize {
-    all(kind).len()
-}
-
-/// Codes of one catalogue, in sorted order.
-pub fn codes(kind: Kind) -> Vec<&'static str> {
-    all(kind).iter().map(|entry| entry.code.as_str()).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn find(kind: Kind, code: &str) -> Option<&'static Entry> {
+        all(kind).iter().find(|entry| entry.code == code)
+    }
+
     #[test]
     fn test_catalog_files_parse_and_are_non_empty() {
         for kind in Kind::ALL {
-            let entries = all(kind);
             assert!(
-                !entries.is_empty(),
+                !all(kind).is_empty(),
                 "catalogue {} must not be empty; regenerate with \
                  `node scripts/gen-catalog.mjs`",
                 kind.as_str()
@@ -205,16 +181,20 @@ mod tests {
     }
 
     #[test]
-    fn test_catalog_lookup_by_code_round_trips() {
+    fn test_catalog_is_sorted_and_addressable_by_code() {
         for kind in Kind::ALL {
-            for entry in all(kind).iter().take(3) {
-                let found = get(kind, &entry.code).expect("entry must be addressable by code");
-                assert_eq!(found.code, entry.code);
+            let entries = all(kind);
+            assert!(
+                entries.windows(2).all(|pair| pair[0].code <= pair[1].code),
+                "{} must stay sorted by code",
+                kind.as_str()
+            );
+            for entry in entries.iter().take(3) {
+                let found = find(kind, &entry.code).expect("entry must be addressable by code");
                 assert_eq!(found.name, entry.name);
-                assert!(contains(kind, &entry.code));
             }
             assert!(
-                !contains(kind, "definitely_not_a_code"),
+                find(kind, "definitely_not_a_code").is_none(),
                 "{} must not resolve an invented code",
                 kind.as_str()
             );
@@ -222,24 +202,24 @@ mod tests {
     }
 
     #[test]
-    fn test_catalog_known_codes_exist() {
-        assert!(contains(Kind::Genres, "fantasy"));
-        assert!(contains(Kind::Genres, "mystery"));
-        assert!(contains(Kind::NarratorConfigs, "first_person_protagonist"));
-        assert!(contains(Kind::NarrativeDirectives, "show_dont_tell"));
-        assert!(contains(Kind::StylePresets, "action.battle"));
-        assert!(contains(Kind::RelationshipCategories, "FAMILY.father"));
-        assert_eq!(count(Kind::Genres), 20);
-        assert_eq!(count(Kind::Motifs), 125);
-        assert_eq!(count(Kind::NarratorConfigs), 14);
-        assert_eq!(count(Kind::NarrativeDirectives), 21);
-        assert_eq!(count(Kind::RelationshipCategories), 43);
-        assert_eq!(count(Kind::StylePresets), 54);
+    fn test_catalog_known_codes_and_counts() {
+        assert!(find(Kind::Genres, "fantasy").is_some());
+        assert!(find(Kind::Genres, "mystery").is_some());
+        assert!(find(Kind::NarratorConfigs, "first_person_protagonist").is_some());
+        assert!(find(Kind::NarrativeDirectives, "show_dont_tell").is_some());
+        assert!(find(Kind::StylePresets, "action.battle").is_some());
+        assert!(find(Kind::RelationshipCategories, "FAMILY.father").is_some());
+        assert_eq!(all(Kind::Genres).len(), 20);
+        assert_eq!(all(Kind::Motifs).len(), 125);
+        assert_eq!(all(Kind::NarratorConfigs).len(), 14);
+        assert_eq!(all(Kind::NarrativeDirectives).len(), 21);
+        assert_eq!(all(Kind::RelationshipCategories).len(), 43);
+        assert_eq!(all(Kind::StylePresets).len(), 54);
     }
 
     #[test]
     fn test_style_preset_carries_its_writing_material() {
-        let preset = get(Kind::StylePresets, "action.battle").expect("action.battle");
+        let preset = find(Kind::StylePresets, "action.battle").expect("action.battle");
         assert_eq!(preset.data["tone_pace"], "FAST");
         assert!(
             preset.data["vocab"]

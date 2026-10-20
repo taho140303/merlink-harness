@@ -241,6 +241,73 @@ pub struct SuperJsonProgress {
     pub optional_total: u32,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct OutlineStatus {
+    pub ok: bool,
+    pub stage: String,
+    pub active: bool,
+    pub run_status: String,
+    pub stage_status: String,
+    pub counts: serde_json::Value,
+    pub next_stage: Option<String>,
+    pub blockers: Vec<String>,
+    pub usage: serde_json::Value,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OutlineItem {
+    pub key: String,
+    pub lane: String,
+    pub position: u32,
+    pub status: String,
+    pub title: String,
+    pub error: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OutlineRunResult {
+    pub stage: String,
+    pub shards: u32,
+    pub calls: u32,
+    pub items: u32,
+    pub failures: u32,
+    pub tokens_in: u64,
+    pub tokens_out: u64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CommitReport {
+    pub committed: usize,
+    pub skipped: usize,
+    pub missing: Vec<String>,
+    pub warnings: Vec<String>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum OutlineEvent {
+    RunStarted {
+        stage: String,
+    },
+    ShardStarted {
+        key: String,
+        lane: String,
+    },
+    ShardFinished {
+        key: String,
+        lane: String,
+        ok: bool,
+        error: Option<String>,
+    },
+    ItemsReady {
+        stage: String,
+        count: u32,
+    },
+    RunFinished {
+        stage: String,
+        failures: u32,
+    },
+    RunFailed {
+        error: String,
+    },
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
