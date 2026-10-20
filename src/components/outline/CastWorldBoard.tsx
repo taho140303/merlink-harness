@@ -84,6 +84,9 @@ export function CastWorldBoard({
   const [items, setItems] = useState<OutlineItem[]>([]);
   const [error, setError] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -107,6 +110,67 @@ export function CastWorldBoard({
   const world = items.filter((item) => item.lane === "world_smith");
   const bonds = items.filter((item) => item.lane === "bond_smith");
 
+  function reviewControls(list: OutlineItem[], stage: "cast" | "world") {
+    const reviewable = list.filter((item) => item.status === "pending");
+    const selected = reviewable.filter((item) => selectedIds.has(item.id));
+    const disabled = busy || pendingKey !== null || bulkPending;
+    return (
+      <div className="outline-section-actions">
+        <span className="outline-count">{selected.length} đã chọn / {reviewable.length} chờ duyệt</span>
+        <button type="button" className="btn" disabled={disabled || reviewable.length === 0}
+          onClick={() => setSelectedIds((current) => new Set([...current, ...reviewable.map((item) => item.id)]))}>
+          Chọn tất cả
+        </button>
+        <button type="button" className="btn" disabled={disabled || selected.length === 0}
+          onClick={() => setSelectedIds((current) => {
+            const next = new Set(current);
+            reviewable.forEach((item) => next.delete(item.id));
+            return next;
+          })}>
+          Bỏ chọn
+        </button>
+        <button type="button" className="btn btn-primary" disabled={disabled || selected.length === 0}
+          onClick={() => void bulkAccept(stage, selected)}>
+          Duyệt đã chọn ({selected.length})
+        </button>
+      </div>
+    );
+  }
+
+  async function bulkAccept(stage: "cast" | "world", selected: OutlineItem[]) {
+    const ids = selected.filter((item) => item.status === "pending").map((item) => item.id);
+    if (ids.length === 0) return;
+    setBulkPending(true);
+    setError("");
+    setStatus("");
+    try {
+      const count = await acceptOutlineItems(sessionId, stage, ids);
+      setSelectedIds(new Set());
+      setStatus(`${count} mục đã được duyệt.`);
+      onChanged();
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBulkPending(false);
+    }
+  }
+
+  function selection(item: OutlineItem) {
+    return (
+      <label className="outline-selection">
+        <input type="checkbox" checked={selectedIds.has(item.id)}
+          disabled={busy || pendingKey !== null || bulkPending || item.status !== "pending"}
+          onChange={(event) => setSelectedIds((current) => {
+            const next = new Set(current);
+            if (event.target.checked) next.add(item.id);
+            else next.delete(item.id);
+            return next;
+          })} />
+        Chọn mục để duyệt
+      </label>
+    );
+  }
+
   const nameOf = new Map<string, string>();
   for (const item of characters) {
     nameOf.set(item.key, text(payloadOf(item).name) ?? item.key);
@@ -121,8 +185,8 @@ export function CastWorldBoard({
     setPendingKey(item.key);
     setError("");
     try {
-      if (kind === "accept") await acceptOutlineItems(sessionId, stage, [item.key]);
-      else if (kind === "reject") await rejectOutlineItems(sessionId, stage, [item.key]);
+      if (kind === "accept") await acceptOutlineItems(sessionId, stage, [item.id]);
+      else if (kind === "reject") await rejectOutlineItems(sessionId, stage, [item.id]);
       else {
         await regenerateOutlineItem(
           sessionId,
@@ -133,6 +197,11 @@ export function CastWorldBoard({
           note,
         );
       }
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
       onChanged();
     } catch (reason) {
       setError(String(reason));
@@ -152,7 +221,7 @@ export function CastWorldBoard({
   }
 
   const actions = (item: OutlineItem) => ({
-    busy: busy || pendingKey === item.key,
+    busy: busy || pendingKey === item.key || bulkPending,
     onAccept: () => void decide(item, "accept"),
     onReject: () => void decide(item, "reject"),
     onRegenerate: (note: string) => void decide(item, "regenerate", note),
@@ -165,12 +234,14 @@ export function CastWorldBoard({
           {error}
         </p>
       )}
+      {status && <p className="outline-message" role="status">{status}</p>}
 
       <div className="outline-columns">
         <section className="outline-section">
           <header className="outline-section-head">
             <h2>Nhân vật</h2>
             <span className="outline-count">{characters.length} đề xuất</span>
+            {reviewControls(characters, "cast")}
           </header>
           {characters.length === 0 ? (
             <p className="outline-empty">
@@ -185,7 +256,9 @@ export function CastWorldBoard({
                 const memories = list(data.memories);
                 const motifs = list(data.motifs);
                 return (
-                  <ItemCard key={item.key} item={item} {...actions(item)}>
+                  <div key={item.key}>
+                    {selection(item)}
+                    <ItemCard item={item} {...actions(item)}>
                     <p className="outline-meta">
                       {[text(data.role), text(data.archetype)]
                         .filter(Boolean)
@@ -246,7 +319,8 @@ export function CastWorldBoard({
                         ))}
                       </ul>
                     )}
-                  </ItemCard>
+                    </ItemCard>
+                  </div>
                 );
               })}
             </div>
@@ -257,6 +331,7 @@ export function CastWorldBoard({
           <header className="outline-section-head">
             <h2>Thế giới</h2>
             <span className="outline-count">{world.length} đề xuất</span>
+            {reviewControls(world, "world")}
             <div className="outline-section-actions">
               <button
                 type="button"
@@ -280,7 +355,9 @@ export function CastWorldBoard({
                 const kind = text(data.kind) ?? "setting";
                 const sensory = record(data.sensory);
                 return (
-                  <ItemCard key={item.key} item={item} {...actions(item)}>
+                  <div key={item.key}>
+                    {selection(item)}
+                    <ItemCard item={item} {...actions(item)}>
                     <p className="outline-meta">
                       {WORLD_KIND_LABEL[kind] ?? kind}
                       {text(data.type) ? ` · ${text(data.type)}` : ""}
@@ -315,7 +392,8 @@ export function CastWorldBoard({
                         )}
                       </ul>
                     )}
-                  </ItemCard>
+                    </ItemCard>
+                  </div>
                 );
               })}
             </div>
@@ -327,6 +405,7 @@ export function CastWorldBoard({
         <header className="outline-section-head">
           <h2>Quan hệ</h2>
           <span className="outline-count">{bonds.length} đề xuất</span>
+          {reviewControls(bonds, "world")}
         </header>
         {bonds.length === 0 ? (
           <p className="outline-empty">
@@ -341,6 +420,7 @@ export function CastWorldBoard({
               const to = nameOf.get(text(data.to) ?? "") ?? text(data.to) ?? "?";
               return (
                 <li key={item.key}>
+                  {selection(item)}
                   <ItemCard item={item} {...actions(item)}>
                     <p className="outline-meta">
                       <strong>

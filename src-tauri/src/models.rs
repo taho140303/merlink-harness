@@ -266,6 +266,8 @@ pub struct OutlineStatus {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OutlineItem {
+    /// Stable database identity, unique even when proposal keys overlap by lane/shard.
+    pub id: String,
     pub key: String,
     pub lane: String,
     pub position: u32,

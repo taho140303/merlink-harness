@@ -57,6 +57,9 @@ export function ScenesBoard({
   const [range, setRange] = useState("1-3");
   const [error, setError] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -81,6 +84,27 @@ export function ScenesBoard({
     chapters.set(chapter, bucket);
   }
   const ordered = [...chapters.entries()].sort((a, b) => a[0] - b[0]);
+  const reviewable = items.filter((item) => item.status === "pending");
+  const selected = reviewable.filter((item) => selectedIds.has(item.id));
+  const selectionDisabled = busy || pendingKey !== null || bulkPending;
+
+  async function bulkAccept() {
+    const ids = selected.filter((item) => item.status === "pending").map((item) => item.id);
+    if (ids.length === 0) return;
+    setBulkPending(true);
+    setError("");
+    setStatus("");
+    try {
+      const count = await acceptOutlineItems(sessionId, "scenes", ids);
+      setSelectedIds(new Set());
+      setStatus(`${count} mục đã được duyệt.`);
+      onChanged();
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBulkPending(false);
+    }
+  }
 
   async function decide(
     item: OutlineItem,
@@ -90,9 +114,14 @@ export function ScenesBoard({
     setPendingKey(item.key);
     setError("");
     try {
-      if (kind === "accept") await acceptOutlineItems(sessionId, "scenes", [item.key]);
-      else if (kind === "reject") await rejectOutlineItems(sessionId, "scenes", [item.key]);
+      if (kind === "accept") await acceptOutlineItems(sessionId, "scenes", [item.id]);
+      else if (kind === "reject") await rejectOutlineItems(sessionId, "scenes", [item.id]);
       else await regenerateOutlineItem(sessionId, providerId, modelId, "scenes", item.key, note);
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
       onChanged();
     } catch (reason) {
       setError(String(reason));
@@ -118,11 +147,25 @@ export function ScenesBoard({
           {error}
         </p>
       )}
+      {status && <p className="outline-message" role="status">{status}</p>}
 
       <header className="outline-section-head">
         <h2>Phân cảnh</h2>
         <span className="outline-count">{items.length} cảnh</span>
         <div className="outline-section-actions">
+          <span className="outline-count">{selected.length} đã chọn / {reviewable.length} chờ duyệt</span>
+          <button type="button" className="btn" disabled={selectionDisabled || reviewable.length === 0}
+            onClick={() => setSelectedIds(new Set([...selectedIds, ...reviewable.map((item) => item.id)]))}>
+            Chọn tất cả
+          </button>
+          <button type="button" className="btn" disabled={selectionDisabled || selected.length === 0}
+            onClick={() => setSelectedIds(new Set())}>
+            Bỏ chọn
+          </button>
+          <button type="button" className="btn btn-primary" disabled={selectionDisabled || selected.length === 0}
+            onClick={() => void bulkAccept()}>
+            Duyệt đã chọn ({selected.length})
+          </button>
           <label className="outline-inline-field">
             Phạm vi chương
             <select
@@ -169,9 +212,20 @@ export function ScenesBoard({
                 const pov = cast.find((entry) => record(entry).is_pov === true);
                 return (
                   <li key={item.key}>
+                    <label className="outline-selection">
+                      <input type="checkbox" checked={selectedIds.has(item.id)}
+                        disabled={selectionDisabled || item.status !== "pending"}
+                        onChange={(event) => setSelectedIds((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.add(item.id);
+                          else next.delete(item.id);
+                          return next;
+                        })} />
+                      Chọn mục để duyệt
+                    </label>
                     <ItemCard
                       item={item}
-                      busy={busy || pendingKey === item.key}
+                      busy={busy || pendingKey === item.key || bulkPending}
                       onAccept={() => void decide(item, "accept")}
                       onReject={() => void decide(item, "reject")}
                       onRegenerate={(note) => void decide(item, "regenerate", note)}

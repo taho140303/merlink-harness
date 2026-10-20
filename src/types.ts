@@ -197,6 +197,8 @@ export type OutlineStatusResult = OutlineStatus;
  * payload so a board can render an arc or a chapter without re-parsing JSON.
  */
 export interface OutlineItem {
+  /** Stable database identity; proposal `key` may overlap across lanes/shards. */
+  id: string;
   key: string;
   lane: string;
   position: number;

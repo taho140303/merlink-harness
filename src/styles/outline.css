@@ -15,6 +15,8 @@
 .outline-meta{margin:8px 0 0;font-size:11px;font-weight:640;color:var(--faint)}
 .outline-item-position{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:8px;background:var(--glass-strong);font-size:11px;font-weight:760;color:var(--muted)}
 .outline-message.is-error{color:var(--error)}
+.outline-selection{display:flex;align-items:center;gap:7px;margin:3px 0;font-size:11px;color:var(--muted)}
+.outline-selection input{accent-color:var(--accent)}
 .outline-item.is-committed{opacity:.82}
 .outline-stage button[aria-current="true"]{box-shadow:var(--shadow-sm)}
 

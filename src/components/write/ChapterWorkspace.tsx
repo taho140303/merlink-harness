@@ -281,6 +281,7 @@ export function ChapterWorkspace({ projectId }: Props) {
               {current.map((scene) => {
                 const key = `${scene.chapter}:${scene.position}`;
                 const item: OutlineItem = {
+                  id: key,
                   key,
                   lane: "prose_writer",
                   position: scene.position,

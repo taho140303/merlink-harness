@@ -105,17 +105,15 @@ pub fn commit(run_id: &str, stage: Stage, keys: Option<&[String]>) -> Result<Com
     }
     let table = table_for(stage)?;
     let connection = db::open()?;
-    let (project_id, session_id): (String, String) = connection
+    let project_id: String = connection
         .query_row(
-            "SELECT project_id, session_id FROM outline_runs WHERE id=?1",
+            "SELECT project_id FROM outline_runs WHERE id=?1",
             [run_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| row.get(0),
         )
         .map_err(|error| format!("Không tìm thấy lượt chạy: {error}"))?;
-    let run = db::run_for_session(&connection, &session_id)?.ok_or("Không tìm thấy lượt chạy")?;
-    if run.id != run_id {
-        return Err("Lượt chạy không còn là lượt hiện tại".into());
-    }
+    // The caller already selected this run; use its ID directly so accepted rows
+    // cannot be redirected by a same-session timestamp tie.
     let document = super_json::load_or_init(&project_id)?;
     let group = super_json::schema_table_group(table)
         .ok_or_else(|| format!("Không tìm thấy bảng {table} trong schema"))?
@@ -134,7 +132,10 @@ pub fn commit(run_id: &str, stage: Stage, keys: Option<&[String]>) -> Result<Com
     for item in stored {
         let approved = match keys {
             Some(requested) => {
-                requested.iter().any(|key| key == &item.key) && item.status != "committed"
+                requested
+                    .iter()
+                    .any(|identity| identity == &item.id || identity == &item.key)
+                    && item.status != "committed"
             }
             None => item.status == "accepted",
         };
@@ -305,17 +306,15 @@ fn stage_rows_path(table: &str) -> String {
 /// instead of a single index, because every chapter restarts at position 1.
 fn commit_scenes(run_id: &str, keys: Option<&[String]>) -> Result<CommitReport, String> {
     let connection = db::open()?;
-    let (project_id, session_id): (String, String) = connection
+    let project_id: String = connection
         .query_row(
-            "SELECT project_id, session_id FROM outline_runs WHERE id=?1",
+            "SELECT project_id FROM outline_runs WHERE id=?1",
             [run_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| row.get(0),
         )
         .map_err(|error| format!("Không tìm thấy lượt chạy: {error}"))?;
-    let run = db::run_for_session(&connection, &session_id)?.ok_or("Không tìm thấy lượt chạy")?;
-    if run.id != run_id {
-        return Err("Lượt chạy không còn là lượt hiện tại".into());
-    }
+    // The caller already selected this run; use its ID directly so accepted rows
+    // cannot be redirected by a same-session timestamp tie.
     let document = super_json::load_or_init(&project_id)?;
     let chapters = schema_rows(&document, "chapters");
     if chapters.is_empty() {
@@ -342,7 +341,10 @@ fn commit_scenes(run_id: &str, keys: Option<&[String]>) -> Result<CommitReport, 
     for item in stored {
         let approved = match keys {
             Some(requested) => {
-                requested.iter().any(|key| key == &item.key) && item.status != "committed"
+                requested
+                    .iter()
+                    .any(|identity| identity == &item.id || identity == &item.key)
+                    && item.status != "committed"
             }
             None => item.status == "accepted",
         };
@@ -479,17 +481,15 @@ fn commit_cast_world(
     keys: Option<&[String]>,
 ) -> Result<CommitReport, String> {
     let connection = db::open()?;
-    let (project_id, session_id): (String, String) = connection
+    let project_id: String = connection
         .query_row(
-            "SELECT project_id, session_id FROM outline_runs WHERE id=?1",
+            "SELECT project_id FROM outline_runs WHERE id=?1",
             [run_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| row.get(0),
         )
         .map_err(|error| format!("Không tìm thấy lượt chạy: {error}"))?;
-    let run = db::run_for_session(&connection, &session_id)?.ok_or("Không tìm thấy lượt chạy")?;
-    if run.id != run_id {
-        return Err("Lượt chạy không còn là lượt hiện tại".into());
-    }
+    // The caller already selected this run; use its ID directly so accepted rows
+    // cannot be redirected by a same-session timestamp tie.
     let document = super_json::load_or_init(&project_id)?;
     if schema_rows(&document, "chapters").is_empty() {
         return Err("Cần chốt giai đoạn Chương trước".into());
@@ -500,7 +500,10 @@ fn commit_cast_world(
     for item in stored {
         let approved = match keys {
             Some(requested) => {
-                requested.iter().any(|key| key == &item.key) && item.status != "committed"
+                requested
+                    .iter()
+                    .any(|identity| identity == &item.id || identity == &item.key)
+                    && item.status != "committed"
             }
             None => item.status == "accepted",
         };
