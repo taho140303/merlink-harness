@@ -50,6 +50,9 @@ struct ShardPlan {
     shard: String,
     system: String,
     user: String,
+    /// Set for the scene lane: the chapter this shard plans, injected into every
+    /// proposal so the commit does not have to trust the model for it.
+    chapter: Option<u64>,
 }
 
 pub fn start(project_id: &str, session_id: &str) -> Result<OutlineStatus, String> {
@@ -216,6 +219,7 @@ fn arc_plan(document: &Value) -> Result<ShardPlan, String> {
         lane: Lane::ArcSmith,
         shard: "arcs".to_owned(),
         system: prompts::system(Lane::ArcSmith).to_owned(),
+        chapter: None,
         user: prompts::arcs_user(
             &anchor_compact(document),
             arc_total,
@@ -238,6 +242,7 @@ fn chapter_plans(document: &Value, range: Option<&str>) -> Result<Vec<ShardPlan>
             lane: Lane::ChapterSmith,
             shard: format!("chapters-{:02}", index + 1),
             system: prompts::system(Lane::ChapterSmith).to_owned(),
+            chapter: None,
             user: prompts::chapters_user(&compact, &brief, start, end, chapter_total, scene_budget),
         });
     }
@@ -319,6 +324,7 @@ fn cast_plans(document: &Value) -> Result<Vec<ShardPlan>, String> {
             lane: Lane::CastSmith,
             shard: format!("cast-{:02}", index + 1),
             system: prompts::system(Lane::CastSmith).into(),
+            chapter: None,
             user: prompts::cast_user(
                 &anchor_compact(document),
                 &brief,
@@ -343,6 +349,7 @@ fn world_plans(document: &Value) -> Vec<ShardPlan> {
             lane: Lane::WorldSmith,
             shard: format!("world-{:02}", i + 1),
             system: prompts::system(Lane::WorldSmith).into(),
+            chapter: None,
             user: format!(
                 "{}\n\nPhạm vi: {task}.",
                 prompts::world_user(&anchor, &brief, &genre)
@@ -368,11 +375,111 @@ fn world_plans(document: &Value) -> Vec<ShardPlan> {
             lane: Lane::BondSmith,
             shard: "bonds-01".into(),
             system: prompts::system(Lane::BondSmith).into(),
+            chapter: None,
             user: prompts::bonds_user(&anchor, &cast_brief),
         });
     }
     plans
 }
+
+/// One shard per chapter: the binder needs the whole chapter to choose consistent
+/// presets, and five chapters run in parallel.
+fn scene_plans(document: &Value, range: Option<&str>) -> Result<Vec<ShardPlan>, String> {
+    let chapters = rows_of_document(document, "chapters");
+    if chapters.is_empty() {
+        return Err("Cần chốt giai đoạn Chương trước".into());
+    }
+    let (_, _, scene_total) = plan_counts(document)?;
+    let word_total = document
+        .pointer("/require/project/plan/word/count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let bounds = chapter_range(range, chapters.len() as u64)?;
+    let anchor = anchor_compact(document);
+    let cast_brief = rows_of_document(document, "characters")
+        .iter()
+        .map(|row| {
+            format!(
+                "- {}: {} / {}",
+                row["name"].as_str().unwrap_or(""),
+                row["role"].as_str().unwrap_or(""),
+                row["summary"].as_str().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let settings_brief = rows_of_document(document, "world_settings")
+        .iter()
+        .map(|row| {
+            format!(
+                "- {}: {} / {}",
+                row["name"].as_str().unwrap_or(""),
+                row["type"].as_str().unwrap_or(""),
+                row["description"].as_str().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let preset_codes = catalog_codes(crate::catalog::Kind::StylePresets);
+    let narrator_codes = catalog_codes(crate::catalog::Kind::NarratorConfigs);
+    let directive_codes = catalog_codes(crate::catalog::Kind::NarrativeDirectives);
+
+    let mut plans = Vec::new();
+    for (start, end) in bounds {
+        for position in start..=end {
+            let Some(chapter) = chapters.get((position - 1) as usize) else {
+                continue;
+            };
+            let scene_budget = chapter["scene_count"].as_u64().unwrap_or(3).max(1);
+            let word_budget = if word_total == 0 || scene_total == 0 {
+                0
+            } else {
+                (word_total / scene_total.max(1)) * scene_budget
+            };
+            let chapter_brief = format!(
+                "Chương {position}: {}\nTóm tắt: {}\nBeats: {}\nSố cảnh: {scene_budget}",
+                chapter["name"].as_str().unwrap_or(""),
+                chapter["summarize"].as_str().unwrap_or(""),
+                chapter["beats"]
+                    .as_array()
+                    .map(|beats| beats
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join("; "))
+                    .unwrap_or_default(),
+            );
+            plans.push(ShardPlan {
+                lane: Lane::SceneBinder,
+                shard: format!("scenes-ch-{position:03}"),
+                system: prompts::system(Lane::SceneBinder).to_owned(),
+                chapter: Some(position),
+                user: prompts::scenes_user(
+                    &anchor,
+                    &chapter_brief,
+                    &cast_brief,
+                    &settings_brief,
+                    &preset_codes,
+                    &narrator_codes,
+                    &directive_codes,
+                    scene_budget,
+                    word_budget,
+                ),
+            });
+        }
+    }
+    Ok(plans)
+}
+
+/// Compact `code: label` list for a catalogue, so the binder picks a real code.
+fn catalog_codes(kind: crate::catalog::Kind) -> String {
+    crate::catalog::all(kind)
+        .iter()
+        .map(|entry| format!("{} ({})", entry.code, entry.name))
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
 fn build_plan(
     stage: Stage,
     document: &Value,
@@ -383,6 +490,7 @@ fn build_plan(
         Stage::Chapters => chapter_plans(document, range),
         Stage::Cast => cast_plans(document),
         Stage::World => Ok(world_plans(document)),
+        Stage::Scenes => scene_plans(document, range),
         other => Err(format!(
             "Giai đoạn {} chưa được dùng trong sprint này",
             other.label()
@@ -405,6 +513,18 @@ fn proposals_from(
         .ok_or_else(|| format!("Thiếu mảng {array_key} trong đề xuất"))?;
     let mut items = Vec::new();
     for entry in entries {
+        // The scene lane is planned per chapter, so the shard owns that number.
+        let entry = if let Some(chapter) = plan.chapter {
+            let mut object = entry
+                .as_object()
+                .cloned()
+                .ok_or_else(|| "Đề xuất cảnh phải là object".to_owned())?;
+            object.insert("chapter".to_owned(), json!(chapter));
+            Value::Object(object)
+        } else {
+            entry.clone()
+        };
+        let entry = &entry;
         let bond_key;
         let key = if plan.lane == Lane::BondSmith {
             let from = entry
@@ -1095,6 +1215,8 @@ mod tests {
                     cast_reply()
                 } else if system.contains("mối quan hệ") {
                     bonds_reply()
+                } else if system.contains("chia cảnh") {
+                    scenes_reply()
                 } else if system.contains("thế giới") || system.contains("địa điểm") {
                     world_reply()
                 } else {
@@ -1103,6 +1225,47 @@ mod tests {
                 Ok(AdapterReply::text(body))
             })
         }
+    }
+
+    fn scenes_reply() -> String {
+        json!({"scenes": [
+            {
+                "position": 1, "code": "scene-001", "name": "Tro tàn",
+                "summarize": "An trở về làng trong mưa. Bình chặn đường. Cảnh kết ở cánh cửa đóng.",
+                "world_setting": "Làng Tro", "style_preset_code": "action.battle",
+                "narrator_code": "first_person_protagonist", "target_words": 900,
+                "directives": [
+                    {"code": "show_dont_tell", "weight": "HIGH", "instruction": "Cho thấy cái lạnh qua bàn tay"},
+                    {"code": "clarity_first", "weight": "MODERATE", "instruction": "Câu ngắn, rõ chủ thể"}
+                ],
+                "rules": ["Không miêu tả quá hai giác quan mỗi đoạn", "Không dùng lời thoại dài"],
+                "cast": [{"character": "An", "is_pov": true}, {"character": "Bình", "is_pov": false}],
+                "relationships": [{"a": "An", "b": "Bình", "beat": "Chạm mặt ở cổng, chưa ai nói"}]
+            },
+            {
+                "position": 2, "code": "scene-002", "name": "Bếp lạnh",
+                "summarize": "Hai người vào bếp. Bình đặt đèn bão xuống. An nhận ra món nợ cũ.",
+                "world_setting": "Nhà An", "style_preset_code": "action.battle",
+                "narrator_code": "first_person_protagonist", "target_words": 800,
+                "directives": [
+                    {"code": "show_dont_tell", "weight": "MODERATE", "instruction": "Để im lặng làm việc"}
+                ],
+                "rules": ["Giữ nhịp chậm", "Không giải thích quá khứ"],
+                "cast": [{"character": "An", "is_pov": true}, {"character": "Bình", "is_pov": false}]
+            },
+            {
+                "position": 3, "code": "scene-003", "name": "Lời hẹn",
+                "summarize": "An nhận lời giúp Bình. Cảnh kết khi trời sáng.",
+                "world_setting": "Làng Tro", "style_preset_code": "action.battle",
+                "narrator_code": "first_person_protagonist", "target_words": 700,
+                "directives": [
+                    {"code": "technique_rotation", "weight": "LOW", "instruction": "Đổi kỹ thuật giữa các đoạn"}
+                ],
+                "rules": ["Không kết bằng câu hỏi"],
+                "cast": [{"character": "An", "is_pov": true}, {"character": "Bình", "is_pov": false}]
+            }
+        ]})
+        .to_string()
     }
 
     fn run_stage_with(session: &str, stage: Stage, backend: Arc<dyn crate::adapters::LlmBackend>) {
@@ -1143,6 +1306,130 @@ mod tests {
             }
         }
         panic!("table {table} missing");
+    }
+
+    #[test]
+    fn test_stage_23_run_stores_one_proposal_per_scene() {
+        let _home = TempHome::new("outline-23-run");
+        let (project, session) = project_with_plan("run23");
+        prepare_through_chapters(&project, &session);
+        run_stage_with(&session, Stage::Cast, Arc::new(LaneBackend));
+        accept(&session, Stage::Cast, None).unwrap();
+        commit(&session, Stage::Cast, None).unwrap();
+        run_stage_with(&session, Stage::World, Arc::new(LaneBackend));
+        accept(&session, Stage::World, None).unwrap();
+        commit(&session, Stage::World, None).unwrap();
+
+        // Only chapter 1, so the run is a single shard.
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(LaneBackend),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Scenes,
+            Some("1-1"),
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+
+        let items = items(&session, Stage::Scenes).unwrap();
+        assert_eq!(items.len(), 3, "three scenes for one chapter");
+        assert_eq!(items[0].payload["chapter"], json!(1));
+        assert_eq!(
+            items[0].payload["style_preset_code"],
+            json!("action.battle")
+        );
+    }
+
+    #[test]
+    fn test_stage_23_commit_writes_scenes_and_cast() {
+        let _home = TempHome::new("outline-23-commit");
+        let (project, session) = project_with_plan("commit23");
+        prepare_through_chapters(&project, &session);
+        run_stage_with(&session, Stage::Cast, Arc::new(LaneBackend));
+        accept(&session, Stage::Cast, None).unwrap();
+        commit(&session, Stage::Cast, None).unwrap();
+        run_stage_with(&session, Stage::World, Arc::new(LaneBackend));
+        accept(&session, Stage::World, None).unwrap();
+        commit(&session, Stage::World, None).unwrap();
+
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(LaneBackend),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Scenes,
+            Some("1-1"),
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+        accept(&session, Stage::Scenes, None).unwrap();
+        let report = commit(&session, Stage::Scenes, None).unwrap();
+        assert_eq!(report.committed, 3);
+
+        let document = super_json::load_or_init(&project).unwrap();
+        let scenes = table_rows(&document, "scenes");
+        assert_eq!(scenes.len(), 3);
+        assert_eq!(scenes[0]["position"], json!(1));
+        assert_eq!(scenes[0]["name"], json!("Tro tàn"));
+        assert_eq!(scenes[0]["chapter_id_json_index"], json!(0));
+        assert_eq!(scenes[0]["status"], json!("PLANNED"));
+        assert_eq!(scenes[0]["style_preset_code"], json!("action.battle"));
+        assert_eq!(
+            scenes[0]["narrator_code"],
+            json!("first_person_protagonist")
+        );
+        assert_eq!(
+            scenes[0]["content"],
+            Value::Null,
+            "prose arrives in phase 3"
+        );
+        assert!(scenes[0]["directives"].as_array().unwrap().len() == 2);
+        assert!(scenes[0]["rules"].as_array().unwrap().len() == 2);
+        let setting = scenes[0]["world_setting_id_json_index"].as_u64().unwrap();
+        assert!(setting < table_rows(&document, "world_settings").len() as u64);
+
+        let cast = table_rows(&document, "scene_characters");
+        assert_eq!(cast.len(), 6, "two characters in each of the three scenes");
+        let pov: Vec<&Value> = cast
+            .iter()
+            .filter(|row| row["is_pov"] == json!(true))
+            .collect();
+        assert_eq!(pov.len(), 3, "one point of view per scene");
+        assert_eq!(pov[0]["character_id_json_index"], json!(0));
+    }
+
+    #[test]
+    fn test_stage_23_rejects_preset_code_not_in_catalog() {
+        let mut scenes: Value = serde_json::from_str(&scenes_reply()).unwrap();
+        scenes["scenes"][0]["style_preset_code"] = json!("khong-co-preset");
+        let error = contract::validate(Lane::SceneBinder, &scenes).unwrap_err();
+        assert!(error.contains("khong-co-preset"), "{error}");
+    }
+
+    #[test]
+    fn test_stage_23_requires_exactly_one_pov() {
+        let mut scenes: Value = serde_json::from_str(&scenes_reply()).unwrap();
+        scenes["scenes"][0]["cast"][1]["is_pov"] = json!(true);
+        let error = contract::validate(Lane::SceneBinder, &scenes).unwrap_err();
+        assert!(
+            error.contains("is_pov") || error.contains("người kể"),
+            "{error}"
+        );
+
+        let mut nobody: Value = serde_json::from_str(&scenes_reply()).unwrap();
+        nobody["scenes"][0]["cast"][0]["is_pov"] = json!(false);
+        assert!(contract::validate(Lane::SceneBinder, &nobody).is_err());
+    }
+
+    #[test]
+    fn test_stage_23_rejects_unknown_directive_code() {
+        let mut scenes: Value = serde_json::from_str(&scenes_reply()).unwrap();
+        scenes["scenes"][0]["directives"][0]["code"] = json!("khong-co-directive");
+        let error = contract::validate(Lane::SceneBinder, &scenes).unwrap_err();
+        assert!(error.contains("khong-co-directive"), "{error}");
     }
 
     #[test]

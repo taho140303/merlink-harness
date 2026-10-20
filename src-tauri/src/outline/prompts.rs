@@ -11,6 +11,7 @@ pub const CHAPTERS_SYSTEM: &str = include_str!("../../prompts/outline_chapters.m
 pub const CAST_SYSTEM: &str = include_str!("../../prompts/outline_cast.md");
 pub const WORLD_SYSTEM: &str = include_str!("../../prompts/outline_world.md");
 pub const BONDS_SYSTEM: &str = include_str!("../../prompts/outline_bonds.md");
+pub const SCENES_SYSTEM: &str = include_str!("../../prompts/outline_scenes.md");
 
 /// System prompt for a lane. Only implemented lanes have one.
 pub fn system(lane: Lane) -> &'static str {
@@ -20,6 +21,7 @@ pub fn system(lane: Lane) -> &'static str {
         Lane::CastSmith => CAST_SYSTEM,
         Lane::WorldSmith => WORLD_SYSTEM,
         Lane::BondSmith => BONDS_SYSTEM,
+        Lane::SceneBinder => SCENES_SYSTEM,
     }
 }
 
@@ -70,6 +72,33 @@ pub fn bonds_user(anchor: &str, cast_brief: &str) -> String {
     format!("Anchor:\n{anchor}\n\nNhân vật đã chốt theo chỉ số:\n{cast_brief}")
 }
 
+/// One chapter of the scene stage: everything the binder must respect is in the
+/// text, so it never has to guess a preset, a place or a character.
+#[allow(clippy::too_many_arguments)]
+pub fn scenes_user(
+    anchor: &str,
+    chapter_brief: &str,
+    cast_brief: &str,
+    settings_brief: &str,
+    preset_codes: &str,
+    narrator_codes: &str,
+    directive_codes: &str,
+    scene_budget: u64,
+    word_budget: u64,
+) -> String {
+    format!(
+        "Khối anchor:\n{anchor}\n\n\
+         Chương cần chia cảnh:\n{chapter_brief}\n\n\
+         Nhân vật đã chốt (dùng tên làm tham chiếu):\n{cast_brief}\n\n\
+         Địa điểm đã chốt (dùng tên làm tham chiếu):\n{settings_brief}\n\n\
+         style_preset_code hợp lệ: {preset_codes}\n\
+         narrator_code hợp lệ: {narrator_codes}\n\
+         directive code hợp lệ: {directive_codes}\n\n\
+         Trả đúng {scene_budget} cảnh cho chương này, tổng target_words khoảng {word_budget}.\n\
+         Trả về đúng một object JSON theo định dạng đã nêu."
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +108,7 @@ mod tests {
         for (lane, contract) in [
             (Lane::ArcSmith, "\"arcs\":[{\"position\""),
             (Lane::ChapterSmith, "\"chapters\":[{\"arc\""),
+            (Lane::SceneBinder, "\"scenes\":[{\"position\""),
         ] {
             let text = system(lane);
             assert!(
