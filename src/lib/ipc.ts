@@ -1,6 +1,7 @@
 import type { Channel } from "@tauri-apps/api/core";
 import type {
   AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope,
+  SceneRef, WriteReport, WritingStatus,
   CommitReport, OutlineAnchorResult, OutlineEvent, OutlineItem, OutlineRunResult, OutlineStatus,
   ProjectSummary, ProviderConfig, SessionSummary, SuperJsonProgress,
 } from "../types";
@@ -41,6 +42,10 @@ export interface CommandMap {
   outline_accept: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
   outline_reject: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
   outline_cancel: { args: { sessionId: string }; result: void };
+  writing_status: { args: { projectId: string }; result: WritingStatus };
+  write_scene: { args: { projectId: string; providerId: string; modelId: string; chapter: number; position: number; note?: string }; result: WriteReport };
+  rewrite_scenes: { args: { projectId: string; providerId: string; modelId: string; scenes: SceneRef[]; note?: string }; result: WriteReport[] };
+  lock_scene: { args: { projectId: string; chapter: number; position: number; locked: boolean }; result: void };
   context_usage: { args: { sessionId: string; providerId: string; modelId: string }; result: ContextUsage };
   fetch_models: { args: { providerKind: string; baseUrl: string; apiKey: string }; result: FetchedModel[] };
   execute_tool: { args: { toolName: string; args: Record<string, unknown>; projectId: string; sessionId: string }; result: unknown };
