@@ -8,7 +8,7 @@ use crate::models::{MessageEnvelope, TokenUsage, ToolCall};
 use super::{
     AdapterReply, ChatRequest,
     endpoints::{anthropic_endpoint, output_limit},
-    http::{checked_json, client},
+    http::{checked_json, client, send_chat_request},
 };
 
 /// Anthropic: assistant content blocks (`tool_use`) and user blocks
@@ -156,14 +156,17 @@ pub(super) async fn call_anthropic(request: &ChatRequest) -> Result<AdapterReply
         body["tools"] = Value::Array(anthropic_tools(&request.tools));
     }
 
-    let response = client()?
-        .post(anthropic_endpoint(&request.base_url))
-        .header("x-api-key", &request.api_key)
-        .header("anthropic-version", "2023-06-01")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|error| format!("Anthropic request failed: {error}"))?;
+    let response = send_chat_request(
+        client()?
+            .post(anthropic_endpoint(&request.base_url))
+            .header("x-api-key", &request.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&body),
+        "Anthropic",
+        &request.base_url,
+        "Anthropic request failed",
+    )
+    .await?;
     parse_anthropic_response(&checked_json(response).await?)
 }
 

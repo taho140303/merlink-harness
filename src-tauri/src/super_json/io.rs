@@ -16,6 +16,15 @@ use super::{
 };
 use crate::paths;
 
+/// Error text for an unknown table. The valid list matters: models often guess a
+/// selector (`require.schema.characters`) instead of the bare table name.
+fn unknown_table(table: &str) -> String {
+    format!(
+        "Unknown super json table: {table}. Use the bare table name, one of: {}",
+        schema::tables().join(", ")
+    )
+}
+
 fn file_path(project_id: &str) -> Result<PathBuf, String> {
     paths::super_json_path(project_id)
 }
@@ -197,8 +206,9 @@ pub fn get(project_id: &str, path: &str) -> Result<Value, String> {
         PathRef::Project { group, rest } => project_ref(&document, group, rest)
             .cloned()
             .ok_or_else(|| format!("Path not found: {path}")),
-        PathRef::TableSelector { table, .. } => schema::merged_table_entry(&document, table)
-            .ok_or_else(|| format!("Unknown super json table: {table}")),
+        PathRef::TableSelector { table, .. } => {
+            schema::merged_table_entry(&document, table).ok_or_else(|| unknown_table(table))
+        }
         PathRef::SchemaCount { group, table } | PathRef::SchemaRows { group, table } => {
             let field = if matches!(parsed, PathRef::SchemaCount { .. }) {
                 "count"
@@ -309,15 +319,14 @@ pub fn set(project_id: &str, path: &str, mut value: Value) -> Result<Value, Stri
 /// count already ahead of the rows (a declared plan) is left alone.
 pub fn add_row(project_id: &str, table: &str, row: Value) -> Result<(i64, i64), String> {
     if schema::table_fields(table).is_empty() {
-        return Err(format!("Unknown super json table: {table}"));
+        return Err(unknown_table(table));
     }
     if !row.is_object() {
         return Err(format!(
             "Invalid value for {table}.rows: row must be an object"
         ));
     }
-    let group = schema::countable_group(table)
-        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let group = schema::countable_group(table).ok_or_else(|| unknown_table(table))?;
 
     let lock = project_lock(project_id);
     let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -325,7 +334,7 @@ pub fn add_row(project_id: &str, table: &str, row: Value) -> Result<(i64, i64), 
 
     let (old_rows, current_count) = {
         let entry = schema_entry_mut(&mut document, group, table, true)
-            .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+            .ok_or_else(|| unknown_table(table))?;
         (
             entry
                 .get("rows")
@@ -358,8 +367,8 @@ pub fn add_row(project_id: &str, table: &str, row: Value) -> Result<(i64, i64), 
         RowMode::Draft,
     )?;
 
-    let entry = schema_entry_mut(&mut document, group, table, true)
-        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let entry =
+        schema_entry_mut(&mut document, group, table, true).ok_or_else(|| unknown_table(table))?;
     entry["count"] = Value::from(count);
     entry["rows"] = candidate;
 
@@ -377,7 +386,7 @@ pub fn add_field(
 ) -> Result<(), String> {
     let allowed = schema::table_fields(table);
     if allowed.is_empty() {
-        return Err(format!("Unknown super json table: {table}"));
+        return Err(unknown_table(table));
     }
     if field == "_json_index" {
         return Err("_json_index is assigned by the tool and cannot be written".to_owned());
@@ -402,15 +411,14 @@ pub fn add_field(
         schema::validate(kind, &format!("{table}.rows[{json_index}].{field}"), &value)?;
     }
 
-    let group = schema::countable_group(table)
-        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let group = schema::countable_group(table).ok_or_else(|| unknown_table(table))?;
     let lock = project_lock(project_id);
     let _guard = lock.lock().unwrap_or_else(|poison| poison.into_inner());
     let mut document = load_or_init_unlocked(project_id)?;
 
     {
-        let entry = schema::countable_entry(&document, table)
-            .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+        let entry =
+            schema::countable_entry(&document, table).ok_or_else(|| unknown_table(table))?;
         let rows = entry
             .get("rows")
             .and_then(Value::as_array)
@@ -427,8 +435,8 @@ pub fn add_field(
         )?;
     }
 
-    let entry = schema_entry_mut(&mut document, group, table, true)
-        .ok_or_else(|| format!("Unknown super json table: {table}"))?;
+    let entry =
+        schema_entry_mut(&mut document, group, table, true).ok_or_else(|| unknown_table(table))?;
     let rows = entry
         .get_mut("rows")
         .and_then(Value::as_array_mut)
@@ -1164,6 +1172,10 @@ mod tests {
         // Draft rows only need to be objects, and the table must exist.
         let error = add_row("p", "nope", json!({})).unwrap_err();
         assert!(error.contains("Unknown super json table: nope"), "{error}");
+        assert!(
+            error.contains("one of:"),
+            "the error must list the valid tables: {error}"
+        );
         let error = add_row("p", "characters", json!("Hoàng")).unwrap_err();
         assert!(error.contains("must be an object"), "{error}");
     }

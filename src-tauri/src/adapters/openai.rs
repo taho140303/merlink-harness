@@ -10,7 +10,7 @@ use crate::models::{MessageEnvelope, TokenUsage, ToolCall};
 use super::{
     AdapterReply, ChatRequest,
     endpoints::openai_endpoint,
-    http::{checked_json, client},
+    http::{checked_json, client, send_chat_request},
 };
 
 /* ------------------------------------------------------------------ */
@@ -145,13 +145,16 @@ pub(super) async fn call_openai(request: &ChatRequest) -> Result<AdapterReply, S
         body["tool_choice"] = json!("auto");
     }
 
-    let response = client()?
-        .post(openai_endpoint(&request.base_url))
-        .bearer_auth(&request.api_key)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|error| format!("OpenAI-compatible request failed: {error}"))?;
+    let response = send_chat_request(
+        client()?
+            .post(openai_endpoint(&request.base_url))
+            .bearer_auth(&request.api_key)
+            .json(&body),
+        "OpenAI-compatible",
+        &request.base_url,
+        "OpenAI-compatible request failed",
+    )
+    .await?;
     parse_openai_response(&checked_json(response).await?)
 }
 
