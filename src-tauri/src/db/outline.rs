@@ -61,7 +61,7 @@ pub fn run_for_session(
     session_id: &str,
 ) -> Result<Option<OutlineRun>, String> {
     connection.query_row(
-        "SELECT id, project_id, session_id, stage, status, calls, tokens_in, tokens_out FROM outline_runs WHERE session_id = ?1 ORDER BY created_at DESC LIMIT 1",
+        "SELECT id, project_id, session_id, stage, status, calls, tokens_in, tokens_out FROM outline_runs WHERE session_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1",
         [session_id],
         |row| Ok(OutlineRun { id: row.get(0)?, project_id: row.get(1)?, session_id: row.get(2)?, stage: row.get(3)?, status: row.get(4)?, calls: row.get(5)?, tokens_in: row.get(6)?, tokens_out: row.get(7)? }),
     ).optional().map_err(|error| format!("Cannot read outline run: {error}"))
@@ -111,7 +111,13 @@ pub fn upsert_items(connection: &Connection, items: &[OutlineStoredItem]) -> Res
         .unchecked_transaction()
         .map_err(|error| format!("Cannot start outline item write: {error}"))?;
     for item in items {
-        transaction.execute("INSERT INTO outline_items (id, run_id, stage, lane, shard, key, position, payload_json, status, error, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) ON CONFLICT(run_id, stage, key) DO UPDATE SET lane=excluded.lane, shard=excluded.shard, position=excluded.position, payload_json=excluded.payload_json, status=excluded.status, error=excluded.error", params![item.id, item.run_id, item.stage, item.lane, item.shard, item.key, item.position, item.payload_json, item.status, item.error, now()]).map_err(|error| format!("Cannot save outline item: {error}"))?;
+        let changed = transaction.execute("INSERT INTO outline_items (id, run_id, stage, lane, shard, key, position, payload_json, status, error, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) ON CONFLICT(run_id, stage, key) DO UPDATE SET lane=excluded.lane, shard=excluded.shard, position=excluded.position, payload_json=excluded.payload_json, status=excluded.status, error=excluded.error WHERE outline_items.lane = excluded.lane AND outline_items.shard = excluded.shard AND outline_items.status = 'pending'", params![item.id, item.run_id, item.stage, item.lane, item.shard, item.key, item.position, item.payload_json, item.status, item.error, now()]).map_err(|error| format!("Cannot save outline item: {error}"))?;
+        if changed == 0 {
+            return Err(format!(
+                "Outline key '{}' is already used by a different lane or shard in stage '{}'",
+                item.key, item.stage
+            ));
+        }
     }
     transaction
         .commit()
@@ -178,3 +184,68 @@ pub fn delete_items_for_shard(
 }
 
 use rusqlite::OptionalExtension;
+
+#[cfg(test)]
+mod tests {
+    use super::run_for_session;
+    use crate::db::{ensure_project, ensure_session, open};
+
+    #[test]
+    fn upsert_items_rejects_key_collision_and_preserves_accepted_proposal() {
+        use super::{OutlineStoredItem, list_items, set_item_status, upsert_items};
+        use serde_json::json;
+
+        let _home = crate::test_support::TempHome::new("outline-key-lane-conflict");
+        let connection = open().unwrap();
+        ensure_project(&connection, "outline-key-project", "Project").unwrap();
+        ensure_session(&connection, "outline-key-session", "outline-key-project").unwrap();
+        super::super::create_run(&connection, "outline-key-project", "outline-key-session")
+            .unwrap();
+        let run = super::super::run_for_session(&connection, "outline-key-session")
+            .unwrap()
+            .unwrap();
+        let item = |lane: &str, shard: &str, status: &str| OutlineStoredItem {
+            id: format!("item-{lane}"),
+            run_id: run.id.clone(),
+            stage: "world".into(),
+            lane: lane.into(),
+            shard: shard.into(),
+            key: "entity-01".into(),
+            position: 1,
+            payload_json: json!({"code":"entity-01"}).to_string(),
+            status: status.into(),
+            error: None,
+        };
+        upsert_items(&connection, &[item("world_smith", "world-01", "pending")]).unwrap();
+        set_item_status(&connection, &run.id, "world", "entity-01", "accepted").unwrap();
+        let conflict =
+            upsert_items(&connection, &[item("bond_smith", "world-03", "pending")]).unwrap_err();
+        assert!(conflict.contains("different lane or shard"));
+        let stored = list_items(&connection, &run.id, "world").unwrap();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].lane, "world_smith");
+        assert_eq!(stored[0].status, "accepted");
+    }
+
+    #[test]
+    fn run_for_session_breaks_same_timestamp_ties_by_newest_rowid() {
+        let _home = crate::test_support::TempHome::new("outline-run-order-tie");
+        let connection = open().unwrap();
+        ensure_project(&connection, "outline-order-project", "Project").unwrap();
+        ensure_session(
+            &connection,
+            "outline-order-session",
+            "outline-order-project",
+        )
+        .unwrap();
+        connection.execute(
+            "INSERT INTO outline_runs (id, project_id, session_id, stage, status, created_at, updated_at) VALUES ('old-run','outline-order-project','outline-order-session','arcs','review','same-time','same-time'), ('new-run','outline-order-project','outline-order-session','arcs','review','same-time','same-time')",
+            [],
+        ).unwrap();
+
+        let latest = run_for_session(&connection, "outline-order-session")
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, "new-run");
+    }
+}

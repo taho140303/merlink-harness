@@ -781,6 +781,7 @@ pub fn items(session_id: &str, stage: Stage) -> Result<Vec<OutlineItem>, String>
             let text = |field: &str| value.get(field).and_then(Value::as_str).map(str::to_owned);
             let number = |field: &str| value.get(field).and_then(Value::as_u64);
             Ok(OutlineItem {
+                id: item.id,
                 key: item.key,
                 lane: item.lane,
                 position: item.position,
@@ -917,7 +918,11 @@ fn decide(
     let items = db::list_items(&connection, &run.id, stage.as_str())?;
     let mut changed = 0u32;
     for item in items {
-        let selected = keys.is_none_or(|wanted| wanted.iter().any(|key| key == &item.key));
+        let selected = keys.is_none_or(|wanted| {
+            wanted
+                .iter()
+                .any(|identity| identity == &item.id || identity == &item.key)
+        });
         if !selected || item.status == "committed" {
             continue;
         }
@@ -1737,6 +1742,129 @@ mod tests {
         assert_eq!(first.chapters, Some(4));
         assert_eq!(first.position, 1);
         assert!(first.beats.is_none(), "arcs carry no beats");
+    }
+
+    #[test]
+    fn commit_accepted_items_uses_latest_run_and_preserves_acceptance() {
+        let _home = TempHome::new("outline-commit-accepted-latest");
+        let (project, session) = project_with_plan("accepted-latest");
+        start(&project, &session).unwrap();
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![AdapterReply::text(arcs_reply())])),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Arcs,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+        let accepted = accept(&session, Stage::Arcs, None).unwrap();
+        assert_eq!(accepted, 3);
+
+        // A second outline start currently returns the existing run but updates
+        // its timestamp. Make a second run too, to exercise historical-session
+        // rows while commit resolves the run internally.
+        let connection = db::open().unwrap();
+        let first_run = db::run_for_session(&connection, &session).unwrap().unwrap();
+        let second_run_id = format!("{}-new", first_run.id);
+        connection.execute(
+            "INSERT INTO outline_runs (id, project_id, session_id, stage, status, created_at, updated_at) VALUES (?1, ?2, ?3, 'arcs', 'review', '2099-01-01', '2099-01-01')",
+            rusqlite::params![second_run_id, project, session],
+        ).unwrap();
+        let mut copied = db::list_items(&connection, &first_run.id, Stage::Arcs.as_str()).unwrap();
+        for item in &mut copied {
+            item.id = format!("{}-copy", item.id);
+            item.run_id = second_run_id.clone();
+            item.status = "pending".into();
+        }
+        db::upsert_items(&connection, &copied).unwrap();
+
+        let report = apply::commit(&first_run.id, Stage::Arcs, None).unwrap();
+        assert_eq!(report.committed, 3);
+        let current =
+            db::list_items(&db::open().unwrap(), &first_run.id, Stage::Arcs.as_str()).unwrap();
+        assert!(current.iter().all(|item| item.status == "committed"));
+    }
+
+    #[test]
+    fn cast_and_world_proposals_with_same_key_remain_independent_and_commit() {
+        let _home = TempHome::new("outline-cast-world-key-collision");
+        let (project, session) = project_with_plan("cast-world-collision");
+        prepare_through_chapters(&project, &session);
+
+        run_stage(&session, Stage::Cast, cast_reply());
+        run_stage(&session, Stage::World, world_reply());
+
+        let cast = items(&session, Stage::Cast).unwrap();
+        let world = items(&session, Stage::World).unwrap();
+        assert_eq!(cast.len(), 2);
+        assert_eq!(world.len(), 4);
+        assert!(cast.iter().any(|item| item.key == "char-a"));
+        assert_eq!(
+            world.len(),
+            4,
+            "world lane contains settings, lore, and two powers"
+        );
+
+        assert_eq!(accept(&session, Stage::Cast, None).unwrap(), 2);
+        assert_eq!(accept(&session, Stage::World, None).unwrap(), 4);
+        assert_eq!(commit(&session, Stage::Cast, None).unwrap().committed, 2);
+        assert_eq!(commit(&session, Stage::World, None).unwrap().committed, 4);
+    }
+
+    #[test]
+    fn accept_world_proposals_then_commit_commits_every_accepted_item() {
+        let _home = TempHome::new("outline-accept-world-commit");
+        let (project, session) = project_with_plan("accept-world-commit");
+        prepare_through_chapters(&project, &session);
+        run_stage(&session, Stage::Cast, cast_reply());
+        accept(&session, Stage::Cast, None).unwrap();
+        commit(&session, Stage::Cast, None).unwrap();
+        run_stage(&session, Stage::World, world_reply());
+
+        let accepted = accept(&session, Stage::World, None).unwrap();
+        assert_eq!(accepted, 4);
+        let status = status(&session).unwrap();
+        assert_eq!(status.counts["accepted"], accepted);
+        assert_eq!(status.counts["pending"], 0);
+
+        let report = commit(&session, Stage::World, None).unwrap();
+        assert_eq!(report.committed, accepted as usize);
+        assert_eq!(
+            items(&session, Stage::World)
+                .unwrap()
+                .iter()
+                .filter(|item| item.status == "committed")
+                .count(),
+            accepted as usize
+        );
+    }
+
+    #[test]
+    fn accept_all_then_commit_accepts_all_arc_proposals() {
+        let _home = TempHome::new("outline-accept-commit-all");
+        let (project, session) = project_with_plan("accept-commit-all");
+        start(&project, &session).unwrap();
+        run_stage(&session, Stage::Arcs, arcs_reply());
+
+        let accepted = accept(&session, Stage::Arcs, None).unwrap();
+        assert_eq!(accepted, 3);
+        let status = status(&session).unwrap();
+        assert_eq!(status.counts["accepted"], 3);
+        assert_eq!(status.counts["pending"], 0);
+
+        let report = commit(&session, Stage::Arcs, None).unwrap();
+        assert_eq!(report.committed, 3);
+        assert_eq!(
+            items(&session, Stage::Arcs)
+                .unwrap()
+                .iter()
+                .filter(|item| item.status == "committed")
+                .count(),
+            3
+        );
     }
 
     #[test]

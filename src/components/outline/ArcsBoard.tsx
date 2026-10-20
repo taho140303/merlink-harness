@@ -46,6 +46,9 @@ export function ArcsBoard({
   const [range, setRange] = useState("1-10");
   const [error, setError] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -68,6 +71,63 @@ export function ArcsBoard({
   const arcs = items.filter((item) => item.lane === "arc_smith");
   const chapters = items.filter((item) => item.lane === "chapter_smith");
 
+  function reviewControls(list: OutlineItem[], stage: "arcs" | "chapters") {
+    const reviewable = list.filter((item) => item.status === "pending");
+    const selected = reviewable.filter((item) => selectedIds.has(item.id));
+    const disabled = busy || pendingKey !== null || bulkPending;
+    return (
+      <div className="outline-section-actions">
+        <span className="outline-count">{selected.length} đã chọn / {reviewable.length} chờ duyệt</span>
+        <button
+          type="button"
+          className="btn"
+          disabled={disabled || reviewable.length === 0}
+          onClick={() => setSelectedIds((current) => new Set([...current, ...reviewable.map((item) => item.id)]))}
+        >
+          Chọn tất cả
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={disabled || selected.length === 0}
+          onClick={() => setSelectedIds((current) => {
+            const next = new Set(current);
+            reviewable.forEach((item) => next.delete(item.id));
+            return next;
+          })}
+        >
+          Bỏ chọn
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={disabled || selected.length === 0}
+          onClick={() => void bulkAccept(stage, selected)}
+        >
+          Duyệt đã chọn ({selected.length})
+        </button>
+      </div>
+    );
+  }
+
+  async function bulkAccept(stage: "arcs" | "chapters", selected: OutlineItem[]) {
+    const ids = selected.filter((item) => item.status === "pending").map((item) => item.id);
+    if (ids.length === 0) return;
+    setBulkPending(true);
+    setError("");
+    setStatus("");
+    try {
+      const count = await acceptOutlineItems(sessionId, stage, ids);
+      setSelectedIds(new Set());
+      setStatus(`${count} mục đã được duyệt.`);
+      onChanged();
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBulkPending(false);
+    }
+  }
+
   async function decide(
     item: OutlineItem,
     kind: "accept" | "reject" | "regenerate",
@@ -77,8 +137,8 @@ export function ArcsBoard({
     setPendingKey(item.key);
     setError("");
     try {
-      if (kind === "accept") await acceptOutlineItems(sessionId, stage, [item.key]);
-      else if (kind === "reject") await rejectOutlineItems(sessionId, stage, [item.key]);
+      if (kind === "accept") await acceptOutlineItems(sessionId, stage, [item.id]);
+      else if (kind === "reject") await rejectOutlineItems(sessionId, stage, [item.id]);
       else {
         await regenerateOutlineItem(
           sessionId,
@@ -89,6 +149,11 @@ export function ArcsBoard({
           note,
         );
       }
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
       onChanged();
     } catch (reason) {
       setError(String(reason));
@@ -132,11 +197,13 @@ export function ArcsBoard({
           {error}
         </p>
       )}
+      {status && <p className="outline-message" role="status">{status}</p>}
 
       <section className="outline-section">
         <header className="outline-section-head">
           <h2>Tóm tắt các cung truyện</h2>
           <span className="outline-count">{arcs.length} arc</span>
+          {reviewControls(arcs, "arcs")}
         </header>
         {arcs.length === 0 ? (
           <p className="outline-empty">
@@ -145,14 +212,28 @@ export function ArcsBoard({
         ) : (
           <div className="outline-arc-list">
             {arcs.map((item) => (
-              <ItemCard
-                key={item.key}
-                item={item}
-                busy={busy || pendingKey === item.key}
-                onAccept={() => void decide(item, "accept")}
-                onReject={() => void decide(item, "reject")}
-                onRegenerate={(note) => void decide(item, "regenerate", note)}
-              >
+              <div key={item.key}>
+                <label className="outline-selection">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    disabled={busy || pendingKey !== null || bulkPending || item.status !== "pending"}
+                    onChange={(event) => setSelectedIds((current) => {
+                      const next = new Set(current);
+                      if (event.target.checked) next.add(item.id);
+                      else next.delete(item.id);
+                      return next;
+                    })}
+                  />
+                  Chọn mục để duyệt
+                </label>
+                <ItemCard
+                  item={item}
+                  busy={busy || pendingKey === item.key || bulkPending}
+                  onAccept={() => void decide(item, "accept")}
+                  onReject={() => void decide(item, "reject")}
+                  onRegenerate={(note) => void decide(item, "regenerate", note)}
+                >
                 <dl className="outline-facts">
                   <div>
                     <dt>Mục tiêu</dt>
@@ -172,7 +253,8 @@ export function ArcsBoard({
                     <Markdown content={item.summarize} />
                   </div>
                 )}
-              </ItemCard>
+                </ItemCard>
+              </div>
             ))}
           </div>
         )}
@@ -182,6 +264,7 @@ export function ArcsBoard({
         <header className="outline-section-head">
           <h2>Chương</h2>
           <span className="outline-count">{chapters.length} chương</span>
+          {reviewControls(chapters, "chapters")}
           <div className="outline-section-actions">
             {rangeSelect}
             <button
@@ -202,9 +285,23 @@ export function ArcsBoard({
           <ol className="outline-chapter-list">
             {chapters.map((item) => (
               <li key={item.key}>
+                <label className="outline-selection">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    disabled={busy || pendingKey !== null || bulkPending || item.status !== "pending"}
+                    onChange={(event) => setSelectedIds((current) => {
+                      const next = new Set(current);
+                      if (event.target.checked) next.add(item.id);
+                      else next.delete(item.id);
+                      return next;
+                    })}
+                  />
+                  Chọn mục để duyệt
+                </label>
                 <ItemCard
                   item={item}
-                  busy={busy || pendingKey === item.key}
+                  busy={busy || pendingKey === item.key || bulkPending}
                   onAccept={() => void decide(item, "accept")}
                   onReject={() => void decide(item, "reject")}
                   onRegenerate={(note) => void decide(item, "regenerate", note)}
