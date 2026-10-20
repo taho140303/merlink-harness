@@ -307,6 +307,18 @@ fn body_outline_accept() -> Value {
 fn body_outline_reject() -> Value {
     json!({"sessionId":"contract-session-history","stage":"arcs","keys":null})
 }
+fn body_writing_status() -> Value {
+    json!({"projectId":"contract-project"})
+}
+fn body_write_scene() -> Value {
+    json!({"projectId":"contract-project","providerId":"provider","modelId":"model","chapter":1,"position":1,"note":null})
+}
+fn body_rewrite_scenes() -> Value {
+    json!({"projectId":"contract-project","providerId":"provider","modelId":"model","scenes":[{"chapter":1,"position":1}],"note":null})
+}
+fn body_lock_scene() -> Value {
+    json!({"projectId":"contract-project","chapter":1,"position":1,"locked":true})
+}
 fn body_outline_cancel() -> Value {
     json!({"sessionId":"contract-session-history"})
 }
@@ -456,6 +468,22 @@ static CONTRACT: &[ContractEntry] = &[
     ContractEntry {
         cmd: "outline_cancel",
         body: body_outline_cancel,
+    },
+    ContractEntry {
+        cmd: "writing_status",
+        body: body_writing_status,
+    },
+    ContractEntry {
+        cmd: "write_scene",
+        body: body_write_scene,
+    },
+    ContractEntry {
+        cmd: "rewrite_scenes",
+        body: body_rewrite_scenes,
+    },
+    ContractEntry {
+        cmd: "lock_scene",
+        body: body_lock_scene,
     },
 ];
 
@@ -1311,6 +1339,7 @@ fn test_every_contract_entry_uses_camel_case_keys() {
     // Phase 2 funnels its calls through one typed helper module, so that file is
     // the real call site for the outline commands.
     const OUTLINE_TS: &str = include_str!("../../src/lib/outline.ts");
+    const WRITING_TS: &str = include_str!("../../src/lib/writing.ts");
 
     for entry in CONTRACT {
         let keys = entry.camel_keys();
@@ -1337,7 +1366,8 @@ fn test_every_contract_entry_uses_camel_case_keys() {
                     || PROJECTS_TSX.contains(key.as_str())
                     || PROJECT_DETAIL_TSX.contains(key.as_str())
                     || SETTINGS_DIALOG_TSX.contains(key.as_str())
-                    || OUTLINE_TS.contains(key.as_str()),
+                    || OUTLINE_TS.contains(key.as_str())
+                    || WRITING_TS.contains(key.as_str()),
                 "{}: key `{key}` is not sent by any frontend call site — \
                  the contract table is guessing",
                 entry.cmd

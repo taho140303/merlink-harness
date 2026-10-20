@@ -10,6 +10,7 @@ mod runtime;
 mod store;
 mod super_json;
 mod tools;
+mod writing;
 #[allow(unused_imports)]
 use commands::{
     context_usage, delete_session, execute_tool, fetch_models, get_project, get_session,
@@ -48,7 +49,11 @@ macro_rules! merlink_handlers {
             crate::commands::outline::outline_commit,
             crate::commands::outline::outline_accept,
             crate::commands::outline::outline_reject,
-            crate::commands::outline::outline_cancel
+            crate::commands::outline::outline_cancel,
+            crate::commands::writing::writing_status,
+            crate::commands::writing::write_scene,
+            crate::commands::writing::rewrite_scenes,
+            crate::commands::writing::lock_scene
         ]
     };
 }

@@ -1103,6 +1103,32 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
     }
     case "outline_cancel":
       return undefined;
+    case "writing_status":
+      return { ok: true, scenes: 12, written: 3, words: 2700, locked: 0 };
+    case "write_scene": {
+      const request = args as { chapter: number; position: number };
+      return {
+        scene: `Cảnh ${request.position}`,
+        path: `content/chapter-${String(request.chapter).padStart(3, "0")}/scene-${String(request.position).padStart(3, "0")}.md`,
+        word_count: 912,
+        within_budget: true,
+        clean: true,
+        violations: [],
+      };
+    }
+    case "rewrite_scenes": {
+      const request = args as { scenes: Array<{ chapter: number; position: number }> };
+      return (request.scenes ?? []).map((scene) => ({
+        scene: `Cảnh ${scene.position}`,
+        path: `content/chapter-${String(scene.chapter).padStart(3, "0")}/scene-${String(scene.position).padStart(3, "0")}.md`,
+        word_count: 880,
+        within_budget: true,
+        clean: true,
+        violations: [],
+      }));
+    }
+    case "lock_scene":
+      return undefined;
     case "context_usage": {
       const request = args as { providerId?: string; modelId?: string } | undefined;
       if (!request?.providerId || !request?.modelId) {

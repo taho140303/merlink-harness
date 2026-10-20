@@ -250,6 +250,31 @@ export interface OutlineRunResult {
   tokens_out: number;
 }
 
+/** One scene addressed the way the plan stores it. */
+export interface SceneRef {
+  chapter: number;
+  position: number;
+}
+
+/** Mirrors `writing::WriteReport`: what one prose call produced. */
+export interface WriteReport {
+  scene: string;
+  path: string;
+  word_count: number;
+  within_budget: boolean;
+  clean: boolean;
+  violations: string[];
+}
+
+/** Mirrors `writing::status`. */
+export interface WritingStatus {
+  ok: boolean;
+  scenes: number;
+  written: number;
+  words: number;
+  locked: number;
+}
+
 /** Mirrors `CommitReport`: what `outline_commit` wrote and what it skipped. */
 export interface CommitReport {
   committed: number;

@@ -4,6 +4,7 @@ pub(crate) mod project;
 pub(crate) mod providers;
 pub(crate) mod sessions;
 pub(crate) mod super_json;
+pub(crate) mod writing;
 
 #[allow(unused_imports)]
 pub(crate) use chat::{context_usage, list_messages, send_chat};
@@ -22,3 +23,5 @@ pub(crate) use sessions::{delete_session, get_session, list_sessions, rename_ses
 pub(crate) use super_json::{
     super_json_labels, super_json_progress, super_json_read, super_json_summary,
 };
+#[allow(unused_imports)]
+pub(crate) use writing::{lock_scene, rewrite_scenes, write_scene, writing_status};
