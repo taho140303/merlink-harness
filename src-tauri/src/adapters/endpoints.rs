@@ -60,6 +60,16 @@ pub(super) fn models_endpoint(base_url: &str, kind: &str) -> String {
     }
 }
 
+pub(super) fn ollama_tags_endpoint(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    let base = base.strip_suffix("/v1").unwrap_or(base);
+    if base.ends_with("/api/tags") {
+        base.to_owned()
+    } else {
+        format!("{base}/api/tags")
+    }
+}
+
 pub(super) fn output_limit(value: &str) -> u64 {
     let trimmed = value.trim().to_uppercase();
     let (number, multiplier) = if let Some(prefix) = trimmed.strip_suffix('K') {
@@ -77,7 +87,7 @@ pub(super) fn output_limit(value: &str) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{fetch_models, parse_models_response};
+    use super::super::{fetch_models, is_local_ollama_url, parse_models_response};
     use super::*;
     use serde_json::json;
 
@@ -218,6 +228,38 @@ mod tests {
                 "Provider returned no models"
             );
         }
+    }
+
+    #[test]
+    fn test_parse_ollama_tags_returns_model_ids() {
+        let body = json!({"models": [
+            {"name": "qwen3:8b", "model": "qwen3:8b"},
+            {"name": "llama3.2:latest"}
+        ]});
+        let models = super::super::parse_ollama_tags(&body).unwrap();
+        assert_eq!(
+            models
+                .iter()
+                .map(|model| model.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["qwen3:8b", "llama3.2:latest"]
+        );
+        assert_eq!(models[0].name, "qwen3:8b");
+    }
+
+    #[test]
+    fn test_ollama_local_detection_and_tags_endpoint() {
+        assert!(is_local_ollama_url("http://127.0.0.1:11434/v1"));
+        assert!(is_local_ollama_url("http://localhost:11434"));
+        assert!(!is_local_ollama_url("https://ollama.com/v1"));
+        assert_eq!(
+            ollama_tags_endpoint("http://127.0.0.1:11434/v1"),
+            "http://127.0.0.1:11434/api/tags"
+        );
+        assert_eq!(
+            ollama_tags_endpoint("http://127.0.0.1:11434/api/tags"),
+            "http://127.0.0.1:11434/api/tags"
+        );
     }
 
     #[test]

@@ -362,9 +362,10 @@ enum Language {
 }
 
 Table projects {
-    id uuid [pk, note: 'UUIDv7']
+    id varchar [pk, note: 'Mã định danh dự án (ví dụ default, hoặc slug/UUID của project)']
     code varchar [unique]
     name varchar
+    title varchar [note: 'Tên hiển thị của dự án']
     author varchar
     summarize text [note: 'Tóm tắt']
     language Language [default: 'VI']
@@ -374,6 +375,34 @@ Table projects {
     indexes {
         created_at
     }
+}
+
+Table sessions {
+    id varchar [pk, note: 'Mã session (sessionId)']
+    project_id varchar [ref: > projects.id, note: 'Mã project mà session này liên kết vào']
+    title varchar [note: 'Tiêu đề tóm tắt của phiên chat']
+    created_at timestamp [note: 'Thời gian tạo session']
+
+    indexes {
+        project_id
+        created_at
+    }
+    Note: 'Phiên làm việc / Chat sessions'
+}
+
+Table messages {
+    id varchar [pk, note: 'Mã tin nhắn']
+    session_id varchar [ref: > sessions.id, note: 'Thuộc session nào']
+    role varchar [note: 'Vai trò (user, assistant, tool,...)']
+    content text [note: 'Nội dung văn bản hiển thị']
+    payload_json text [note: 'Chuỗi JSON lưu chi tiết đầy đủ của message envelope (dữ liệu gọi tool, kết quả trả về của tool, token usage, v.v.)']
+    created_at timestamp [note: 'Thời gian tạo tin nhắn']
+
+    indexes {
+        session_id [name: 'idx_messages_session']
+        created_at
+    }
+    Note: 'Lịch sử tin nhắn & Tool calls'
 }
 
 Table project_motifs {

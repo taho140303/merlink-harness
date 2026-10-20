@@ -360,6 +360,18 @@
         "schemaName": "public",
         "x": -2280.826319817472,
         "y": 612.4362819566211
+      },
+      {
+        "name": "sessions",
+        "schemaName": "public",
+        "x": -2593.845944635831,
+        "y": 2360.966805899395
+      },
+      {
+        "name": "messages",
+        "schemaName": "public",
+        "x": -2332.335690729581,
+        "y": 2360.966805899395
       }
     ],
     "tableGroupCollapseStates": [],
@@ -4666,6 +4678,111 @@
           "tier_id"
         ],
         "secondTableName": "power_abilities",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "projects",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "project_id"
+        ],
+        "secondTableName": "themes",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "arcs",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "arc_id"
+        ],
+        "secondTableName": "themes",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "themes",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "parent_theme_id"
+        ],
+        "secondTableName": "themes",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "themes",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "theme_id"
+        ],
+        "secondTableName": "theme_arguments",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "theme_arguments",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "projects",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "project_id"
+        ],
+        "secondTableName": "sessions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "sessions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "session_id"
+        ],
+        "secondTableName": "messages",
         "secondSchemaName": "public",
         "secondRelation": "*",
         "checkPoints": []

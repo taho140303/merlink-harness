@@ -15,10 +15,12 @@ use std::{future::Future, pin::Pin};
 
 use serde_json::Value;
 
-use crate::models::{FetchedModel, MessageEnvelope, TokenUsage, ToolCall};
+use crate::models::{
+    FetchedModel, InputTypes, MessageEnvelope, ModelConfig, ProviderConfig, TokenUsage, ToolCall,
+};
 
 use anthropic::call_anthropic;
-use endpoints::models_endpoint;
+use endpoints::{models_endpoint, ollama_tags_endpoint};
 use http::{checked_json, list_client};
 use openai::call_openai;
 
@@ -109,18 +111,84 @@ impl LlmBackend for HttpBackend {
             }
             match request.kind.as_str() {
                 "anthropic" => call_anthropic(&request).await,
-                "openai" | "custom" => call_openai(&request).await,
+                "openai" | "custom" | "ollama" => call_openai(&request).await,
                 other => Err(format!("Unsupported provider kind: {other}")),
             }
         })
     }
 }
 
-/// Extracts the model list from a provider response (Sprint 11.5 · D4).
+/// Extracts installed models from Ollama's native `/api/tags` response.
+pub fn parse_ollama_tags(body: &Value) -> Result<Vec<FetchedModel>, String> {
+    let entries = body
+        .get("models")
+        .and_then(Value::as_array)
+        .ok_or("Ollama response contains no model list (expected a 'models' array)")?;
+    let models: Vec<FetchedModel> = entries
+        .iter()
+        .filter_map(|entry| {
+            let id = entry.get("name")?.as_str()?.trim();
+            (!id.is_empty()).then(|| FetchedModel {
+                id: id.to_owned(),
+                name: id.to_owned(),
+            })
+        })
+        .collect();
+    if models.is_empty() {
+        return Err("Ollama returned no models".into());
+    }
+    Ok(models)
+}
+
+/// Returns true for loopback endpoints, where Ollama does not require a cloud key.
+pub fn is_local_ollama_url(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url.trim())
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_ascii_lowercase))
+        .is_some_and(|host| matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1"))
+}
+
+/// Detects a running local Ollama instance and builds its selectable provider entry.
+pub async fn detect_local_ollama() -> Option<ProviderConfig> {
+    let response = list_client()
+        .ok()?
+        .get("http://127.0.0.1:11434/api/tags")
+        .send()
+        .await
+        .ok()?;
+    let models = parse_ollama_tags(&checked_json(response).await.ok()?).ok()?;
+    let configs: Vec<ModelConfig> = models
+        .into_iter()
+        .map(|model| ModelConfig {
+            id: model.id.clone(),
+            name: model.name,
+            context_window: "128K".into(),
+            max_tokens: "4K".into(),
+            input_types: InputTypes {
+                text: true,
+                image: false,
+            },
+            reasoning_level: false,
+        })
+        .collect();
+    Some(ProviderConfig {
+        id: "ollama-local".into(),
+        name: "Ollama (local)".into(),
+        kind: "ollama".into(),
+        api_key: String::new(),
+        base_url: "http://127.0.0.1:11434/v1".into(),
+        default_model_id: configs
+            .first()
+            .map(|model| model.id.clone())
+            .unwrap_or_default(),
+        models: configs,
+    })
+}
+
+/// Extracts the model list from OpenAI-compatible provider responses.
 ///
-/// Both wire formats put the collection under `data[]`, and a bare JSON array is
-/// accepted because proxies often omit the envelope. Entries without a usable
-/// `id` are skipped; an empty list is an error.
+/// The collection is under `data[]`, and a bare JSON array is accepted because
+/// proxies often omit the envelope. Entries without a usable `id` are skipped.
 pub fn parse_models_response(body: &Value, _kind: &str) -> Result<Vec<FetchedModel>, String> {
     let entries = if let Some(array) = body.get("data").and_then(Value::as_array) {
         array
@@ -168,8 +236,16 @@ pub async fn fetch_models(
     if base_url.trim().is_empty() {
         return Err("Provider base URL is missing".into());
     }
-    if api_key.trim().is_empty() {
+    if kind != "ollama" && api_key.trim().is_empty() {
         return Err("Provider API key is missing".into());
+    }
+    if kind == "ollama" && is_local_ollama_url(base_url) {
+        let response = list_client()?
+            .get(ollama_tags_endpoint(base_url))
+            .send()
+            .await
+            .map_err(|error| format!("Ollama model list request failed: {error}"))?;
+        return parse_ollama_tags(&checked_json(response).await?);
     }
     let endpoint = models_endpoint(base_url, kind);
     let request = match kind {
@@ -177,7 +253,7 @@ pub async fn fetch_models(
             .get(&endpoint)
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01"),
-        "openai" | "custom" => list_client()?.get(&endpoint).bearer_auth(api_key),
+        "openai" | "custom" | "ollama" => list_client()?.get(&endpoint).bearer_auth(api_key),
         other => return Err(format!("Unsupported provider kind: {other}")),
     };
 

@@ -1,0 +1,604 @@
+TRƯỜNG ĐẠI HỌC VĂN HIẾN
+KHOA CÔNG NGHỆ THÔNG TIN
+BỘ MÔN CÔNG NGHỆ PHẦN MỀM & HỆ THỐNG THÔNG TIN
+
+════════════════════════════════════════════════════════════════════════════════
+                      BÁO CÁO ĐỒ ÁN MÔN HỌC
+               MÔN: PHÁT TRIỂN MÃ NGUỒN MỞ (INT4721)
+                      LỚP HỌC PHẦN: 261INT472101
+
+ĐỀ TÀI:
+NGHIÊN CỨU VÀ XÂY DỰNG KHUNG VẬN HÀNH HỖ TRỢ SÁNG TÁC TIỂU THUYẾT
+CÓ KIỂM SOÁT DỮ LIỆU BẰNG AI AGENT (MERLINK HARNESS)
+
+Giảng viên hướng dẫn: ThS. Nguyễn Hoàng Minh Nhật (Email: nhatnhm@vhu.edu.vn)
+Sinh viên thực hiện : Nguyễn Thị Thanh Thảo
+Mã số sinh viên     : 231A290068
+Thời gian học       : Tiết 6 - 10 (12h30 - 17h00)
+════════════════════════════════════════════════════════════════════════════════
+
+                                 MỤC LỤC
+PHẦN MỞ ĐẦU
+1. Lý do chọn đề tài
+2. Mục tiêu nghiên cứu
+3. Đối tượng nghiên cứu
+   3.1 Quản lý thông tin tác giả và hồ sơ dự án sáng tác
+   3.2 Quản lý sảnh tiệc (Khoanh vùng không áp dụng - Chuyển đổi sang Quản lý Không gian sáng tác & Bối cảnh)
+   3.3 Quản lý kế hoạch cấu trúc tác phẩm và phân bổ hồi/chương
+   3.4 Quản lý dịch vụ AI và giao thức Tool Call
+   3.5 Quản lý tài nguyên, phiên làm việc (Session) và Token
+4. Phạm vi nghiên cứu
+5. Phương pháp nghiên cứu
+6. Kết cấu đề tài
+
+CHƯƠNG 1: TRÌNH BÀY KHẢO SÁT HIỆN TRẠNG, MÔ TẢ HỆ THỐNG VÀ CÁC QUY TRÌNH NGHIỆP VỤ LIÊN QUAN
+1.1 Phân tích hiện trạng
+   1.1.1 Thực trạng ứng dụng AI trong sáng tác văn học hiện nay
+   1.1.2 Những khó khăn và hạn chế trong quá trình viết truyện
+   1.1.3 Sự cần thiết của việc xây dựng hệ thống Merlink Harness
+1.2 Mô tả hệ thống
+1.3 Các quy trình nghiệp vụ cốt lõi
+   1.3.1 Quy trình Giai đoạn 1: Khởi tạo và thiết lập cấu trúc tác phẩm qua Super JSON
+   1.3.2 Quy trình Giai đoạn 2: Phê duyệt, phân giải và nạp dữ liệu vào cơ sở dữ liệu SQLite
+   1.3.3 Quy trình Giai đoạn 3: Sinh nội dung chương/phân cảnh có kiểm soát và khóa phân cảnh
+1.4 Yêu cầu hệ thống
+   1.4.1 Yêu cầu chức năng
+   1.4.2 Yêu cầu phi chức năng
+
+CHƯƠNG 2: GIỚI THIỆU CÁC CÔNG NGHỆ ĐƯỢC SỬ DỤNG TRONG QUÁ TRÌNH PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+2.1 Ngôn ngữ mô hình hóa (Lược bỏ theo yêu cầu thực tế đề tài)
+2.2 Công cụ thiết kế sơ đồ (DBML & Mermaid)
+2.3 Hệ quản trị cơ sở dữ liệu (SQLite nhúng & Chuẩn hóa PostgreSQL)
+2.4 Ngôn ngữ truy vấn SQL
+2.5 Phương pháp phát triển hệ thống (Agile/Scrum theo chu kỳ Sprint)
+2.6 Công cụ soạn thảo và trình bày báo cáo
+2.7 Nhận xét về việc lựa chọn công nghệ
+
+CHƯƠNG 3: PHÂN TÍCH HỆ THỐNG VÀ ĐẶC TẢ USE CASE
+3.1 Xác định các tác nhân (Actors) trong hệ thống
+3.2 Sơ đồ Use Case tổng quát
+3.3 Đặc tả chi tiết các Use Case chính
+   3.3.1 Use Case 1: Khởi tạo hồ sơ dự án & Thiết lập Super JSON (Giai đoạn 1)
+   3.3.2 Use Case 2: Phê duyệt và Chuyển hóa dữ liệu sang Database (Giai đoạn 2)
+   3.3.3 Use Case 3: Lập kế hoạch dàn ý phân cảnh (Phase 2 Outline Engine)
+   3.3.4 Use Case 4: Tạo sinh nội dung phân cảnh & Kiểm soát ngữ cảnh (Giai đoạn 3)
+   3.3.5 Use Case 5: Khóa phân cảnh và Đóng gói xuất bản tác phẩm (Completed)
+
+CHƯƠNG 4: ĐỀ XUẤT GIẢI PHÁP VÀ THIẾT KẾ HỆ THỐNG
+4.1 Tổng quan giải pháp hệ thống
+   4.1.1 Mục tiêu của giải pháp
+   4.1.2 Định hướng xây dựng hệ thống
+   4.1.3 Mô hình tổng thể của hệ thống
+4.2 Kiến trúc hệ thống đề xuất
+   4.2.1 Mô hình kiến trúc phần mềm (Tauri 2 + Rust + React 19)
+   4.2.2 Các thành phần trong hệ thống
+   4.2.3 Luồng xử lý dữ liệu tổng thể
+4.3 Thiết kế chức năng hệ thống (Đọc và chuẩn hóa theo nghiệp vụ Merlink)
+   4.3.1 Nhóm chức năng quản lý khách hàng (Không cần - lược bỏ)
+   4.3.2 Nhóm chức năng quản lý sảnh (Không cần - lược bỏ)
+   4.3.3 Nhóm chức năng khởi tạo dự án & lập kế hoạch cấu trúc
+   4.3.4 Nhóm chức năng quản lý dịch vụ tích hợp AI & Tool Call
+   4.3.5 Nhóm chức năng quản lý phiên hội thoại & tài nguyên Token
+   4.3.6 Nhóm chức năng quản lý quyền tác giả & cấu hình Agent AI
+   4.3.7 Nhóm chức năng thống kê tiến độ & báo cáo chất lượng tác phẩm
+4.4 Thiết kế dữ liệu và tích hợp
+   4.4.1 Mô tả luồng dữ liệu giữa các module
+   4.4.2 Tính nhất quán và toàn vẹn dữ liệu
+   4.4.3 Tích hợp giữa các chức năng trong hệ thống
+
+KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+
+════════════════════════════════════════════════════════════════════════════════
+
+                               PHẦN MỞ ĐẦU
+
+1. LÝ DO CHỌN ĐỀ TÀI
+Trong những năm gần đây, sự bùng nổ của trí tuệ nhân tạo tạo sinh (Generative AI) và các mô hình ngôn ngữ lớn (Large Language Models - LLM) như GPT-4, Claude, DeepSeek đã mở ra tiềm năng to lớn trong việc hỗ trợ sáng tác văn học và nội dung số. Tuy nhiên, khi áp dụng LLM vào các tác phẩm dài tập (như tiểu thuyết, truyện nhiều chương với hàng trăm ngàn từ), một hạn chế mang tính cố hữu xuất hiện: LLM nhanh chóng gặp hiện tượng "ảo giác" (hallucination), mất trí nhớ ngữ cảnh (context drift), mâu thuẫn logic nhân vật và phá vỡ cấu trúc cốt truyện đã được thiết lập từ đầu.
+
+Hầu hết các công cụ hỗ trợ sáng tác hiện nay chỉ dừng lại ở mức giao diện trò chuyện (Chatbot) thông thường hoặc cố gắng "fine-tune" mô hình với chi phí tốn kém mà không giải quyết được bài toán ràng buộc dữ liệu. Khi để AI tự do sinh văn bản dài hoặc tự viết script chỉnh sửa tài liệu, dữ liệu sẽ nhanh chóng mất đi tính toàn vẹn, các mối quan hệ nhân vật bị đảo lộn và mạch truyện trở nên rời rạc.
+
+Để giải quyết triệt để vấn đề này, đề tài hướng đến việc xây dựng "Merlink Harness" - một khung vận hành (Operating Harness) mã nguồn mở chạy trực tiếp trên máy tính cá nhân (Local Desktop). Merlink Harness không thực hiện việc huấn luyện (training) hay tinh chỉnh (fine-tuning) lại mô hình, mà tập trung cung cấp một môi trường điều phối chặt chẽ thông qua cơ chế Gọi công cụ (Tool Calling). Mô hình AI bị tước quyền ghi đè tập tin tùy tiện và buộc phải tương tác với dữ liệu (JSON và SQLite) thông qua các hàm nghiệp vụ được đóng gói sẵn có kiểm định nghiêm ngặt. Đây là phương pháp luận tiên tiến, kết hợp giữa sức sáng tạo ngôn ngữ của AI và tính chính xác, nhất quán của cơ sở dữ liệu quan hệ truyền thống.
+
+2. MỤC TIÊU NGHIÊN CỨU
+- Nghiên cứu cơ chế vận hành của AI Agent và giao thức Function Calling / Tool Calling trong môi trường Desktop ứng dụng Tauri 2 và Rust.
+- Thiết kế và chuẩn hóa cấu trúc dữ liệu tự sự đa tầng (Super JSON v3 gồm 81 đường dẫn ghi, 12 đơn vị bắt buộc, 35 đơn vị tùy chọn; hệ cơ sở dữ liệu quan hệ gồm 61 bảng chuẩn hóa cho bối cảnh, nhân vật, motif, dải cảm xúc và văn phong).
+- Xây dựng quy trình sáng tác 3 giai đoạn khép kín: từ hội thoại thiết lập dàn ý (Phase 1), phân giải sang cơ sở dữ liệu cục bộ SQLite (Phase 2), đến tạo sinh và kiểm duyệt phân cảnh với máy trạng thái nghiêm ngặt (Phase 3).
+- Hiện thực hóa cơ chế khóa phân cảnh (Scene Locking) và cổng kiểm duyệt tuyến tính (Linear Approval Gate), đảm bảo tác giả nắm toàn quyền kiểm soát và định hướng tác phẩm.
+
+3. ĐỐI TƯỢNG NGHIÊN CỨU
+Dựa trên sườn cấu trúc chuẩn và đối chiếu với bài toán hệ thống hỗ trợ sáng tác tiểu thuyết Merlink Harness, các đối tượng nghiên cứu được chuẩn hóa như sau:
+3.1 Quản lý thông tin tác giả và hồ sơ dự án sáng tác (Chuyển đổi từ Quản lý khách hàng):
+Nghiên cứu đối tượng trung tâm là Tác giả (User) và Hồ sơ dự án truyện (Project Profile). Bao gồm định danh dự án, tiêu đề, tóm tắt, ngôn ngữ tác phẩm (`VI`, `EN`,...), phong cách hành văn và quyền sở hữu trí tuệ của tác phẩm.
+3.2 Quản lý Không gian sáng tác & Bối cảnh (Chuyển đổi từ Quản lý sảnh tiệc - Mục gốc không áp dụng):
+Trong hệ thống quản trị nhà hàng, "sảnh tiệc" là không gian vật lý diễn ra sự kiện. Đối chiếu sang hệ thống sáng tác Merlink, đối tượng tương ứng là Không gian thế giới (World Building), Hệ thống sức mạnh (Power Systems), Địa điểm (Locations) và Khung bối cảnh văn học (Lore Entries) nơi toàn bộ các sự kiện và nhân vật tương tác.
+3.3 Quản lý kế hoạch cấu trúc tác phẩm và phân bổ hồi/chương (Chuyển đổi từ Quản lý đặt tiệc):
+Nghiên cứu kế hoạch dung lượng (Target Plan) gồm số lượng Hồi (Arc), số lượng Chương (Chapter), số lượng Phân cảnh (Scene) và tổng số Từ (Word Count). Quản lý cấu trúc phân rã cốt truyện từ ý tưởng thô thành kế hoạch chi tiết trước khi tiến hành viết.
+3.4 Quản lý dịch vụ AI và giao thức Tool Call (Chuyển đổi từ Quản lý dịch vụ đi kèm):
+Nghiên cứu các dịch vụ cung cấp mô hình trí tuệ nhân tạo (OpenAI, DeepSeek, Local LLM) và bộ 8 công cụ hạt nhân (`super_json_get`, `super_json_set`, `super_json_add_row`, `super_json_add_field`, `super_json_remove_row`, `super_json_remove_field`, `super_json_validate`, `outline`), đảm bảo AI chỉ được thao tác với dữ liệu thông qua các giao diện hợp lệ.
+3.5 Quản lý tài nguyên, phiên làm việc (Session) và Token (Chuyển đổi từ Quản lý thanh toán và hóa đơn):
+Nghiên cứu việc đo lường, kiểm soát mức tiêu hao tài nguyên (Token Usage), giới hạn ngân sách ngữ cảnh (Context Window), lịch sử trao đổi tin nhắn (`messages`) theo từng phiên làm việc (`sessions`) và cơ chế lưu vết kiểm toán (Audit Trail).
+
+4. PHẠM VI NGHIÊN CỨU
+- Phạm vi công nghệ: Ứng dụng Desktop đa nền tảng phát triển trên Tauri 2, backend bằng Rust (edition 2024), frontend sử dụng React 19, TypeScript, Vite. Cơ sở dữ liệu cục bộ SQLite (`merlink.db`) và tập tin trạng thái `super.json`.
+- Phạm vi nghiệp vụ: Tập trung vào quy trình sáng tác tiểu thuyết có cấu trúc, bao gồm khâu tiền kỳ (thiết lập thế giới, nhân vật, chủ đề, motif), lập dàn ý phân cảnh chi tiết và hỗ trợ chấp bút từng cảnh với sự giám sát của tác giả.
+- Giới hạn đề tài: Không bao gồm việc nghiên cứu giải thuật huấn luyện mạng nơ-ron từ đầu hay triển khai cụm máy chủ điện toán đám mây quy mô lớn; toàn bộ dữ liệu dự án được lưu trữ cục bộ trên máy trạm của tác giả để đảm bảo tính riêng tư và bảo mật tuyệt đối.
+
+5. PHƯƠNG PHÁP NGHIÊN CỨU
+- Phương pháp phân tích tài liệu: Nghiên cứu các lý thuyết tự sự học kinh điển (Narrative Theory), cấu trúc 3 hồi, phân loại motif Aarne-Thompson, hệ thống văn phong và nguyên tắc hành văn (Show Don't Tell, Restraint, Information Control).
+- Phương pháp kỹ nghệ phần mềm: Áp dụng mô hình phát triển phần mềm lặp Agile/Scrum, phân chia thành các chu kỳ Sprint có mục tiêu đo lường rõ ràng (Measurable Acceptance Criteria).
+- Phương pháp thực nghiệm: Xây dựng hệ thống kiểm thử tự động (Unit Test, Integration Test trên Rust với hơn 230 test cases pass) và đối sánh chất lượng văn bản đầu ra của mô hình khi có và không có ràng buộc Tool Calling.
+
+6. KẾT CẤU ĐỀ TÀI
+Nội dung báo cáo gồm 4 chương chính:
+- CHƯƠNG 1: Trình bày khảo sát hiện trạng, mô tả hệ thống và các quy trình nghiệp vụ liên quan.
+- CHƯƠNG 2: Giới thiệu các công nghệ được sử dụng trong quá trình phân tích và thiết kế hệ thống.
+- CHƯƠNG 3: Phân tích hệ thống và đặc tả Use Case.
+- CHƯƠNG 4: Đề xuất giải pháp và thiết kế hệ thống.
+Cuối cùng là phần Kết luận và Định hướng phát triển.
+
+════════════════════════════════════════════════════════════════════════════════
+
+                                 CHƯƠNG 1:
+  TRÌNH BÀY KHẢO SÁT HIỆN TRẠNG, MÔ TẢ HỆ THỐNG VÀ CÁC QUY TRÌNH NGHIỆP VỤ LIÊN QUAN
+
+1.1 PHÂN TÍCH HIỆN TRẠNG
+1.1.1 Thực trạng ứng dụng AI trong sáng tác văn học hiện nay:
+Hiện nay, việc sử dụng các công cụ trí tuệ nhân tạo như ChatGPT, Claude hay các trợ lý AI để hỗ trợ viết văn ngày càng phổ biến. Tuy nhiên, cách tiếp cận phổ biến nhất của người dùng vẫn là "Chat tự do" (Free-form Prompting). Người dùng cung cấp một đoạn gợi ý ngắn và yêu cầu AI viết tiếp. Cách làm này mang tính chất giải trí hoặc chỉ phù hợp với các truyện cực ngắn (Flash Fiction) dưới 1.000 từ. 
+
+1.1.2 Những khó khăn và hạn chế trong quá trình viết truyện:
+Khi tác giả bắt tay vào xây dựng một tác phẩm tiểu thuyết quy mô (từ 50.000 đến hàng trăm ngàn từ), các phương pháp truyền thống bộc lộ những khuyết tật chí mạng:
+- Mất trí nhớ ngữ cảnh (Context Drift): Do giới hạn cửa sổ ngữ cảnh, AI không thể nhớ các chi tiết xuất hiện ở chương 1 khi đang viết chương 10, dẫn đến việc mâu thuẫn về ngoại hình, năng lực và tính cách nhân vật.
+- Thiếu cấu trúc cốt truyện: AI thường có xu hướng giải quyết mâu thuẫn quá nhanh, đưa ra các kết thúc gượng ép hoặc lan man không theo bất kỳ định hướng kịch bản nào.
+- Ảo giác và phá vỡ logic thế giới: AI tự ý sáng tạo ra các quy tắc ma thuật mới, các địa danh vô lý không có trong thiết lập ban đầu của tác giả.
+- Sự tha hóa văn phong: Việc thiếu các chỉ thị kiềm chế dẫn đến văn phong sáo rỗng, nhồi nhét từ ngữ hoa mỹ giả tạo (Melodrama) hoặc vi phạm nguyên tắc "Show, Don't Tell".
+- Mất kiểm soát dữ liệu: Nếu cho phép AI tự động chạy script sửa file trên máy, cấu trúc dữ liệu rất dễ bị hỏng, lỗi cú pháp JSON và không thể khôi phục lại trạng thái cũ.
+
+1.1.3 Sự cần thiết của việc xây dựng hệ thống Merlink Harness:
+Xuất phát từ các thực trạng trên, việc xây dựng một hệ thống phần mềm đóng vai trò "Khung vận hành" (Harness) là vô cùng cấp thiết. Hệ thống này phải:
+- Không can thiệp vào trọng số mô hình nhưng kiểm soát chặt chẽ đầu vào và đầu ra của mô hình.
+- Chuẩn hóa toàn bộ thế giới tiểu thuyết thành dữ liệu có cấu trúc.
+- Cung cấp cho AI các "cánh tay nối dài" là các hàm Tool Call để AI đọc/ghi dữ liệu có kiểm định.
+- Thiết lập quy trình làm việc khoa học, bảo đảm tác giả luôn giữ quyền kiểm soát tối cao ở từng câu chữ và từng cảnh quay.
+
+1.2 MÔ TẢ HỆ THỐNG
+Merlink Harness là ứng dụng Desktop mã nguồn mở dành riêng cho các tác giả, biên kịch và nhà sáng tạo nội dung tiểu thuyết dài tập. Hệ thống hoạt động hoàn toàn độc lập, lưu trữ dữ liệu tại máy trạm (`~/.merlink`), sử dụng công nghệ desktop hiện đại Tauri 2 kết hợp lõi xử lý hiệu năng cao Rust và giao diện người dùng trực quan React 19.
+
+Khác với các phần mềm soạn thảo văn bản thụ động (như Microsoft Word, Google Docs) hay các chatbot thông thường, Merlink Harness chia nhỏ quá trình sáng tác thành một dây chuyền kỹ thuật có kiểm soát:
+- Lõi Harness quản lý vòng lặp tương tác (Agent Loop) tối đa 5 vòng lặp công cụ (Tool Rounds) cho mỗi lượt trao đổi, ngăn chặn tình trạng AI rơi vào vòng lặp vô tận.
+- Hệ thống tài liệu trạng thái Super JSON v3 theo dõi chi tiết 81 đường dẫn ghi, phân định rạch ròi 12 đơn vị bắt buộc và 35 đơn vị tùy chọn, phản ánh chính xác tiến độ hoàn thiện hồ sơ truyện theo tỷ lệ 70/30.
+- Cơ sở dữ liệu SQLite quản lý danh mục dự án, phiên chat và lịch sử tin nhắn phục vụ kiểm toán và hoàn tác.
+- Hệ thống văn bản Markdown độc lập lưu trữ từng phân cảnh riêng biệt (`projects/<id>/content/<chapter>/<scene>.md`), bảo đảm AI chỉ tập trung viết đúng phân cảnh được giao mà không làm xáo trộn các chương khác.
+
+1.3 CÁC QUY TRÌNH NGHIỆP VỤ CỐT LÕI
+Hệ thống vận hành thông qua quy trình 3 giai đoạn chặt chẽ:
+
+1.3.1 Quy trình Giai đoạn 1: Khởi tạo và thiết lập cấu trúc tác phẩm qua Super JSON
+- Bước 1: Tác giả tạo mới một dự án trên giao diện, đặt mã định danh (`code`) và ngôn ngữ tác phẩm.
+- Bước 2: Tác giả trò chuyện với AI Agent để cùng phác thảo thế giới, thể loại, hệ thống nhân vật, tuyến motif và chủ đề tư tưởng.
+- Bước 3: AI Agent không được sửa trực tiếp tập tin `super.json`. Thay vào đó, AI phải gọi các công cụ: `super_json_set` (đặt giá trị cho các trường đơn lẻ), `super_json_add_row` (thêm một thực thể nhân vật, hồi, motif vào bảng), hoặc `super_json_add_field`.
+- Bước 4: Hệ thống tự động tính toán tiến độ hoàn thành dựa trên thuật toán 70/30:
+  + Khi 12 đơn vị bắt buộc (gồm 6 thông số kế hoạch dự án và 6 bảng dữ liệu cốt lõi: genres, arcs, characters, project_motifs, themes, theme_arguments) được điền đầy đủ và hợp lệ, dự án đạt 70% tiến độ.
+  + Các bảng tùy chọn (scenes, world_settings, power_systems, relationships,...) đóng góp vào 30% tiến độ còn lại.
+- Bước 5: Khi thanh tiến độ đạt tối thiểu 70% và tác giả hài lòng với hồ sơ thiết lập, tác giả thực hiện thao tác Phê duyệt chốt tài liệu (Lock & Commit JSON).
+
+1.3.2 Quy trình Giai đoạn 2: Phê duyệt, phân giải và nạp dữ liệu vào cơ sở dữ liệu SQLite
+- Bước 1: Khi tác giả kích hoạt chốt dữ liệu, hệ thống kích hoạt công cụ phân giải tự động (Parser & DB Loader).
+- Bước 2: Dữ liệu từ tập tin `super.json` được kiểm tra tính hợp lệ toàn vẹn (Schema Validation).
+- Bước 3: Hệ thống phân giải các đối tượng JSON thành các thực thể dữ liệu quan hệ và nạp vào cơ sở dữ liệu cục bộ SQLite (`merlink.db`) cũng như chuẩn bị các bảng nội dung.
+- Bước 4: Sau khi chuyển đổi thành công, tài liệu hồ sơ gốc được đưa vào trạng thái chỉ đọc (Committed State). Tác giả chuyển sang giao diện Lập dàn ý phân cảnh (Phase 2 Outline Engine).
+
+1.3.3 Quy trình Giai đoạn 3: Sinh nội dung chương/phân cảnh có kiểm soát và khóa phân cảnh
+- Bước 1: Dàn ý chi tiết của chương truyện được chia thành các Phân cảnh (Scenes) độc lập. Mỗi phân cảnh có mục tiêu kịch bản, nhân vật tham gia và xung đột cụ thể.
+- Bước 2: Quản lý vòng đời phân cảnh qua máy trạng thái `SceneStatus` gồm 5 trạng thái nghiêm ngặt:
+  + `GENERATING`: Tác giả bấm "Generate", AI Agent đang thực thi trong nền. Tại trạng thái này, phân cảnh bị khóa cứng, cấm hoàn toàn thao tác sửa tay để tránh xung đột dữ liệu.
+  + `DRAFT`: AI hoàn thành lượt viết đầu tiên, tạo bản nháp v1. Bản nháp này được lưu thành file markdown riêng biệt.
+  + `REVISING`: Phiên làm việc tích cực nơi tác giả đọc lại, tự tay biên tập hoặc yêu cầu AI tinh chỉnh một đoạn cụ thể.
+  + `APPROVED`: Tác giả xác nhận phân cảnh đạt chất lượng, bấm nút chốt.
+  + `FAILED`: Quá trình tạo sinh bị gián đoạn hoặc gặp lỗi kết nối mô hình.
+- Bước 3: Cơ chế Khóa phân cảnh (Scene Locking):
+  + Trong một chương gồm nhiều phân cảnh (ví dụ: cảnh 1 mở đầu, cảnh 2 đối thoại, cảnh 3 hành động). Nếu tác giả đã ưng ý cảnh 1 và cảnh 2, tác giả sẽ bấm Khóa (Lock/Approved).
+  + Khi yêu cầu AI viết lại hoặc sửa đổi chương, hệ thống cô lập các cảnh đã khóa và chỉ truyền ngữ cảnh của cảnh 3 vào prompt. AI bị giới hạn phạm vi tác vụ, chỉ tập trung sửa cảnh chưa đạt mà không làm hỏng các cảnh đã hoàn chỉnh.
+- Bước 4: Cổng kiểm duyệt tuyến tính (Linear Approval Gate):
+  + Hệ thống nghiêm cấm hành vi viết hàng loạt chương khi chưa có sự kiểm duyệt của con người.
+  + Điều kiện tiên quyết: Tác giả bắt buộc phải chuyển toàn bộ các phân cảnh của Chương $N$ sang trạng thái `APPROVED` thì hệ thống mới mở khóa tính năng viết cho Chương $N+1$. Điều này triệt tiêu hoàn toàn nguy cơ sai lệch logic tích lũy qua các chương.
+- Bước 5: Đóng gói và Xuất bản qua vòng đời tác phẩm `ContentStatus`:
+  + `DRAFT`: Truyện đang trong giai đoạn phác thảo và viết nháp các chương đầu.
+  + `REVISING`: Giai đoạn hoàn thiện, biên tập tổng thể toàn bộ tác phẩm.
+  + `COMPLETED`: Trạng thái Xuất bản chính thức. Khi chuyển sang `COMPLETED`, toàn bộ dự án chuyển sang chế độ Chỉ đọc (Read-only). Tác giả và AI đều không có quyền sửa đổi bất kỳ chương nào nữa nhằm bảo vệ tính nguyên bản của bản thảo. Nếu muốn thay đổi cốt truyện hoặc viết phần mở rộng, tác giả bắt buộc phải sử dụng chức năng Tạo bản sao (Clone/Fork Project).
+
+1.4 YÊU CẦU HỆ THỐNG
+1.4.1 Yêu cầu chức năng:
+- F1. Quản lý dự án: Tạo mới, mở, sao lưu, tạo bản sao (clone) và xóa dự án truyện.
+- F2. Giao diện Chat điều phối: Cung cấp khung trò chuyện với AI Agent, hiển thị log gọi tool thời gian thực, đo lường token sử dụng.
+- F3. Quản lý Super JSON (8 tools): Đọc, cập nhật trường, thêm dòng thực thể, xóa dòng, kiểm định tính hợp lệ của schema.
+- F4. Đo lường tiến độ tự động: Tính toán trực quan thanh tiến độ 70/30 và danh sách các đơn vị còn thiếu (Missing Required Units).
+- F5. Phân giải Schema vào CSDL: Tự động chuyển đổi tài liệu JSON đã chốt sang các bảng quan hệ trong SQLite.
+- F6. Quản lý Dàn ý & Phân cảnh: Tạo hồi, chia chương, phân rã phân cảnh, sắp xếp thứ tự diễn tiến.
+- F7. Cơ chế Máy trạng thái Phân cảnh: Điều khiển chính xác 5 trạng thái `GENERATING`, `DRAFT`, `REVISING`, `APPROVED`, `FAILED`.
+- F8. Khóa phân cảnh (Scene Lock): Khóa cứng nội dung các cảnh đã nghiệm thu, bảo vệ văn bản khỏi việc ghi đè ngẫu nhiên.
+- F9. Quản lý Vòng đời tác phẩm: Điều khiển chuyển đổi trạng thái bản thảo từ `DRAFT` -> `REVISING` -> `COMPLETED`.
+- F10. Quản lý Nhà cung cấp AI (Provider Config): Cho phép tác giả cấu hình API Key của OpenAI, DeepSeek hoặc endpoint máy chủ nội bộ an toàn với quyền hạn file 0600 trên Unix.
+
+1.4.2 Yêu cầu phi chức năng:
+- NF1. Tính toàn vẹn dữ liệu (Data Integrity): AI tuyệt đối không được cấp quyền truy cập hệ thống tập tin (File System Access) trực tiếp mà phải thông qua lớp kiểm soát Function Calling.
+- NF2. Hiệu năng & Dung lượng (Performance): Khởi động ứng dụng dưới 2 giây, chiếm dụng bộ nhớ RAM dưới 150MB ở trạng thái nghỉ nhờ kiến trúc tối ưu của Tauri và Rust.
+- NF3. Tính riêng tư & Bảo mật (Privacy & Security): Toàn bộ văn bản tác phẩm lưu trên máy người dùng, không đồng bộ lên máy chủ trung gian thứ ba ngoài các lệnh gọi API suy luận đã được người dùng cho phép.
+- NF4. Trải nghiệm người dùng (UX/UI): Giao diện hiện đại, áp dụng thiết kế Neumorphism kết hợp kính mờ (Glassmorphism), độ tương phản cao, hỗ trợ chế độ Sáng/Tối (Light/Dark mode) bảo vệ thị lực khi sáng tác thời gian dài.
+- NF5. Tính ổn định và khả năng phục hồi (Reliability): Mọi giao dịch cơ sở dữ liệu đều có cơ chế Transaction an toàn (`BEGIN...COMMIT`), tự động khôi phục bản lưu gần nhất nếu xảy ra sự cố mất điện hoặc crash ứng dụng.
+
+════════════════════════════════════════════════════════════════════════════════
+
+                                 CHƯƠNG 2:
+    GIỚI THIỆU CÁC CÔNG NGHỆ ĐƯỢC SỬ DỤNG TRONG QUÁ TRÌNH PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+
+2.1 NGÔN NGỮ MÔ HÌNH HÓA (Lược bỏ)
+Theo yêu cầu thực tế và phạm vi của đề tài, các ngôn ngữ mô hình hóa hình thức nặng tính hàn lâm (như UML truyền thống phức tạp) được lược bớt để tập trung vào các công cụ biểu diễn trực quan, hiện đại, có khả năng đồng bộ trực tiếp với mã nguồn thực tế.
+
+2.2 CÔNG CỤ THIẾT KẾ SƠ ĐỒ
+- DBML (Database Markup Language): Ngôn ngữ nguồn mở dạng khai báo văn bản dễ đọc, được sử dụng để thiết kế toàn bộ cấu trúc dữ liệu của dự án (`docs/schema/system.dbml`). DBML cho phép định nghĩa các bảng, thuộc tính, kiểu dữ liệu, ràng buộc khóa chính, khóa ngoại, các chỉ mục (indexes) và chú thích nghiệp vụ một cách tường minh.
+- dbdiagram.io: Nền tảng trực quan hóa cơ sở dữ liệu dựa trên mã nguồn DBML, giúp kết xuất sơ đồ quan hệ thực thể (ERD) trực quan, hỗ trợ nhóm phát triển kiểm tra sự phụ thuộc vòng và rà soát quan hệ giữa 61 bảng dữ liệu.
+- Mermaid.js: Công cụ sinh sơ đồ từ cú pháp Markdown, được tích hợp vào tài liệu để biểu diễn các lưu đồ thuật toán, máy trạng thái phân cảnh (`SceneStatus`) và sơ đồ phân rã giai đoạn của dự án.
+
+2.3 HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
+Hệ thống áp dụng kiến trúc cơ sở dữ liệu đa tầng phù hợp với môi trường Desktop:
+- SQLite (Local Embedded Database): Được nhúng trực tiếp vào ứng dụng thông qua thư viện `rusqlite` (tùy chọn compile `bundled`). SQLite đảm nhận vai trò lưu trữ cục bộ tại máy trạm (`~/.merlink/merlink.db`) cho các bảng dữ liệu tác vụ: `projects` (dự án), `sessions` (phiên chat), `messages` (nhật ký trao đổi), `outline_runs` và `outline_items` (các phiên chạy dàn ý). SQLite có ưu điểm vượt trội: không cần cài đặt dịch vụ máy chủ, không tốn tài nguyên mạng, tốc độ đọc ghi cực nhanh và dữ liệu được gói gọn trong tập tin duy nhất dễ sao lưu.
+- Mô hình chuẩn hóa PostgreSQL: Được sử dụng ở tầng đặc tả kiến trúc và thiết kế hệ thống mẫu (`docs/schema/init_schema.sql`). Toàn bộ 61 bảng dữ liệu quy chuẩn (từ danh mục 125 motifs, 20 genres, 21 directives, 54 style presets đến các bảng thực thể thế giới, nhân vật) được viết chuẩn cú pháp PostgreSQL 13+ với khóa định danh UUIDv7/gen_random_uuid, bảo đảm tính sẵn sàng mở rộng khi hệ thống phát triển phiên bản đám mây đa người dùng trong tương lai.
+
+2.4 NGÔN NGỮ TRUY VẤN SQL
+SQL (Structured Query Language) đóng vai trò ngôn ngữ thao tác dữ liệu chuẩn mực trong hệ thống:
+- Cú pháp DDL (Data Definition Language): Định nghĩa bảng, chỉ mục và ràng buộc toàn vẹn khóa ngoại (`ON DELETE CASCADE`, `ON DELETE SET NULL`).
+- Cú pháp DML (Data Manipulation Language): Được tối ưu hóa thông qua các mệnh đề an toàn như `INSERT INTO ... SELECT ... ON CONFLICT DO NOTHING / UPDATE`, bảo đảm tính Idempotent - các đoạn mã seed dữ liệu mẫu có thể chạy lại nhiều lần mà không gây lỗi trùng lặp khóa chính hay sinh rác dữ liệu.
+- Quản lý giao dịch (Transaction Management): Mọi thao tác cập nhật phức tạp giữa nhiều bảng đều được bao bọc trong cặp khối lệnh `BEGIN TRANSACTION` và `COMMIT`, bảo đảm nguyên tắc ACID (Atomicity, Consistency, Isolation, Durability).
+
+2.5 PHƯƠNG PHÁP PHÁT TRIỂN HỆ THỐNG
+Dự án áp dụng phương pháp phát triển phần mềm Agile/Scrum theo hướng TDD (Test-Driven Development):
+- Chia nhỏ khối lượng công việc thành các chu kỳ chạy nước rút (Sprint) từ Sprint 1 đến Sprint 17. Mỗi Sprint có mục tiêu đo lường rõ ràng (Measurable Goal), danh mục công việc chi tiết (Tasks List) và tiêu chí nghiệm thu tự động (Acceptance Criteria).
+- Áp dụng nghiêm ngặt quy trình kiểm thử với Cargo Test trên Rust. Mỗi thành phần cốt lõi (từ bộ phân giải đường dẫn Super JSON, bộ tính toán tiến độ 70/30, đến bộ lọc văn phong) đều có bộ Unit Test đi kèm. Hiện tại hệ thống duy trì hơn 230 bài kiểm thử tự động luôn đạt trạng thái Passed.
+
+2.6 CÔNG CỤ SOẠN THẢO VÀ TRÌNH BÀY BÁO CÁO
+- Visual Studio Code: Môi trường phát triển tích hợp (IDE) chính, kết hợp các tiện ích mở rộng như Rust Analyzer, ESLint, Prettier, Tailwind CSS IntelliSense.
+- Git & GitHub: Hệ thống quản lý phiên bản phân tán, theo dõi toàn bộ lịch sử cam kết mã nguồn theo từng nhánh tính năng và chu kỳ Sprint.
+- Markdown & DSH Web GUI: Môi trường ghi nhận tài liệu thiết kế và vận hành các kịch bản kiểm thử giao tiếp AI Agent.
+
+2.7 NHẬN XÉT VỀ VIỆC LỰA CHỌN CÔNG NGHỆ
+Việc lựa chọn bộ công nghệ Tauri 2 + Rust + React 19 + SQLite mang lại những ưu thế vượt bậc:
+- So với Electron: Tauri sử dụng WebView gốc của hệ điều hành kết hợp với ngôn ngữ lập trình hệ thống Rust, giúp giảm dung lượng gói cài đặt từ hàng trăm Megabyte xuống chỉ còn dưới 15MB, đồng thời giảm mức tiêu thụ RAM từ hơn 1GB xuống dưới 100MB.
+- An toàn bộ nhớ tuyệt đối: Ngôn ngữ Rust loại bỏ hoàn toàn các lỗi quản lý bộ nhớ nguy hiểm (như Null Pointer, Buffer Overflow, Data Race), bảo đảm ứng dụng hoạt động bền bỉ, không bị văng lỗi bất ngờ trong các tác vụ xử lý văn bản nặng.
+- Trải nghiệm giao diện mượt mà: React 19 cùng hệ thống Tailwind CSS mang đến khả năng phản hồi tức thì trên giao diện, tạo dựng không gian sáng tác hiện đại, tinh tế và truyền cảm hứng cho người viết.
+
+════════════════════════════════════════════════════════════════════════════════
+
+                                 CHƯƠNG 3:
+                     PHÂN TÍCH HỆ THỐNG VÀ ĐẶC TẢ USE CASE
+
+3.1 XÁC ĐỊNH CÁC TÁC NHÂN (ACTORS) TRONG HỆ THỐNG
+1. Tác giả / Người dùng sáng tác (Author / Primary Actor):
+   Là con người trực tiếp sử dụng phần mềm để xây dựng tác phẩm, tham gia hội thoại định hướng với AI, ra quyết định phê duyệt cấu trúc JSON, chỉnh sửa văn bản và thực hiện thao tác nghiệm thu khóa phân cảnh hoặc xuất bản truyện.
+2. AI Agent / Language Model (AI Assistant / System Actor):
+   Là mô hình ngôn ngữ lớn hoạt động bên dưới khung điều phối Harness. Tác nhân này đóng vai trò trợ lý thông minh: lắng nghe chỉ đạo của tác giả, tra cứu dữ liệu bối cảnh và gọi các công cụ (Tool Call) có sẵn để cập nhật hồ sơ hoặc chấp bút phân cảnh theo phong cách được quy định.
+3. Hệ thống CSDL Cục bộ (Local Database / Secondary Actor):
+   Thành phần SQLite nhúng chịu trách nhiệm lưu trữ bền vững các thực thể dự án, phiên chat, tin nhắn và dữ liệu dàn ý phân cảnh.
+
+3.2 SƠ ĐỒ USE CASE TỔNG QUÁT
+Hệ thống Merlink Harness bao gồm 5 cụm Use Case chính phân theo luồng nghiệp vụ:
+
+           ┌─────────────────────────────────────────────────────────┐
+           │                   MERLINK HARNESS                       │
+           │                                                         │
+           │  [ UC01: Khởi tạo hồ sơ & Thiết lập Super JSON ]        │
+           │                           ▲                             │
+           │                           │ (hoàn thành >= 70%)         │
+           │  [ UC02: Phê duyệt & Nạp dữ liệu vào SQLite ]           │
+           │                           ▲                             │
+[Tác giả] ─┼── [ UC03: Lập kế hoạch dàn ý phân cảnh (Outline) ]     │ ── [AI Agent]
+           │                           ▲                             │
+           │                           │ (từng chương tuyến tính)    │
+           │  [ UC04: Tạo sinh nội dung cảnh & Khóa phân cảnh ]      │
+           │                           ▲                             │
+           │                           │ (toàn bộ chương approved)   │
+           │  [ UC05: Nghiệm thu & Xuất bản truyện (Completed) ]     │
+           │                                                         │
+           └─────────────────────────────────────────────────────────┘
+
+3.3 ĐẶC TẢ CHI TIẾT CÁC USE CASE CHÍNH
+
+3.3.1 Use Case 1: Khởi tạo hồ sơ dự án & Thiết lập Super JSON (Giai đoạn 1)
+- Tên Use Case: Khởi tạo và thiết lập cấu trúc tác phẩm qua Super JSON.
+- Tác nhân: Tác giả (chính), AI Agent (hỗ trợ).
+- Mục đích: Xây dựng bộ khung nền tảng cho tác phẩm gồm thông số dự án, thể loại, hồi, nhân vật, motif, chủ đề tư tưởng đạt tối thiểu 70% tiến độ.
+- Tiền điều kiện: Ứng dụng đã mở, tác giả chọn tạo mới hoặc mở một dự án.
+- Hậu điều kiện: Tập tin `super.json` được cập nhật đầy đủ các trường bắt buộc; thanh tiến độ đạt $\ge 70\%$.
+- Luồng sự kiện chính:
+  1. Tác giả nhập thông tin cơ bản: tên truyện, ngôn ngữ, kế hoạch số hồi/chương/từ.
+  2. Tác giả gửi yêu cầu phác thảo ý tưởng nhân vật hoặc thế giới vào khung chat.
+  3. AI Agent tiếp nhận, phân tích yêu cầu và trả về lệnh gọi công cụ:
+     - Gọi `super_json_set` để cập nhật các thuộc tính dự án.
+     - Gọi `super_json_add_row` để thêm thông tin vào mảng `characters`, `project_genres`, `arcs`, `themes`.
+  4. Lõi Harness Rust chặn lệnh, kiểm tra tính hợp lệ của đường dẫn (thuộc 81 đường dẫn hợp lệ) và cấu trúc dữ liệu.
+  5. Harness thực thi ghi vào `super.json` và trả kết quả thành công cho AI.
+  6. AI phản hồi tóm tắt cho tác giả trên giao diện.
+  7. Thanh tiến độ cập nhật tỷ lệ hoàn thành 12 đơn vị bắt buộc.
+- Luồng sự kiện phụ / Ngoại lệ:
+  - 4a. AI gọi đường dẫn sai hoặc thiếu trường dữ liệu bắt buộc: Harness trả về lỗi vi phạm hợp đồng dữ liệu; AI nhận phản hồi lỗi và thực hiện điều chỉnh lại lệnh gọi trong vòng lặp tiếp theo.
+
+3.3.2 Use Case 2: Phê duyệt và Chuyển hóa dữ liệu sang Database (Giai đoạn 2)
+- Tên Use Case: Phê duyệt chốt JSON và nạp vào SQLite.
+- Tác nhân: Tác giả.
+- Mục đích: Chốt cấu trúc tiền kỳ và phân giải các bảng dữ liệu vào cơ sở dữ liệu quan hệ cục bộ.
+- Tiền điều kiện: Dự án đạt tối thiểu 70% tiến độ (đủ 12 đơn vị bắt buộc).
+- Hậu điều kiện: Dữ liệu được nạp vào SQLite, tập tin `super.json` khóa chỉnh sửa, mở khóa Giai đoạn dàn ý.
+- Luồng sự kiện chính:
+  1. Tác giả kiểm tra danh mục dữ liệu trên bảng tổng quan tiến độ (Overview Board).
+  2. Tác giả nhấn nút "Chốt cấu trúc dự án" (Commit Super JSON).
+  3. Hệ thống kích hoạt module phân giải dữ liệu trong lõi Rust.
+  4. Lõi Rust mở transaction SQLite, đọc toàn bộ các đối tượng từ `super.json` và chèn vào các bảng tương ứng (`projects`, `characters`, `arcs`, `themes`,...).
+  5. Hệ thống xác nhận giao dịch thành công (`COMMIT`), chuyển cờ trạng thái dự án sang Giai đoạn 2.
+  6. Giao diện hiển thị thông báo thành công và chuyển tác giả sang màn hình Dàn ý (Outline).
+- Luồng sự kiện phụ:
+  - 2a. Nếu dự án chưa đạt 70% (còn đơn vị bắt buộc bị `null` hoặc mảng rỗng): Hệ thống vô hiệu hóa nút bấm và hiển thị danh sách cảnh báo các trường còn thiếu (`missing_required`).
+
+3.3.3 Use Case 3: Lập kế hoạch dàn ý phân cảnh (Phase 2 Outline Engine)
+- Tên Use Case: Sinh và chuẩn hóa dàn ý phân cảnh.
+- Tác nhân: Tác giả, AI Agent.
+- Mục đích: Phân rã từng chương truyện thành chuỗi các phân cảnh có mục tiêu tự sự cụ thể.
+- Tiền điều kiện: Dự án đã hoàn thành Giai đoạn 2.
+- Hậu điều kiện: Các bảng `chapters`, `scenes` được nạp đầy đủ thông tin phân cảnh.
+- Luồng sự kiện chính:
+  1. Tác giả chọn một Hồi (Arc) cần lên chi tiết.
+  2. AI Agent dựa trên thiết lập nhân vật và motif đã lưu trong CSDL để đề xuất danh sách các chương và phân cảnh tương ứng.
+  3. AI gọi công cụ `outline` theo máy trạng thái tuần tự: `seed -> arcs -> chapters -> cast + world -> scenes`.
+  4. Tác giả rà soát danh sách các phân cảnh đề xuất trên giao diện thẻ trực quan.
+  5. Tác giả có thể kéo thả thay đổi vị trí, thêm bớt cảnh hoặc bấm duyệt để lưu dàn ý vào cơ sở dữ liệu.
+
+3.3.4 Use Case 4: Tạo sinh nội dung phân cảnh & Kiểm soát ngữ cảnh (Giai đoạn 3)
+- Tên Use Case: Tạo sinh nội dung phân cảnh và kiểm soát ngữ cảnh.
+- Tác nhân: Tác giả (chính), AI Agent (thực thi).
+- Mục đích: Viết nội dung chi tiết cho từng phân cảnh dưới dạng Markdown với sự kiểm duyệt gắt gao.
+- Tiền điều kiện: Dàn ý phân cảnh đã được tạo; chương trước đó đã được duyệt (hoặc là chương đầu tiên).
+- Hậu điều kiện: Phân cảnh chuyển sang trạng thái `DRAFT` hoặc `APPROVED`; tập tin Markdown được ghi đĩa.
+- Luồng sự kiện chính:
+  1. Tác giả chọn phân cảnh cần viết trong chương hiện tại.
+  2. Tác giả kiểm tra các phân cảnh khác trong cùng chương: các cảnh đã ưng ý được tác giả chuyển sang trạng thái Khóa (`APPROVED`).
+  3. Tác giả bấm nút "Generate Scene".
+  4. Hệ thống chuyển trạng thái phân cảnh sang `GENERATING`, khóa cứng khung soạn thảo thủ công.
+  5. Lõi Rust trích xuất chính xác lát cắt ngữ cảnh cần thiết: thông tin nhân vật tham gia cảnh đó, motif áp dụng, dải cảm xúc và chỉ thị văn phong (`narrative_directives`).
+  6. AI Agent tiến hành viết văn bản phân cảnh và trả về nội dung.
+  7. Lõi kiểm duyệt văn phong (Style Violation Filter) kiểm tra: loại bỏ emoji, kiểm tra dấu câu, định dạng.
+  8. Hệ thống lưu nội dung vào file `projects/<id>/content/<chapter>/<scene>.md`, chuyển trạng thái phân cảnh sang `DRAFT`.
+  9. Tác giả đọc bản nháp, có thể tự chỉnh sửa (chuyển sang `REVISING`) hoặc bấm "Phê duyệt" để chuyển sang `APPROVED`.
+- Luồng sự kiện phụ:
+  - 3a. Tác giả cố tình bấm viết Chương $N+1$ khi Chương $N$ chưa được `APPROVED` 100%: Hệ thống chặn hành động và thông báo: "Chương hiện tại chưa hoàn thành kiểm duyệt, vui lòng phê duyệt toàn bộ phân cảnh trước khi tiếp tục".
+
+3.3.5 Use Case 5: Khóa phân cảnh và Đóng gói xuất bản tác phẩm (Completed)
+- Tên Use Case: Nghiệm thu và Xuất bản tác phẩm.
+- Tác nhân: Tác giả.
+- Mục đích: Khóa toàn bộ nội dung tác phẩm vào trạng thái phát hành, chuyển chế độ chỉ đọc.
+- Tiền điều kiện: Toàn bộ các chương và phân cảnh của tác phẩm đã đạt trạng thái `APPROVED`.
+- Hậu điều kiện: Trạng thái tác phẩm chuyển sang `COMPLETED`, toàn bộ dự án bị khóa sửa đổi.
+- Luồng sự kiện chính:
+  1. Tác giả kiểm tra báo cáo thống kê tổng thể toàn tác phẩm (tổng số từ, số cảnh, mức độ hoàn thiện mục tiêu hồi).
+  2. Tác giả chọn tính năng "Xuất bản tác phẩm" (Publish Novel).
+  3. Hệ thống hiển thị cảnh báo: "Thao tác này sẽ chuyển tác phẩm sang trạng thái COMPLETED và khóa toàn bộ quyền sửa đổi. Bạn có chắc chắn muốn xuất bản?".
+  4. Tác giả xác nhận.
+  5. Hệ thống cập nhật trường `ContentStatus = COMPLETED` trong cơ sở dữ liệu.
+  6. Toàn bộ các công cụ viết và sửa đổi trên giao diện bị vô hiệu hóa; giao diện chuyển sang chế độ Đọc tác phẩm (Reading Mode).
+- Luồng sự kiện phụ:
+  - Tác giả muốn sửa đổi sau khi đã xuất bản: Hệ thống yêu cầu tác giả sử dụng tính năng "Clone Project" để tạo ra một dị bản mới (Fork Version) độc lập, giữ nguyên vẹn bản đã phát hành.
+
+════════════════════════════════════════════════════════════════════════════════
+
+                                 CHƯƠNG 4:
+                   ĐỀ XUẤT GIẢI PHÁP VÀ THIẾT KẾ HỆ THỐNG
+
+4.1 TỔNG QUAN GIẢI PHÁP HỆ THỐNG
+4.1.1 Mục tiêu của giải pháp:
+Xây dựng một kiến trúc phần mềm máy trạm vững chắc, nơi trí tuệ nhân tạo đóng vai trò một động cơ chấp bút chuyên nghiệp đặt dưới sự giám sát toàn diện của tác giả và các quy tắc cơ sở dữ liệu quan hệ.
+
+4.1.2 Định hướng xây dựng hệ thống:
+- "Harness Over Raw Prompting": Thay vì phó mặc cho mô hình tự do sinh văn bản, hệ thống bao bọc mô hình bằng một khung vận hành kiểm soát ngữ cảnh vào/ra.
+- "Data Integrity via Tool Calls": Loại bỏ hoàn toàn việc chỉnh sửa tập tin tự do; mọi biến động dữ liệu đều phải thông qua hàm có tham số chặt chẽ.
+- "Human-in-the-loop": Trao quyền phê duyệt tối thượng cho tác giả thông qua cơ chế khóa phân cảnh và cổng kiểm duyệt tuyến tính.
+
+4.1.3 Mô hình tổng thể của hệ thống:
+Hệ thống được tổ chức thành 4 phân tầng độc lập:
+1. Tầng Giao diện & Trải nghiệm (Presentation Layer): Ứng dụng React 19 chạy trên nền Tauri WebView, cung cấp giao diện Neumorphism, bảng tiến độ Donut, khung trò chuyện và trình đọc Markdown.
+2. Tầng Điều phối & Cầu nối (IPC & Orchestration Layer): Cầu nối Tauri IPC chuyển đổi an toàn các lệnh gọi giữa TypeScript (camelCase) và Rust (snake_case).
+3. Tầng Lõi Nghiệp vụ & Vòng lặp Agent (Core Domain & Agent Engine): Viết bằng Rust, quản lý vòng lặp mô hình tối đa 5 tool rounds, bộ tính toán tiến độ 70/30, bộ máy trạng thái `SceneStatus` và bộ kiểm duyệt văn phong.
+4. Tầng Dữ liệu & Lưu trữ (Data & Persistence Layer): Tập tin cấu hình `config.json` (0600), cơ sở dữ liệu nhúng SQLite `merlink.db`, hồ sơ dự án `super.json` và kho lưu trữ phân cảnh Markdown.
+
+4.2 KIẾN TRÚC HỆ THỐNG ĐỀ XUẤT
+4.2.1 Mô hình kiến trúc:
+Hệ thống áp dụng kiến trúc phân tầng dạng cổng kiểm soát (Gated Layered Architecture) kết hợp mô hình Actor hướng sự kiện cho AI Agent:
+
+      ┌────────────────────────────────────────────────────────┐
+      │             GIAO DIỆN NGƯỜI DÙNG (REACT 19)            │
+      │  [Chat Console] [Progress Donut] [Scene Editor] [Lock] │
+      └───────────────────────────┬────────────────────────────┘
+                                  │ (Tauri IPC Bridge)
+      ┌───────────────────────────▼────────────────────────────┐
+      │                LÕI VẬN HÀNH TAURI / RUST               │
+      │  ┌──────────────────┐  ┌─────────────────────────────┐ │
+      │  │ Agent Loop (max5)│  │ Tool Execution Sandbox      │ │
+      │  │ - Prompt Packing │  │ - super_json_add_row/field  │ │
+      │  │ - Context Slice  │  │ - outline engine / stage    │ │
+      │  └────────┬─────────┘  └──────────────┬──────────────┘ │
+      │           │                           │                │
+      │  ┌────────▼───────────────────────────▼──────────────┐ │
+      │  │ State Machine: SceneStatus & ContentStatus        │ │
+      │  │ Progress Engine: 70% Required / 30% Optional      │ │
+      │  │ Quality Filter: Emoji & Dash Sanitization         │ │
+      │  └───────────────────────────────────────────────────┘ │
+      └───────────────────────────┬────────────────────────────┘
+                                  │
+      ┌───────────────────────────▼────────────────────────────┐
+      │             TẦNG LƯU TRỮ DỮ LIỆU CỤC BỘ                │
+      │  [super.json]   [merlink.db - SQLite]   [scene_*.md]   │
+      └────────────────────────────────────────────────────────┘
+
+4.2.2 Các thành phần trong hệ thống:
+- Module `super_json`: Chịu trách nhiệm nạp, kiểm định, bóc tách và ghi dữ liệu có cấu trúc vào tập tin `super.json`. Quản lý 81 đường dẫn ghi hợp lệ.
+- Module `agent`: Điều khiển vòng lặp tương tác với LLM API. Chuẩn bị prompt hệ thống, nhận phản hồi tool call từ mô hình, điều phối thực thi hàm trong Rust và gửi kết quả ngược lại cho mô hình trong tối đa 5 hiệp.
+- Module `db`: Quản trị kết nối cơ sở dữ liệu SQLite thông qua `rusqlite`, khởi tạo bảng và thực hiện các câu truy vấn dự án, phiên làm việc, tin nhắn.
+- Module `outline`: Bộ máy sinh dàn ý tự động đa giai đoạn (`seed -> arcs -> chapters -> cast -> scenes`), kiểm soát thứ tự 26 loại thực thể tự sự.
+- Module `writing`: Quản lý việc tạo sinh phân cảnh, lưu trữ file Markdown độc lập, kiểm tra các vi phạm văn phong (loại bỏ emoji, gạch ngang dài) và điều khiển máy trạng thái `SceneStatus`.
+
+4.2.3 Luồng xử lý dữ liệu tổng thể:
+1. Tiếp nhận tín hiệu từ người dùng qua UI.
+2. Kiểm tra điều kiện trạng thái (State Validation): nếu phân cảnh đang bị khóa hoặc chương chưa được duyệt -> từ chối hành động.
+3. Nếu hợp lệ, đóng gói ngữ cảnh tối thiểu cần thiết (Minimal Context Slice).
+4. Gửi yêu cầu đến mô hình ngôn ngữ thông qua Provider an toàn.
+5. Mô hình trả lời bằng yêu cầu gọi Tool Call.
+6. Hệ thống thực thi Tool Call trong môi trường kiểm định Rust: đọc/ghi dữ liệu vào `super.json` hoặc SQLite.
+7. Khi có nội dung văn bản trả về: kiểm định chất lượng văn phong, ghi vào file Markdown và cập nhật trạng thái phân cảnh.
+8. Gửi thông báo hoàn thành lên giao diện người dùng.
+
+4.3 THIẾT KẾ CHỨC NĂNG HỆ THỐNG
+(Đọc và chọn lọc, chuẩn hóa từ mẫu nghiệp vụ sang bài toán Merlink Harness)
+
+4.3.1 Nhóm chức năng quản lý khách hàng (Không cần - Lược bỏ):
+Không áp dụng trong mô hình phần mềm sáng tác cá nhân cục bộ. Hệ thống thay thế bằng việc Quản lý Hồ sơ Tác giả và Định danh Dự án.
+
+4.3.2 Nhóm chức năng quản lý sảnh (Không cần - Lược bỏ):
+Không áp dụng. Hệ thống thay thế bằng chức năng Quản lý Bối cảnh Thế giới, Hệ thống sức mạnh và Danh mục Địa danh.
+
+4.3.3 Nhóm chức năng Khởi tạo dự án & Lập kế hoạch cấu trúc (Chuyển đổi từ Nhóm đặt tiệc):
+- Tạo mới dự án với các thông số mục tiêu: tên truyện, ngôn ngữ, tổng số hồi dự kiến, số chương dự kiến, số phân cảnh và dung lượng từ mục tiêu.
+- Cung cấp giao diện bảng tổng quan theo dõi 12 đơn vị bắt buộc và 35 đơn vị tùy chọn.
+- Cho phép chỉnh sửa thông số kế hoạch linh hoạt trong Giai đoạn 1 và khóa cứng khi bước sang Giai đoạn 2.
+
+4.3.4 Nhóm chức năng Quản lý dịch vụ AI & Tool Call (Chuyển đổi từ Quản lý dịch vụ):
+- Cấu hình nhà cung cấp mô hình (OpenAI, DeepSeek, Local Model) với khóa API lưu bảo mật trên máy trạm.
+- Đóng gói sẵn 8 công cụ hạt nhân cho AI tương tác dữ liệu.
+- Giám sát việc thực thi công cụ, bảo đảm AI không thể can thiệp ra ngoài phạm vi hàm cho phép.
+
+4.3.5 Nhóm chức năng Quản lý phiên hội thoại & Tài nguyên Token (Chuyển đổi từ Quản lý thanh toán):
+- Quản lý danh sách các phiên làm việc (`sessions`) gắn liền với từng dự án cụ thể.
+- Lưu trữ toàn bộ lịch sử tin nhắn (`messages`) kèm payload JSON chi tiết (dữ liệu đầu vào, kết quả tool call, token sử dụng).
+- Đo lường và hiển thị trực quan biểu đồ tiêu hao token (Context Donut Chart), cảnh báo khi ngữ cảnh vượt quá ngưỡng an toàn.
+
+4.3.6 Nhóm chức năng Quản lý quyền tác giả & Cấu hình Agent AI (Chuyển đổi từ Quản lý nhân viên):
+- Thiết lập vai trò của tác giả: toàn quyền phê duyệt, chỉnh sửa thủ công, hoàn tác hoặc từ chối đề xuất của AI.
+- Cấu hình nhân cách và phong cách của Agent AI: quy định phong cách kể chuyện (Style Presets), ngôi kể (Narrator Configs: ngôi thứ nhất, ngôi thứ ba giới hạn, toàn tri) và các nguyên tắc hành văn bắt buộc (`narrative_directives`).
+
+4.3.7 Nhóm chức năng Thống kê tiến độ & Báo cáo chất lượng tác phẩm (Nhóm thống kê báo cáo):
+- Báo cáo tiến độ hoàn thiện hồ sơ dự án theo tỷ lệ 70% (12 required units) và 30% (35 optional units).
+- Thống kê tiến độ viết theo thời gian thực: số từ thực tế so với mục tiêu kế hoạch, tỷ lệ các phân cảnh đã đạt trạng thái `APPROVED`.
+- Báo cáo chất lượng văn phong: thống kê các lỗi lặp từ, kiểm tra vi phạm quy tắc hành văn và kiểm tra tính nhất quán của dòng thời gian phân cảnh.
+
+4.4 THIẾT KẾ DỮ LIỆU VÀ TÍCH HỢP
+4.4.1 Mô tả luồng dữ liệu giữa các module:
+- Tầng giao diện gửi lệnh qua Tauri Invoke API -> Tầng Rust đón nhận tại các hàm xử lý lệnh (`commands`).
+- Lệnh hội thoại đi qua `agent::orchestrator`: tại đây hệ thống đọc dữ liệu bối cảnh từ `super_json` và lịch sử chat từ `db`, đóng gói thành mảng `ChatMessage` gửi tới LLM.
+- Khi LLM phản hồi yêu cầu gọi tool: `agent` chuyển tiếp tham số cho `super_json::io` hoặc `outline::stage`.
+- Dữ liệu sau khi xử lý thành công được ghi vào file `super.json` hoặc cơ sở dữ liệu SQLite, sau đó phát sự kiện (Tauri Event) về lại frontend để cập nhật giao diện mà không cần tải lại trang.
+
+4.4.2 Tính nhất quán và toàn vẹn dữ liệu:
+- Ràng buộc cấu trúc tĩnh (Static Schema Contract): Định nghĩa tường minh kiểu dữ liệu của từng trường trong 34 bảng cấu trúc. Bất kỳ giá trị nào không khớp kiểu đều bị từ chối ngay từ tầng phân tích cú pháp.
+- Khóa ngoại và quan hệ cha-con: Trong cơ sở dữ liệu SQLite và schema chuẩn hóa, các bảng con (`scenes`, `chapters`, `theme_arguments`, `character_motifs`) luôn tham chiếu khóa ngoại đến bảng cha với cơ chế `ON DELETE CASCADE`, triệt tiêu hoàn toàn tình trạng bản ghi mồ côi (Orphan Records).
+- Toàn vẹn trạng thái (State Integrity): Máy trạng thái kiểm soát chặt chẽ điều kiện chuyển trạng thái. Không thể chuyển một phân cảnh sang `APPROVED` nếu chưa có nội dung nháp; không thể mở khóa viết Chương $N+1$ nếu Chương $N$ còn phân cảnh ở trạng thái `DRAFT` hay `REVISING`.
+
+4.4.3 Tích hợp giữa các chức năng trong hệ thống:
+- Tích hợp giữa Hồ sơ nhân vật và Văn bản phân cảnh: Khi AI viết một phân cảnh, hệ thống tự động đối soát danh sách nhân vật xuất hiện trong cảnh (`scene_characters`) để nạp đúng tính cách, động cơ, bí mật và khuyết điểm của nhân vật đó vào prompt, bảo đảm nhân vật hành xử nhất quán xuyên suốt tác phẩm.
+- Tích hợp giữa Dải cảm xúc (`emotional_ranges`) và Phong cách (`style_presets`): Điều chỉnh nhịp điệu câu văn (Tone & Pace), độ dài câu (`SentenceLength`) và cấu trúc câu (`SentenceStructure`) tương ứng với cao trào cảm xúc của phân cảnh (ví dụ: cảnh chiến đấu nghẹt thở sẽ kích hoạt nhịp câu ngắn, động từ hành động dồn dập; cảnh nội tâm sâu lắng sẽ kích hoạt nhịp câu dài, giàu độc thoại nội tâm).
+
+════════════════════════════════════════════════════════════════════════════════
+
+                                  KẾT LUẬN
+
+Đồ án "Nghiên cứu và xây dựng khung vận hành hỗ trợ sáng tác tiểu thuyết có kiểm soát dữ liệu bằng AI Agent (Merlink Harness)" đã giải quyết thành công những điểm nghẽn lớn nhất trong việc ứng dụng trí tuệ nhân tạo vào sáng tác văn học quy mô dài tập. 
+
+Bằng việc kiên định với triết lý:
+1. Xây dựng Khung vận hành (Harness) điều phối có kiểm soát thay vì cố gắng fine-tune mô hình vô ích.
+2. Ép buộc AI tương tác với dữ liệu qua các hàm Tool Call có kiểm định chặt chẽ, loại bỏ hoàn toàn việc chỉnh sửa file tùy tiện gây hỏng dữ liệu.
+3. Thiết lập quy trình 3 giai đoạn bài bản, tích hợp máy trạng thái phân cảnh (`SceneStatus`) và cơ chế Khóa phân cảnh (Scene Locking) giúp tác giả bảo toàn những đoạn văn đã ưng ý.
+4. Áp dụng cổng kiểm duyệt tuyến tính và quản lý vòng đời tác phẩm nghiêm ngặt (`ContentStatus: DRAFT -> REVISING -> COMPLETED`).
+
+Hệ thống đã chứng minh được tính khả thi, hiệu năng vượt trội và độ ổn định cao với hơn 230 bài kiểm thử tự động luôn pass trên nền tảng desktop Tauri 2 và Rust. Đề tài không chỉ mang lại giá trị thực tiễn to lớn cho cộng đồng các tác giả độc lập mà còn đóng góp một mô hình mẫu về kiến trúc phần mềm kết hợp AI có kiểm soát cho cộng đồng mã nguồn mở.
+
+HƯỚNG PHÁT TRIỂN TƯƠNG LAI:
+- Mở rộng thuật toán phân bổ phân cảnh song song (Parallel Scene Generation) có kiểm soát phụ thuộc để rút ngắn thời gian tạo sinh.
+- Phát triển thêm thư viện phong cách tác giả cá nhân hóa và các công cụ xuất bản tự động ra định dạng sách điện tử tiêu chuẩn (EPUB, PDF dàn trang chuyên nghiệp).
+- Nghiên cứu mô hình phối hợp đa Agent (Multi-agent System) chuyên biệt hóa cho từng khâu: Agent thẩm định kịch bản, Agent kiểm tra tính nhất quán dòng thời gian và Agent tinh chỉnh ngôn từ.
+
+════════════════════════════════════════════════════════════════════════════════
+                                                     TÀI LIỆU THAM KHẢO
+
+A. TÀI LIỆU NỘI BỘ DỰ ÁN
+[1] Merlink Harness, mã nguồn và tài liệu kiến trúc/nghiệp vụ, bao gồm các sprint và tài liệu schema.
+[2] Merlink Harness, `docs/schema/seed/motifs.sql` — chỉ mục nguồn tham khảo cho motif; mô tả seed là nội dung diễn giải, không khẳng định ý nghĩa biểu tượng phổ quát.
+[3] Merlink Harness, `docs/schema/system.dbml` và `docs/schema/init_schema.sql` — đặc tả mô hình dữ liệu và script khởi tạo schema.
+
+B. NGUỒN VỀ MOTIF VÀ TỰ SỰ (TRÍCH TỪ CHÚ THÍCH SCRIPT SQL)
+[4] Aristotle, Poetics, MIT Internet Classics Archive:
+https://classics.mit.edu/Aristotle/poetics.1.1.html
+https://classics.mit.edu/Aristotle/poetics.2.2.html
+[5] Encyclopaedia Britannica, “Hamartia” và “Faustian bargain”:
+https://www.britannica.com/art/hamartia
+https://www.britannica.com/topic/Faustian-bargain
+[6] Encyclopaedia Britannica, “Xenia” và “Foil”:
+https://www.britannica.com/topic/xenia-sociology
+https://www.britannica.com/art/foil-literature
+[7] EBSCO Research Starters, “Alienation” và “Identity Crisis”:
+https://www.ebsco.com/research-starters/literature-and-writing/alienation-literary-theme/
+https://www.ebsco.com/research-starters/literature-and-writing/identity-crisis-as-literary-theme/
+[8] Helping Writers Become Authors, “Corruption Character Arc”:
+https://www.helpingwritersbecomeauthors.com/corruption-character-arc/
+[9] Writer’s Digest, “How to Write a Friends-to-Lovers Romance”:
+https://www.writersdigest.com/write-better-fiction/how-to-write-a-friends-to-lovers-romance-when-youre-addicted-to-the-enemies-to-lovers-trope
+[10] Washington University in St. Louis, nghiên cứu về sworn siblings:
+https://repository.library.wustl.edu/cgi/viewcontent.cgi?article=1757&context=etd
+[11] CrimeReads, “Why Odd Couples and Opposites Make for Great Crime Fiction”:
+https://crimereads.com/why-odd-couples-and-opposites-make-for-great-crime-fiction/
+[12] Nghiên cứu hình ảnh gương trong Jane Eyre, Pennsylvania State University Press:
+https://scholarlypublishingcollective.org/psup/pcp/article/54/2/273/198651/All-the-Reflected-Light-We-Cannot-See-Ghastly
+[13] University of Michigan, luận văn về thời gian trong The Great Gatsby:
+https://lsa.umich.edu/content/dam/english-assets/migrated/honors_files/Caramagno,%20Natalie_Thesis.pdf
+[14] Frances Hodgson Burnett, The Secret Garden, chương “The Key to the Garden”:
+https://americanliterature.com/author/frances-hodgson-burnett/book/the-secret-garden/chapter-vii-the-key-to-the-garden
+[15] Folger Shakespeare Library, tài nguyên Shakespeare; Study.com, thảo luận hoa trong Hamlet:
+https://www.folger.edu/explore/shakespeares-works/
+https://study.com/learn/lesson/flower-symbolism-hamlet-william-shakespeare-overview-examples.html
+[16] Nghiên cứu motif hành trình trong tiểu thuyết:
+https://esciencepress.net/journals/IJES/article/download/2133/1038
+[17] Virgil, Georgics IV; Ovid, Metamorphoses X, bản dịch Poetry in Translation:
+https://www.poetryintranslation.com/PITBR/Latin/VirgilGeorgicsIV.php
+https://www.poetryintranslation.com/PITBR/Latin/Metamorph10.php
+[18] Harvard Library, Folklore and Mythology: Indices:
+https://guides.library.harvard.edu/folk_and_myth/indices
+[19] Theoi, Apollodorus’ Library và Homeric Hymns:
+https://www.theoi.com/Text/Apollodorus1.html
+https://www.theoi.com/Text/HomericHymns1.html
+[20] LiteraryDevices, motif, symbolism và foil:
+https://literarydevices.net/motif/
+https://literarydevices.net/symbolism/
+https://literarydevices.net/foil/
+[21] Learning to Give, “Hospitality” (nguồn tổng hợp giáo dục, không phải văn bản truyện gốc):
+https://www.learningtogive.org/units/generosity-spirit-folktales/hospitality
+
+C. TÀI LIỆU CHÍNH THỨC VỀ CÔNG NGHỆ CHÍNH
+[22] Tauri 2, tài liệu chính thức:
+https://v2.tauri.app/
+[23] Rust, trang chính thức và tài liệu ngôn ngữ:
+https://www.rust-lang.org/
+https://doc.rust-lang.org/
+[24] React, tài liệu chính thức:
+https://react.dev/
+[25] TypeScript, tài liệu chính thức:
+https://www.typescriptlang.org/docs/
+[26] Vite, tài liệu chính thức:
+https://vite.dev/guide/
+[27] SQLite, tài liệu chính thức:
+https://www.sqlite.org/docs.html
+[28] rusqlite, thư viện Rust binding SQLite:
+https://github.com/rusqlite/rusqlite
+[29] PostgreSQL, tài liệu chính thức (tham chiếu cú pháp schema/seed):
+https://www.postgresql.org/docs/current/
+[30] DBML, tài liệu chính thức:
+https://dbml.dbdiagram.io/docs/
+[31] Mermaid, tài liệu chính thức:
+https://mermaid.js.org/intro/
+
+Ghi chú: Mục B được trích từ chỉ mục trong `docs/schema/seed/motifs.sql`; các nguồn hỗ trợ khái niệm hoặc ví dụ cụ thể, không chứng minh motif có cùng ý nghĩa trong mọi tác phẩm. Mục C là trang tài liệu của nhà phát triển/nhà phát hành cho công nghệ được dùng hoặc được nhắc trong báo cáo, không phải đánh giá độc lập.
+
+                        HẾT NỘI DUNG BÁO CÁO REPORT.TXT
+════════════════════════════════════════════════════════════════════════════════

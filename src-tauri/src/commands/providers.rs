@@ -1,8 +1,18 @@
 use crate::{adapters, models, store};
 
 #[tauri::command]
-pub(crate) fn load_providers() -> Result<Vec<models::ProviderConfig>, String> {
-    store::load_providers()
+pub(crate) async fn load_providers() -> Result<Vec<models::ProviderConfig>, String> {
+    let mut providers = store::load_providers()?;
+    // If Ollama is running, add a local provider once with the models actually
+    // installed on this machine. Persisting it makes it available to chat,
+    // outline, and writing flows that resolve providers from the shared config.
+    if let Some(local) = adapters::detect_local_ollama().await
+        && !providers.iter().any(|provider| provider.id == local.id)
+    {
+        providers.push(local);
+        store::save_providers(&providers)?;
+    }
+    Ok(providers)
 }
 
 #[tauri::command]
