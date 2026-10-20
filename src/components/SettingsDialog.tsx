@@ -54,6 +54,15 @@ function createModelConfig(
   };
 }
 
+function isLocalOllamaURL(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 interface FormState {
   kind: ProviderKind;
   id: string;
@@ -244,7 +253,7 @@ export function SettingsDialog({
   const newFormState = (source: ProviderConfig | null): FormState => {
     const models = (source?.models ?? []).map(createModelConfig);
     return {
-      kind: source?.kind === "anthropic" || source?.kind === "openai"
+      kind: source?.kind === "anthropic" || source?.kind === "openai" || source?.kind === "ollama"
         ? source.kind : "custom",
       id: source?.id ?? "",
       name: source?.name ?? "",
@@ -351,8 +360,9 @@ export function SettingsDialog({
     form.models.every((m) => m.id.trim() && m.name.trim()) &&
     new Set(form.models.map((m) => m.id.trim())).size === form.models.length;
 
+  const ollamaLocal = form.kind === "ollama" && isLocalOllamaURL(form.baseURL);
   const valid = Boolean(
-    form.apiKey.trim() &&
+    (ollamaLocal || form.apiKey.trim()) &&
       validModels &&
       form.name.trim() &&
       /^https?:\/\/\S+/i.test(form.baseURL),
@@ -706,20 +716,23 @@ export function SettingsDialog({
               <label className="merlink-settings-field">
                 <span>Protocol</span>
                 <select
-                  value={form.kind === "anthropic" ? "anthropic" : "openai-compatible"}
-                  onChange={(e) => setForm((prev) => ({
-                    ...prev,
-                    kind: e.target.value === "anthropic"
-                      ? "anthropic"
-                      : prev.kind === "anthropic" ? "custom" : prev.kind,
-                  }))}
+                  value={form.kind === "anthropic" ? "anthropic" : form.kind === "ollama" ? (isLocalOllamaURL(form.baseURL) ? "ollama-local" : "ollama-cloud") : "openai-compatible"}
+                  onChange={(e) => setForm((prev) => {
+                    const protocol = e.target.value;
+                    if (protocol === "anthropic") return { ...prev, kind: "anthropic" };
+                    if (protocol === "ollama-local") return { ...prev, kind: "ollama", name: prev.name || "Ollama (local)", baseURL: "http://127.0.0.1:11434/v1", apiKey: "" };
+                    if (protocol === "ollama-cloud") return { ...prev, kind: "ollama", name: prev.name || "Ollama Cloud", baseURL: "https://ollama.com/v1" };
+                    return { ...prev, kind: prev.kind === "anthropic" || prev.kind === "ollama" ? "custom" : prev.kind };
+                  })}
                 >
                   <option value="openai-compatible">OpenAI-compatible</option>
                   <option value="anthropic">Anthropic</option>
+                  <option value="ollama-local">Ollama (local)</option>
+                  <option value="ollama-cloud">Ollama Cloud</option>
                 </select>
               </label>
 
-              <p>Choose the provider's wire protocol, then enter its API key and endpoint.</p>
+              <p>{form.kind === "ollama" && ollamaLocal ? "Local Ollama detected/configured. API key is not required." : form.kind === "ollama" ? "Ollama Cloud uses your cloud API key and the OpenAI-compatible endpoint." : "Choose the provider's wire protocol, then enter its API key and endpoint."}</p>
 
               <label className="merlink-settings-field">
                 <span>API key</span>
@@ -727,8 +740,8 @@ export function SettingsDialog({
                   <input
                     type={form.showKey ? "text" : "password"}
                     value={form.apiKey}
-                    required
-                    placeholder="Enter an API key"
+                    required={!ollamaLocal}
+                    placeholder={ollamaLocal ? "Not required for local Ollama" : "Enter an API key"}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, apiKey: e.target.value }))
                     }

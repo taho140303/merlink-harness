@@ -12,7 +12,7 @@ export interface ModelConfig {
   reasoning_level: boolean;
 }
 
-export type ProviderKind = "openai" | "anthropic" | "custom";
+export type ProviderKind = "openai" | "anthropic" | "custom" | "ollama";
 
 export interface ProviderConfig {
   id: string;

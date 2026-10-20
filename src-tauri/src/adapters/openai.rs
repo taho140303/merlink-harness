@@ -145,11 +145,12 @@ pub(super) async fn call_openai(request: &ChatRequest) -> Result<AdapterReply, S
         body["tool_choice"] = json!("auto");
     }
 
+    let mut http_request = client()?.post(openai_endpoint(&request.base_url));
+    if !request.api_key.trim().is_empty() {
+        http_request = http_request.bearer_auth(&request.api_key);
+    }
     let response = send_chat_request(
-        client()?
-            .post(openai_endpoint(&request.base_url))
-            .bearer_auth(&request.api_key)
-            .json(&body),
+        http_request.json(&body),
         "OpenAI-compatible",
         &request.base_url,
         "OpenAI-compatible request failed",

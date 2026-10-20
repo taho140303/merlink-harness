@@ -109,6 +109,11 @@ function Shell() {
 
   useEffect(() => {
     void loadSessions();
+    // Trigger native provider discovery at desktop startup; Ollama is added to
+    // the shared local config when its default local endpoint is responding.
+    void invokeCommand("load_providers").catch((error) =>
+      console.error("Could not load model providers:", error),
+    );
     const refresh = () => void loadSessions();
     window.addEventListener("merlink:sessions-changed", refresh);
     return () => window.removeEventListener("merlink:sessions-changed", refresh);
