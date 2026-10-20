@@ -290,6 +290,9 @@ pub struct OutlineItem {
     pub arc: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scene_count: Option<u64>,
+    /// The whole proposal. Cast and world lanes have fields the generic columns
+    /// above cannot express, so the review board reads them from here.
+    pub payload: serde_json::Value,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OutlineRunResult {

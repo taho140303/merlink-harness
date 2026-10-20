@@ -455,7 +455,9 @@ pub fn column_kind(table: &str, column: &str) -> FieldKind {
             }
         }
         "intensity" => return FieldKind::Number,
-        "beats" | "directives" | "rules" | "relationships" | "data" => return FieldKind::Json,
+        "beats" | "directives" | "rules" | "relationships" | "data" | "motifs" => {
+            return FieldKind::Json;
+        }
         _ => {}
     }
 

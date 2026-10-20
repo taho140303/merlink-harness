@@ -211,6 +211,8 @@ export interface OutlineItem {
   beats?: string[];
   arc?: number;
   scene_count?: number;
+  /** Raw proposal object, for lanes whose fields are only known at render time. */
+  payload?: Record<string, unknown>;
 }
 
 /** Arc fields a 2.1 card renders. */

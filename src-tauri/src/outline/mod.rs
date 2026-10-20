@@ -278,6 +278,101 @@ fn chapter_range(range: Option<&str>, total: u64) -> Result<Vec<(u64, u64)>, Str
     Ok(bounds)
 }
 
+fn chapter_brief(document: &Value) -> String {
+    rows_of_document(document, "chapters")
+        .iter()
+        .enumerate()
+        .map(|(i, row)| {
+            format!(
+                "{}. {}: {}",
+                i + 1,
+                row["name"].as_str().unwrap_or(""),
+                row["summarize"].as_str().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\\n")
+}
+fn rows_of_document(document: &Value, table: &str) -> Vec<Value> {
+    ["require", "optional"]
+        .into_iter()
+        .find_map(|group| {
+            document
+                .get(group)?
+                .get("schema")?
+                .as_array()?
+                .iter()
+                .find(|entry| entry["table"] == table)?
+                .get("rows")?
+                .as_array()
+                .cloned()
+        })
+        .unwrap_or_default()
+}
+fn cast_plans(document: &Value) -> Result<Vec<ShardPlan>, String> {
+    let chapters = rows_of_document(document, "chapters");
+    let total = 6usize.max(chapters.len() / 3);
+    let count = total.div_ceil(6);
+    let brief = chapter_brief(document);
+    Ok((0..count)
+        .map(|index| ShardPlan {
+            lane: Lane::CastSmith,
+            shard: format!("cast-{:02}", index + 1),
+            system: prompts::system(Lane::CastSmith).into(),
+            user: prompts::cast_user(
+                &anchor_compact(document),
+                &brief,
+                &format!("{} characters", 6.min(total - index * 6)),
+                &Vec::new(),
+                &brief,
+            ),
+        })
+        .collect())
+}
+fn world_plans(document: &Value) -> Vec<ShardPlan> {
+    let brief = chapter_brief(document);
+    let anchor = anchor_compact(document);
+    let genre = anchor_json(document)["project"]["genre_code"]
+        .as_str()
+        .unwrap_or("")
+        .to_owned();
+    let mut plans: Vec<ShardPlan> = ["settings top down", "lore and power systems"]
+        .iter()
+        .enumerate()
+        .map(|(i, task)| ShardPlan {
+            lane: Lane::WorldSmith,
+            shard: format!("world-{:02}", i + 1),
+            system: prompts::system(Lane::WorldSmith).into(),
+            user: format!(
+                "{}\n\nPhạm vi: {task}.",
+                prompts::world_user(&anchor, &brief, &genre)
+            ),
+        })
+        .collect();
+    let characters = rows_of_document(document, "characters");
+    if !characters.is_empty() {
+        let cast_brief = characters
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                format!(
+                    "{}. {}: {}",
+                    i,
+                    row["name"].as_str().unwrap_or(""),
+                    row["summary"].as_str().unwrap_or("")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\\n");
+        plans.push(ShardPlan {
+            lane: Lane::BondSmith,
+            shard: "bonds-01".into(),
+            system: prompts::system(Lane::BondSmith).into(),
+            user: prompts::bonds_user(&anchor, &cast_brief),
+        });
+    }
+    plans
+}
 fn build_plan(
     stage: Stage,
     document: &Value,
@@ -286,6 +381,8 @@ fn build_plan(
     match stage {
         Stage::Arcs => Ok(vec![arc_plan(document)?]),
         Stage::Chapters => chapter_plans(document, range),
+        Stage::Cast => cast_plans(document),
+        Stage::World => Ok(world_plans(document)),
         other => Err(format!(
             "Giai đoạn {} chưa được dùng trong sprint này",
             other.label()
@@ -308,10 +405,25 @@ fn proposals_from(
         .ok_or_else(|| format!("Thiếu mảng {array_key} trong đề xuất"))?;
     let mut items = Vec::new();
     for entry in entries {
-        let key = entry
-            .get("code")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("{array_key} có phần tử thiếu code"))?;
+        let bond_key;
+        let key = if plan.lane == Lane::BondSmith {
+            let from = entry
+                .get("from")
+                .and_then(Value::as_str)
+                .ok_or("Mối quan hệ thiếu from")?;
+            let to = entry
+                .get("to")
+                .and_then(Value::as_str)
+                .ok_or("Mối quan hệ thiếu to")?;
+            bond_key = format!("{from}-{to}");
+            bond_key.as_str()
+        } else {
+            entry
+                .get("code")
+                .or_else(|| entry.get("ref"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| format!("{array_key} có phần tử thiếu mã tham chiếu"))?
+        };
         let position = entry.get("position").and_then(Value::as_u64).unwrap_or(0) as u32;
         items.push(db::OutlineStoredItem {
             id: format!("{run_id}-{}-{key}", stage.as_str()),
@@ -443,17 +555,23 @@ pub async fn run_with_backend(
     .await;
 
     let mut stored = Vec::new();
-    for (shard_key, result) in results {
-        let Some(plan) = plans.iter().find(|plan| plan.shard == shard_key) else {
+    let mut first_error: Option<String> = None;
+    for (shard_key, result) in &results {
+        let Some(plan) = plans.iter().find(|plan| plan.shard == *shard_key) else {
             continue;
         };
         match result {
-            Ok(value) => stored.extend(proposals_from(&run.id, stage, plan, &value)?),
-            Err(_) => continue,
+            Ok(value) => stored.extend(proposals_from(&run.id, stage, plan, value)?),
+            Err(error) => {
+                if first_error.is_none() {
+                    first_error = Some(error.clone());
+                }
+            }
         }
     }
     if stored.is_empty() {
-        let error = "Không có đề xuất hợp lệ nào được sinh ra".to_owned();
+        let cause = first_error.unwrap_or_else(|| "không rõ nguyên nhân".to_owned());
+        let error = format!("Không có đề xuất hợp lệ nào được sinh ra: {cause}");
         let _ = sink.send(OutlineEvent::RunFailed {
             error: error.clone(),
         });
@@ -519,6 +637,7 @@ pub fn items(session_id: &str, stage: Stage) -> Result<Vec<OutlineItem>, String>
                 }),
                 arc: number("arc"),
                 scene_count: number("scene_count"),
+                payload: value.clone(),
             })
         })
         .collect()
@@ -861,6 +980,323 @@ mod tests {
             json!(0),
             "the arc number becomes a draft reference"
         );
+    }
+
+    /// Runs and commits arcs + chapters so a cast/world test starts from a
+    /// document that satisfies the 2.2 gate.
+    fn prepare_through_chapters(project: &str, session: &str) {
+        start(project, session).unwrap();
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![AdapterReply::text(arcs_reply())])),
+            session,
+            &provider(),
+            &model(),
+            Stage::Arcs,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+        accept(session, Stage::Arcs, None).unwrap();
+        commit(session, Stage::Arcs, None).unwrap();
+
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![
+                AdapterReply::text(chapters_reply(1, 10)),
+                AdapterReply::text(chapters_reply(11, 2)),
+            ])),
+            session,
+            &provider(),
+            &model(),
+            Stage::Chapters,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+        accept(session, Stage::Chapters, None).unwrap();
+        commit(session, Stage::Chapters, None).unwrap();
+    }
+
+    fn cast_reply() -> String {
+        json!({"characters": [
+            {
+                "ref": "char-a", "name": "An", "role": "protagonist", "archetype": "seeker",
+                "motivation": "Đòi lại nhà", "want": "Công lý", "need": "Học cách tin người",
+                "flaw": "Cứng đầu", "summary": "Thợ rèn trẻ mất nhà", "description": "Gầy, mắt nâu",
+                "is_primary": true,
+                "appearance": {"height": 170, "height_unit": "CM", "hair": "đen", "eyes": "nâu",
+                    "outfit_style": "áo vải", "marks": ["sẹo tay trái"]},
+                "motifs": ["bildung_through_experience"],
+                "competences": [{"domain": "kiếm", "name": "Kiếm pháp", "level": "cao",
+                    "capabilities": ["chém nhanh"], "limitations": ["mất thăng bằng"]}],
+                "memories": [{"type": "EPISODIC", "summary": "Mất nhà", "certainty": "CERTAIN",
+                    "source": "FIRSTHAND", "significance": 0.8}],
+                "knowledge": [{"type": "LORE", "path": "lore:den-bao", "certainty": "HIGH"}]
+            },
+            {
+                "ref": "char-b", "name": "Bình", "role": "ally", "archetype": "guardian",
+                "motivation": "Bảo vệ em gái", "want": "Yên ổn", "need": "Dám nói không",
+                "flaw": "Sợ xung đột", "summary": "Lính gác làng", "description": "Cao, tóc ngắn",
+                "is_primary": false,
+                "competences": [{"domain": "khiên", "name": "Thủ khiên", "level": "trung bình",
+                    "capabilities": ["chắn đòn"], "limitations": ["chậm"]}]
+            }
+        ]})
+        .to_string()
+    }
+
+    fn world_reply() -> String {
+        json!({"world": [
+            {"ref": "ws-02", "kind": "setting", "name": "Nhà An", "type": "ROOM", "parent": "ws-01",
+             "description": "Căn bếp nhỏ", "access": "PRIVATE", "spatial_features": "hẹp",
+             "sensory": {"visual": "đèn dầu", "auditory": "mưa", "tactile": "lạnh",
+                 "olfactory": "khói", "gustatory": "nhạt"}},
+            {"ref": "ws-01", "kind": "setting", "name": "Làng Tro", "type": "TOWN", "parent": null,
+             "description": "Làng ven sông", "access": "PUBLIC", "spatial_features": "dốc",
+             "sensory": {"visual": "xám", "auditory": "gió", "tactile": "ẩm",
+                 "olfactory": "tro", "gustatory": "mặn"}},
+            {"ref": "lore-01", "kind": "lore", "code": "den-bao", "type": "ITEM", "scope": "project",
+             "name": "Đèn bão", "description": "Vật gia truyền", "world_setting": "ws-01"},
+            {"ref": "pw-01", "kind": "power", "name": "Linh khí", "source": "Di vật",
+             "scope": "project", "description": "Năng lượng cổ", "rules": "Cần hơi thở đều",
+             "cost": "Mỏi", "limitations": "Không dùng ban ngày",
+             "tiers": [{"code": "t1", "name": "Sơ", "rank": 1, "description": "Mới thức tỉnh"}],
+             "abilities": [{"tier": "t1", "name": "Đốt", "description": "Bén lửa"}]}
+        ]})
+        .to_string()
+    }
+
+    fn bonds_reply() -> String {
+        json!({"relationships": [{
+            "from": "char-a", "to": "char-b", "summary": "Đồng minh chớm nở",
+            "origin": "Cùng giữ làng", "is_primary": true,
+            "states": {"trust": "MODERATE", "affection": "LOW", "hostility": "LOW", "fear": "NONE",
+                "respect": "MODERATE", "familiarity": "HIGH", "dependency": "NONE"},
+            "roles": [{"category": "SOCIAL", "sub_type": "friend", "is_primary": true,
+                "hierarchy": "EQUAL"}],
+            "motifs": ["bildung_through_experience"]
+        }]})
+        .to_string()
+    }
+
+    /// Answers by lane instead of by call order: the world stage runs its three
+    /// shards concurrently, so a scripted queue would be flaky.
+    struct LaneBackend;
+
+    impl crate::adapters::LlmBackend for LaneBackend {
+        fn complete<'a>(
+            &'a self,
+            request: crate::adapters::ChatRequest,
+        ) -> crate::adapters::BoxedFuture<'a, Result<AdapterReply, String>> {
+            Box::pin(async move {
+                let system = request.system.clone();
+                let body = if system.contains("dàn nhân vật") {
+                    cast_reply()
+                } else if system.contains("mối quan hệ") {
+                    bonds_reply()
+                } else if system.contains("thế giới") || system.contains("địa điểm") {
+                    world_reply()
+                } else {
+                    return Err(format!("unexpected lane prompt: {system}"));
+                };
+                Ok(AdapterReply::text(body))
+            })
+        }
+    }
+
+    fn run_stage_with(session: &str, stage: Stage, backend: Arc<dyn crate::adapters::LlmBackend>) {
+        tauri::async_runtime::block_on(run_with_backend(
+            backend,
+            session,
+            &provider(),
+            &model(),
+            stage,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+    }
+
+    fn run_stage(session: &str, stage: Stage, payload: String) {
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![AdapterReply::text(payload)])),
+            session,
+            &provider(),
+            &model(),
+            stage,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+    }
+
+    fn table_rows<'a>(document: &'a Value, table: &str) -> &'a Vec<Value> {
+        for group in ["require", "optional"] {
+            if let Some(entry) = document[group]["schema"]
+                .as_array()
+                .and_then(|entries| entries.iter().find(|entry| entry["table"] == table))
+            {
+                return entry["rows"].as_array().unwrap();
+            }
+        }
+        panic!("table {table} missing");
+    }
+
+    #[test]
+    fn test_stage_22_cast_and_world_store_proposals() {
+        let _home = TempHome::new("outline-22-run");
+        let (project, session) = project_with_plan("run22");
+        prepare_through_chapters(&project, &session);
+
+        run_stage(&session, Stage::Cast, cast_reply());
+        let cast_items = items(&session, Stage::Cast).unwrap();
+        assert_eq!(cast_items.len(), 2, "one proposal per character");
+
+        run_stage(&session, Stage::World, world_reply());
+        let world_items = items(&session, Stage::World).unwrap();
+        assert_eq!(world_items.len(), 4, "two settings, one lore, one power");
+
+        let status = status(&session).unwrap();
+        let cast_state = status
+            .stages
+            .iter()
+            .find(|entry| entry.stage == "cast")
+            .unwrap();
+        assert_eq!(cast_state.status, "review");
+        assert_eq!(cast_state.total, 2);
+    }
+
+    #[test]
+    fn test_stage_22_commit_writes_characters_then_relationships() {
+        let _home = TempHome::new("outline-22-commit");
+        let (project, session) = project_with_plan("commit22");
+        prepare_through_chapters(&project, &session);
+
+        run_stage_with(&session, Stage::Cast, Arc::new(LaneBackend));
+        accept(&session, Stage::Cast, None).unwrap();
+        let cast_report = commit(&session, Stage::Cast, None).unwrap();
+        assert_eq!(cast_report.committed, 2);
+
+        run_stage_with(&session, Stage::World, Arc::new(LaneBackend));
+        accept(&session, Stage::World, None).unwrap();
+        commit(&session, Stage::World, None).unwrap();
+
+        let document = super_json::load_or_init(&project).unwrap();
+        let characters = table_rows(&document, "characters");
+        assert_eq!(characters.len(), 2);
+        assert_eq!(characters[0]["name"], json!("An"));
+        assert_eq!(characters[0]["is_primary"], json!(true));
+
+        let relationships = table_rows(&document, "relationships");
+        assert_eq!(relationships.len(), 1);
+        let from = relationships[0]["from_character_id_json_index"]
+            .as_u64()
+            .unwrap();
+        let to = relationships[0]["to_character_id_json_index"]
+            .as_u64()
+            .unwrap();
+        assert!(from < characters.len() as u64 && to < characters.len() as u64);
+        assert_ne!(from, to);
+
+        let states = table_rows(&document, "relationship_states");
+        assert_eq!(states.len(), 1);
+        assert_eq!(states[0]["trust"], json!("MODERATE"));
+
+        // The document has no per-character motif table; the codes ride on the
+        // character row and stay addressable from the review board.
+        assert_eq!(
+            characters[0]["motifs"],
+            json!(["bildung_through_experience"])
+        );
+    }
+
+    #[test]
+    fn test_stage_22_memories_commit_with_null_source_scene() {
+        let _home = TempHome::new("outline-22-memory");
+        let (project, session) = project_with_plan("memory22");
+        prepare_through_chapters(&project, &session);
+        run_stage(&session, Stage::Cast, cast_reply());
+        accept(&session, Stage::Cast, None).unwrap();
+        commit(&session, Stage::Cast, None).unwrap();
+
+        let document = super_json::load_or_init(&project).unwrap();
+        let memories = table_rows(&document, "memories");
+        assert_eq!(memories.len(), 1);
+        assert_eq!(memories[0]["source_scene_id"], Value::Null);
+        assert_eq!(memories[0]["owner_id_json_index"], json!(0));
+    }
+
+    #[test]
+    fn test_stage_22_world_settings_parents_come_first() {
+        let _home = TempHome::new("outline-22-settings");
+        let (project, session) = project_with_plan("settings22");
+        prepare_through_chapters(&project, &session);
+        run_stage_with(&session, Stage::Cast, Arc::new(LaneBackend));
+        accept(&session, Stage::Cast, None).unwrap();
+        commit(&session, Stage::Cast, None).unwrap();
+
+        // The child (ws-02) arrives before its parent (ws-01) on purpose.
+        run_stage_with(&session, Stage::World, Arc::new(LaneBackend));
+        accept(&session, Stage::World, None).unwrap();
+        commit(&session, Stage::World, None).unwrap();
+
+        let document = super_json::load_or_init(&project).unwrap();
+        let settings = table_rows(&document, "world_settings");
+        let parent = settings
+            .iter()
+            .position(|row| row["name"] == json!("Làng Tro"))
+            .unwrap();
+        let child = settings
+            .iter()
+            .position(|row| row["name"] == json!("Nhà An"))
+            .unwrap();
+        assert!(parent < child, "parent must be written before its child");
+        assert_eq!(
+            settings[child]["parent_id_json_index"],
+            json!(parent as u64)
+        );
+
+        let lore = table_rows(&document, "lore_entries");
+        assert_eq!(lore.len(), 1);
+        let powers = table_rows(&document, "power_systems");
+        assert_eq!(powers.len(), 1);
+        let tiers = table_rows(&document, "power_tiers");
+        assert_eq!(tiers.len(), 1);
+        let abilities = table_rows(&document, "power_abilities");
+        assert_eq!(abilities.len(), 1);
+        assert_eq!(abilities[0]["tier_id_json_index"], json!(0));
+    }
+
+    #[test]
+    fn test_stage_22_rejects_unknown_motif_code() {
+        let _home = TempHome::new("outline-22-motif");
+        let (project, session) = project_with_plan("motif22");
+        prepare_through_chapters(&project, &session);
+        let payload = json!({"characters": [{
+            "ref": "char-x", "name": "X", "role": "r", "archetype": "a", "motivation": "m",
+            "want": "w", "need": "n", "flaw": "f", "summary": "s", "description": "d",
+            "is_primary": true, "motifs": ["khong-co-motif-nay"]
+        }]})
+        .to_string();
+        let error = tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![
+                AdapterReply::text(payload.clone()),
+                AdapterReply::text(payload.clone()),
+                AdapterReply::text(payload),
+            ])),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Cast,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap_err();
+        assert!(error.contains("khong-co-motif-nay"), "{error}");
     }
 
     #[test]

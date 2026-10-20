@@ -17,3 +17,9 @@
 .outline-message.is-error{color:var(--error)}
 .outline-item.is-committed{opacity:.82}
 .outline-stage button[aria-current="true"]{box-shadow:var(--shadow-sm)}
+
+/* Stage 2.2 lays the cast next to the world. */
+.outline-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:1080px){.outline-columns{grid-template-columns:minmax(0,1fr)}}
+.outline-detail-list{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.6;color:var(--muted)}
+.outline-detail-list li{margin:1px 0}
