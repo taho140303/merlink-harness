@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import "../styles/outline.css";
 import { ArcsBoard } from "../components/outline/ArcsBoard";
 import { CastWorldBoard } from "../components/outline/CastWorldBoard";
+import { ScenesBoard } from "../components/outline/ScenesBoard";
 import {
   cancelOutline,
   commitOutline,
@@ -39,8 +40,8 @@ const STAGES: StageTab[] = [
   {
     id: "scenes",
     label: "2.3 Phân cảnh",
-    available: false,
-    hint: "Giai đoạn 2.3 mở ở sprint 17.5",
+    available: true,
+    hint: "Cần chốt nhân vật và thế giới trước",
   },
 ];
 
@@ -89,6 +90,7 @@ export function OutlineWorkspace({
   const prerequisitesMet = (stage: string) => {
     if (stage === "arcs") return true;
     if (stage === "cast") return isCommitted("chapters");
+    if (stage === "scenes") return isCommitted("cast") && isCommitted("world");
     return false;
   };
   const locked = !activeStage.available || !prerequisitesMet(selected);
@@ -153,7 +155,7 @@ export function OutlineWorkspace({
         {STAGES.map((stage) => {
           const committed = isCommitted(stage.id);
           const label = committed ? STATE_LABEL.committed : STATE_LABEL[stageStatus(stage.id)];
-          const disabled = !stage.available || (stage.id !== "arcs" && !isCommitted("chapters"));
+          const disabled = !stage.available || !prerequisitesMet(stage.id);
           return (
             <div
               key={stage.id}
@@ -203,6 +205,16 @@ export function OutlineWorkspace({
             <h2>Giai đoạn chưa mở</h2>
             <p>{activeStage.hint || "Cần chốt giai đoạn trước."}</p>
           </div>
+        ) : selected === "scenes" ? (
+          <ScenesBoard
+            sessionId={sessionId}
+            providerId={providerId}
+            modelId={modelId}
+            busy={busy}
+            reloadToken={reloadToken}
+            onEvent={onEvent}
+            onChanged={() => void refresh()}
+          />
         ) : selected === "cast" ? (
           <CastWorldBoard
             sessionId={sessionId}

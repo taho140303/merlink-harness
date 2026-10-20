@@ -100,6 +100,9 @@ pub fn commit(run_id: &str, stage: Stage, keys: Option<&[String]>) -> Result<Com
     if matches!(stage, Stage::Cast | Stage::World) {
         return commit_cast_world(run_id, stage, keys);
     }
+    if stage == Stage::Scenes {
+        return commit_scenes(run_id, keys);
+    }
     let table = table_for(stage)?;
     let connection = db::open()?;
     let (project_id, session_id): (String, String) = connection
@@ -272,8 +275,21 @@ pub fn commit(run_id: &str, stage: Stage, keys: Option<&[String]>) -> Result<Com
     })
 }
 
+/// Rows of a table, whichever group owns it: `characters` and `themes` are
+/// required tables, `chapters` and `scenes` are optional ones.
 fn schema_rows(document: &Value, table: &str) -> Vec<Value> {
-    rows_of(document, "optional", table).into_iter().collect()
+    ["require", "optional"]
+        .into_iter()
+        .find_map(|group| {
+            document
+                .get(group)?
+                .get("schema")?
+                .as_array()?
+                .iter()
+                .find(|entry| entry["table"] == table)?;
+            Some(rows_of(document, group, table))
+        })
+        .unwrap_or_default()
 }
 
 fn stage_rows_path(table: &str) -> String {
@@ -283,6 +299,178 @@ fn stage_rows_path(table: &str) -> String {
         "optional"
     };
     format!("{group}.schema.{table}")
+}
+
+/// Scenes are the first stage whose rows are addressed by (chapter, position)
+/// instead of a single index, because every chapter restarts at position 1.
+fn commit_scenes(run_id: &str, keys: Option<&[String]>) -> Result<CommitReport, String> {
+    let connection = db::open()?;
+    let (project_id, session_id): (String, String) = connection
+        .query_row(
+            "SELECT project_id, session_id FROM outline_runs WHERE id=?1",
+            [run_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|error| format!("Không tìm thấy lượt chạy: {error}"))?;
+    let run = db::run_for_session(&connection, &session_id)?.ok_or("Không tìm thấy lượt chạy")?;
+    if run.id != run_id {
+        return Err("Lượt chạy không còn là lượt hiện tại".into());
+    }
+    let document = super_json::load_or_init(&project_id)?;
+    let chapters = schema_rows(&document, "chapters");
+    if chapters.is_empty() {
+        return Err("Cần chốt giai đoạn Chương trước".into());
+    }
+    let characters = schema_rows(&document, "characters");
+    let settings = schema_rows(&document, "world_settings");
+    let character_index = |reference: &str| -> Result<usize, String> {
+        characters
+            .iter()
+            .position(|row| row["name"].as_str() == Some(reference))
+            .ok_or_else(|| format!("Không tìm thấy nhân vật: {reference}"))
+    };
+    let setting_index = |reference: &str| -> Result<usize, String> {
+        settings
+            .iter()
+            .position(|row| row["name"].as_str() == Some(reference))
+            .ok_or_else(|| format!("Không tìm thấy địa điểm: {reference}"))
+    };
+
+    let stored = db::list_items(&connection, run_id, Stage::Scenes.as_str())?;
+    let mut selected = Vec::new();
+    let mut skipped = 0usize;
+    for item in stored {
+        let approved = match keys {
+            Some(requested) => {
+                requested.iter().any(|key| key == &item.key) && item.status != "committed"
+            }
+            None => item.status == "accepted",
+        };
+        if approved {
+            selected.push(item);
+        } else {
+            skipped += 1;
+        }
+    }
+    if selected.is_empty() {
+        return Err("Không có đề xuất được chấp nhận để commit".into());
+    }
+
+    // Existing rows are indexed by (chapter, position) so a partial rerun
+    // replaces only the scenes it reshot.
+    let existing = schema_rows(&document, "scenes");
+    let key_of = |row: &Value| {
+        (
+            row["chapter_id_json_index"].as_u64().unwrap_or(u64::MAX),
+            row["position"].as_u64().unwrap_or(u64::MAX),
+        )
+    };
+    let mut rows: Vec<Value> = existing.clone();
+    let mut incoming: Vec<(u64, u64, Vec<Value>)> = Vec::new();
+    for item in &selected {
+        let proposal: Value = serde_json::from_str(&item.payload_json)
+            .map_err(|error| format!("Đề xuất {} không hợp lệ: {error}", item.key))?;
+        contract::validate_entity(Lane::SceneBinder, &proposal)?;
+        let chapter = proposal["chapter"]
+            .as_u64()
+            .ok_or_else(|| "Đề xuất cảnh thiếu số thứ tự chương".to_owned())?;
+        if chapter == 0 || chapter as usize > chapters.len() {
+            return Err(format!("Chương {chapter} không tồn tại"));
+        }
+        let position = proposal["position"]
+            .as_u64()
+            .ok_or_else(|| "Đề xuất cảnh thiếu position".to_owned())?;
+        let mut row = serde_json::Map::new();
+        row.insert("name".into(), proposal["name"].clone());
+        row.insert("position".into(), json!(position));
+        row.insert("summarize".into(), proposal["summarize"].clone());
+        row.insert(
+            "world_setting_id_json_index".into(),
+            json!(setting_index(
+                proposal["world_setting"].as_str().unwrap_or("")
+            )?),
+        );
+        row.insert(
+            "style_preset_code".into(),
+            proposal["style_preset_code"].clone(),
+        );
+        row.insert("narrator_code".into(), proposal["narrator_code"].clone());
+        row.insert("directives".into(), proposal["directives"].clone());
+        row.insert("rules".into(), proposal["rules"].clone());
+        row.insert("relationships".into(), proposal["relationships"].clone());
+        row.insert("target_words".into(), proposal["target_words"].clone());
+        row.insert("status".into(), json!("PLANNED"));
+        row.insert("chapter_id_json_index".into(), json!(chapter - 1));
+        let row = Value::Object(row);
+
+        match rows
+            .iter()
+            .position(|known| key_of(known) == (chapter - 1, position))
+        {
+            Some(index) => rows[index] = row,
+            None => rows.push(row),
+        }
+
+        let mut scene_cast = Vec::new();
+        for entry in proposal["cast"].as_array().into_iter().flatten() {
+            scene_cast.push(json!({
+                "character_id_json_index": character_index(
+                    entry["character"].as_str().unwrap_or("")
+                )?,
+                "is_pov": entry["is_pov"].clone(),
+            }));
+        }
+        incoming.push((chapter - 1, position, scene_cast));
+    }
+
+    rows.sort_by_key(key_of);
+    let mut scene_characters: Vec<Value> = schema_rows(&document, "scene_characters");
+    scene_characters.clear();
+    for (chapter_index, position, cast) in &incoming {
+        let Some(scene_index) = rows
+            .iter()
+            .position(|row| key_of(row) == (*chapter_index, *position))
+        else {
+            continue;
+        };
+        for member in cast {
+            let mut row = member.clone();
+            row["scene_id_json_index"] = json!(scene_index);
+            scene_characters.push(row);
+        }
+    }
+
+    let scenes_path = format!("{}.rows", stage_rows_path("scenes"));
+    let scenes_count = format!("{}.count", stage_rows_path("scenes"));
+    let cast_path = format!("{}.rows", stage_rows_path("scene_characters"));
+    let cast_count = format!("{}.count", stage_rows_path("scene_characters"));
+    for path in [&scenes_path, &scenes_count, &cast_path, &cast_count] {
+        guard_path(path)?;
+    }
+    assert_order(&[Entity::Scenes, Entity::SceneCharacters])?;
+
+    let committed = rows.len();
+    super_json::set(&project_id, &scenes_path, json!(rows))?;
+    super_json::set(&project_id, &scenes_count, json!(committed))?;
+    let cast_total = scene_characters.len();
+    super_json::set(&project_id, &cast_path, json!(scene_characters))?;
+    super_json::set(&project_id, &cast_count, json!(cast_total))?;
+    for item in &selected {
+        db::set_item_status(
+            &connection,
+            run_id,
+            Stage::Scenes.as_str(),
+            &item.key,
+            "committed",
+        )?;
+    }
+    db::update_run_status(&connection, run_id, "committed")?;
+    Ok(CommitReport {
+        committed,
+        skipped,
+        missing: Vec::new(),
+        warnings: Vec::new(),
+    })
 }
 
 fn commit_cast_world(

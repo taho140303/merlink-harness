@@ -20,6 +20,7 @@ pub enum Lane {
     CastSmith,
     WorldSmith,
     BondSmith,
+    SceneBinder,
 }
 
 impl Lane {
@@ -30,6 +31,7 @@ impl Lane {
             Self::CastSmith => "cast_smith",
             Self::WorldSmith => "world_smith",
             Self::BondSmith => "bond_smith",
+            Self::SceneBinder => "scene_binder",
         }
     }
 
@@ -41,6 +43,7 @@ impl Lane {
             Stage::Chapters => Some(Self::ChapterSmith),
             Stage::Cast => Some(Self::CastSmith),
             Stage::World => Some(Self::WorldSmith),
+            Stage::Scenes => Some(Self::SceneBinder),
             _ => None,
         }
     }
@@ -53,6 +56,7 @@ impl Lane {
             Self::CastSmith => "characters",
             Self::WorldSmith => "world",
             Self::BondSmith => "relationships",
+            Self::SceneBinder => "scenes",
         }
     }
 }
@@ -80,6 +84,28 @@ pub fn validate_entity(lane: Lane, entity: &Value) -> Result<(), String> {
                 "chapters",
             ][..],
             &["name", "goal", "outcome", "summarize"][..],
+        ),
+        Lane::SceneBinder => (
+            &[
+                "position",
+                "code",
+                "name",
+                "summarize",
+                "world_setting",
+                "style_preset_code",
+                "narrator_code",
+                "target_words",
+                "directives",
+                "rules",
+                "cast",
+            ][..],
+            &[
+                "name",
+                "summarize",
+                "world_setting",
+                "style_preset_code",
+                "narrator_code",
+            ][..],
         ),
         Lane::ChapterSmith => (
             &[
@@ -379,6 +405,87 @@ pub fn validate_entity(lane: Lane, entity: &Value) -> Result<(), String> {
                 }
             }
         }
+        Lane::SceneBinder => {
+            let target_words = object
+                .get("target_words")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| "scenes.target_words phải là số nguyên".to_owned())?;
+            if target_words == 0 {
+                return Err("scenes.target_words phải lớn hơn 0".into());
+            }
+            if !object.get("rules").is_some_and(string_array) {
+                return Err("scenes.rules phải là mảng chuỗi".into());
+            }
+            let cast = object
+                .get("cast")
+                .and_then(Value::as_array)
+                .ok_or_else(|| "scenes.cast phải là mảng".to_owned())?;
+            if cast.is_empty() {
+                return Err("scenes.cast phải có ít nhất một nhân vật".into());
+            }
+            let mut pov = 0usize;
+            for entry in cast {
+                if entry
+                    .get("character")
+                    .and_then(Value::as_str)
+                    .is_none_or(str::is_empty)
+                {
+                    return Err("scenes.cast[].character phải là tham chiếu nhân vật".into());
+                }
+                match entry.get("is_pov") {
+                    Some(Value::Bool(true)) => pov += 1,
+                    Some(Value::Bool(false)) | None => {}
+                    _ => return Err("scenes.cast[].is_pov phải là boolean".into()),
+                }
+            }
+            if pov != 1 {
+                return Err("mỗi cảnh phải có đúng một người kể chuyện (is_pov)".into());
+            }
+            // Every code must exist in the shipped catalogue, otherwise the
+            // writing prompt would reference a preset that does not exist.
+            for (field, kind) in [
+                ("style_preset_code", crate::catalog::Kind::StylePresets),
+                ("narrator_code", crate::catalog::Kind::NarratorConfigs),
+            ] {
+                let code = string(object, field)?;
+                if !crate::catalog::all(kind)
+                    .iter()
+                    .any(|entry| entry.code == code)
+                {
+                    return Err(format!("scenes.{field} không có trong catalogue: {code}"));
+                }
+            }
+            if let Some(directives) = object.get("directives").and_then(Value::as_array) {
+                for directive in directives {
+                    let code = directive
+                        .get("code")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| "scenes.directives[].code là bắt buộc".to_owned())?;
+                    if !crate::catalog::all(crate::catalog::Kind::NarrativeDirectives)
+                        .iter()
+                        .any(|entry| entry.code == code)
+                    {
+                        return Err(format!(
+                            "scenes.directives code không có trong catalogue: {code}"
+                        ));
+                    }
+                    const WEIGHTS: [&str; 5] = ["NONE", "LOW", "MODERATE", "HIGH", "ABSOLUTE"];
+                    let weight = directive
+                        .get("weight")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| "scenes.directives[].weight là bắt buộc".to_owned())?;
+                    if !WEIGHTS.contains(&weight) {
+                        return Err(
+                            "scenes.directives[].weight phải là NONE, LOW, MODERATE, HIGH hoặc \
+                             ABSOLUTE"
+                                .to_owned(),
+                        );
+                    }
+                }
+            } else {
+                return Err("scenes.directives phải là mảng".into());
+            }
+        }
         _ => {}
     }
     Ok(())
@@ -446,7 +553,10 @@ pub fn validate(lane: Lane, value: &Value) -> Result<(), String> {
     for (index, row) in rows.iter().enumerate() {
         let prefix = format!("{array_key}[{index}]");
         validate_entity(lane, row).map_err(|error| format!("{prefix}: {error}"))?;
-        if matches!(lane, Lane::ArcSmith | Lane::ChapterSmith) {
+        if matches!(
+            lane,
+            Lane::ArcSmith | Lane::ChapterSmith | Lane::SceneBinder
+        ) {
             let position = row
                 .get("position")
                 .and_then(Value::as_u64)
@@ -459,7 +569,7 @@ pub fn validate(lane: Lane, value: &Value) -> Result<(), String> {
             previous = Some(position);
         }
         let reference = match lane {
-            Lane::ArcSmith | Lane::ChapterSmith => row
+            Lane::ArcSmith | Lane::ChapterSmith | Lane::SceneBinder => row
                 .get("code")
                 .and_then(Value::as_str)
                 .unwrap_or("")
