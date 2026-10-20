@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { createAgentEventChannel } from "../lib/tauri";
 import { invokeCommand } from "../lib/ipc";
+import { getOutlineStatus, runOutline, startOutline as startOutlineRun } from "../lib/outline";
+import { OutlineWorkspace } from "./OutlineWorkspace";
 import { newMessageId, newSessionId } from "../lib/ids";
 import { Markdown } from "../components/Markdown";
 import { Dialog } from "../components/Dialog";
@@ -30,13 +32,9 @@ import type {
   SuperJsonProgress,
   ContextUsage,
   ToolCall,
+  OutlineStatus,
+  OutlineEvent,
 } from "../types";
-
-/**
- * The outline button sends this as an ordinary user message (D8): there is no
- * separate outline pipeline yet, it just goes through `handleSend`.
- */
-const OUTLINE_PROMPT = "Bắt đầu viết dàn ý.";
 
 /**
  * One step of the live frame (Sprint 11.12 · D1).
@@ -237,6 +235,9 @@ export function Chat() {
   const [pathLabels, setPathLabels] = useState<Record<string, string>>({});
   /** The message whose tool log dialog is open, if any (D3). */
   const [toolLogFor, setToolLogFor] = useState<string | null>(null);
+  const [outline, setOutline] = useState<OutlineStatus | null>(null);
+  /** The workspace replaces the transcript while this is true. */
+  const [outlineMode, setOutlineMode] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveFrameRef = useRef<HTMLDivElement>(null);
@@ -643,6 +644,26 @@ export function Chat() {
     }
   }
 
+  useEffect(() => {
+    let cancelled = false;
+    void getOutlineStatus(sessionId).then((next) => { if (cancelled) return; setOutline(next.active ? next : null); setOutlineMode(next.active); }).catch(() => { if (!cancelled) { setOutline(null); setOutlineMode(false); } });
+    return () => { cancelled = true; };
+  }, [sessionId, projectId]);
+
+  async function handleStartOutline() {
+    if (!projectId || !selectedProviderId || !selectedModelId) return;
+    setLoading(true);
+    try {
+      const started = await startOutlineRun(projectId, sessionId);
+      setOutline(started);
+      setOutlineMode(true);
+      await runOutline(sessionId, selectedProviderId, selectedModelId, "arcs", (_event: OutlineEvent) => undefined);
+      const current = await getOutlineStatus(sessionId);
+      setOutline(current);
+    } catch (err) { setError(String(err)); }
+    finally { setLoading(false); }
+  }
+
   async function handleSend(event?: FormEvent) {
     event?.preventDefault();
     const content = input.trim();
@@ -776,20 +797,33 @@ export function Chat() {
             )}
           </SelectBox>
 
-          <button
-            type="button"
-            className="btn"
-            title={
-              canOutline
-                ? "Gửi yêu cầu viết dàn ý"
-                : "Cần điền đủ 11 trường bắt buộc trước"
-            }
-            disabled={!canOutline || loading}
-            onClick={() => void sendMessage(OUTLINE_PROMPT)}
-          >
-            <PenLine size={16} />
-            <span>Viết dàn ý</span>
-          </button>
+          {outline ? (
+            <button
+              type="button"
+              className="btn"
+              title="Quay lại bàn dàn ý"
+              disabled={loading}
+              onClick={() => setOutlineMode(true)}
+            >
+              <PenLine size={16} />
+              <span>Mở dàn ý</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn"
+              title={
+                canOutline
+                  ? "Bắt đầu dàn ý cho dự án này"
+                  : "Cần điền đủ 11 trường bắt buộc trước"
+              }
+              disabled={!canOutline || loading}
+              onClick={() => void handleStartOutline()}
+            >
+              <PenLine size={16} />
+              <span>Viết dàn ý</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -817,6 +851,7 @@ export function Chat() {
             gap: "18px",
           }}
         >
+          {outlineMode ? <OutlineWorkspace sessionId={sessionId} providerId={selectedProviderId} modelId={selectedModelId} status={outline} onStatus={setOutline} onExit={() => setOutlineMode(false)} /> : <>
           {messages.length === 0 ? (
             <div
               style={{
@@ -1033,6 +1068,7 @@ export function Chat() {
               )}
             </div>
           )}
+          </>}
         </div>
       </div>
 
@@ -1043,7 +1079,7 @@ export function Chat() {
           className="field chat-input"
           type="text"
           value={input}
-          placeholder="Type your message..."
+          placeholder={outline?.active ? "Trao đổi thêm với Merlink" : "Nhập tin nhắn..."}
           aria-label="Your message"
           disabled={loading}
           onChange={(event) => { setInput(event.target.value); if (historyIndex.current === -1) savedDraft.current = event.target.value; }}

@@ -152,12 +152,108 @@ export interface OutlineAnchorResult {
   };
 }
 
-export interface OutlineStatusResult {
+/** Per-stage counters from `outline_status` (see `models::OutlineStatus`). */
+export interface OutlineCounts {
+  total: number;
+  pending: number;
+  accepted: number;
+  committed: number;
+  failed: number;
+}
+
+/**
+ * Mirrors `OutlineStatus` in src-tauri/src/models.rs.
+ *
+ * `stage` is the stage of the current run, `stage_status` describes its items
+ * (`empty`, `review` or `committed`), and `blockers` are the Vietnamese reasons
+ * the next action is unavailable.
+ */
+export interface OutlineStatus {
   ok: boolean;
   stage: string;
   active: boolean;
-  note: string;
-  project_id: string;
+  run_status: string;
+  stage_status: string;
+  counts: OutlineCounts;
+  next_stage: string | null;
+  blockers: string[];
+  /** One entry per generated stage: `empty`, `review` or `committed`. */
+  stages: OutlineStageState[];
+  usage: Record<string, unknown>;
+}
+
+/** Mirrors `OutlineStageState`: what the rail shows per stage. */
+export interface OutlineStageState {
+  stage: string;
+  status: "empty" | "review" | "committed";
+  total: number;
+}
+
+/** The old name of `OutlineStatus`, kept so existing call sites compile. */
+export type OutlineStatusResult = OutlineStatus;
+
+/**
+ * One reviewable proposal. The summary fields are flattened from the lane
+ * payload so a board can render an arc or a chapter without re-parsing JSON.
+ */
+export interface OutlineItem {
+  key: string;
+  lane: string;
+  position: number;
+  status: "pending" | "accepted" | "committed" | "failed";
+  title: string;
+  error: string | null;
+  name?: string;
+  goal?: string;
+  outcome?: string;
+  summarize?: string;
+  chapters?: number;
+  beats?: string[];
+  arc?: number;
+  scene_count?: number;
+}
+
+/** Arc fields a 2.1 card renders. */
+export type ArcProposal = Pick<
+  OutlineItem,
+  "position" | "name" | "goal" | "outcome" | "summarize" | "chapters"
+>;
+
+/** Chapter fields a 2.1 row renders. */
+export type ChapterProposal = Pick<
+  OutlineItem,
+  "position" | "name" | "summarize" | "beats" | "scene_count" | "arc"
+>;
+
+/**
+ * Mirrors `OutlineEvent` in src-tauri/src/models.rs. Delivered over the channel
+ * passed to `outline_run`, one event per shard start/finish plus the run frames.
+ */
+export type OutlineEvent =
+  | { type: "run_started"; stage: string }
+  | { type: "shard_started"; key: string; lane: string }
+  | { type: "shard_finished"; key: string; lane: string; ok: boolean; error: string | null }
+  | { type: "items_ready"; stage: string; count: number }
+  | { type: "run_finished"; stage: string; failures: number }
+  | { type: "run_failed"; error: string };
+
+/** Mirrors `OutlineRunResult`: what one fan-out cost. */
+export interface OutlineRunResult {
+  stage: string;
+  shards: number;
+  calls: number;
+  items: number;
+  failures: number;
+  tokens_in: number;
+  tokens_out: number;
+}
+
+/** Mirrors `CommitReport`: what `outline_commit` wrote and what it skipped. */
+export interface CommitReport {
+  committed: number;
+  skipped: number;
+  missing: string[];
+  warnings: string[];
 }
 
 

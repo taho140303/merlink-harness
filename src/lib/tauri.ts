@@ -13,16 +13,17 @@ export function isTauri(): boolean {
 }
 
 /** The minimal shape the browser mock needs from a channel. */
-export interface AgentEventChannel {
-  onmessage: (event: AgentEvent) => void;
+export interface EventChannel<T> {
+  onmessage: (event: T) => void;
 }
+export type AgentEventChannel = EventChannel<AgentEvent>;
 
 /** Tauri's live event channel, or a plain callback in browser preview. */
-export function createAgentEventChannel(
-  handler: (event: AgentEvent) => void,
-): AgentEventChannel | Channel<AgentEvent> {
+export function createAgentEventChannel<T = AgentEvent>(
+  handler: (event: T) => void,
+): EventChannel<T> | Channel<T> {
   if (isTauri()) {
-    const channel = new Channel<AgentEvent>();
+    const channel = new Channel<T>();
     channel.onmessage = handler;
     return channel;
   }

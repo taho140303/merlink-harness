@@ -35,18 +35,6 @@ impl Lane {
         }
     }
 
-    /// The contract echoed into the prompt, so the model sees the exact shape.
-    pub fn shape(self) -> &'static str {
-        match self {
-            Self::ArcSmith => {
-                r#"{"arcs":[{"position":1,"code":"arc-01","name":"...","goal":"...","outcome":"...","summarize":"...","chapters":12}]}"#
-            }
-            Self::ChapterSmith => {
-                r#"{"chapters":[{"arc":1,"position":1,"code":"ch-001","name":"...","summarize":"...","beats":["..."],"scene_count":3,"goal":"...","outcome":"..."}]}"#
-            }
-        }
-    }
-
     /// The JSON array key this lane answers with.
     pub fn array_key(self) -> &'static str {
         match self {

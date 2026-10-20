@@ -2,6 +2,10 @@ import type { AgentEvent, ChatTurn, ContextUsage, FetchedModel, MessageEnvelope,
 import type { SendChatArgs } from "./ipc";
 import { mockProjects } from "../data/mock";
 
+const outlineMockActive = new Set<string>();
+const outlineMockCommitted = new Set<string>();
+const outlineMockChapterRuns = new Set<string>();
+
 const MODEL_PRESETS: Record<
   string,
   Partial<{
@@ -936,6 +940,37 @@ const BROWSER_FETCHED_MODELS: FetchedModel[] = [
 ];
 
 /** Preview transport only; the typed command map lives in ipc.ts. */
+
+/** Mirrors `models::OutlineStatus`, including the per-stage rail state. */
+function outlineMockStatus(sessionId: string) {
+  const active = outlineMockActive.has(sessionId);
+  const arcsCommitted = outlineMockCommitted.has(`${sessionId}:arcs`);
+  const chaptersCommitted = outlineMockCommitted.has(`${sessionId}:chapters`);
+  const chaptersStarted = outlineMockChapterRuns.has(sessionId);
+  const stage = chaptersStarted ? "chapters" : active ? "arcs" : "seed";
+  const stages = [
+    { stage: "arcs", status: active ? (arcsCommitted ? "committed" : "review") : "empty", total: active ? 3 : 0 },
+    { stage: "chapters", status: chaptersStarted ? (chaptersCommitted ? "committed" : "review") : "empty", total: chaptersStarted ? 12 : 0 },
+    { stage: "cast", status: "empty", total: 0 },
+    { stage: "world", status: "empty", total: 0 },
+    { stage: "scenes", status: "empty", total: 0 },
+  ];
+  const committedTotal = (arcsCommitted ? 3 : 0) + (chaptersCommitted ? 12 : 0);
+  const total = (active ? 3 : 0) + (chaptersStarted ? 12 : 0);
+  return {
+    ok: true,
+    stage,
+    active,
+    run_status: active ? (arcsCommitted && chaptersCommitted ? "committed" : "review") : "idle",
+    stage_status: active ? (arcsCommitted ? "committed" : "review") : "empty",
+    counts: { total, pending: total - committedTotal, accepted: 0, committed: committedTotal, failed: 0 },
+    next_stage: active ? "chapters" : "arcs",
+    blockers: [],
+    stages,
+    usage: { calls: active ? 1 : 0, tokens_in: active ? 820 : 0, tokens_out: active ? 1450 : 0 },
+  };
+}
+
 export async function browserInvoke(cmd: string, args?: unknown): Promise<unknown> {
   switch (cmd) {
     case "load_providers":
@@ -1023,20 +1058,49 @@ export async function browserInvoke(cmd: string, args?: unknown): Promise<unknow
       };
     }
     case "outline_status": {
-      return { ok: true, stage: "seed", active: false, run_status: "active", stage_status: "pending", counts: {}, next_stage: "arcs", blockers: [], usage: {} };
+      const request = args as { sessionId: string };
+      return outlineMockStatus(request.sessionId);
     }
-    case "outline_start":
-      return { ok: true, stage: "seed", active: false, run_status: "active", stage_status: "pending", counts: {}, next_stage: "arcs", blockers: [], usage: {} };
-    case "outline_run":
+    case "outline_start": {
+      const request = args as { sessionId: string };
+      outlineMockActive.add(request.sessionId);
+      return outlineMockStatus(request.sessionId);
+    }
+    case "outline_run": {
+      const request = args as { sessionId: string; stage: string; channel: { onmessage?: (event: { type: string; stage?: string; key?: string; lane?: string; ok?: boolean; error?: string | null; count?: number; failures?: number }) => void } };
+      const event = request.channel?.onmessage;
+      const runArgs = args as { sessionId: string; stage: string; channel: { onmessage?: (event: { type: string; stage?: string; key?: string; lane?: string; ok?: boolean; error?: string | null; count?: number; failures?: number }) => void } };
+      if (request.stage === "chapters") outlineMockChapterRuns.add(runArgs.sessionId);
+      if (event) {
+        event({ type: "run_started", stage: request.stage });
+        event({ type: "shard_started", key: request.stage === "arcs" ? "arcs" : "chapters-1-10", lane: request.stage === "arcs" ? "arc_smith" : "chapter_smith" });
+        event({ type: "shard_finished", key: request.stage === "arcs" ? "arcs" : "chapters-1-10", lane: request.stage === "arcs" ? "arc_smith" : "chapter_smith", ok: true, error: null });
+        event({ type: "items_ready", stage: request.stage, count: request.stage === "arcs" ? 3 : 10 });
+        event({ type: "run_finished", stage: request.stage, failures: 0 });
+      }
+      return { stage: request.stage, shards: 1, calls: 1, items: request.stage === "arcs" ? 3 : 10, failures: 0, tokens_in: 820, tokens_out: 1450 };
+    }
     case "outline_regenerate":
-      return { stage: "arcs", shards: 1, calls: 0, items: 0, failures: 0, tokens_in: 0, tokens_out: 0 };
-    case "outline_items":
-      return [];
+      return { stage: "arcs", shards: 1, calls: 1, items: 1, failures: 0, tokens_in: 120, tokens_out: 240 };
+    case "outline_items": {
+      const request = args as { stage: string };
+      if (request.stage === "arcs") return [
+        { key: "arc-01", lane: "arc_smith", position: 1, status: "pending", title: "Lời thề dưới chân núi", name: "Lời thề dưới chân núi", goal: "Đặt nền móng cho hành trình và lời thề của nhân vật chính.", outcome: "Nhân vật rời quê nhà, mang theo bí mật của chiếc nhẫn.", summarize: "Tiêu Viêm đối mặt với biến cố làm đảo lộn cuộc sống. Một lời thề mới mở ra hành trình trưởng thành.", chapters: 4, error: null },
+        { key: "arc-02", lane: "arc_smith", position: 2, status: "pending", title: "Thử lửa nơi viễn địa", name: "Thử lửa nơi viễn địa", goal: "Thử thách năng lực và lòng tin.", outcome: "Đồng minh được tìm thấy, mối đe dọa lộ diện.", summarize: "Hành trình đưa nhóm đến vùng đất xa lạ, nơi mỗi chiến thắng đều có cái giá riêng.", chapters: 4, error: null },
+        { key: "arc-03", lane: "arc_smith", position: 3, status: "pending", title: "Ngọn lửa tái sinh", name: "Ngọn lửa tái sinh", goal: "Đưa xung đột đến lựa chọn cuối cùng.", outcome: "Nhân vật làm chủ sức mạnh và xác lập tương lai.", summarize: "Những bí mật được giải đáp trong cuộc đối đầu cuối. Nhân vật chọn con đường của riêng mình.", chapters: 4, error: null },
+      ];
+      const chapterRequest = args as { sessionId: string };
+      if (!outlineMockChapterRuns.has(chapterRequest.sessionId)) return [];
+      return Array.from({ length: 12 }, (_, index) => ({ key: `ch-${String(index + 1).padStart(3, "0")}`, lane: "chapter_smith", position: index + 1, status: "pending", title: `Chương ${index + 1}: ${["Tàn tro đầu mùa", "Người khách lạ", "Dấu ấn cổ", "Lời hẹn", "Cánh cửa đá", "Đêm truy đuổi", "Một món nợ", "Tin dữ", "Bước ngoặt", "Bóng dưới vực", "Trở về", "Khởi hành"][index]}`, summarize: "Nhân vật tiến gần hơn tới mục tiêu, đồng thời phát hiện một manh mối mới.", beats: ["Gặp gỡ", "Xung đột", "Lựa chọn"], scene_count: 3, arc: Math.floor(index / 4) + 1, error: null }));
+    }
     case "outline_accept":
     case "outline_reject":
-      return 0;
-    case "outline_commit":
-      return { committed: 0, skipped: 0, missing: [], warnings: [] };
+      return Array.isArray((args as { keys?: string[] }).keys) ? (args as { keys: string[] }).keys.length : 3;
+    case "outline_commit": {
+      const request = args as { sessionId: string; stage: string };
+      outlineMockCommitted.add(`${request.sessionId}:${request.stage}`);
+      return { committed: 3, skipped: 0, missing: [], warnings: [] };
+    }
     case "outline_cancel":
       return undefined;
     case "context_usage": {

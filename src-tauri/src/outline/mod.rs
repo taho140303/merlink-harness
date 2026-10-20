@@ -8,6 +8,7 @@ pub mod anchor;
 pub mod apply;
 pub mod contract;
 pub mod fanout;
+pub mod prompts;
 pub mod seed;
 pub mod stage;
 
@@ -77,6 +78,7 @@ pub fn status(session_id: &str) -> Result<OutlineStatus, String> {
             counts: json!({"total":0,"pending":0,"accepted":0,"committed":0,"failed":0}),
             next_stage: Some(Stage::Arcs.as_str().into()),
             blockers: vec!["Chưa khởi tạo lượt dàn ý".into()],
+            stages: Vec::new(),
             usage: json!({"calls":0,"tokens_in":0,"tokens_out":0}),
         });
     };
@@ -122,12 +124,45 @@ pub fn status(session_id: &str) -> Result<OutlineStatus, String> {
         }),
         next_stage: stage.next().map(|next| next.as_str().to_owned()),
         blockers,
+        stages: stage_states(&connection, &run.id)?,
         usage: json!({
             "calls": run.calls,
             "tokens_in": run.tokens_in,
             "tokens_out": run.tokens_out,
         }),
     })
+}
+
+/// Per-stage proposal counts for the rail. A stage is `committed` only when it
+/// has proposals and every one of them reached `committed`.
+fn stage_states(
+    connection: &rusqlite::Connection,
+    run_id: &str,
+) -> Result<Vec<crate::models::OutlineStageState>, String> {
+    let mut states = Vec::new();
+    for stage in [
+        Stage::Arcs,
+        Stage::Chapters,
+        Stage::Cast,
+        Stage::World,
+        Stage::Scenes,
+    ] {
+        let items = db::list_items(connection, run_id, stage.as_str())?;
+        let total = items.len() as u32;
+        let status = if total == 0 {
+            "empty"
+        } else if items.iter().all(|item| item.status == "committed") {
+            "committed"
+        } else {
+            "review"
+        };
+        states.push(crate::models::OutlineStageState {
+            stage: stage.as_str().to_owned(),
+            status: status.to_owned(),
+            total,
+        });
+    }
+    Ok(states)
 }
 
 fn plan_counts(document: &Value) -> Result<(u64, u64, u64), String> {
@@ -175,28 +210,17 @@ fn arcs_brief(document: &Value) -> String {
         .join("\n")
 }
 
-fn system_prompt(lane: Lane) -> String {
-    format!(
-        "Bạn là trợ lý dàn ý của Merlink, trả lời bằng tiếng Việt. Chỉ trả về đúng một object JSON \
-         theo hợp đồng, không kèm giải thích và không markdown fence. Cấm emoji. Cấm ký tự gạch \
-         ngang dài. Mỗi code là slug ASCII duy nhất, không khoảng trắng. Không bịa mã style preset, \
-         narrator hay directive ngoài catalogue. Bạn không ghi state: chỉ đề xuất, tác giả duyệt \
-         rồi backend mới ghi. Hợp đồng đầu ra: {}",
-        lane.shape()
-    )
-}
-
 fn arc_plan(document: &Value) -> Result<ShardPlan, String> {
     let (arc_total, chapter_total, scene_total) = plan_counts(document)?;
     Ok(ShardPlan {
         lane: Lane::ArcSmith,
         shard: "arcs".to_owned(),
-        system: system_prompt(Lane::ArcSmith),
-        user: format!(
-            "Khối anchor:\n{}\n\nNgân sách: đúng {arc_total} arc, tổng {chapter_total} chương, \
-             tổng {scene_total} cảnh. Trường chapters của mỗi arc là số chương của arc đó và tổng \
-             phải bằng {chapter_total}.",
-            anchor_compact(document)
+        system: prompts::system(Lane::ArcSmith).to_owned(),
+        user: prompts::arcs_user(
+            &anchor_compact(document),
+            arc_total,
+            chapter_total,
+            scene_total,
         ),
     })
 }
@@ -213,13 +237,8 @@ fn chapter_plans(document: &Value, range: Option<&str>) -> Result<Vec<ShardPlan>
         plans.push(ShardPlan {
             lane: Lane::ChapterSmith,
             shard: format!("chapters-{:02}", index + 1),
-            system: system_prompt(Lane::ChapterSmith),
-            user: format!(
-                "Khối anchor:\n{compact}\n\nCác arc đã chốt:\n{brief}\n\nViết chương {start} đến \
-                 {end} trong tổng {chapter_total} chương. Trường arc là số thứ tự arc (bắt đầu từ \
-                 1). Trường position là vị trí chương trong toàn truyện. Tổng scene_count của các \
-                 chương bạn viết phải bằng {scene_budget}.",
-            ),
+            system: prompts::system(Lane::ChapterSmith).to_owned(),
+            user: prompts::chapters_user(&compact, &brief, start, end, chapter_total, scene_budget),
         });
     }
     Ok(plans)
@@ -477,17 +496,29 @@ pub fn items(session_id: &str, stage: Stage) -> Result<Vec<OutlineItem>, String>
         .map(|item| {
             let value: Value = serde_json::from_str(&item.payload_json)
                 .map_err(|error| format!("Đề xuất {} không hợp lệ: {error}", item.key))?;
+            let text = |field: &str| value.get(field).and_then(Value::as_str).map(str::to_owned);
+            let number = |field: &str| value.get(field).and_then(Value::as_u64);
             Ok(OutlineItem {
                 key: item.key,
                 lane: item.lane,
                 position: item.position,
                 status: item.status,
-                title: value
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
+                title: text("name").unwrap_or_default(),
                 error: item.error,
+                name: text("name"),
+                goal: text("goal"),
+                outcome: text("outcome"),
+                summarize: text("summarize"),
+                chapters: number("chapters"),
+                beats: value.get("beats").and_then(Value::as_array).map(|beats| {
+                    beats
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                }),
+                arc: number("arc"),
+                scene_count: number("scene_count"),
             })
         })
         .collect()
@@ -830,6 +861,36 @@ mod tests {
             json!(0),
             "the arc number becomes a draft reference"
         );
+    }
+
+    #[test]
+    fn test_outline_items_expose_proposal_content_for_the_board() {
+        let _home = TempHome::new("outline-items-board");
+        let (project, session) = project_with_plan("board");
+        start(&project, &session).unwrap();
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![AdapterReply::text(arcs_reply())])),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Arcs,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+
+        let items = items(&session, Stage::Arcs).unwrap();
+        assert_eq!(items.len(), 3);
+        let first = &items[0];
+        assert_eq!(first.key, "arc-01");
+        assert_eq!(first.name.as_deref(), Some("Mưa"));
+        assert_eq!(first.goal.as_deref(), Some("Mở màn"));
+        assert_eq!(first.outcome.as_deref(), Some("Mất nhà"));
+        assert_eq!(first.summarize.as_deref(), Some("Bốn chương mở màn"));
+        assert_eq!(first.chapters, Some(4));
+        assert_eq!(first.position, 1);
+        assert!(first.beats.is_none(), "arcs carry no beats");
     }
 
     #[test]
