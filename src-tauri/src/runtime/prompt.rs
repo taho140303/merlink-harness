@@ -30,9 +30,49 @@ fn embedded_document(project_id: &str) -> String {
         return NO_SUPER_JSON.to_owned();
     };
     match serde_json::from_str::<serde_json::Value>(&raw) {
-        Ok(document) => serde_json::to_string_pretty(&document).unwrap_or(raw),
+        Ok(document) => {
+            let pretty = serde_json::to_string_pretty(&document).unwrap_or_else(|_| raw.clone());
+            // A finished project can reach megabytes once phase 2 has written
+            // every scene, so the prompt switches to a compact view and the
+            // model reads details with `super_json_get` instead.
+            if pretty.len() > MAX_EMBEDDED_BYTES {
+                compact_document(&document)
+            } else {
+                pretty
+            }
+        }
         Err(_) => raw,
     }
+}
+
+/// Above this size the embedded document becomes a summary.
+const MAX_EMBEDDED_BYTES: usize = 24_000;
+
+/// Project leaves plus one line per table: enough for the model to know what
+/// exists without paying for every row.
+fn compact_document(document: &serde_json::Value) -> String {
+    let mut out = String::from("(bản rút gọn: tài liệu lớn, đọc chi tiết bằng super_json_get)\n");
+    for group in ["require", "optional"] {
+        let Some(block) = document.get(group) else {
+            continue;
+        };
+        if let Some(project) = block.get("project").and_then(serde_json::Value::as_object) {
+            for (key, value) in project {
+                out.push_str(&format!("{group}.project.{key} = {value}\n"));
+            }
+        }
+        if let Some(entries) = block.get("schema").and_then(serde_json::Value::as_array) {
+            for entry in entries {
+                let table = entry["table"].as_str().unwrap_or("?");
+                let count = entry["count"].as_u64().unwrap_or(0);
+                let rows = entry["rows"].as_array().map(Vec::len).unwrap_or(0);
+                out.push_str(&format!(
+                    "{group}.schema.{table}: count={count} rows={rows}\n"
+                ));
+            }
+        }
+    }
+    out
 }
 
 pub fn assemble_prompt(
@@ -164,6 +204,47 @@ mod tests {
             "the playbook must be appended exactly once"
         );
         assert!(!prompt.contains("{super_json}"));
+    }
+
+    #[test]
+    fn test_large_document_is_embedded_as_a_summary() {
+        let _home = crate::test_support::TempHome::new("prompt-compact");
+        crate::super_json::init_project("p", None).unwrap();
+        // 30 KB of scene prose pushes the document past the embed budget.
+        crate::super_json::set(
+            "p",
+            "optional.schema.chapters.rows",
+            json!([{ "name": "Chương 1", "position": 1, "scene_count": 1 }]),
+        )
+        .unwrap();
+        crate::super_json::set("p", "optional.schema.chapters.count", json!(1)).unwrap();
+        let filler = "x".repeat(30_000);
+        crate::super_json::set(
+            "p",
+            "optional.schema.scenes.rows",
+            json!([{
+                "name": "Cảnh lớn",
+                "position": 1,
+                "chapter_id_json_index": 0,
+                "summarize": filler
+            }]),
+        )
+        .unwrap();
+        crate::super_json::set("p", "optional.schema.scenes.count", json!(1)).unwrap();
+
+        let prompt = assemble_prompt("OpenAI", "gpt-4o", "s", "p");
+        assert!(
+            prompt.contains("bản rút gọn"),
+            "a large document must be summarised"
+        );
+        assert!(
+            prompt.contains("optional.schema.scenes: count=1 rows=1"),
+            "the summary keeps the table shape"
+        );
+        assert!(
+            !prompt.contains(&"x".repeat(30_000)),
+            "the raw rows must not be embedded"
+        );
     }
 
     #[test]

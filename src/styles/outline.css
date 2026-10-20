@@ -23,3 +23,13 @@
 @media(max-width:1080px){.outline-columns{grid-template-columns:minmax(0,1fr)}}
 .outline-detail-list{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.6;color:var(--muted)}
 .outline-detail-list li{margin:1px 0}
+
+/* Project tabs and the phase 3 chapter workspace. */
+.project-tabs{display:flex;gap:8px;margin-bottom:16px}
+.project-tab{padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--glass-soft);font-size:12px;font-weight:680;color:var(--muted);cursor:pointer}
+.project-tab.is-active{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.write-chapter-list,.write-scene-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.write-chapter{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--glass-soft);font-size:12.5px;cursor:pointer;color:var(--ink)}
+.write-chapter.is-active{border-color:var(--accent);background:var(--accent-soft)}
+.write-chapter span{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.write-scene-select{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--faint);margin-bottom:4px}

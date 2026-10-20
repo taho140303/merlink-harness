@@ -1,7 +1,8 @@
 # SPRINT 17 — PHASE 2: OUTLINE ENGINE (State fabrication + review gates)
 
-> **Trạng thái: PLAN.** Chưa có dòng code nào của phase 2. Tài liệu này là roadmap 7 sprint
-> `17.1 → 17.7`, mỗi sprint có gate review riêng và phải merge được độc lập.
+> **Trạng thái: DONE.** Cả 7 sprint `17.1 → 17.7` đã merge vào `main`; xem `docs/plan/sprint-17.N.md`
+> cho từng sprint. Baseline cuối: `cargo test` **230 passed / 3 ignored**, `clippy -D warnings` sạch,
+> `cargo fmt --check` sạch, `pnpm build` pass, `node scripts/gen-catalog.mjs --check` sạch.
 > **Base:** `main` sau Sprint 16.6 (`cargo test` 170 passed / 3 ignored, `pnpm build` pass).
 > **Branch:** `sprint-17.1-state-v3`, `sprint-17.2-outline-engine`, `sprint-17.3-stage-21`,
 > `sprint-17.4-stage-22`, `sprint-17.5-stage-23`, `sprint-17.6-writing-engine`,
