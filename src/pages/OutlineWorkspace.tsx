@@ -68,6 +68,7 @@ export function OutlineWorkspace({
   const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<OutlineEvent[]>([]);
   const [message, setMessage] = useState("");
+  const [runLabel, setRunLabel] = useState("");
   /** Bumped after a run or a commit so the board re-reads its proposals. */
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -96,7 +97,20 @@ export function OutlineWorkspace({
   const locked = !activeStage.available || !prerequisitesMet(selected);
 
   function onEvent(event: OutlineEvent) {
-    setEvents((previous) => [...previous.slice(-6), event]);
+    setEvents((previous) => [...previous, event]);
+    if (event.type === "run_started") {
+      setRunLabel(`Đang chạy ${stageName(event.stage)} · ${event.shards_total} lô tuần tự`);
+    } else if (event.type === "shard_started") {
+      setRunLabel(`Đang xử lý ${event.key}…`);
+    } else if (event.type === "shard_finished") {
+      setRunLabel(event.ok
+        ? `Đã lưu bản nháp ${event.key}; chuẩn bị lô tiếp theo…`
+        : `Lô ${event.key} gặp lỗi; đang tiếp tục các lô còn lại…`);
+    } else if (event.type === "run_finished") {
+      setRunLabel("Đã hoàn tất sinh đề xuất.");
+    } else if (event.type === "run_failed") {
+      setRunLabel("Lượt sinh dàn ý thất bại.");
+    }
   }
 
   async function run(stage: string) {
@@ -106,6 +120,7 @@ export function OutlineWorkspace({
     }
     setBusy(true);
     setEvents([]);
+    setRunLabel("Đang chuẩn bị các lô công việc…");
     setMessage("");
     try {
       await runOutline(sessionId, providerId, modelId, stage, onEvent);
@@ -114,6 +129,7 @@ export function OutlineWorkspace({
       setMessage(String(reason));
     } finally {
       setBusy(false);
+      setRunLabel("");
     }
   }
 
@@ -200,6 +216,29 @@ export function OutlineWorkspace({
       </nav>
 
       <div className="outline-body">
+        {(busy || events.length > 0) && (
+          <section className="outline-progress" aria-live="polite" aria-atomic="false">
+            <strong>{busy ? "Merlink đang làm việc" : "Tiến độ gần nhất"}</strong>
+            {runLabel && <p role="status">{runLabel}</p>}
+            {(() => {
+              const start = [...events].reverse().find((event) => event.type === "run_started");
+              const finished = events.filter((event) => event.type === "shard_finished").length;
+              return start?.type === "run_started" ? (
+                <span>{finished}/{start.shards_total} lô đã xử lý · bản nháp được lưu sau từng lô</span>
+              ) : null;
+            })()}
+            <ul>
+              {events.map((event, index) => (
+                <li
+                  key={`${event.type}-${index}`}
+                  className={event.type === "shard_finished" && !event.ok ? "is-failed" : ""}
+                >
+                  {describe(event)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {locked ? (
           <div className="outline-locked">
             <h2>Giai đoạn chưa mở</h2>
@@ -237,22 +276,6 @@ export function OutlineWorkspace({
           />
         )}
 
-        {events.length > 0 && (
-          <section className="outline-progress" aria-live="polite">
-            <strong>Tiến độ</strong>
-            <ul>
-              {events.map((event, index) => (
-                <li
-                  key={`${event.type}-${index}`}
-                  className={event.type === "shard_finished" && !event.ok ? "is-failed" : ""}
-                >
-                  {describe(event)}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {message && (
           <p className="outline-message" role="status">
             {message}
@@ -280,14 +303,18 @@ export function OutlineWorkspace({
   );
 }
 
+function stageName(stage: string): string {
+  return ({ arcs: "tóm tắt", chapters: "chương", cast: "nhân vật", world: "thế giới", scenes: "phân cảnh" } as Record<string, string>)[stage] ?? stage;
+}
+
 function describe(event: OutlineEvent): string {
   switch (event.type) {
     case "run_started":
-      return "Bắt đầu chạy";
+      return `Bắt đầu ${stageName(event.stage)} · ${event.shards_total} lô`;
     case "shard_started":
       return `Đang xử lý ${event.key}`;
     case "shard_finished":
-      return `${event.key}: ${event.ok ? "hoàn tất" : (event.error ?? "thất bại")}`;
+      return `${event.key}: ${event.ok ? "đã lưu bản nháp" : (event.error ?? "thất bại")}`;
     case "items_ready":
       return `Đã tạo ${event.count} đề xuất`;
     case "run_finished":

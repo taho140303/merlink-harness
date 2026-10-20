@@ -16,7 +16,10 @@ pub use anchor::{anchor, anchor_compact, anchor_for_project, anchor_json};
 
 use std::{
     collections::BTreeSet,
-    sync::{Arc, atomic::AtomicBool},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use serde_json::{Value, json};
@@ -36,12 +39,8 @@ use crate::{
     super_json,
 };
 
-/// Chapters per subagent call: small enough to keep one prompt focused, big
-/// enough that a 120-chapter plan becomes 12 shards for five workers.
-const CHAPTERS_PER_SHARD: u64 = 10;
-
-/// Default fan-out width. Five is the number the phase-2 plan promises.
-const DEFAULT_CONCURRENCY: usize = 5;
+/// Chapters per provider call: small enough to keep each prompt focused.
+const CHAPTERS_PER_SHARD: u64 = 1;
 
 /// One planned provider call. `shard` is the stable key used to store the
 /// proposals it produced and to rebuild the very same call on regenerate.
@@ -661,34 +660,87 @@ pub async fn run_with_backend(
         .collect();
     let _ = sink.send(OutlineEvent::RunStarted {
         stage: stage.as_str().into(),
+        shards_total: plans.len() as u32,
     });
 
-    let (stats, results) = fanout::run_shards(
-        backend,
-        provider.clone(),
-        model.clone(),
-        shards,
-        DEFAULT_CONCURRENCY,
-        Arc::clone(&cancel),
-        forward_events(sink.clone()),
-    )
-    .await;
-
+    // Process one shard at a time. Each successful shard is committed to the
+    // proposal store before the next provider call begins, so partial work is
+    // visible immediately and survives an app restart.
+    let mut stats = fanout::RunStats::default();
     let mut stored = Vec::new();
     let mut first_error: Option<String> = None;
-    for (shard_key, result) in &results {
-        let Some(plan) = plans.iter().find(|plan| plan.shard == *shard_key) else {
-            continue;
-        };
-        match result {
-            Ok(value) => stored.extend(proposals_from(&run.id, stage, plan, value)?),
+    for (index, (plan, shard)) in plans.iter().zip(shards).enumerate() {
+        let _ = sink.send(OutlineEvent::ShardStarted {
+            key: plan.shard.clone(),
+            lane: plan.lane.key().into(),
+        });
+        let (shard_stats, results) = fanout::run_shards(
+            Arc::clone(&backend),
+            provider.clone(),
+            model.clone(),
+            vec![shard],
+            1,
+            Arc::clone(&cancel),
+            mpsc::unbounded_channel().0,
+        )
+        .await;
+        stats.calls += shard_stats.calls;
+        stats.failures += shard_stats.failures;
+        stats.tokens_in += shard_stats.tokens_in;
+        stats.tokens_out += shard_stats.tokens_out;
+
+        let result = results
+            .into_iter()
+            .next()
+            .map(|(_, result)| result)
+            .unwrap_or_else(|| Err("Đã hủy lượt chạy".to_owned()));
+        let (ok, error) = match result {
+            Ok(value) => match proposals_from(&run.id, stage, plan, &value) {
+                Ok(items) => {
+                    if let Err(error) = db::upsert_items(&connection, &items) {
+                        stats.failures += 1;
+                        if first_error.is_none() {
+                            first_error = Some(error.clone());
+                        }
+                        (false, Some(error))
+                    } else {
+                        stored.extend(items);
+                        (true, None)
+                    }
+                }
+                Err(error) => {
+                    stats.failures += 1;
+                    if first_error.is_none() {
+                        first_error = Some(error.clone());
+                    }
+                    (false, Some(error))
+                }
+            },
             Err(error) => {
                 if first_error.is_none() {
                     first_error = Some(error.clone());
                 }
+                (false, Some(error))
             }
+        };
+        let _ = sink.send(OutlineEvent::ShardFinished {
+            key: plan.shard.clone(),
+            lane: plan.lane.key().into(),
+            ok,
+            error,
+        });
+        db::update_run_usage(
+            &connection,
+            &run.id,
+            run.calls + stats.calls as i64,
+            run.tokens_in + stats.tokens_in as i64,
+            run.tokens_out + stats.tokens_out as i64,
+        )?;
+        if cancel.load(Ordering::Relaxed) || index + 1 == plans.len() {
+            break;
         }
     }
+
     if stored.is_empty() {
         let cause = first_error.unwrap_or_else(|| "không rõ nguyên nhân".to_owned());
         let error = format!("Không có đề xuất hợp lệ nào được sinh ra: {cause}");
@@ -697,16 +749,8 @@ pub async fn run_with_backend(
         });
         return Err(error);
     }
-    db::upsert_items(&connection, &stored)?;
     db::update_run_stage(&connection, &run.id, stage.as_str())?;
     db::update_run_status(&connection, &run.id, "review")?;
-    db::update_run_usage(
-        &connection,
-        &run.id,
-        run.calls + stats.calls as i64,
-        run.tokens_in + stats.tokens_in as i64,
-        run.tokens_out + stats.tokens_out as i64,
-    )?;
     let _ = sink.send(OutlineEvent::ItemsReady {
         stage: stage.as_str().into(),
         count: stored.len() as u32,
@@ -1006,6 +1050,83 @@ mod tests {
         events
     }
 
+    struct PersistCheckingBackend {
+        session_id: String,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::adapters::LlmBackend for PersistCheckingBackend {
+        fn complete<'a>(
+            &'a self,
+            _request: crate::adapters::ChatRequest,
+        ) -> crate::adapters::BoxedFuture<'a, Result<AdapterReply, String>> {
+            Box::pin(async move {
+                let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if call > 0 {
+                    let connection = db::open().unwrap();
+                    let run = db::run_for_session(&connection, &self.session_id)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(
+                        db::list_items(&connection, &run.id, Stage::Chapters.as_str())
+                            .unwrap()
+                            .len(),
+                        call,
+                        "every earlier chapter must be persisted before the next call"
+                    );
+                }
+                Ok(AdapterReply::text(chapters_reply(call as u64 + 1, 1)))
+            })
+        }
+    }
+
+    #[test]
+    fn chapter_shards_run_sequentially_and_persist_each_draft_before_next_call() {
+        let _home = TempHome::new("outline-sequential-persist");
+        let (project, session) = project_with_plan("sequential");
+        start(&project, &session).unwrap();
+        tauri::async_runtime::block_on(run_with_backend(
+            Arc::new(ScriptedBackend::new(vec![AdapterReply::text(arcs_reply())])),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Arcs,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+        accept(&session, Stage::Arcs, None).unwrap();
+        commit(&session, Stage::Arcs, None).unwrap();
+        let backend = Arc::new(PersistCheckingBackend {
+            session_id: session.clone(),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        });
+
+        let result = tauri::async_runtime::block_on(run_with_backend(
+            backend.clone(),
+            &session,
+            &provider(),
+            &model(),
+            Stage::Chapters,
+            None,
+            mpsc::unbounded_channel().0,
+            Arc::new(AtomicBool::new(false)),
+        ))
+        .unwrap();
+
+        assert_eq!(backend.calls.load(std::sync::atomic::Ordering::SeqCst), 12);
+        assert_eq!(result.items, 12);
+        let connection = db::open().unwrap();
+        let run = db::run_for_session(&connection, &session).unwrap().unwrap();
+        assert_eq!(
+            db::list_items(&connection, &run.id, Stage::Chapters.as_str())
+                .unwrap()
+                .len(),
+            12
+        );
+    }
+
     #[test]
     fn test_outline_engine_end_to_end_scripted() {
         let _home = TempHome::new("outline-e2e");
@@ -1038,10 +1159,11 @@ mod tests {
         assert_eq!(report.committed, 3);
         assert!(report.missing.is_empty());
 
-        let chapters_backend = Arc::new(ScriptedBackend::new(vec![
-            AdapterReply::text(chapters_reply(1, 10)),
-            AdapterReply::text(chapters_reply(11, 2)),
-        ]));
+        let chapters_backend = Arc::new(ScriptedBackend::new(
+            (1..=12)
+                .map(|chapter| AdapterReply::text(chapters_reply(chapter, 1)))
+                .collect(),
+        ));
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let result = tauri::async_runtime::block_on(run_with_backend(
             chapters_backend,
@@ -1054,8 +1176,8 @@ mod tests {
             Arc::new(AtomicBool::new(false)),
         ))
         .unwrap();
-        assert_eq!(result.items, 12, "twelve chapters across two shards");
-        assert!(result.shards >= 2);
+        assert_eq!(result.items, 12, "twelve chapters across twelve calls");
+        assert_eq!(result.shards, 12);
         assert!(
             drain(&mut receiver)
                 .iter()
@@ -1121,10 +1243,11 @@ mod tests {
         commit(session, Stage::Arcs, None).unwrap();
 
         tauri::async_runtime::block_on(run_with_backend(
-            Arc::new(ScriptedBackend::new(vec![
-                AdapterReply::text(chapters_reply(1, 10)),
-                AdapterReply::text(chapters_reply(11, 2)),
-            ])),
+            Arc::new(ScriptedBackend::new(
+                (1..=12)
+                    .map(|chapter| AdapterReply::text(chapters_reply(chapter, 1)))
+                    .collect(),
+            )),
             session,
             &provider(),
             &model(),

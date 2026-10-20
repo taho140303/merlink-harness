@@ -316,6 +316,7 @@ pub struct CommitReport {
 pub enum OutlineEvent {
     RunStarted {
         stage: String,
+        shards_total: u32,
     },
     ShardStarted {
         key: String,

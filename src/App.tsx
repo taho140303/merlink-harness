@@ -101,10 +101,20 @@ function Shell() {
   const [deleteTarget, setDeleteTarget] = useState<SessionSummary | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const cancelRenameRef = useRef(false);
+  const sessionsRequestRef = useRef(0);
 
   const loadSessions = async () => {
-    try { setSessions(await invokeCommand("list_sessions")); setSessionsError(false); }
-    catch (error) { console.error("Could not load conversations:", error); setSessionsError(true); }
+    const request = ++sessionsRequestRef.current;
+    try {
+      const next = await invokeCommand("list_sessions");
+      if (request !== sessionsRequestRef.current) return;
+      setSessions(next);
+      setSessionsError(false);
+    } catch (error) {
+      if (request !== sessionsRequestRef.current) return;
+      console.error("Could not load conversations:", error);
+      setSessionsError(true);
+    }
   };
 
   useEffect(() => {
@@ -116,7 +126,10 @@ function Shell() {
     );
     const refresh = () => void loadSessions();
     window.addEventListener("merlink:sessions-changed", refresh);
-    return () => window.removeEventListener("merlink:sessions-changed", refresh);
+    return () => {
+      window.removeEventListener("merlink:sessions-changed", refresh);
+      sessionsRequestRef.current += 1;
+    };
   }, []);
 
   useEffect(() => {

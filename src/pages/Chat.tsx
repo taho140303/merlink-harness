@@ -197,6 +197,9 @@ export function Chat() {
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [messages, setMessages] = useState<MessageEnvelope[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyRetry, setHistoryRetry] = useState(0);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -368,9 +371,10 @@ export function Chat() {
   useEffect(() => {
     const routeId = routeSessionId ?? "";
     if (loadedRouteRef.current === routeId) return;
-    loadedRouteRef.current = routeId;
     if (!routeId) {
       sessionEpochRef.current += 1; activeTurnRef.current = null;
+      loadedRouteRef.current = "";
+      setHistoryLoading(false); setHistoryError(null);
       const fresh = newSessionId(); sessionRef.current = fresh; projectRef.current = "";
       setSessionId(fresh); setProjectId(""); setMessages([]); setError(null); setLoading(false);
       setProgress(null); setSuperJson(null); setSuperJsonSummary("");
@@ -380,6 +384,13 @@ export function Chat() {
     let cancelled = false;
     const epoch = ++sessionEpochRef.current;
     activeTurnRef.current = null;
+    sessionRef.current = routeId;
+    projectRef.current = "";
+    setSessionId(routeId);
+    setProjectId("");
+    setMessages([]);
+    setHistoryLoading(true);
+    setHistoryError(null);
     setLoading(false);
     setError(null);
     setLiveSteps([]); setLiveStartedAt(null); setLiveElapsedMs(0);
@@ -393,14 +404,20 @@ export function Chat() {
         if (cancelled || sessionEpochRef.current !== epoch) return;
         sessionRef.current = routeId; projectRef.current = summary.project_id;
         setSessionId(routeId); setProjectId(summary.project_id); setMessages(transcript);
+        loadedRouteRef.current = routeId;
         setProgress(null); setSuperJson(null); setSuperJsonSummary("");
         void refreshProgress(); void refreshDetail(summary.project_id);
       } catch (err) {
-        if (!cancelled) { console.error("Could not load conversation:", err); navigate("/chat", { replace: true }); }
+        if (!cancelled) {
+          console.error("Could not load conversation:", err);
+          setHistoryError(String(err));
+        }
+      } finally {
+        if (!cancelled && sessionEpochRef.current === epoch) setHistoryLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [routeSessionId, navigate]);
+  }, [routeSessionId, navigate, historyRetry]);
 
   useEffect(() => {
     let cancelled = false;
@@ -852,7 +869,19 @@ export function Chat() {
           }}
         >
           {outlineMode ? <OutlineWorkspace sessionId={sessionId} providerId={selectedProviderId} modelId={selectedModelId} status={outline} onStatus={setOutline} onExit={() => setOutlineMode(false)} /> : <>
-          {messages.length === 0 ? (
+          {historyLoading ? (
+            <div role="status" style={{ margin: "auto", color: "var(--muted)" }}>
+              Đang tải lịch sử cuộc trò chuyện…
+            </div>
+          ) : historyError ? (
+            <div role="alert" style={{ margin: "auto", maxWidth: "460px", textAlign: "center", color: "var(--ink)" }}>
+              <p>Không tải được lịch sử cuộc trò chuyện.</p>
+              <p style={{ color: "var(--muted)", fontSize: "12px" }}>{historyError}</p>
+              <button type="button" className="btn" onClick={() => setHistoryRetry((attempt) => attempt + 1)}>
+                <RefreshCw size={15} /> Thử tải lại
+              </button>
+            </div>
+          ) : messages.length === 0 ? (
             <div
               style={{
                 margin: "auto",
