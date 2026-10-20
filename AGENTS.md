@@ -8,17 +8,24 @@ planning or delegating work in this repository.
 - Stack: Tauri 2, React 19, TypeScript, Rust (edition 2024), Vite.
 - Data root: `MERLINK_HOME` -> `HOME` -> `USERPROFILE` -> `HOMEDRIVE` +
   `HOMEPATH`; default directory is `.merlink`.
-- Persistence: `config.json` (providers, 0600 on Unix), `merlink.db` (SQLite),
-  `projects/<id>/super.json` (one document per project).
+- Persistence: `config.json` (providers, 0600 on Unix), `merlink.db` (SQLite:
+  projects/sessions/messages plus `outline_runs`/`outline_items`),
+  `projects/<id>/super.json` (the committed project state) and
+  `projects/<id>/content/<chapter>/<scene>.md` (phase 3 prose).
 - Agent loop: model -> tools -> model, **maximum 5 tool rounds**.
-- Super JSON: **81 writable paths** (13 project leaves + 34 tables × count/rows), **12 required / 35 optional units**, 70/30 progress.
+- Super JSON: **81 writable paths** (13 project leaves + 34 tables × count/rows), **12 required / 35 optional units**, 70/30 progress. Schema is **v3** (phase-2 fields added, no new table).
 - Draft refs: `_json_index` and `<field>_json_index` are synthetic row columns (not paths);
-  `super_json_add_row`/`super_json_add_field` complete the **7-tool** surface.
+  `super_json_add_row`/`super_json_add_field` complete the chat-agent surface, which now has **8 tools** (`outline` is the 8th).
+- Phase 2 (outline): `outline_runs`/`outline_items`, stage machine `seed → arcs → chapters → cast + world → scenes`, `STATE_ORDER` of 26 entities in `outline/stage.rs`. Subagents are backend fan-out calls, never tool loops; only `apply` writes, only accepted proposals, only in that order. `require.project.*` is read-only; required table rows are writable.
+- Phase 3 (writing): one file per scene, `scenes.content` stays null, `content_path`/`word_count`/`status` live in state. Prose must contain no emoji and no en/em dash; `writing::violations` rejects, retries once, then sanitises.
+- Catalogues: `docs/schema/catalog/*.json` are generated from `docs/schema/seed/*.sql` by `node scripts/gen-catalog.mjs`; `--check` must stay clean in review.
 - IPC: Tauri lower-camel-cases Rust parameter names. JS sends `sessionId`,
   `projectId`, `providerId`; never snake_case. Register commands only through
   `merlink_handlers!`.
-- Verification: `cargo test --manifest-path src-tauri/Cargo.toml` and
-  `pnpm build`. Baseline at Phase 1 close: 127 passed, 3 ignored.
+- Verification: `cargo test --manifest-path src-tauri/Cargo.toml`,
+  `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+  `pnpm build` and `node scripts/gen-catalog.mjs --check`.
+  Baseline after Sprint 17.7: **230 passed, 3 ignored**.
 - No new dependency without explicit user approval.
 - Do not commit `.agents/`, `dist/`, `node_modules/`, `src-tauri/target/`,
   secrets, or real `~/.merlink` data.
