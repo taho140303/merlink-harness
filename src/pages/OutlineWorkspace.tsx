@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "../styles/outline.css";
 import { ArcsBoard } from "../components/outline/ArcsBoard";
+import { CastWorldBoard } from "../components/outline/CastWorldBoard";
 import {
   cancelOutline,
   commitOutline,
@@ -32,8 +33,8 @@ const STAGES: StageTab[] = [
   {
     id: "cast",
     label: "2.2 Nhân vật & Thế giới",
-    available: false,
-    hint: "Giai đoạn 2.2 mở ở sprint 17.4",
+    available: true,
+    hint: "Cần chốt giai đoạn chương trước",
   },
   {
     id: "scenes",
@@ -85,7 +86,12 @@ export function OutlineWorkspace({
   const isCommitted = (stage: string) => stageStatus(stage) === "committed";
 
   const activeStage = STAGES.find((stage) => stage.id === selected) ?? STAGES[0];
-  const locked = !activeStage.available || (selected !== "arcs" && !isCommitted("arcs"));
+  const prerequisitesMet = (stage: string) => {
+    if (stage === "arcs") return true;
+    if (stage === "cast") return isCommitted("chapters");
+    return false;
+  };
+  const locked = !activeStage.available || !prerequisitesMet(selected);
 
   function onEvent(event: OutlineEvent) {
     setEvents((previous) => [...previous.slice(-6), event]);
@@ -147,7 +153,7 @@ export function OutlineWorkspace({
         {STAGES.map((stage) => {
           const committed = isCommitted(stage.id);
           const label = committed ? STATE_LABEL.committed : STATE_LABEL[stageStatus(stage.id)];
-          const disabled = !stage.available || (stage.id !== "arcs" && !isCommitted("arcs"));
+          const disabled = !stage.available || (stage.id !== "arcs" && !isCommitted("chapters"));
           return (
             <div
               key={stage.id}
@@ -171,14 +177,19 @@ export function OutlineWorkspace({
                   {label}
                 </span>
               </button>
-              {stage.available && stage.id === "arcs" && (
+              {stage.available && (stage.id === "arcs" || stage.id === "cast") && (
                 <button
                   type="button"
                   className="btn"
                   disabled={busy}
-                  onClick={() => void run("arcs")}
+                  title={
+                    stage.id === "cast"
+                      ? "Sinh nhân vật, thế giới và quan hệ"
+                      : "Sinh tóm tắt cung truyện"
+                  }
+                  onClick={() => void run(stage.id)}
                 >
-                  {busy ? "Đang chạy…" : stageStatus("arcs") === "empty" ? "Chạy" : "Chạy lại"}
+                  {busy ? "Đang chạy…" : stageStatus(stage.id) === "empty" ? "Chạy" : "Chạy lại"}
                 </button>
               )}
             </div>
@@ -192,6 +203,16 @@ export function OutlineWorkspace({
             <h2>Giai đoạn chưa mở</h2>
             <p>{activeStage.hint || "Cần chốt giai đoạn trước."}</p>
           </div>
+        ) : selected === "cast" ? (
+          <CastWorldBoard
+            sessionId={sessionId}
+            providerId={providerId}
+            modelId={modelId}
+            busy={busy}
+            reloadToken={reloadToken}
+            onEvent={onEvent}
+            onChanged={() => void refresh()}
+          />
         ) : (
           <ArcsBoard
             sessionId={sessionId}

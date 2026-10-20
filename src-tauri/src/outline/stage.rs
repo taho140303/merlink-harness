@@ -192,6 +192,24 @@ mod tests {
         assert!(assert_order(&[Entity::Chapters, Entity::Arcs]).is_err());
     }
     #[test]
+    fn test_stage_22_gate_requires_committed_chapters() {
+        let committed = BTreeSet::from([Stage::Arcs]);
+        assert!(
+            gate(Stage::Cast, &committed)
+                .unwrap_err()
+                .contains("Chương")
+        );
+        assert!(
+            gate(Stage::World, &committed)
+                .unwrap_err()
+                .contains("Chương")
+        );
+        let committed = BTreeSet::from([Stage::Chapters]);
+        assert!(gate(Stage::Cast, &committed).is_ok());
+        assert!(gate(Stage::World, &committed).is_ok());
+    }
+
+    #[test]
     fn test_scenes_requires_cast_and_world() {
         let committed = BTreeSet::from([Stage::Cast]);
         assert!(

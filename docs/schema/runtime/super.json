@@ -62,7 +62,8 @@
           "need": null,
           "flaw": null,
           "summary": null,
-          "description": null
+          "description": null,
+          "motifs": null
         },
         "rows": []
       },

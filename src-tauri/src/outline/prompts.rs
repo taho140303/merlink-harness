@@ -8,12 +8,18 @@ use super::contract::Lane;
 
 pub const ARCS_SYSTEM: &str = include_str!("../../prompts/outline_arcs.md");
 pub const CHAPTERS_SYSTEM: &str = include_str!("../../prompts/outline_chapters.md");
+pub const CAST_SYSTEM: &str = include_str!("../../prompts/outline_cast.md");
+pub const WORLD_SYSTEM: &str = include_str!("../../prompts/outline_world.md");
+pub const BONDS_SYSTEM: &str = include_str!("../../prompts/outline_bonds.md");
 
 /// System prompt for a lane. Only implemented lanes have one.
 pub fn system(lane: Lane) -> &'static str {
     match lane {
         Lane::ArcSmith => ARCS_SYSTEM,
         Lane::ChapterSmith => CHAPTERS_SYSTEM,
+        Lane::CastSmith => CAST_SYSTEM,
+        Lane::WorldSmith => WORLD_SYSTEM,
+        Lane::BondSmith => BONDS_SYSTEM,
     }
 }
 
@@ -43,6 +49,25 @@ pub fn chapters_user(
          Tổng `scene_count` của các chương này phải bằng {scene_budget}.\n\
          `position` chạy từ {start} đến {end}. Trả về đúng một object JSON theo định dạng đã nêu."
     )
+}
+
+pub fn cast_user(
+    anchor: &str,
+    chapters_brief: &str,
+    character_range: &str,
+    motif_codes: &[String],
+    skill: &str,
+) -> String {
+    format!(
+        "Anchor:\n{anchor}\n\nTóm tắt chương đã chốt:\n{chapters_brief}\n\nSố nhân vật cần tạo: {character_range}.\nMã motif hợp lệ: {}\nMạch truyện: {skill}",
+        motif_codes.join(", ")
+    )
+}
+pub fn world_user(anchor: &str, chapters_brief: &str, genre_code: &str) -> String {
+    format!("Anchor:\n{anchor}\n\nTóm tắt chương:\n{chapters_brief}\n\nMã thể loại: {genre_code}")
+}
+pub fn bonds_user(anchor: &str, cast_brief: &str) -> String {
+    format!("Anchor:\n{anchor}\n\nNhân vật đã chốt theo chỉ số:\n{cast_brief}")
 }
 
 #[cfg(test)]

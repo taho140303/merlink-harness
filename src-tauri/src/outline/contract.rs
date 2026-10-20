@@ -9,12 +9,17 @@ use super::stage::Stage;
 use crate::runtime::extract_json;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// The public lane names are part of the persisted contract and intentionally share this suffix.
+#[allow(clippy::enum_variant_names)]
 /// Only the lanes that have an implementation live here; `cast_smith`,
 /// `world_smith`, `bond_smith` and `scene_binder` join in sprints 17.4 and 17.5,
 /// together with their contracts.
 pub enum Lane {
     ArcSmith,
     ChapterSmith,
+    CastSmith,
+    WorldSmith,
+    BondSmith,
 }
 
 impl Lane {
@@ -22,6 +27,9 @@ impl Lane {
         match self {
             Self::ArcSmith => "arc_smith",
             Self::ChapterSmith => "chapter_smith",
+            Self::CastSmith => "cast_smith",
+            Self::WorldSmith => "world_smith",
+            Self::BondSmith => "bond_smith",
         }
     }
 
@@ -31,6 +39,8 @@ impl Lane {
         match stage {
             Stage::Arcs => Some(Self::ArcSmith),
             Stage::Chapters => Some(Self::ChapterSmith),
+            Stage::Cast => Some(Self::CastSmith),
+            Stage::World => Some(Self::WorldSmith),
             _ => None,
         }
     }
@@ -40,6 +50,9 @@ impl Lane {
         match self {
             Self::ArcSmith => "arcs",
             Self::ChapterSmith => "chapters",
+            Self::CastSmith => "characters",
+            Self::WorldSmith => "world",
+            Self::BondSmith => "relationships",
         }
     }
 }
@@ -82,6 +95,45 @@ pub fn validate_entity(lane: Lane, entity: &Value) -> Result<(), String> {
             ][..],
             &["name", "summarize", "goal", "outcome"][..],
         ),
+        Lane::CastSmith => (
+            &[
+                "ref",
+                "name",
+                "role",
+                "archetype",
+                "motivation",
+                "want",
+                "need",
+                "flaw",
+                "summary",
+                "description",
+                "is_primary",
+            ][..],
+            &[
+                "name",
+                "role",
+                "archetype",
+                "motivation",
+                "want",
+                "need",
+                "flaw",
+                "summary",
+                "description",
+            ][..],
+        ),
+        Lane::WorldSmith => (&["ref", "kind"][..], &[][..]),
+        Lane::BondSmith => (
+            &[
+                "from",
+                "to",
+                "summary",
+                "origin",
+                "is_primary",
+                "states",
+                "roles",
+            ][..],
+            &["summary", "origin"][..],
+        ),
     };
     for key in required {
         if !object.contains_key(*key) {
@@ -93,33 +145,34 @@ pub fn validate_entity(lane: Lane, entity: &Value) -> Result<(), String> {
             return Err(format!("{}.{key} phải là chuỗi", lane.key()));
         }
     }
-    let position = object
-        .get("position")
-        .and_then(Value::as_u64)
-        .ok_or_else(|| format!("{}.position phải là số nguyên", lane.key()))?;
-    if position == 0 {
-        return Err(format!("{}.position phải bắt đầu từ 1", lane.key()));
-    }
-    let code = object
-        .get("code")
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("{}.code phải là chuỗi", lane.key()))?;
-    if code.is_empty()
-        || !code
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
-    {
-        return Err(format!("{}.code phải là slug ASCII", lane.key()));
+    if matches!(lane, Lane::ArcSmith | Lane::ChapterSmith) {
+        let position = object
+            .get("position")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| format!("{}.position phải là số nguyên", lane.key()))?;
+        if position == 0 {
+            return Err(format!("{}.position phải bắt đầu từ 1", lane.key()));
+        }
+        let code = object
+            .get("code")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("{}.code phải là chuỗi", lane.key()))?;
+        if code.is_empty()
+            || !code
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        {
+            return Err(format!("{}.code phải là slug ASCII", lane.key()));
+        }
     }
     match lane {
-        Lane::ArcSmith => {
+        Lane::ArcSmith
             if object
                 .get("chapters")
                 .and_then(Value::as_u64)
-                .is_none_or(|count| count == 0)
-            {
-                return Err("arcs.chapters phải là số nguyên dương".into());
-            }
+                .is_none_or(|count| count == 0) =>
+        {
+            return Err("arcs.chapters phải là số nguyên dương".into());
         }
         Lane::ChapterSmith => {
             let arc = object
@@ -138,6 +191,238 @@ pub fn validate_entity(lane: Lane, entity: &Value) -> Result<(), String> {
                 .is_none_or(|count| count == 0)
             {
                 return Err("chapters.scene_count phải là số nguyên dương".into());
+            }
+        }
+        _ => {}
+    }
+    match lane {
+        Lane::CastSmith => {
+            slug(object, "ref", lane)?;
+            if !object.get("is_primary").is_some_and(Value::is_boolean) {
+                return Err("cast_smith.is_primary phải là boolean".into());
+            }
+            if let Some(appearance) = object.get("appearance") {
+                for key in ["height_unit", "hair", "eyes", "outfit_style"] {
+                    if appearance.get(key).is_some_and(|v| !v.is_string()) {
+                        return Err(format!("appearance.{key} phải là chuỗi"));
+                    }
+                }
+                if appearance.get("height").is_some_and(|v| !v.is_number())
+                    || appearance.get("marks").is_some_and(|v| !string_array(v))
+                {
+                    return Err("appearance không hợp lệ".into());
+                }
+                if let Some(unit) = appearance.get("height_unit").and_then(Value::as_str)
+                    && !["MM", "CM", "M"].contains(&unit)
+                {
+                    return Err(format!("height_unit không hợp lệ: {unit}"));
+                }
+            }
+            if let Some(motifs) = object.get("motifs") {
+                for code in motifs
+                    .as_array()
+                    .ok_or("motifs phải là mảng")?
+                    .iter()
+                    .filter_map(Value::as_str)
+                {
+                    if !crate::catalog::all(crate::catalog::Kind::Motifs)
+                        .iter()
+                        .any(|entry| entry.code == code)
+                    {
+                        return Err(format!("Mã motif không tồn tại: {code}"));
+                    }
+                }
+            }
+            for field in ["competences", "memories", "knowledge"] {
+                if object.get(field).is_some_and(|v| !v.is_array()) {
+                    return Err(format!("{field} phải là mảng"));
+                }
+            }
+            validate_records(
+                object,
+                "competences",
+                &["domain", "name", "level"],
+                &["capabilities", "limitations"],
+            )?;
+            validate_records(
+                object,
+                "memories",
+                &["type", "summary", "certainty", "source", "significance"],
+                &[],
+            )?;
+            validate_records(object, "knowledge", &["type", "path", "certainty"], &[])?;
+        }
+        Lane::WorldSmith => {
+            slug(object, "ref", lane)?;
+            let kind = string(object, "kind")?;
+            match kind {
+                "setting" => {
+                    for key in [
+                        "name",
+                        "type",
+                        "description",
+                        "access",
+                        "spatial_features",
+                        "sensory",
+                    ] {
+                        if !object.contains_key(key) {
+                            return Err(format!("world.{key} là bắt buộc"));
+                        }
+                    }
+                    if ![
+                        "REALM", "WORLD", "REGION", "COUNTRY", "CITY", "TOWN", "FACILITY",
+                        "STREET", "ROOM",
+                    ]
+                    .contains(&string(object, "type")?)
+                    {
+                        return Err("setting.type không hợp lệ".into());
+                    }
+                    if ![
+                        "PUBLIC",
+                        "PRIVATE",
+                        "SECRET",
+                        "LOCKED",
+                        "GUARDED",
+                        "RESTRICTED",
+                    ]
+                    .contains(&string(object, "access")?)
+                    {
+                        return Err("setting.access không hợp lệ".into());
+                    }
+                    if !object["sensory"].is_object() {
+                        return Err("setting.sensory phải là object".into());
+                    }
+                    for key in ["visual", "auditory", "tactile", "olfactory", "gustatory"] {
+                        if !object["sensory"].get(key).is_some_and(Value::is_string) {
+                            return Err(format!("sensory.{key} phải là chuỗi"));
+                        }
+                    }
+                }
+                "lore" => {
+                    for key in ["code", "type", "scope", "name", "description"] {
+                        if !object.get(key).is_some_and(Value::is_string) {
+                            return Err(format!("lore.{key} phải là chuỗi"));
+                        }
+                    }
+                    if !["CULTURE", "HISTORY", "FACTION", "ITEM"].contains(&string(object, "type")?)
+                    {
+                        return Err("lore.type không hợp lệ".into());
+                    }
+                }
+                "power" => {
+                    for key in [
+                        "name",
+                        "source",
+                        "scope",
+                        "description",
+                        "rules",
+                        "cost",
+                        "limitations",
+                    ] {
+                        if !object.get(key).is_some_and(Value::is_string) {
+                            return Err(format!("power.{key} phải là chuỗi"));
+                        }
+                    }
+                    for field in ["tiers", "abilities"] {
+                        if object.get(field).is_some_and(|v| !v.is_array()) {
+                            return Err(format!("{field} phải là mảng"));
+                        }
+                    }
+                }
+                _ => return Err(format!("world.kind không hợp lệ: {kind}")),
+            }
+        }
+        Lane::BondSmith => {
+            slug(object, "from", lane)?;
+            slug(object, "to", lane)?;
+            if !object["is_primary"].is_boolean() {
+                return Err("is_primary phải là boolean".into());
+            }
+            for key in [
+                "trust",
+                "affection",
+                "hostility",
+                "fear",
+                "respect",
+                "familiarity",
+                "dependency",
+            ] {
+                // The schema stores a qualitative level per dimension, not a
+                // score, so the contract must not ask the model for numbers.
+                const LEVELS: [&str; 5] = ["NONE", "LOW", "MODERATE", "HIGH", "ABSOLUTE"];
+                if !object["states"]
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| LEVELS.contains(&value))
+                {
+                    return Err(format!(
+                        "states.{key} phải là một trong NONE, LOW, MODERATE, HIGH, ABSOLUTE"
+                    ));
+                }
+            }
+            let roles = object["roles"].as_array().ok_or("roles phải là mảng")?;
+            for role in roles {
+                if ![
+                    "FAMILY",
+                    "ROMANTIC",
+                    "SOCIAL",
+                    "PROFESSIONAL",
+                    "ANTAGONISTIC",
+                ]
+                .contains(&role["category"].as_str().unwrap_or(""))
+                    || !["SUPERIOR", "EQUAL", "INFERIOR"]
+                        .contains(&role["hierarchy"].as_str().unwrap_or(""))
+                    || !role["sub_type"].is_string()
+                    || !role["is_primary"].is_boolean()
+                {
+                    return Err("roles có phần tử không hợp lệ".into());
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn string<'a>(object: &'a serde_json::Map<String, Value>, key: &str) -> Result<&'a str, String> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{key} phải là chuỗi"))
+}
+fn slug(object: &serde_json::Map<String, Value>, key: &str, lane: Lane) -> Result<(), String> {
+    let value = string(object, key)?;
+    if value.is_empty()
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    {
+        return Err(format!("{}.{} phải là slug", lane.key(), key));
+    }
+    Ok(())
+}
+fn string_array(value: &Value) -> bool {
+    value
+        .as_array()
+        .is_some_and(|a| a.iter().all(Value::is_string))
+}
+fn validate_records(
+    object: &serde_json::Map<String, Value>,
+    field: &str,
+    required: &[&str],
+    arrays: &[&str],
+) -> Result<(), String> {
+    if let Some(items) = object.get(field).and_then(Value::as_array) {
+        for item in items {
+            for key in required {
+                if item.get(*key).is_none_or(Value::is_null) {
+                    return Err(format!("{field}.{key} là bắt buộc"));
+                }
+            }
+            for key in arrays {
+                if item.get(*key).is_some_and(|v| !string_array(v)) {
+                    return Err(format!("{field}.{key} phải là mảng chuỗi"));
+                }
             }
         }
     }
@@ -161,22 +446,37 @@ pub fn validate(lane: Lane, value: &Value) -> Result<(), String> {
     for (index, row) in rows.iter().enumerate() {
         let prefix = format!("{array_key}[{index}]");
         validate_entity(lane, row).map_err(|error| format!("{prefix}: {error}"))?;
-        let position = row
-            .get("position")
-            .and_then(Value::as_u64)
-            .ok_or_else(|| format!("{prefix}.position phải là số nguyên"))?;
-        if let Some(previous) = previous
-            && position != previous + 1
-        {
-            return Err(format!("{prefix}.position phải liên tục từ vị trí trước"));
+        if matches!(lane, Lane::ArcSmith | Lane::ChapterSmith) {
+            let position = row
+                .get("position")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| format!("{prefix}.position phải là số nguyên"))?;
+            if let Some(previous) = previous
+                && position != previous + 1
+            {
+                return Err(format!("{prefix}.position phải liên tục từ vị trí trước"));
+            }
+            previous = Some(position);
         }
-        previous = Some(position);
-        let code = row
-            .get("code")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("{prefix}.code phải là chuỗi"))?;
-        if !codes.insert(code.to_owned()) {
-            return Err(format!("{prefix}.code bị trùng"));
+        let reference = match lane {
+            Lane::ArcSmith | Lane::ChapterSmith => row
+                .get("code")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            Lane::CastSmith | Lane::WorldSmith => row
+                .get("ref")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            Lane::BondSmith => format!(
+                "{}:{}",
+                row["from"].as_str().unwrap_or(""),
+                row["to"].as_str().unwrap_or("")
+            ),
+        };
+        if !codes.insert(reference) {
+            return Err(format!("{prefix}.ref bị trùng"));
         }
     }
     Ok(())
@@ -192,6 +492,37 @@ mod tests {
             "position": position, "code": code, "name": "Tên", "goal": "Mục tiêu",
             "outcome": "Kết quả", "summarize": "Tóm tắt", "chapters": 4,
         })
+    }
+
+    #[test]
+    fn test_cast_contract_accepts_and_rejects_payload() {
+        let valid = json!({"characters":[{"ref":"linh","name":"Linh","role":"hero","archetype":"seeker","motivation":"find","want":"truth","need":"trust","flaw":"proud","summary":"s","description":"d","is_primary":true}]});
+        assert!(validate(Lane::CastSmith, &valid).is_ok());
+        let mut invalid = valid.clone();
+        invalid["characters"][0]["is_primary"] = json!("yes");
+        assert!(validate(Lane::CastSmith, &invalid).is_err());
+        let mut unknown_motif = valid.clone();
+        unknown_motif["characters"][0]["motifs"] = json!(["khong-co"]);
+        let error = validate(Lane::CastSmith, &unknown_motif).unwrap_err();
+        assert!(error.contains("khong-co"), "{error}");
+    }
+
+    #[test]
+    fn test_world_contract_accepts_and_rejects_payload() {
+        let valid = json!({"world":[{"ref":"city","kind":"setting","name":"Thành phố","type":"CITY","parent":null,"description":"d","access":"PUBLIC","spatial_features":"s","sensory":{"visual":"v","auditory":"a","tactile":"t","olfactory":"o","gustatory":"g"}}]});
+        assert!(validate(Lane::WorldSmith, &valid).is_ok());
+        let mut invalid = valid.clone();
+        invalid["world"][0]["type"] = json!("MOON");
+        assert!(validate(Lane::WorldSmith, &invalid).is_err());
+    }
+
+    #[test]
+    fn test_bond_contract_accepts_and_rejects_payload() {
+        let valid = json!({"relationships":[{"from":"linh","to":"minh","summary":"s","origin":"o","is_primary":true,"states":{"trust":"MODERATE","affection":"MODERATE","hostility":"NONE","fear":"NONE","respect":"MODERATE","familiarity":"MODERATE","dependency":"NONE"},"roles":[]}]});
+        assert!(validate(Lane::BondSmith, &valid).is_ok());
+        let mut invalid = valid.clone();
+        invalid["relationships"][0]["states"]["trust"] = json!(101);
+        assert!(validate(Lane::BondSmith, &invalid).is_err());
     }
 
     #[test]

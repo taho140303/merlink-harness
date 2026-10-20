@@ -113,6 +113,20 @@ pub fn validate_draft_reference(
     value: &Value,
     document: Option<&Value>,
 ) -> Result<(), String> {
+    validate_draft_reference_with_len(table, index, column, value, document, None)
+}
+
+/// Same check, but a self-reference (`world_settings.parent_id`) is measured
+/// against the rows being written, because the document still holds the old
+/// array while the new batch is validated.
+fn validate_draft_reference_with_len(
+    table: &str,
+    index: usize,
+    column: &str,
+    value: &Value,
+    document: Option<&Value>,
+    self_len: Option<usize>,
+) -> Result<(), String> {
     let Some(base) = column.strip_suffix("_json_index") else {
         return Ok(());
     };
@@ -126,6 +140,18 @@ pub fn validate_draft_reference(
     let Some(target) = ref_target(table, base) else {
         return Ok(());
     };
+    if target == table
+        && let Some(len) = self_len
+    {
+        if reference >= len as i64 {
+            return Err(format!(
+                "Invalid value for {}: draft reference {reference} is out of range for \
+                 {target}.rows (has {len} row(s))",
+                field_path(table, index, column)
+            ));
+        }
+        return Ok(());
+    }
     let Some(document) = document else {
         return Ok(());
     };
@@ -189,7 +215,14 @@ pub fn validate_rows(
             }
             let kind = schema::column_kind(table, column);
             schema::validate(kind, &field_path(table, index, column), value)?;
-            validate_draft_reference(table, index, column, value, document)?;
+            validate_draft_reference_with_len(
+                table,
+                index,
+                column,
+                value,
+                document,
+                Some(items.len()),
+            )?;
         }
         if mode == RowMode::Complete {
             for column in &required {
