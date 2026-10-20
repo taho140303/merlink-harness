@@ -1,6 +1,7 @@
 //! SQLite schema, migration, and connection setup.
 
 mod messages;
+mod outline;
 mod projects;
 mod sessions;
 
@@ -8,6 +9,11 @@ mod sessions;
 #[cfg(test)]
 pub use messages::count_messages;
 pub use messages::{append_message, list_messages};
+#[allow(unused_imports)]
+pub use outline::{
+    OutlineRun, OutlineStoredItem, create_run, delete_items_for_shard, list_items, run_for_session,
+    set_item_status, update_run_stage, update_run_status, update_run_usage, upsert_items,
+};
 #[cfg(test)]
 pub use projects::list_projects;
 pub use projects::{
@@ -21,7 +27,7 @@ pub use sessions::{
 use crate::paths;
 use rusqlite::Connection;
 
-pub(super) const SCHEMA_VERSION: i64 = 1;
+pub(super) const SCHEMA_VERSION: i64 = 2;
 
 pub(super) const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS projects (
@@ -48,6 +54,37 @@ CREATE TABLE IF NOT EXISTS messages (
 
 -- rowid cannot appear in an index definition; ordering by rowid still works.
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages (session_id);
+"#;
+
+pub(super) const OUTLINE_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS outline_runs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    status TEXT NOT NULL,
+    calls INTEGER NOT NULL DEFAULT 0,
+    tokens_in INTEGER NOT NULL DEFAULT 0,
+    tokens_out INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS outline_items (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    lane TEXT NOT NULL,
+    shard TEXT NOT NULL DEFAULT '',
+    key TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (run_id, stage, key)
+);
+CREATE INDEX IF NOT EXISTS idx_outline_items_run ON outline_items (run_id, stage, status);
+CREATE INDEX IF NOT EXISTS idx_outline_runs_project ON outline_runs (project_id, session_id);
 "#;
 
 /// Opens (creating if needed) the local SQLite database.
@@ -92,13 +129,27 @@ fn migrate(connection: &mut Connection) -> Result<(), String> {
                 .execute_batch(SCHEMA)
                 .map_err(|error| format!("Cannot create schema: {error}"))?;
             transaction
+                .execute_batch(OUTLINE_SCHEMA)
+                .map_err(|error| format!("Cannot create outline schema: {error}"))?;
+            transaction
                 .execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"))
+                .map_err(|error| format!("Cannot set database schema version: {error}"))?;
+        }
+        1 => {
+            transaction
+                .execute_batch(OUTLINE_SCHEMA)
+                .map_err(|error| format!("Cannot create outline schema: {error}"))?;
+            transaction
+                .execute_batch("PRAGMA user_version = 2;")
                 .map_err(|error| format!("Cannot set database schema version: {error}"))?;
         }
         SCHEMA_VERSION => {
             transaction
                 .execute_batch(SCHEMA)
                 .map_err(|error| format!("Cannot create schema: {error}"))?;
+            transaction
+                .execute_batch(OUTLINE_SCHEMA)
+                .map_err(|error| format!("Cannot create outline schema: {error}"))?;
         }
         _ => {
             return Err(format!(
@@ -125,7 +176,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
         append_message(
             &connection,
             "session-a",
@@ -137,18 +188,58 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
         assert_eq!(
             list_messages(&connection, "session-a").unwrap()[0].id,
             "one"
         );
     }
     #[test]
+    fn test_open_migrates_v1_database_to_v2() {
+        let _home = crate::test_support::TempHome::new("db-v1-to-v2");
+        let path = paths::db_path().unwrap();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let legacy = Connection::open(&path).unwrap();
+        legacy.execute_batch(SCHEMA).unwrap();
+        legacy
+            .execute(
+                "INSERT INTO projects (id, title, created_at) VALUES ('kept', 'Kept', 'now')",
+                [],
+            )
+            .unwrap();
+        legacy.execute_batch("PRAGMA user_version = 1;").unwrap();
+        drop(legacy);
+        let connection = open().unwrap();
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
+        let title: String = connection
+            .query_row("SELECT title FROM projects WHERE id='kept'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(title, "Kept");
+        for table in ["outline_runs", "outline_items"] {
+            let exists: bool = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(exists, "missing {table}");
+        }
+    }
+
+    #[test]
     fn test_open_rejects_newer_schema_without_modifying_it() {
         let _home = crate::test_support::TempHome::new("db-newer-schema");
         let connection = open().unwrap();
         connection
-            .execute_batch("PRAGMA user_version = 2;")
+            .execute_batch("PRAGMA user_version = 3;")
             .unwrap();
         drop(connection);
         let error = open().unwrap_err();
@@ -160,6 +251,6 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
     }
 }

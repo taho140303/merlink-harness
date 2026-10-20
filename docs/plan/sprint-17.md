@@ -181,9 +181,15 @@ rời app, không sửa file tay:
   dùng tolerance).
 - Subagent nhận budget trong prompt; `commit` chặn nếu lệch, in ra lệch bao nhiêu.
 
-### D14 — Không bịa dữ kiện người thật, không ghi đè `require`
+### D14 — Không bịa dữ kiện người thật, và `require.project` là bất khả xâm phạm
 - `optional.project.author` **không bao giờ** được bịa; để null nếu user chưa nói.
-- `require.*` là read-only trong phase 2: mọi action `commit` từ chối path bắt đầu bằng `require.`.
+- **Read-only là `require.project.*`** (6 leaf tác giả tự quyết). Commit từ chối mọi path này.
+- `require.schema.<table>.count|rows` **được ghi** khi `<table>` là bảng require (6 bảng), vì phase 2
+  chính là bước mở rộng các bảng required: phase 1 chỉ đặt `name` + `position` cho `arcs`, phase 2 mới
+  điền `goal/outcome/summarize` và tăng số row cho khớp `plan.arc.count`. Guard suy ra danh sách bảng
+  từ `schema::countable_group` chứ không hardcode.
+- Nếu commit thay một row đã có `name` mà đề xuất không chứa, ghi `warnings` ("Thay arc người dùng đã
+  đặt: <name>") để không âm thầm ghi đè; 17.3 sẽ cho UI seed generator từ các row đó.
 - `summarize`/`target-audience` chỉ sinh **sau** khi arcs commit, và chỉ khi user bấm "Sinh tóm tắt".
 
 ### D15 — UI: chat đổi mode, phase 3 ở ProjectDetail
@@ -407,7 +413,10 @@ Gate: `commit(stage)` kiểm tra `stage - 1` đã `committed` (trừ `seed`). `s
 
 ## 7. THỨ TỰ GHI STATE (câu trả lời trực tiếp cho "cơ sở dữ liệu có ràng buộc")
 
-`outline/stage.rs::STATE_ORDER` — `apply` luôn đi theo danh sách này, bất kể thứ tự model trả:
+`outline/stage.rs::STATE_ORDER` — `apply` luôn đi theo danh sách này, bất kể thứ tự model trả.
+Bảng dưới đây có **25 dòng** vì hai dòng gộp nhiều entity (dòng 9 = power_systems → tiers → abilities,
+dòng 19 = themes → theme_arguments); `Entity` trong code có **26 variant** và test assert
+`STATE_ORDER.len() == 26`.
 
 | # | Entity | Phụ thuộc | Bắt buộc trước vì |
 |---|---|---|---|

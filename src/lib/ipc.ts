@@ -33,6 +33,14 @@ export interface CommandMap {
   super_json_labels: { args: never; result: Record<string, string> };
   outline_anchor: { args: { projectId: string }; result: OutlineAnchorResult };
   outline_status: { args: { sessionId: string }; result: OutlineStatusResult };
+  outline_start: { args: { projectId: string; sessionId: string }; result: OutlineStatusResult };
+  outline_run: { args: { sessionId: string; providerId: string; modelId: string; stage: string; range?: string; channel: Channel<unknown> }; result: unknown };
+  outline_items: { args: { sessionId: string; stage: string }; result: unknown[] };
+  outline_regenerate: { args: { sessionId: string; providerId: string; modelId: string; stage: string; key: string; note: string }; result: unknown };
+  outline_commit: { args: { sessionId: string; stage: string; keys?: string[] }; result: unknown };
+  outline_accept: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
+  outline_reject: { args: { sessionId: string; stage: string; keys?: string[] }; result: number };
+  outline_cancel: { args: { sessionId: string }; result: void };
   context_usage: { args: { sessionId: string; providerId: string; modelId: string }; result: ContextUsage };
   fetch_models: { args: { providerKind: string; baseUrl: string; apiKey: string }; result: FetchedModel[] };
   execute_tool: { args: { toolName: string; args: Record<string, unknown>; projectId: string; sessionId: string }; result: unknown };
