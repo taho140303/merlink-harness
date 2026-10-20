@@ -121,6 +121,46 @@ export interface ContextUsage {
   measured_input_tokens: number | null;
 }
 
+export interface OutlineAnchorResult {
+  project_id: string;
+  text: string;
+  json: {
+    project: {
+      name: string | null;
+      language: string | null;
+      genre: string | null;
+      genre_code: string | null;
+      plan: {
+        word: number | null;
+        arc: number | null;
+        chapter: number | null;
+        scene: number | null;
+      };
+    };
+    arcs: Array<{
+      id: string;
+      name: string | null;
+      sequence: number | null;
+      goal: string | null;
+      outcome: string | null;
+    }>;
+    protagonist: Record<string, unknown> | null;
+    cast: Array<Record<string, unknown>>;
+    motif: Record<string, unknown> | null;
+    theme: Record<string, unknown> | null;
+    argument: Record<string, unknown> | null;
+  };
+}
+
+export interface OutlineStatusResult {
+  ok: boolean;
+  stage: string;
+  active: boolean;
+  note: string;
+  project_id: string;
+}
+
+
 export interface SuperJsonProgress {
   has_project: boolean;
   project_id: string;

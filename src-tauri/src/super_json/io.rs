@@ -65,7 +65,8 @@ fn load_or_init_unlocked(project_id: &str) -> Result<Value, String> {
                 .map_err(|error| format!("Invalid super json at {}: {error}", path.display()))?;
             let migrated_v1 = migrate_if_needed(&path, &raw, &mut document)?;
             let migrated_groups = migrate_groups_if_needed(&mut document);
-            if migrated_v1 || migrated_groups {
+            let migrated_v3 = migrate_v3_if_needed(&path, &raw, &mut document)?;
+            if migrated_v1 || migrated_groups || migrated_v3 {
                 save_unlocked(project_id, &document, false)?;
             }
             Ok(document)
@@ -716,6 +717,60 @@ fn migrate_groups_if_needed(document: &mut Value) -> bool {
     *document != before
 }
 
+/// Migrates a v2.1 document to v3:
+/// - Refreshes `fields` in each schema table using skeleton v3, keeping `count`/`rows` intact.
+/// - Sorts `schema` according to `schema::tables()`.
+/// - Updates top-level `$comment` to the v3 description from skeleton.
+/// - Writes `super.v2.json` backup before the first rewrite.
+/// - Idempotent: returns false if already v3, and never creates backup a second time.
+fn migrate_v3_if_needed(path: &Path, raw: &str, document: &mut Value) -> Result<bool, String> {
+    let before = document.clone();
+    let skeleton = schema::skeleton();
+
+    // Refresh `fields` for every table and ensure order matches schema::tables()
+    for group in [Group::Require, Group::Optional] {
+        let Some(entries) = schema_entries_mut(document, group) else {
+            continue;
+        };
+        for entry in entries.iter_mut() {
+            let Some(table_name) = entry["table"].as_str() else {
+                continue;
+            };
+            if let Some(skeleton_fields) =
+                schema::table_entry(&skeleton, table_name).and_then(|e| e.get("fields"))
+            {
+                entry["fields"] = skeleton_fields.clone();
+            }
+        }
+        let order = schema::tables();
+        entries.sort_by_key(|entry| {
+            order
+                .iter()
+                .position(|known| known == entry["table"].as_str().unwrap_or_default())
+                .unwrap_or(usize::MAX)
+        });
+    }
+
+    // Refresh $comment if present in skeleton
+    if let Some(comment) = skeleton
+        .get("$comment")
+        .filter(|&c| document.get("$comment") != Some(c))
+    {
+        document["$comment"] = comment.clone();
+    }
+
+    if *document == before {
+        return Ok(false);
+    }
+
+    let backup = path.with_file_name("super.v2.json");
+    if !backup.exists() {
+        write_private(&backup, raw.as_bytes())?;
+    }
+
+    Ok(true)
+}
+
 fn schema_entries(document: &Value, group: Group) -> &[Value] {
     document[group.as_str()]["schema"]
         .as_array()
@@ -832,7 +887,7 @@ mod tests {
             "default",
             "require.schema.characters.rows",
             json!([
-                { "name": "Hoàng", "is_primary": true, "archetype": "hero" },
+                { "name": "Hoàng", "is_primary": true, "superpower": "flying" },
                 { "name": "Phong", "is_primary": false },
                 { "name": "Linh", "is_primary": false }
             ]),
@@ -943,7 +998,12 @@ mod tests {
         let motifs = schema::countable_entry(&document, "project_motifs").unwrap();
         assert_eq!(
             motifs["fields"],
-            json!({ "motif_id": null, "scope": null, "arc_id": null, "chapter_id": null })
+            skeleton["require"]["schema"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|entry| entry["table"] == "project_motifs")
+                .unwrap()["fields"]
         );
         assert_eq!(motifs["count"], Value::Null);
         assert_eq!(
@@ -970,6 +1030,82 @@ mod tests {
 
         let again = load_or_init(project).unwrap();
         assert_eq!(again, document, "migration must be idempotent");
+    }
+
+    #[test]
+    fn test_migration_v2_to_v3_is_idempotent() {
+        let _home = crate::test_support::TempHome::new("super-migrate-v2-to-v3");
+        let project = "v2-proj";
+        let path = paths::super_json_path(project).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        // Create a v2.1 super.json (missing v3 fields in `fields` like genre_code, beats, etc.)
+        let skeleton = schema::skeleton();
+        let mut v2_doc = skeleton.clone();
+        v2_doc["$comment"] = json!("SUPER JSON v2.1");
+
+        // Strip a newly added field from scenes.fields and chapters.fields to make it strictly v2.1
+        for group in ["require", "optional"] {
+            for entry in v2_doc[group]["schema"].as_array_mut().unwrap() {
+                if entry["table"] == "scenes" {
+                    let fields = entry["fields"].as_object_mut().unwrap();
+                    fields.remove("directives");
+                    fields.remove("rules");
+                    fields.remove("status");
+                }
+                if entry["table"] == "chapters" {
+                    let fields = entry["fields"].as_object_mut().unwrap();
+                    fields.remove("beats");
+                    fields.remove("scene_count");
+                }
+            }
+        }
+        // Add a row to scenes to ensure rows survive migration
+        let scenes_entry = v2_doc["optional"]["schema"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|e| e["table"] == "scenes")
+            .unwrap();
+        scenes_entry["count"] = json!(1);
+        scenes_entry["rows"] = json!([{ "name": "Cảnh 1", "position": 1 }]);
+
+        let v2_bytes = serde_json::to_vec_pretty(&v2_doc).unwrap();
+        fs::write(&path, &v2_bytes).unwrap();
+
+        let backup = path.with_file_name("super.v2.json");
+        assert!(!backup.exists());
+
+        // First load triggers migration to v3
+        let migrated = load_or_init(project).unwrap();
+        assert!(
+            backup.exists(),
+            "backup super.v2.json must exist after first migration"
+        );
+        let backup_content = fs::read(&backup).unwrap();
+        assert_eq!(
+            backup_content, v2_bytes,
+            "backup must match original v2.1 bytes"
+        );
+
+        // Verify v3 fields were refreshed
+        let scenes = schema::countable_entry(&migrated, "scenes").unwrap();
+        assert!(scenes["fields"].get("directives").is_some());
+        assert!(scenes["fields"].get("rules").is_some());
+        assert!(scenes["fields"].get("status").is_some());
+        assert_eq!(scenes["count"], json!(1));
+        assert_eq!(scenes["rows"][0]["name"], json!("Cảnh 1"));
+
+        let disk_bytes_after_first = fs::read(&path).unwrap();
+
+        // Second load: idempotent check
+        let second = load_or_init(project).unwrap();
+        assert_eq!(migrated, second);
+        let disk_bytes_after_second = fs::read(&path).unwrap();
+        assert_eq!(
+            disk_bytes_after_first, disk_bytes_after_second,
+            "load lần hai không đổi byte nào"
+        );
     }
 
     #[test]
@@ -1066,7 +1202,7 @@ mod tests {
 
         let error = add_field("p", "characters", 0, "_json_index", json!(1)).unwrap_err();
         assert!(error.contains("cannot be written"), "{error}");
-        let error = add_field("p", "characters", 0, "archetype", json!("hero")).unwrap_err();
+        let error = add_field("p", "characters", 0, "superpower", json!("flying")).unwrap_err();
         assert!(error.contains("Unknown field"), "{error}");
         let error = add_field("p", "characters", 9, "name", json!("Linh")).unwrap_err();
         assert_eq!(error, "Row 9 not found in characters.rows");

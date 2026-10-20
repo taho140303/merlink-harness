@@ -369,6 +369,7 @@ pub enum FieldKind {
     NonNegativeInt,
     Bool,
     Number,
+    UnitNumber,
     Json,
     Rows,
     Choice(&'static [&'static str]),
@@ -397,6 +398,8 @@ const MEMORY_CERTAINTY: &[&str] = &["CERTAIN", "PROBABLE", "UNCERTAIN"];
 const MEMORY_SOURCES: &[&str] = &["FIRSTHAND", "HEARSAY", "INFERENCE"];
 const MEMORY_STATUSES: &[&str] = &["ACTIVE", "SUPPRESSED", "FORGOTTEN", "DISTORTED"];
 const SCENE_SOURCES: &[&str] = &["AI_GENERATED", "HUMAN_EDITED", "RESTORE"];
+const SCENE_STATUSES: &[&str] = &["PLANNED", "WRITTEN", "REVISED", "LOCKED"];
+const POLARITIES: &[&str] = &["SUPPORT", "CHALLENGE", "AMBIVALENT"];
 const HIERARCHY: &[&str] = &["SUPERIOR", "EQUAL", "INFERIOR"];
 const DIMENSION_LEVELS: &[&str] = &["NONE", "LOW", "MODERATE", "HIGH", "ABSOLUTE"];
 const CATEGORY_GROUPS: &[&str] = &[
@@ -435,14 +438,30 @@ pub fn column_kind(table: &str, column: &str) -> FieldKind {
     }
     match column {
         "is_primary" | "is_system" | "is_pov" => return FieldKind::Bool,
-        "position" | "rank" | "height" | "weight" | "word_count" | "version_number"
-        | "revision_number" | "count" => return FieldKind::NonNegativeInt,
-        "significance" | "intensity" => return FieldKind::Number,
-        "data" => return FieldKind::Json,
+        "position" | "rank" | "height" | "word_count" | "version_number" | "revision_number"
+        | "count" | "scene_count" | "target_words" => return FieldKind::NonNegativeInt,
+        "weight" => {
+            if table == "themes" {
+                return FieldKind::UnitNumber;
+            } else {
+                return FieldKind::NonNegativeInt;
+            }
+        }
+        "significance" => {
+            if table == "project_motifs" {
+                return FieldKind::Text;
+            } else {
+                return FieldKind::Number;
+            }
+        }
+        "intensity" => return FieldKind::Number,
+        "beats" | "directives" | "rules" | "relationships" | "data" => return FieldKind::Json,
         _ => {}
     }
 
     match (table, column) {
+        ("scenes", "status") => FieldKind::Choice(SCENE_STATUSES),
+        ("theme_arguments", "polarity") => FieldKind::Choice(POLARITIES),
         ("themes", "scope") => FieldKind::Choice(THEME_SCOPES),
         ("project_motifs", "scope") => FieldKind::Choice(PROJECT_MOTIF_SCOPES),
         ("themes", "resolution_type") => FieldKind::Choice(THEME_RESOLUTIONS),
@@ -522,6 +541,10 @@ pub(super) fn validate(kind: FieldKind, path: &str, value: &Value) -> Result<(),
             None => Err(type_error("a boolean")),
         },
         FieldKind::Number => match value.as_f64() {
+            Some(v) if v.is_finite() => Ok(()),
+            _ => Err(type_error("a number")),
+        },
+        FieldKind::UnitNumber => match value.as_f64() {
             Some(number) if (0.0..=1.0).contains(&number) => Ok(()),
             Some(_) => Err(format!("Invalid value for {path}: must be between 0 and 1")),
             None => Err(type_error("a number between 0 and 1")),
@@ -638,7 +661,10 @@ mod tests {
                 "motif_id": null,
                 "scope": null,
                 "arc_id": null,
-                "chapter_id": null
+                "chapter_id": null,
+                "name": null,
+                "description": null,
+                "significance": null
             })
         );
         assert_eq!(
@@ -767,5 +793,129 @@ mod tests {
         );
         // The plain column keeps its documented (text) rule.
         assert_eq!(column_kind("scenes", "chapter_id"), FieldKind::Text);
+    }
+
+    #[test]
+    fn test_v3_column_kinds_and_validation() {
+        use serde_json::json;
+
+        // Choice: polarity
+        assert_eq!(
+            column_kind("theme_arguments", "polarity"),
+            FieldKind::Choice(POLARITIES)
+        );
+        assert!(
+            validate(
+                column_kind("theme_arguments", "polarity"),
+                "p",
+                &json!("SUPPORT")
+            )
+            .is_ok()
+        );
+        assert!(
+            validate(
+                column_kind("theme_arguments", "polarity"),
+                "p",
+                &json!("CHALLENGE")
+            )
+            .is_ok()
+        );
+        assert!(
+            validate(
+                column_kind("theme_arguments", "polarity"),
+                "p",
+                &json!("AMBIVALENT")
+            )
+            .is_ok()
+        );
+        assert!(
+            validate(
+                column_kind("theme_arguments", "polarity"),
+                "p",
+                &json!("INVALID")
+            )
+            .is_err()
+        );
+
+        // Choice: scenes.status
+        assert_eq!(
+            column_kind("scenes", "status"),
+            FieldKind::Choice(SCENE_STATUSES)
+        );
+        assert!(validate(column_kind("scenes", "status"), "p", &json!("PLANNED")).is_ok());
+        assert!(validate(column_kind("scenes", "status"), "p", &json!("WRITTEN")).is_ok());
+        assert!(validate(column_kind("scenes", "status"), "p", &json!("REVISED")).is_ok());
+        assert!(validate(column_kind("scenes", "status"), "p", &json!("LOCKED")).is_ok());
+        assert!(validate(column_kind("scenes", "status"), "p", &json!("DRAFT")).is_err());
+
+        // UnitNumber: themes.weight
+        assert_eq!(column_kind("themes", "weight"), FieldKind::UnitNumber);
+        assert!(validate(FieldKind::UnitNumber, "p", &json!(0.0)).is_ok());
+        assert!(validate(FieldKind::UnitNumber, "p", &json!(0.5)).is_ok());
+        assert!(validate(FieldKind::UnitNumber, "p", &json!(1.0)).is_ok());
+        assert!(validate(FieldKind::UnitNumber, "p", &json!(1.5)).is_err());
+        assert!(validate(FieldKind::UnitNumber, "p", &json!(-0.1)).is_err());
+        assert!(validate(FieldKind::UnitNumber, "p", &json!("abc")).is_err());
+
+        // Json fields
+        for (table, col) in [
+            ("chapters", "beats"),
+            ("scenes", "directives"),
+            ("scenes", "rules"),
+            ("scenes", "relationships"),
+        ] {
+            assert_eq!(column_kind(table, col), FieldKind::Json);
+            assert!(validate(FieldKind::Json, "p", &json!(["beat 1"])).is_ok());
+            assert!(validate(FieldKind::Json, "p", &json!({"k": "v"})).is_ok());
+        }
+
+        // NonNegativeInt
+        for (table, col) in [
+            ("chapters", "scene_count"),
+            ("scenes", "target_words"),
+            ("scenes", "word_count"),
+        ] {
+            assert_eq!(column_kind(table, col), FieldKind::NonNegativeInt);
+            assert!(validate(FieldKind::NonNegativeInt, "p", &json!(0)).is_ok());
+            assert!(validate(FieldKind::NonNegativeInt, "p", &json!(100)).is_ok());
+            assert!(validate(FieldKind::NonNegativeInt, "p", &json!(-1)).is_err());
+        }
+
+        // Bool
+        assert_eq!(column_kind("relationships", "is_primary"), FieldKind::Bool);
+        assert!(validate(FieldKind::Bool, "p", &json!(true)).is_ok());
+        assert!(validate(FieldKind::Bool, "p", &json!(false)).is_ok());
+        assert!(validate(FieldKind::Bool, "p", &json!("true")).is_err());
+
+        // Text
+        for (table, col) in [
+            ("project_genres", "genre_code"),
+            ("scenes", "style_preset_code"),
+            ("scenes", "narrator_code"),
+            ("scenes", "content_path"),
+            ("arcs", "goal"),
+            ("arcs", "outcome"),
+            ("chapters", "goal"),
+            ("chapters", "outcome"),
+            ("characters", "role"),
+            ("characters", "archetype"),
+            ("characters", "motivation"),
+            ("characters", "want"),
+            ("characters", "need"),
+            ("characters", "flaw"),
+            ("characters", "summary"),
+            ("characters", "description"),
+            ("relationships", "summary"),
+            ("relationships", "origin"),
+            ("project_motifs", "name"),
+            ("project_motifs", "description"),
+            ("project_motifs", "significance"),
+            ("themes", "name"),
+            ("themes", "statement"),
+            ("theme_arguments", "claim"),
+            ("theme_arguments", "counter_claim"),
+        ] {
+            assert_eq!(column_kind(table, col), FieldKind::Text, "{table}.{col}");
+        }
     }
 }

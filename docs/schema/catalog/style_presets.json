@@ -1,0 +1,3373 @@
+[
+  {
+    "code": "action.assassination",
+    "category": "action.assassination",
+    "name": "Hành động ám sát",
+    "tone_pace": "VERY_LOW",
+    "tone_emotion": "căng thẳng nghẹt thở",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "LOW",
+    "tactile": "HIGH",
+    "olfactory": "MEDIUM",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ tĩnh",
+      "từ ám chỉ",
+      "từ mang tính ẩn dụ nhẹ"
+    ],
+    "focus": [
+      "thời điểm",
+      "góc nhìn",
+      "bóng tối",
+      "sự im lặng"
+    ],
+    "devices": [
+      {
+        "code": "an_du",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ"
+      },
+      {
+        "code": "diep_cau_truc_cau_cut_mo_ho",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc câu cụt mơ hồ"
+      },
+      {
+        "code": "dao_ngu_nhan_khoanh_khac_tiep_xuc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Đảo ngữ nhấn khoảnh khắc tiếp xúc"
+      },
+      {
+        "code": "tuong_thanh_on",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh ồn"
+      },
+      {
+        "code": "cau_hoi_tu_tu_boc_phat",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ bộc phát"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không bộc lộ cảm xúc thừa thãi\"",
+      "genre": "\"action\"",
+      "settings": "\"không gian kín, bóng tối, bí mật (Để sau)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.battle",
+    "category": "action.battle",
+    "name": "Hành động chiến trận",
+    "tone_pace": "FAST",
+    "tone_emotion": "hỗn loạn, khẩn trương",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ mạnh",
+      "từ chỉ số lượng",
+      "từ tượng thanh hỗn tạp"
+    ],
+    "focus": [
+      "tương tác nhóm",
+      "hỗn loạn",
+      "lợi thế chiến thuật tổng thể"
+    ],
+    "devices": [
+      {
+        "code": "phep_doi_liet_ke_hon_tap",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép đối & liệt kê hỗn tạp"
+      },
+      {
+        "code": "tuong_thanh_don_dap",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Tượng thanh dồn dập"
+      },
+      {
+        "code": "diep_tu_chi_so_luong_dam_dong",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Điệp từ chỉ số lượng đám đông"
+      },
+      {
+        "code": "tap_trung_vao_ca_nhan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Tập trung vào cá nhân"
+      },
+      {
+        "code": "nhip_van_cham",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Nhịp văn chậm"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không tập trung vào cá nhân, mang tính đám đông\"",
+      "genre": "\"action\"",
+      "settings": "\"chiến trường đông đúc, hỗn loạn, nhiều bên tham chiến\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.chase",
+    "category": "action.chase",
+    "name": "Hành động truy đuổi",
+    "tone_pace": "VERY_FAST",
+    "tone_emotion": "gấp gáp, khẩn cấp",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "VERY_SHORT",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "SIMPLE",
+    "vocab": [
+      "động từ chuyển động",
+      "từ chỉ tốc độ",
+      "từ tượng thanh"
+    ],
+    "focus": [
+      "quãng đường",
+      "vật cản",
+      "khoảng cách",
+      "hơi thở"
+    ],
+    "devices": [
+      {
+        "code": "tuong_thanh_nhip_do_diep_khuc_xa_gan",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Tượng thanh nhịp độ & điệp khúc 'a/gần'"
+      },
+      {
+        "code": "liet_ke_chuong_ngai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Liệt kê chướng ngại"
+      },
+      {
+        "code": "cau_cut_lien_tiep_khong_lien_tu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cụt liên tiếp không liên từ"
+      },
+      {
+        "code": "cau_ghep_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu ghép dài"
+      },
+      {
+        "code": "an_du_tru_tinh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ trữ tình"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không suy tư dài dòng\"",
+      "genre": "\"action\"",
+      "settings": "\"không gian mở, tốc độ, liên tục\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.combat",
+    "category": "action.combat",
+    "name": "Hành động đối kháng",
+    "tone_pace": "VERY_FAST",
+    "tone_emotion": "căng thẳng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "SIMPLE",
+    "vocab": [
+      "động từ mạnh",
+      "từ tượng thanh"
+    ],
+    "focus": [
+      "chuyển động",
+      "va chạm",
+      "phản xạ"
+    ],
+    "devices": [
+      {
+        "code": "diep_dong_tu_manh_tuong_thanh_va_cham",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Điệp động từ mạnh & tượng thanh va chạm"
+      },
+      {
+        "code": "cau_cut_lien_tiep",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cụt liên tiếp"
+      },
+      {
+        "code": "phep_liet_ke_don_danh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép liệt kê đòn đánh"
+      },
+      {
+        "code": "an_du_tru_tinh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ trữ tình"
+      },
+      {
+        "code": "cau_ghep_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu ghép dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không châm biếm\"",
+      "genre": "\"action\"",
+      "settings": "\"chiến đấu cận chiến, đối đầu trực tiếp\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.duel",
+    "category": "action.duel",
+    "name": "Hành động đấu tay đôi",
+    "tone_pace": "LOW",
+    "tone_emotion": "căng thẳng âm ỉ",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ chính xác",
+      "thuật ngữ kỹ thuật",
+      "từ miêu tả chuyển động nhỏ"
+    ],
+    "focus": [
+      "thế đứng",
+      "ánh mắt",
+      "hơi thở",
+      "nhịp độ"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_the_dung_nhip_tho",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Điệp cấu trúc thế đứng & nhịp thở"
+      },
+      {
+        "code": "phep_doi_giua_hai_doi_thu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối giữa hai đối thủ"
+      },
+      {
+        "code": "so_sanh_chuyen_dong_chinh_xac",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=So sánh chuyển động chính xác"
+      },
+      {
+        "code": "tuong_thanh_on_ao",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Tượng thanh ồn ào"
+      },
+      {
+        "code": "mieu_ta_ngoai_canh_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả ngoại cảnh dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không châm biếm, tập trung vào tâm lý đấu trí\"",
+      "genre": "\"action\"",
+      "settings": "\"không gian hẹp, đối thủ ngang tài\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.escape",
+    "category": "action.escape",
+    "name": "Hành động chạy trốn",
+    "tone_pace": "VERY_FAST",
+    "tone_emotion": "hoảng loạn, khẩn cấp",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "SIMPLE",
+    "vocab": [
+      "động từ chạy, ẩn nấp",
+      "từ chỉ thời gian"
+    ],
+    "focus": [
+      "lối thoát",
+      "sự truy đuổi",
+      "chướng ngại",
+      "thời gian"
+    ],
+    "devices": [
+      {
+        "code": "liet_ke_don_dap_cau_cut_lien_tiep_tao_hieu_ung_ngop_tho",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Liệt kê dồn dập & câu cụt liên tiếp (tạo hiệu ứng ngộp thở)"
+      },
+      {
+        "code": "tuong_thanh_tieng_dong_duoi_theo",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Tượng thanh tiếng động đuổi theo"
+      },
+      {
+        "code": "dao_ngu_nhan_loi_thoat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Đảo ngữ nhấn lối thoát"
+      },
+      {
+        "code": "cau_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu dài"
+      },
+      {
+        "code": "an_du_triet_ly",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ triết lý"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không triết lý dài dòng\"",
+      "genre": "\"action\"",
+      "settings": "\"không gian bị kìm kẹp, áp lực thời gian\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.execution",
+    "category": "action.execution",
+    "name": "Hành động kết liễu",
+    "tone_pace": "VERY_LOW",
+    "tone_emotion": "lạnh lùng, dứt khoát",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "LOW",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "VERY_SHORT",
+    "syntax_variation": "LOW",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ dứt khoát",
+      "từ ngắn gọn",
+      "từ mang tính kết thúc"
+    ],
+    "focus": [
+      "khoảnh khắc",
+      "điểm tiếp xúc",
+      "kết thúc",
+      "hệ quả"
+    ],
+    "devices": [
+      {
+        "code": "diep_tu",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Điệp từ"
+      },
+      {
+        "code": "dao_ngu_dua_tan_ngu_trang_ngu_len_truoc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Đảo ngữ (đưa tân ngữ/trạng ngữ lên trước)"
+      },
+      {
+        "code": "cau_rut_gon_chu_ngu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Câu rút gọn chủ ngữ"
+      },
+      {
+        "code": "an_du_hoa_my",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ẩn dụ hoa mỹ"
+      },
+      {
+        "code": "so_sanh_dai_dong",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=So sánh dài dòng"
+      },
+      {
+        "code": "cau_hoi_tu_tu",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Câu hỏi tu từ"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không cảm xúc, tập trung vào sự kiện\"",
+      "genre": "\"action\"",
+      "settings": "\"khoảnh khắc cuối, ít chuyển động\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.infiltration",
+    "category": "action.infiltration",
+    "name": "Hành động xâm nhập",
+    "tone_pace": "LOW",
+    "tone_emotion": "thận trọng, căng thẳng ngầm",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ chỉ quan sát",
+      "động từ lén lút",
+      "thuật ngữ trinh sát"
+    ],
+    "focus": [
+      "quan sát",
+      "ngụy trang",
+      "đường đi",
+      "lịch trình"
+    ],
+    "devices": [
+      {
+        "code": "so_sanh_ngam_an_du_chuyen_doi_cam_giac",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=So sánh ngầm (Ẩn dụ chuyển đổi cảm giác)"
+      },
+      {
+        "code": "cau_rut_gon_canh_bao",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu rút gọn cảnh báo"
+      },
+      {
+        "code": "liet_ke_huong_dan_di_chuyen_re_tranh_luot",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê hướng dẫn di chuyển (rẽ, tránh, lướt)"
+      },
+      {
+        "code": "diep_cau_truc_qua_deu_dan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc quá đều đặn"
+      },
+      {
+        "code": "tuong_thanh_on_ao",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh ồn ào"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không bộc lộ cảm xúc\"",
+      "genre": "\"action\"",
+      "settings": "\"khu vực địch, yêu cầu ngụy trang, bí mật\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.showdown",
+    "category": "action.showdown",
+    "name": "Hành động đối đầu cuối cùng",
+    "tone_pace": "VERY_LOW",
+    "tone_emotion": "cực kỳ căng thẳng, xúc cảm dâng trào",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "động từ nặng",
+      "từ gợi cảm xúc",
+      "ẩn dụ"
+    ],
+    "focus": [
+      "ánh mắt",
+      "khoảnh khắc",
+      "hậu quả",
+      "quyết định"
+    ],
+    "devices": [
+      {
+        "code": "phep_doi_canh_nguoi_qua_khu_hien_tai_ben_trong_ben_ngoai",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép đối (cảnh - người, quá khứ - hiện tại, bên trong - bên ngoài)"
+      },
+      {
+        "code": "cau_hoi_tu_tu_ve_so_phan",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu hỏi tu từ về số phận"
+      },
+      {
+        "code": "an_du_manh_anh_sang_bong_toi_song_nui",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ mạnh (ánh sáng/bóng tối, sông/núi)"
+      },
+      {
+        "code": "diep_tu_nhan_thoi_khac",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Điệp từ nhấn thời khắc"
+      },
+      {
+        "code": "mia_mai_cham_biem",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Mỉa mai châm biếm"
+      },
+      {
+        "code": "cau_cut_vo_cam",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu cụt vô cảm"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"cho phép cảm xúc bộc phát có kiểm soát\"",
+      "genre": "\"action\"",
+      "settings": "\"thời điểm quyết định, không gian tượng trưng\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.survival",
+    "category": "action.survival",
+    "name": "Hành động sinh tồn",
+    "tone_pace": "LOW",
+    "tone_emotion": "khắc khoải, tuyệt vọng nhẹ",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "HIGH",
+    "olfactory": "HIGH",
+    "gustatory": "MEDIUM",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ cảm giác cơ thể",
+      "từ chỉ thời tiết, địa hình",
+      "động từ hành động cụ thể"
+    ],
+    "focus": [
+      "môi trường",
+      "cơ thể",
+      "mệt mỏi",
+      "vật dụng"
+    ],
+    "devices": [
+      {
+        "code": "so_sanh_cam_giac",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=So sánh cảm giác"
+      },
+      {
+        "code": "diep_tu_chi_su_met_moi_kiet_suc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp từ chỉ sự mệt mỏi, kiệt sức"
+      },
+      {
+        "code": "cau_hoi_tu_tu_tham_thi_trong_suy_nghi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ thầm thì trong suy nghĩ"
+      },
+      {
+        "code": "lac_quan_thai_qua",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Lạc quan thái quá"
+      },
+      {
+        "code": "tu_ngu_hanh_dong_hon_ho",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Từ ngữ hành động hớn hở"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không lạc quan thái quá\"",
+      "genre": "\"action\"",
+      "settings": "\"môi trường khắc nghiệt, nguồn lực hạn chế\"",
+      "rhetorical_devices.examples": "[]"
+    }
+  },
+  {
+    "code": "action.training",
+    "category": "action.training",
+    "name": "Hành động luyện tập",
+    "tone_pace": "LOW",
+    "tone_emotion": "tập trung, quyết tâm",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "MEDIUM",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "thuật ngữ kỹ thuật",
+      "động từ hướng dẫn",
+      "từ chỉ động tác"
+    ],
+    "focus": [
+      "kỹ thuật",
+      "sửa sai",
+      "lặp lại",
+      "cơ thể"
+    ],
+    "devices": [
+      {
+        "code": "liet_ke_trinh_tu_cau_menh_lenh",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Liệt kê trình tự & câu mệnh lệnh"
+      },
+      {
+        "code": "lap_cau_truc_dieu_kien_neu_thi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Lặp cấu trúc điều kiện (Nếu... thì...)"
+      },
+      {
+        "code": "so_sanh_doi_chieu_sua_sai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=So sánh đối chiếu sửa sai"
+      },
+      {
+        "code": "an_du",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ẩn dụ"
+      },
+      {
+        "code": "diep_tu_cam_xuc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Điệp từ cảm xúc"
+      },
+      {
+        "code": "cau_hoi_tu_tu",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Câu hỏi tu từ"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không kịch tính, mang tính hướng dẫn\"",
+      "genre": "\"action\"",
+      "settings": "\"không gian an toàn, bài bản, có hướng dẫn\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "action.warfare",
+    "category": "action.warfare",
+    "name": "Hành động chiến tranh",
+    "tone_pace": "LOW",
+    "tone_emotion": "lạnh lùng, tính toán",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ quân sự",
+      "từ chỉ chiến thuật",
+      "từ chỉ quy mô"
+    ],
+    "focus": [
+      "chiến lược",
+      "hậu cần",
+      "quy mô",
+      "thời gian"
+    ],
+    "devices": [
+      {
+        "code": "liet_ke_toan_canh_diep_cau_truc_so_sanh_luc_luong",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Liệt kê toàn cảnh & điệp cấu trúc so sánh lực lượng"
+      },
+      {
+        "code": "cau_ghep_dai_mang_tinh_thong_ke",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Câu ghép dài mang tính thống kê"
+      },
+      {
+        "code": "an_du_ve_co_vua_hoac_ban_co",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Ẩn dụ về cờ vua hoặc bàn cờ"
+      },
+      {
+        "code": "cam_xuc_ca_nhan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Cảm xúc cá nhân"
+      },
+      {
+        "code": "tuong_thanh_hon_loan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Tượng thanh hỗn loạn"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[]",
+      "rules.avoid_structure": "[]",
+      "rules.emotion_limit": "\"không cảm xúc cá nhân, thiên về báo cáo\"",
+      "genre": "\"action\"",
+      "settings": "\"chiến trường rộng lớn, nhiều giai đoạn, hậu cần\"",
+      "rhetorical_devices.examples": "[]"
+    }
+  },
+  {
+    "code": "exploration_discovery.first_contact",
+    "category": "exploration_discovery.first_contact",
+    "name": "Lần đầu tiếp xúc",
+    "tone_pace": "LOW",
+    "tone_emotion": "kinh ngạc, thận trọng, hồi hộp",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ miêu tả sự kỳ lạ",
+      "ẩn dụ so sánh với điều quen thuộc",
+      "động từ quan sát"
+    ],
+    "focus": [
+      "sự khác biệt",
+      "phản ứng nhân vật",
+      "nỗ lực giao tiếp"
+    ],
+    "devices": [
+      {
+        "code": "phep_so_sanh_la_quen_an_du_kham_pha",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép so sánh lạ – quen & ẩn dụ khám phá"
+      },
+      {
+        "code": "liet_ke_chi_tiet_ky_la",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê chi tiết kỳ lạ"
+      },
+      {
+        "code": "cau_hoi_tu_tu_kinh_ngac",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ kinh ngạc"
+      },
+      {
+        "code": "ngon_ngu_qua_doi_thuong",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ quá đỗi thường"
+      },
+      {
+        "code": "mieu_ta_kho_khan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả khô khan"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"bình thường\",\"quen thuộc\"]",
+      "rules.avoid_structure": "[\"đoạn văn liệt kê máy móc dài\"]",
+      "rules.emotion_limit": "\"không châm biếm sự khác biệt\"",
+      "genre": "\"exploration_discovery\"",
+      "settings": "\"khoảnh khắc gặp gỡ nền văn minh / thực thể lạ lần đầu, vùng biên giới chưa khám phá\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "exploration_discovery.map_unlocking",
+    "category": "exploration_discovery.map_unlocking",
+    "name": "Mở khóa bản đồ",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "tò mò, phấn khích, kỳ vọng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "thuật ngữ địa hình",
+      "từ chỉ sự khai mở, hiển lộ",
+      "miêu tả màu sắc bản đồ"
+    ],
+    "focus": [
+      "vùng đất mới",
+      "manh mối dẫn đường",
+      "cảm giác chinh phục"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_dia_danh_diep_cau_truc_khai_mo",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê địa danh & điệp cấu trúc khai mở"
+      },
+      {
+        "code": "an_du_buc_man_duoc_ven_len",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ bức màn được vén lên"
+      },
+      {
+        "code": "cau_cam_than_hao_hung",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu cảm thán hào hứng"
+      },
+      {
+        "code": "ngon_ngu_cham_chap_nang_ne",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ chậm chạp, nặng nề"
+      },
+      {
+        "code": "mieu_ta_chi_tiet_may_moc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả chi tiết máy móc"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"nhàm chán\",\"tẻ nhạt\"]",
+      "rules.avoid_structure": "[\"đoạn văn miêu tả tĩnh lặng dài\"]",
+      "rules.emotion_limit": "\"không bi quan, không thất vọng\"",
+      "genre": "\"exploration_discovery\"",
+      "settings": "\"thu thập manh mối, kích hoạt bản đồ, mở rộng vùng đất chưa biết\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "exploration_discovery.navigation_journey",
+    "category": "exploration_discovery.navigation_journey",
+    "name": "Hành trình dẫn đường",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "kiên nhẫn, cảnh giác, quyết tâm",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ di chuyển",
+      "thuật ngữ định hướng",
+      "từ miêu tả địa hình"
+    ],
+    "focus": [
+      "phương hướng",
+      "cột mốc",
+      "cảm giác tiến bước"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_buoc_tien_liet_ke_cot_moc",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc bước tiến & liệt kê cột mốc"
+      },
+      {
+        "code": "phep_doi_giua_duong_di_va_can_tro",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối giữa đường đi và cản trở"
+      },
+      {
+        "code": "tuong_thanh_nhip_buoc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh nhịp bước"
+      },
+      {
+        "code": "ngon_ngu_gap_gap",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ gấp gáp"
+      },
+      {
+        "code": "mieu_ta_noi_tam_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả nội tâm dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"bất ngờ\",\"đột ngột\"]",
+      "rules.avoid_structure": "[\"câu cụt giật gân\"]",
+      "rules.emotion_limit": "\"không hoảng loạn, không nản chí\"",
+      "genre": "\"exploration_discovery\"",
+      "settings": "\"di chuyển qua nhiều vùng đất, theo dấu, đọc bản đồ, vượt địa hình\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "exploration_discovery.ruin_delving",
+    "category": "exploration_discovery.ruin_delving",
+    "name": "Thám hiểm di tích",
+    "tone_pace": "LOW",
+    "tone_emotion": "bí ẩn, sợ hãi pha tò mò",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ cổ học",
+      "từ chỉ sự xuống cấp, hoang tàn",
+      "ẩn dụ bí mật chôn vùi"
+    ],
+    "focus": [
+      "không gian cũ kỹ",
+      "dấu vết người trước",
+      "nguy hiểm tiềm ẩn"
+    ],
+    "devices": [
+      {
+        "code": "an_du_bi_mat_chon_vui_diep_cau_truc_do_duong",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ bí mật chôn vùi & điệp cấu trúc dò đường"
+      },
+      {
+        "code": "liet_ke_co_vat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê cổ vật"
+      },
+      {
+        "code": "cau_hoi_tu_tu_ve_qua_khu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ về quá khứ"
+      },
+      {
+        "code": "ngon_ngu_hien_dai_tuc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ hiện đại, tục"
+      },
+      {
+        "code": "tuong_thanh_on_ao",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh ồn ào"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"sạch sẽ\",\"hiện đại\"]",
+      "rules.avoid_structure": "[\"đoạn văn vui vẻ nhẹ nhàng\"]",
+      "rules.emotion_limit": "\"không hài hước, không thản nhiên\"",
+      "genre": "\"exploration_discovery\"",
+      "settings": "\"khu di tích cổ, hầm mộ, ngôi đền bỏ hoang, bí ẩn cổ xưa\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "exploration_discovery.treasure_hunt",
+    "category": "exploration_discovery.treasure_hunt",
+    "name": "Săn kho báu",
+    "tone_pace": "FAST",
+    "tone_emotion": "háo hức, căng thẳng, vui sướng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ săn tìm",
+      "thuật ngữ giải đố",
+      "động từ hành động nhanh"
+    ],
+    "focus": [
+      "manh mối",
+      "cuộc đua",
+      "phần thưởng"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_manh_moi_diep_cau_truc_duoi_theo",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép liệt kê manh mối & điệp cấu trúc đuổi theo"
+      },
+      {
+        "code": "cau_hoi_tu_tu_cang_thang",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu hỏi tu từ căng thẳng"
+      },
+      {
+        "code": "phep_doi_nguoi_thang_ke_thua",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối người thắng – kẻ thua"
+      },
+      {
+        "code": "ngon_ngu_cham_rai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ chậm rãi"
+      },
+      {
+        "code": "mieu_ta_noi_tam_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả nội tâm dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"chán nản\",\"bỏ cuộc\"]",
+      "rules.avoid_structure": "[\"đoạn văn suy tư dài\"]",
+      "rules.emotion_limit": "\"không bi kịch, không buồn thảm\"",
+      "genre": "\"exploration_discovery\"",
+      "settings": "\"truy tìm kho báu, giải đố, bản đồ cũ, cạnh tranh với kẻ khác\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "fantasy_scifi_mechanics.crafting_enhancement",
+    "category": "fantasy_scifi_mechanics.crafting_enhancement",
+    "name": "Chế tạo & nâng cấp",
+    "tone_pace": "LOW",
+    "tone_emotion": "tập trung, kiên nhẫn, thỏa mãn",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "HIGH",
+    "olfactory": "MEDIUM",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "thuật ngữ nguyên liệu",
+      "động từ chế tác",
+      "từ chỉ sự biến đổi"
+    ],
+    "focus": [
+      "quy trình từng bước",
+      "nguyên liệu",
+      "khoảnh khắc hoàn thành"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_cong_doan_diep_cau_truc_nang_cap",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê công đoạn & điệp cấu trúc nâng cấp"
+      },
+      {
+        "code": "phep_so_sanh_truoc_sau",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép so sánh trước – sau"
+      },
+      {
+        "code": "tuong_thanh_che_tac",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh chế tác"
+      },
+      {
+        "code": "cau_cut_coc_loc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu cụt cộc lốc"
+      },
+      {
+        "code": "ngon_ngu_cam_xuc_thai_qua",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ cảm xúc thái quá"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"tùy tiện\",\"ngẫu nhiên\"]",
+      "rules.avoid_structure": "[\"đoạn văn hỗn loạn\"]",
+      "rules.emotion_limit": "\"không hài hước lệch lạc, không sốt ruột\"",
+      "genre": "\"fantasy_scifi_mechanics\"",
+      "settings": "\"xưởng rèn, phòng thí nghiệm, kết hợp nguyên liệu, nâng cấp trang bị\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "fantasy_scifi_mechanics.evolution_awakening",
+    "category": "fantasy_scifi_mechanics.evolution_awakening",
+    "name": "Tiến hóa & thức tỉnh",
+    "tone_pace": "FAST",
+    "tone_emotion": "hào hứng, kinh ngạc, quyền lực",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ biến đổi",
+      "ẩn dụ sức mạnh",
+      "từ chỉ vượt giới hạn"
+    ],
+    "focus": [
+      "quá trình biến hóa",
+      "giới hạn bị phá vỡ",
+      "cảm giác quyền năng"
+    ],
+    "devices": [
+      {
+        "code": "phep_phong_dai_suc_manh_diep_cau_truc_vuot_gioi_han",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép phóng đại sức mạnh & điệp cấu trúc vượt giới hạn"
+      },
+      {
+        "code": "an_du_lua_song",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ lửa / sóng"
+      },
+      {
+        "code": "cau_cam_than_bung_no",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cảm thán bùng nổ"
+      },
+      {
+        "code": "ngon_ngu_yeu_ot",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ yếu ớt"
+      },
+      {
+        "code": "mieu_ta_cham_chap",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả chậm chạp"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"yếu đuối\",\"nhỏ nhoi\"]",
+      "rules.avoid_structure": "[\"đoạn văn trầm lắng dài\"]",
+      "rules.emotion_limit": "\"không bi quan, không hèn nhát\"",
+      "genre": "\"fantasy_scifi_mechanics\"",
+      "settings": "\"khoảnh khắc biến đổi sức mạnh, phá vỡ giới hạn, nguồn năng lượng mới\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "fantasy_scifi_mechanics.hacking_decryption",
+    "category": "fantasy_scifi_mechanics.hacking_decryption",
+    "name": "Hack & giải mã",
+    "tone_pace": "FAST",
+    "tone_emotion": "tập trung cao độ, hồi hộp, chiến thắng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "thuật ngữ công nghệ",
+      "động từ xâm nhập",
+      "từ chỉ tốc độ xử lý"
+    ],
+    "focus": [
+      "các lớp phòng thủ",
+      "lỗ hổng",
+      "khoảnh khắc phá mã"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_tan_cong_tung_lop_an_du_dot_nhap",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Điệp cấu trúc tấn công từng lớp & ẩn dụ đột nhập"
+      },
+      {
+        "code": "phep_liet_ke_ma_lenh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép liệt kê mã lệnh"
+      },
+      {
+        "code": "so_sanh_khong_gian_mang_thuc_dia",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=So sánh không gian mạng – thực địa"
+      },
+      {
+        "code": "ngon_ngu_thong_tuc_ngoai_le",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ thông tục ngoài lề"
+      },
+      {
+        "code": "mieu_ta_ngoai_canh_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả ngoại cảnh dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"chậm rãi\",\"thong thả\"]",
+      "rules.avoid_structure": "[\"đoạn văn mượt mà du dương\"]",
+      "rules.emotion_limit": "\"không hài hước, không lo lắng thái quá\"",
+      "genre": "\"fantasy_scifi_mechanics\"",
+      "settings": "\"không gian mạng, màn hình mã lệnh, phá tường lửa, giải thuật mật mã\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "fantasy_scifi_mechanics.summoning_ritual",
+    "category": "fantasy_scifi_mechanics.summoning_ritual",
+    "name": "Nghi thức triệu hồi",
+    "tone_pace": "LOW",
+    "tone_emotion": "thiêng liêng, sợ hãi, cuốn hút",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ nghi thức cổ",
+      "ẩn dụ giới hạn giữa hai thế giới",
+      "động từ triệu gọi"
+    ],
+    "focus": [
+      "quy trình nghi lễ",
+      "cái giá phải trả",
+      "sự xuất hiện"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_than_chu_an_du_ranh_gioi_the_gioi",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Điệp cấu trúc thần chú & ẩn dụ ranh giới thế giới"
+      },
+      {
+        "code": "liet_ke_bieu_tuong",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Liệt kê biểu tượng"
+      },
+      {
+        "code": "cau_cam_than_hai_hung",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cảm thán hãi hùng"
+      },
+      {
+        "code": "ngon_ngu_doi_thuong",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ đời thường"
+      },
+      {
+        "code": "hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"bình thường\",\"hiện đại\"]",
+      "rules.avoid_structure": "[\"đoạn văn sinh hoạt thường nhật\"]",
+      "rules.emotion_limit": "\"không giễu cợt, không thản nhiên\"",
+      "genre": "\"fantasy_scifi_mechanics\"",
+      "settings": "\"vòng triệu hồi, nghi lễ cổ, gọi thực thể siêu nhiên, linh hồn, quái vật\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "fantasy_scifi_mechanics.time_leap_loop",
+    "category": "fantasy_scifi_mechanics.time_leap_loop",
+    "name": "Nhảy thời gian & vòng lặp",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "bối rối, quyết tâm, mệt mỏi, hy vọng",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "MEDIUM",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ chỉ sự lặp lại",
+      "ẩn dụ bàn tay thời gian",
+      "từ ngữ số phận"
+    ],
+    "focus": [
+      "điểm khác biệt giữa các vòng lặp",
+      "sự mệt mỏi tinh thần",
+      "khe cửa phá vỡ"
+    ],
+    "devices": [
+      {
+        "code": "phep_diep_toan_canh_lap_lai_phep_doi_giua_cac_lan_thu",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép điệp toàn cảnh lặp lại & phép đối giữa các lần thử"
+      },
+      {
+        "code": "cau_hoi_tu_tu_ve_dinh_menh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ về định mệnh"
+      },
+      {
+        "code": "an_du_cat_chay_nguoc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ cát chảy ngược"
+      },
+      {
+        "code": "cau_chu_dut_doan_hon_loan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu chữ đứt đoạn hỗn loạn"
+      },
+      {
+        "code": "ngon_ngu_tuyet_vong_tuyet_doi",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ tuyệt vọng tuyệt đối"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"một lần duy nhất\",\"cuối cùng\"]",
+      "rules.avoid_structure": "[\"đoạn văn tuyến tính thông thường\"]",
+      "rules.emotion_limit": "\"không hoảng loạn mất trí, không hài hước\"",
+      "genre": "\"fantasy_scifi_mechanics\"",
+      "settings": "\"lặp lại khoảnh khắc, vòng lặp thời gian, sửa sai, ngày tận thế\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.alibi_check",
+    "category": "mystery.alibi_check",
+    "name": "Xác minh chứng ngoại phạm",
+    "tone_pace": "LOW",
+    "tone_emotion": "khách quan, căng thẳng thầm lặng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "LOW",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ pháp lý",
+      "con số, thời gian, địa điểm",
+      "từ so sánh, đối chiếu"
+    ],
+    "focus": [
+      "tính nhất quán",
+      "khoảng trống thời gian",
+      "mâu thuẫn nhỏ"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_doi_chieu_thoi_gian",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê & đối chiếu thời gian"
+      },
+      {
+        "code": "phep_so_sanh_mau_thuan",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép so sánh mâu thuẫn"
+      },
+      {
+        "code": "diep_cau_truc_xac_minh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc xác minh"
+      },
+      {
+        "code": "cau_hoi_tu_tu",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ"
+      },
+      {
+        "code": "ngon_ngu_cam_xuc_manh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ cảm xúc mạnh"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"chắc hẳn\",\"có lẽ\"]",
+      "rules.avoid_structure": "[\"câu cảm thán, câu hỏi tu từ\"]",
+      "rules.emotion_limit": "\"không phẫn nộ, không mỉa mai\"",
+      "genre": "\"mystery\"",
+      "settings": "\"lục soát giấy tờ, phỏng vấn nhân chứng, so sánh thời gian\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.clue_hunting",
+    "category": "mystery.clue_hunting",
+    "name": "Tìm kiếm manh mối",
+    "tone_pace": "LOW",
+    "tone_emotion": "tò mò, căng thẳng âm ỉ",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ miêu tả chi tiết",
+      "thuật ngữ pháp y / khoa học",
+      "động từ quan sát"
+    ],
+    "focus": [
+      "dấu vết",
+      "bố cục không gian",
+      "chi tiết bất thường"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_chi_tiet_nhan_chi_tiet_bat_thuong",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê chi tiết & nhấn chi tiết bất thường"
+      },
+      {
+        "code": "diep_cau_truc_quan_sat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc quan sát"
+      },
+      {
+        "code": "phep_doi_dau_vet",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối dấu vết"
+      },
+      {
+        "code": "cau_cam_than_ngan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu cảm thán ngắn"
+      },
+      {
+        "code": "phong_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Phóng đại"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"rõ ràng\",\"hiển nhiên\"]",
+      "rules.avoid_structure": "[\"câu cảm thán ngắn\"]",
+      "rules.emotion_limit": "\"không bộc lộ cảm xúc mạnh\"",
+      "genre": "\"mystery\"",
+      "settings": "\"hiện trường, phòng tài liệu, khám xét\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.deduction",
+    "category": "mystery.deduction",
+    "name": "Suy luận logic",
+    "tone_pace": "LOW",
+    "tone_emotion": "tập trung, lạnh lùng",
+    "is_system": true,
+    "visual": "LOW",
+    "auditory": "LOW",
+    "tactile": "NONE",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ lập luận (do đó, như vậy)",
+      "thuật ngữ logic",
+      "phép loại suy"
+    ],
+    "focus": [
+      "mối quan hệ nhân quả",
+      "chứng cứ đối lập",
+      "giả thuyết và kiểm chứng"
+    ],
+    "devices": [
+      {
+        "code": "phep_tam_doan_luan_diep_cau_truc_suy_luan",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép tam đoạn luận & điệp cấu trúc suy luận"
+      },
+      {
+        "code": "phep_loai_suy",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép loại suy"
+      },
+      {
+        "code": "phep_liet_ke_chung_cu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê chứng cứ"
+      },
+      {
+        "code": "cau_hoi_tu_tu_boc_phat",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ bộc phát"
+      },
+      {
+        "code": "ngon_ngu_an_du_mo_ho",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ ẩn dụ mơ hồ"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"ngẫu nhiên\",\"trùng hợp\"]",
+      "rules.avoid_structure": "[\"câu cụt, câu quá ngắn\"]",
+      "rules.emotion_limit": "\"hoàn toàn lý trí\"",
+      "genre": "\"mystery\"",
+      "settings": "\"nội tâm nhân vật, phòng làm việc, bảng phân tích\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.disguise_investigation",
+    "category": "mystery.disguise_investigation",
+    "name": "Cải trang thâm nhập",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "căng thẳng ngấm ngầm, hồi hộp",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ chỉ sự lén lút",
+      "miêu tả ngoại hình giả",
+      "động từ nhập vai"
+    ],
+    "focus": [
+      "môi trường xung quanh",
+      "nguy cơ bị phát hiện",
+      "thu thập tin qua lời nói phiến diện"
+    ],
+    "devices": [
+      {
+        "code": "phep_doi_giua_than_phan_gia_va_that",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối giữa thân phận giả và thật"
+      },
+      {
+        "code": "liet_ke_hanh_vi_nhap_vai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê hành vi nhập vai"
+      },
+      {
+        "code": "diep_cau_truc_quan_sat_canh_giac",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc quan sát cảnh giác"
+      },
+      {
+        "code": "doc_thoai_noi_tam_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Độc thoại nội tâm dài"
+      },
+      {
+        "code": "phong_dai_kich_tinh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Phóng đại kịch tính"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"thật sự\",\"thực tế\"]",
+      "rules.avoid_structure": "[\"đoạn độc thoại nội tâm dài\"]",
+      "rules.emotion_limit": "\"không biểu lộ cảm xúc thật ra mặt\"",
+      "genre": "\"mystery\"",
+      "settings": "\"khu vực công cộng, đám đông, buổi tiệc, khu ổ chuột\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.interrogation",
+    "category": "mystery.interrogation",
+    "name": "Thẩm vấn",
+    "tone_pace": "FAST",
+    "tone_emotion": "căng thẳng, áp lực",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "HIGH",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "câu hỏi dồn dập",
+      "từ gây áp lực",
+      "lặp lại ý để gài bẫy"
+    ],
+    "focus": [
+      "lời nói",
+      "khoảng lặng",
+      "phản ứng của đối phương"
+    ],
+    "devices": [
+      {
+        "code": "phep_diep_cau_hoi_don_dap_lap_y_gai_bay",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép điệp câu hỏi dồn dập & lặp ý gài bẫy"
+      },
+      {
+        "code": "cau_hoi_tu_tu_gay_ap_luc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu hỏi tu từ gây áp lực"
+      },
+      {
+        "code": "phep_doi_giua_hoi_va_tranh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối giữa hỏi và tránh"
+      },
+      {
+        "code": "doan_mieu_ta_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Đoạn miêu tả dài"
+      },
+      {
+        "code": "ngon_ngu_hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"có lẽ\",\"hình như\"]",
+      "rules.avoid_structure": "[\"đoạn văn miêu tả dài\"]",
+      "rules.emotion_limit": "\"không hài hước, không châm biếm\"",
+      "genre": "\"mystery\"",
+      "settings": "\"phòng thẩm vấn, đối chất giữa các nhân vật\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "mystery.revelation",
+    "category": "mystery.revelation",
+    "name": "Tiết lộ bất ngờ",
+    "tone_pace": "VERY_FAST",
+    "tone_emotion": "sốc, phẫn nộ, kinh hoàng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ mạnh, dứt khoát",
+      "câu nói đanh thép",
+      "sự tương phản (hoá ra, thì ra)"
+    ],
+    "focus": [
+      "sự thật bị che giấu",
+      "lời thú nhận",
+      "phản ứng nhân vật"
+    ],
+    "devices": [
+      {
+        "code": "phep_dao_ngu_nhan_hoa_ra_thi_ra",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép đảo ngữ & nhấn 'oá ra / thì ra'"
+      },
+      {
+        "code": "cau_cut_dut_khoat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cụt dứt khoát"
+      },
+      {
+        "code": "phep_liet_ke_su_that",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép liệt kê sự thật"
+      },
+      {
+        "code": "ngon_ngu_mo_ho_do_du",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ mơ hồ, do dự"
+      },
+      {
+        "code": "trao_phung",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Trào phúng"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"có lẽ\",\"không chắc\"]",
+      "rules.avoid_structure": "[\"đoạn văn kéo dài, miêu tả rời rạc\"]",
+      "rules.emotion_limit": "\"không được pha trò hay trào phúng\"",
+      "genre": "\"mystery\"",
+      "settings": "\"điểm cao trào, đối chất trực diện\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.conspiracy_meeting",
+    "category": "political_social.conspiracy_meeting",
+    "name": "Cuộc họp bí mật",
+    "tone_pace": "LOW",
+    "tone_emotion": "nguy hiểm, hoài nghi, mưu mô",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "HIGH",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ bóng gió, ẩn ý",
+      "thuật ngữ quyền lực",
+      "động từ dàn xếp"
+    ],
+    "focus": [
+      "ẩn ý trong lời nói",
+      "lòng trung thành",
+      "hậu quả tiềm tàng"
+    ],
+    "devices": [
+      {
+        "code": "an_du_bong_toi_loi_noi_bong_gio",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ bóng tối & lời nói bóng gió"
+      },
+      {
+        "code": "phep_doi_trung_thanh_phan_boi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối trung thành – phản bội"
+      },
+      {
+        "code": "diep_cau_truc_trao_doi_nua_chung",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc trao đổi nửa chừng"
+      },
+      {
+        "code": "ngon_ngu_thang_thung",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ thẳng thừng"
+      },
+      {
+        "code": "hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"trung thực\",\"ngay thẳng\"]",
+      "rules.avoid_structure": "[\"đoạn văn cởi mở, chân thành\"]",
+      "rules.emotion_limit": "\"không ngây thơ, không phấn khích\"",
+      "genre": "\"political_social\"",
+      "settings": "\"phòng tối, hội kín, bàn mưu tính, âm mưu chính trị\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.coronation_succession",
+    "category": "political_social.coronation_succession",
+    "name": "Đăng quang & kế vị",
+    "tone_pace": "LOW",
+    "tone_emotion": "uy nghiêm, căng thẳng ngầm, long trọng",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ hoàng gia",
+      "ẩn dụ quyền lực",
+      "từ trang trọng"
+    ],
+    "focus": [
+      "lễ nghi",
+      "quyền lực chuyển giao",
+      "ẩn ý chính trị"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_tuyen_the_an_du_vuong_mien_nang_triu",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc tuyên thệ & ẩn dụ vương miện nặng trĩu"
+      },
+      {
+        "code": "phep_doi_ke_tri_nguoi_tri",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối kẻ trị – người trị"
+      },
+      {
+        "code": "liet_ke_bieu_tuong_quyen_luc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê biểu tượng quyền lực"
+      },
+      {
+        "code": "ngon_ngu_doi_thuong",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ đời thường"
+      },
+      {
+        "code": "hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"tạm bợ\",\"vô nghĩa\"]",
+      "rules.avoid_structure": "[\"câu cụt cộc lốc\"]",
+      "rules.emotion_limit": "\"không giễu cợt, không thờ ơ\"",
+      "genre": "\"political_social\"",
+      "settings": "\"nghi lễ đăng quang, triều đình, tranh giành ngai vàng, lễ tôn vương\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.exile_expulsion",
+    "category": "political_social.exile_expulsion",
+    "name": "Lưu đày & trục xuất",
+    "tone_pace": "LOW",
+    "tone_emotion": "tủi nhục, phẫn uất, cô độc, mất gốc",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "LOW",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ mất mát quê hương",
+      "ẩn dụ rễ bị nhổ",
+      "động từ rời bỏ"
+    ],
+    "focus": [
+      "khoảnh khắc bị đuổi",
+      "những gì để lại",
+      "nỗi đau của người lưu đày"
+    ],
+    "devices": [
+      {
+        "code": "an_du_re_bi_nho_diep_cau_truc_ngoanh_lai",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ rễ bị nhổ & điệp cấu trúc ngoảnh lại"
+      },
+      {
+        "code": "phep_doi_truoc_sau_khi_luu_day",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối trước – sau khi lưu đày"
+      },
+      {
+        "code": "cau_cham_lung_nghen",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu chấm lửng nghẹn"
+      },
+      {
+        "code": "ngon_ngu_vui_ve",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ vui vẻ"
+      },
+      {
+        "code": "mieu_ta_ngoai_canh_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả ngoại cảnh dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"may mắn\",\"thuận lợi\"]",
+      "rules.avoid_structure": "[\"đoạn văn khô khan sự kiện\"]",
+      "rules.emotion_limit": "\"không hài hước, không nhẹ nhàng\"",
+      "genre": "\"political_social\"",
+      "settings": "\"không gian biên giới, trục xuất khỏi quê hương, lưu đày nơi hoang vắng\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.negotiation_treaty",
+    "category": "political_social.negotiation_treaty",
+    "name": "Đàm phán & hiệp ước",
+    "tone_pace": "LOW",
+    "tone_emotion": "căng thẳng, khôn khéo, thận trọng",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "HIGH",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ đàm phán",
+      "từ ngữ lập luận, nhượng bộ",
+      "động từ mặc cả"
+    ],
+    "focus": [
+      "điểm mấu chốt",
+      "sự nhượng bộ",
+      "con số và điều kiện"
+    ],
+    "devices": [
+      {
+        "code": "phep_doi_hai_phe_lap_dieu_kien_de_nhan",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối hai phe & lặp điều kiện để nhấn"
+      },
+      {
+        "code": "cau_hoi_tu_tu_tham_do",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ thăm dò"
+      },
+      {
+        "code": "liet_ke_dieu_khoan",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê điều khoản"
+      },
+      {
+        "code": "ngon_ngu_cam_xuc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ cảm xúc"
+      },
+      {
+        "code": "hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"chắc chắn tuyệt đối\",\"đơn giản\"]",
+      "rules.avoid_structure": "[\"câu cụt giận dữ\"]",
+      "rules.emotion_limit": "\"không nóng giận, không hài hước\"",
+      "genre": "\"political_social\"",
+      "settings": "\"phòng họp, bàn đàm phán, hai phe đối lập, hiệp ước\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.public_speech",
+    "category": "political_social.public_speech",
+    "name": "Diễn thuyết trước công chúng",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "đầy cảm hứng, thuyết phục, oai hùng",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "HIGH",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ kêu gọi, hô hào",
+      "ẩn dụ tập thể",
+      "động từ hành động"
+    ],
+    "focus": [
+      "lời kêu gọi",
+      "khát vọng của đám đông",
+      "cú đấm lập luận"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_keu_goi_cau_hoi_tu_tu_thuyet_phuc",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Điệp cấu trúc kêu gọi & câu hỏi tu từ thuyết phục"
+      },
+      {
+        "code": "phep_liet_ke_nguyen_vong",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép liệt kê nguyện vọng"
+      },
+      {
+        "code": "phep_doi_hom_nay_ngay_mai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối hôm nay – ngày mai"
+      },
+      {
+        "code": "ngon_ngu_rut_re",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ rụt rè"
+      },
+      {
+        "code": "cau_chu_lung_cung",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu chữ lủng củng"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"lưỡng lự\",\"có thể là\"]",
+      "rules.avoid_structure": "[\"câu dài rối rắm\"]",
+      "rules.emotion_limit": "\"không mỉa mai, không bi quan\"",
+      "genre": "\"political_social\"",
+      "settings": "\"quảng trường, khán đài, đám đông, tuyên bố chính trị\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "political_social.trial_court",
+    "category": "political_social.trial_court",
+    "name": "Phiên tòa",
+    "tone_pace": "LOW",
+    "tone_emotion": "nghiêm trang, hồi hộp, chờ phán quyết",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "HIGH",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "thuật ngữ pháp lý",
+      "từ ngữ buộc tội / bào chữa",
+      "lập luận chứng cứ"
+    ],
+    "focus": [
+      "bằng chứng",
+      "lời khai",
+      "công lý"
+    ],
+    "devices": [
+      {
+        "code": "phep_lap_cau_hoi_doi_chat_liet_ke_chung_cu",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép lặp câu hỏi đối chất & liệt kê chứng cứ"
+      },
+      {
+        "code": "phep_doi_buoc_toi_bao_chua",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối buộc tội – bào chữa"
+      },
+      {
+        "code": "cau_hoi_tu_tu_gay_ap_luc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu hỏi tu từ gây áp lực"
+      },
+      {
+        "code": "ngon_ngu_cam_xuc_ca_nhan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ cảm xúc cá nhân"
+      },
+      {
+        "code": "hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"cảm tính\",\"vô căn cứ\"]",
+      "rules.avoid_structure": "[\"đoạn văn trào phúng\"]",
+      "rules.emotion_limit": "\"không mỉa mai, không thiên vị cảm xúc\"",
+      "genre": "\"political_social\"",
+      "settings": "\"phòng xử án, bục thẩm phán, bồi thẩm, tòa án công bằng / không công bằng\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "psychological_drama.betrayal",
+    "category": "psychological_drama.betrayal",
+    "name": "Phản bội",
+    "tone_pace": "FAST",
+    "tone_emotion": "sốc, đau đớn tột cùng, phẫn uất, hoang mang",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ đối lập (tôi đã tin – hóa ra)",
+      "động từ mạnh chỉ sự đâm thủng",
+      "tính từ về sự sụp đổ niềm tin"
+    ],
+    "focus": [
+      "sự thay đổi trong nhận thức nhân vật",
+      "lời nói của kẻ phản bội",
+      "khoảng lặng nặng nề sau cú sốc"
+    ],
+    "devices": [
+      {
+        "code": "phep_doi_toi_da_tin_hoa_ra_diep_khoang_lang",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Phép đối 'ôi đã tin – hoá ra'& điệp khoảng lặng"
+      },
+      {
+        "code": "cau_cham_lung_nghen_lai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu chấm lửng nghẹn lại"
+      },
+      {
+        "code": "an_du_vet_thuong",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Ẩn dụ vết thương"
+      },
+      {
+        "code": "ngon_ngu_binh_than",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ bình thản"
+      },
+      {
+        "code": "mieu_ta_ngoai_canh_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Miêu tả ngoại cảnh dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"tất nhiên\",\"đúng như dự đoán\"]",
+      "rules.avoid_structure": "[\"đoạn miêu tả cảnh vật dài\"]",
+      "rules.emotion_limit": "\"không hài hước, không bình thản\"",
+      "genre": "\"psychological_drama\"",
+      "settings": "\"khoảnh khắc sự thật được phơi bày (bất kỳ không gian nào – tấm lưng quay đi, lưỡi dao đâm sau lưng)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "psychological_drama.identity_crisis",
+    "category": "psychological_drama.identity_crisis",
+    "name": "Khủng hoảng danh tính",
+    "tone_pace": "LOW",
+    "tone_emotion": "mơ hồ, lo lắng, mất phương hướng",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "LOW",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ về sự phân mảnh, tan rã",
+      "câu hỏi tu từ về bản thân",
+      "ẩn dụ cho lốt và thực chất"
+    ],
+    "focus": [
+      "sự nghi ngờ về quá khứ hoặc tương lai",
+      "đối thoại giữa các phần của bản thân",
+      "khoảnh khắc không nhận ra gương mặt mình"
+    ],
+    "devices": [
+      {
+        "code": "cau_hoi_tu_tu_ve_ban_than_an_du_lot_thuc_chat",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Câu hỏi tu từ về bản thân & ẩn dụ lốt/thực chất"
+      },
+      {
+        "code": "diep_cau_truc_phan_manh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Điệp cấu trúc phân mảnh"
+      },
+      {
+        "code": "phep_doi_giua_cac_phan_cua_ban_than",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối giữa các phần của bản thân"
+      },
+      {
+        "code": "cau_khang_dinh_dut_khoat",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Câu khẳng định dứt khoát"
+      },
+      {
+        "code": "ngon_ngu_mia_mai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ mỉa mai"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"đơn giản\",\"chỉ là\"]",
+      "rules.avoid_structure": "[\"câu khẳng định quá dứt khoát\"]",
+      "rules.emotion_limit": "\"không mỉa mai, không hài hước\"",
+      "genre": "\"psychological_drama\"",
+      "settings": "\"không gian cô lập hoặc nơi đối diện với hình chiếu của bản thân\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "psychological_drama.inner_monologue",
+    "category": "psychological_drama.inner_monologue",
+    "name": "Độc thoại nội tâm - bước ngoặt",
+    "tone_pace": "LOW",
+    "tone_emotion": "dằn vặt, đấu tranh, cô độc",
+    "is_system": true,
+    "visual": "LOW",
+    "auditory": "LOW",
+    "tactile": "LOW",
+    "olfactory": "NONE",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ triết lý, nội quan",
+      "so sánh ẩn dụ về trọng lượng (gánh nặng)",
+      "động từ chỉ sự đấu tranh tinh thần"
+    ],
+    "focus": [
+      "dòng ý thức",
+      "mâu thuẫn giữa lý trí và cảm xúc",
+      "hậu quả tưởng tượng của từng lựa chọn"
+    ],
+    "devices": [
+      {
+        "code": "an_du_ve_trong_luong_ganh_nang_cau_hoi_tu_tu_dau_tranh",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ về trọng lượng (gánh nặng) & câu hỏi tu từ đấu tranh"
+      },
+      {
+        "code": "dong_y_thuc_lap_di_lap_lai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Dòng ý thức lặp đi lặp lại"
+      },
+      {
+        "code": "phep_doi_ly_tri_cam_xuc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối lý trí – cảm xúc"
+      },
+      {
+        "code": "doi_thoai_voi_nguoi_khac",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Đối thoại với người khác"
+      },
+      {
+        "code": "ngon_ngu_hai_huoc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ hài hước"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"dễ dàng\",\"chắc chắn\"]",
+      "rules.avoid_structure": "[\"đối thoại với người khác (trừ khi là tưởng tượng)\"]",
+      "rules.emotion_limit": "\"không hài hước, không mỉa mai\"",
+      "genre": "\"psychological_drama\"",
+      "settings": "\"không gian tĩnh, trong đầu nhân vật (khi đứng trước lựa chọn hệ trọng)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "psychological_drama.nightmare_flashback",
+    "category": "psychological_drama.nightmare_flashback",
+    "name": "Ác mộng – hồi ức xâm nhập",
+    "tone_pace": "VERY_FAST",
+    "tone_emotion": "hoảng loạn, kinh hoàng, bất lực",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "HIGH",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "SIMPLE",
+    "vocab": [
+      "động từ gây ám ảnh",
+      "tính từ về sự mất kiểm soát",
+      "từ tượng thanh cho âm thanh ám ảnh"
+    ],
+    "focus": [
+      "sự xâm nhập của quá khứ vào hiện tại",
+      "cảm giác không thể thoát",
+      "phản ứng cơ thể (mồ hôi, tim đập)"
+    ],
+    "devices": [
+      {
+        "code": "tuong_thanh_am_anh_diep_hinh_anh_qua_khu_xam_nhap",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Tượng thanh ám ảnh & điệp hình ảnh quá khứ xâm nhập"
+      },
+      {
+        "code": "phep_phong_dai_su_mat_kiem_soat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép phóng đại sự mất kiểm soát"
+      },
+      {
+        "code": "cau_cut_hon_loan_khong_dau_phay",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Câu cụt hỗn loạn không dấu phẩy"
+      },
+      {
+        "code": "mach_lac_logic",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Mạch lạc logic"
+      },
+      {
+        "code": "ngon_ngu_binh_tinh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ bình tĩnh"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"bình tĩnh\",\"từ từ\"]",
+      "rules.avoid_structure": "[\"đoạn văn mạch lạc, logic\"]",
+      "rules.emotion_limit": "\"không hài hước, không nhẹ nhàng\"",
+      "genre": "\"psychological_drama\"",
+      "settings": "\"trong giấc mơ hoặc ký ức bất chợt, thường là nơi có ký ức chấn thương\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "psychological_drama.sacrifice",
+    "category": "psychological_drama.sacrifice",
+    "name": "Hy sinh",
+    "tone_pace": "LOW",
+    "tone_emotion": "bi tráng, tĩnh lặng, bao dung, đau nhưng thanh thản",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "VERY_SHORT",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ về sự chấp nhận",
+      "ẩn dụ về ánh sáng, sự tự do, sự chuộc lỗi",
+      "động từ chỉ sự từ bỏ và buông tay"
+    ],
+    "focus": [
+      "sự chuyển giao (vật chất hoặc tinh thần)",
+      "lời trăn trối hoặc ánh mắt đầy đủ",
+      "cảm giác của người ở lại"
+    ],
+    "devices": [
+      {
+        "code": "an_du_anh_sang_tu_do_diep_cau_truc_can_xung",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ ánh sáng / tự do & điệp cấu trúc cân xứng"
+      },
+      {
+        "code": "phep_doi_buong_tay_nam_giu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối buông tay – nắm giữ"
+      },
+      {
+        "code": "nhip_dieu_tram_deu",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Nhịp điệu trầm đều"
+      },
+      {
+        "code": "cau_hoi_tu_tu_mia_mai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ mỉa mai"
+      },
+      {
+        "code": "ngon_ngu_bi_quan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ bi quan"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"đáng tiếc\",\"vô ích\"]",
+      "rules.avoid_structure": "[\"câu hỏi tu từ mỉa mai\"]",
+      "rules.emotion_limit": "\"không giễu cợt, không bi quan\"",
+      "genre": "\"psychological_drama\"",
+      "settings": "\"thời điểm mất mát (chiến trận, bệnh tật, chia ly vì lý tưởng)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.confession",
+    "category": "romance_relationship.confession",
+    "name": "Tỏ tình",
+    "tone_pace": "LOW",
+    "tone_emotion": "mong manh, dũng cảm, hồi hộp",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ ẩn dụ tình cảm",
+      "động từ bộc lộ cảm xúc",
+      "từ chỉ sự do dự và quyết tâm"
+    ],
+    "focus": [
+      "lời nói trực tiếp",
+      "phản ứng không lời",
+      "khoảng lặng đầy ẩn ý"
+    ],
+    "devices": [
+      {
+        "code": "an_du_tinh_cam_cau_cham_lung_do_du",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ tình cảm & câu chấm lửng do dự"
+      },
+      {
+        "code": "diep_dong_tu_boc_lo_cam_xuc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Điệp động từ bộc lộ cảm xúc"
+      },
+      {
+        "code": "phep_doi_khoang_lang_va_loi_noi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối khoảng lặng và lời nói"
+      },
+      {
+        "code": "ngon_ngu_kho_khan_lanh_lung",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ khô khan, lạnh lùng"
+      },
+      {
+        "code": "cau_hoi_tu_tu_mia_mai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ mỉa mai"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"chắc chắn\",\"rõ ràng\"]",
+      "rules.avoid_structure": "[\"đoạn miêu tả ngoại cảnh dài\"]",
+      "rules.emotion_limit": "\"không hài hước, không mỉa mai\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"không gian riêng tư hoặc bối cảnh bất ngờ, hai nhân vật đối diện\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.date",
+    "category": "romance_relationship.date",
+    "name": "Hẹn hò",
+    "tone_pace": "LOW",
+    "tone_emotion": "ấm áp, vui vẻ, thoải mái",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "LOW",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ miêu tả sinh hoạt",
+      "tính từ nhẹ nhàng",
+      "câu hỏi quan tâm"
+    ],
+    "focus": [
+      "tương tác vui vẻ",
+      "những điều nhỏ nhặt",
+      "sự đồng điệu"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_vui_ve_liet_ke_dieu_nho_nhat",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Điệp cấu trúc vui vẻ & liệt kê điều nhỏ nhặt"
+      },
+      {
+        "code": "cau_hoi_quan_tam",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Câu hỏi quan tâm"
+      },
+      {
+        "code": "phep_doi_giua_hai_nhan_vat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Phép đối giữa hai nhân vật"
+      },
+      {
+        "code": "cam_than_gian_du",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Cảm thán giận dữ"
+      },
+      {
+        "code": "ngon_ngu_cang_thang",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ngôn ngữ căng thẳng"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"nguy hiểm\",\"bắt buộc\"]",
+      "rules.avoid_structure": "[\"câu cộc lốc, câu cảm thán giận dữ\"]",
+      "rules.emotion_limit": "\"không căng thẳng, không bi kịch\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"không gian thư giãn (quán cà phê, công viên, bữa tối, dạo phố…)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.heartbreak",
+    "category": "romance_relationship.heartbreak",
+    "name": "Chia tay – đau lòng",
+    "tone_pace": "LOW",
+    "tone_emotion": "đau buồn, tuyệt vọng, lặng lẽ",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "HIGH",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ về nỗi đau",
+      "động từ chỉ sự rạn vỡ",
+      "tính từ u ám"
+    ],
+    "focus": [
+      "nội tâm nhân vật",
+      "lời chia tay cuối cùng",
+      "hình ảnh tượng trưng cho mất mát"
+    ],
+    "devices": [
+      {
+        "code": "an_du_mat_mat_diep_tu_u_am",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ mất mát & điệp từ u ám"
+      },
+      {
+        "code": "cau_cham_lung_hut_hoi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu chấm lửng hụt hơi"
+      },
+      {
+        "code": "phep_doi_ky_uc_hien_tai",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối ký ức – hiện tại"
+      },
+      {
+        "code": "ngon_ngu_vui_ve",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ vui vẻ"
+      },
+      {
+        "code": "cau_hoi_tu_tu_mia_mai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ mỉa mai"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"vui vẻ\",\"hy vọng\"]",
+      "rules.avoid_structure": "[\"câu hỏi tu từ mỉa mai\"]",
+      "rules.emotion_limit": "\"không châm biếm, không hài hước\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"nơi hai người từng gắn bó hoặc không gian cô độc\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.jealousy_confrontation",
+    "category": "romance_relationship.jealousy_confrontation",
+    "name": "Ghen tuông – đối chất",
+    "tone_pace": "FAST",
+    "tone_emotion": "nóng giận, tủi thân, bực bội",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "SIMPLE",
+    "vocab": [
+      "câu cáo buộc",
+      "từ ngữ sắc bén",
+      "tính từ so sánh (anh ta hơn tôi?)"
+    ],
+    "focus": [
+      "lời nói xoắn xuýt",
+      "sự thiếu tin tưởng",
+      "những điều không nói ra"
+    ],
+    "devices": [
+      {
+        "code": "cau_cao_buoc_lap_cau_hoi_tu_tu_sac_ben",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=high; phrase=Câu cáo buộc lặp & câu hỏi tu từ sắc bén"
+      },
+      {
+        "code": "diep_giong_cao_don_dap",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Điệp giọng cao dồn dập"
+      },
+      {
+        "code": "phep_doi_anh_ta_toi",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=high; phrase=Phép đối 'nh ta – tôi'"
+      },
+      {
+        "code": "doan_mieu_ta_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Đoạn miêu tả dài"
+      },
+      {
+        "code": "ngon_ngu_buon_tham",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=high; phrase=Ngôn ngữ buồn thảm"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"bình tĩnh\",\"từ từ\"]",
+      "rules.avoid_structure": "[\"đoạn miêu tả dài\"]",
+      "rules.emotion_limit": "\"không buồn thảm, không bi lụy (dù có thể tiếc nuối)\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"nơi diễn ra hiểu lầm, thường là không gian kín hoặc bữa tiệc đông người\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.reunion",
+    "category": "romance_relationship.reunion",
+    "name": "Tái ngộ",
+    "tone_pace": "LOW",
+    "tone_emotion": "xúc động, nghẹn ngào, mừng mừng tủi tủi",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "HIGH",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ gợi nhớ quá khứ",
+      "tính từ chỉ cảm xúc dâng trào",
+      "so sánh với ký ức"
+    ],
+    "focus": [
+      "sự thay đổi theo thời gian",
+      "câu nói dang dở",
+      "cử chỉ thể hiện sự gắn bó"
+    ],
+    "devices": [
+      {
+        "code": "so_sanh_voi_ky_uc_diep_cau_noi_dang_do",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=So sánh với ký ức & điệp câu nói dang dở"
+      },
+      {
+        "code": "phep_doi_truoc_sau_theo_thoi_gian",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối 'rước – sau'theo thời gian"
+      },
+      {
+        "code": "cau_cham_lung_nghen_ngao",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu chấm lửng nghẹn ngào"
+      },
+      {
+        "code": "ngon_ngu_tho_o",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ thờ ơ"
+      },
+      {
+        "code": "ke_su_kien_kho_khan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Kể sự kiện khô khan"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"lạnh lùng\",\"thờ ơ\"]",
+      "rules.avoid_structure": "[\"đoạn kể toàn sự kiện khô khan\"]",
+      "rules.emotion_limit": "\"không mỉa mai, không giễu cợt\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"nơi công cộng bất ngờ hoặc điểm hẹn đã định, thời gian cách xa\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "romance_relationship.wedding_ceremony",
+    "category": "romance_relationship.wedding_ceremony",
+    "name": "Lễ cưới / Đính hôn",
+    "tone_pace": "LOW",
+    "tone_emotion": "hạnh phúc, thiêng liêng, xúc động",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ về sự gắn kết",
+      "ẩn dụ cho tương lai",
+      "tính từ long trọng, tôn kính"
+    ],
+    "focus": [
+      "lời thề và cam kết",
+      "khoảnh khắc chuyển giao",
+      "cảm xúc của nhân vật và khách mời"
+    ],
+    "devices": [
+      {
+        "code": "an_du_gan_ket_diep_cau_truc_trang_trong_can_xung",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ gắn kết & điệp cấu trúc trang trọng cân xứng"
+      },
+      {
+        "code": "phep_doi_loi_the",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối lời thề"
+      },
+      {
+        "code": "liet_ke_khoanh_khac_chuyen_giao",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê khoảnh khắc chuyển giao"
+      },
+      {
+        "code": "cau_cut_thieu_chu_ngu",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu cụt thiếu chủ ngữ"
+      },
+      {
+        "code": "ngon_ngu_bi_quan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ bi quan"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"tạm bợ\",\"chia ly\"]",
+      "rules.avoid_structure": "[\"câu cụt, thiếu chủ ngữ\"]",
+      "rules.emotion_limit": "\"không bi quan, không giễu cợt\"",
+      "genre": "\"romance_relationship\"",
+      "settings": "\"không gian nghi lễ, có sự hiện diện của tập thể (nhà thờ, sảnh tiệc, thiên nhiên)\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "slice_of_life_comedy.daily_routine",
+    "category": "slice_of_life_comedy.daily_routine",
+    "name": "Sinh hoạt đời thường",
+    "tone_pace": "LOW",
+    "tone_emotion": "ấm cúng, thoải mái, buồn cười vì thói quen",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "MEDIUM",
+    "syntax_variation": "LOW",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ chỉ hành động quen thuộc",
+      "tính từ đời thường (ướt, ấm, bừa bộn)",
+      "từ tượng thanh nhẹ nhàng"
+    ],
+    "focus": [
+      "sự lặp lại êm đềm",
+      "những điều nhỏ nhặt đáng yêu",
+      "mối quan hệ giữa các nhân vật trong không gian sống"
+    ],
+    "devices": [
+      {
+        "code": "liet_ke_thoi_quen_lap_lai_diep_nhip_em_dem",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Liệt kê thói quen lặp lại & điệp nhịp êm đềm"
+      },
+      {
+        "code": "phep_doi_tuong_phan_hai_huoc",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Phép đối tương phản hài hước"
+      },
+      {
+        "code": "tuong_thanh_nhe_nhang",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Tượng thanh nhẹ nhàng"
+      },
+      {
+        "code": "cau_giat_gan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Câu giật gân"
+      },
+      {
+        "code": "ngon_ngu_bi_kich",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ngôn ngữ bi kịch"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"nguy hiểm\",\"vội vã\",\"sinh tử\"]",
+      "rules.avoid_structure": "[\"câu cộc lốc, giật gân\"]",
+      "rules.emotion_limit": "\"không bi kịch, không căng thẳng\"",
+      "genre": "\"slice_of_life_comedy\"",
+      "settings": "\"không gian thân thuộc, hàng ngày\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "slice_of_life_comedy.feast_gathering",
+    "category": "slice_of_life_comedy.feast_gathering",
+    "name": "Bữa tiệc & sum họp",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "hạnh phúc, ồn ào, đầm ấm",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "HIGH",
+    "gustatory": "HIGH",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ miêu tả món ăn",
+      "từ tượng thanh vui vẻ",
+      "động từ mời mọc"
+    ],
+    "focus": [
+      "món ăn",
+      "trò chuyện ồn ào",
+      "sự gắn kết"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_mon_an_diep_nhip_vui_nhon",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Phép liệt kê món ăn & điệp nhịp vui nhộn"
+      },
+      {
+        "code": "tuong_thanh_on_ao",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Tượng thanh ồn ào"
+      },
+      {
+        "code": "phep_doi_tranh_cai_hoa_giai_vui_ve",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Phép đối tranh cãi – hòa giải vui vẻ"
+      },
+      {
+        "code": "cau_trang_trong_kho_khan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Câu trang trọng khô khan"
+      },
+      {
+        "code": "ngon_ngu_bi_kich",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ngôn ngữ bi kịch"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"im lặng\",\"cô đơn\"]",
+      "rules.avoid_structure": "[\"đoạn văn lặng lẽ dài\"]",
+      "rules.emotion_limit": "\"không buồn, không căng thẳng\"",
+      "genre": "\"slice_of_life_comedy\"",
+      "settings": "\"bàn tiệc, nhà bếp, gia đình / bạn bè sum họp, ăn uống ồn ào\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "slice_of_life_comedy.festival",
+    "category": "slice_of_life_comedy.festival",
+    "name": "Lễ hội",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "phấn khích, vui vẻ, náo nhiệt",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "MEDIUM",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ miêu tả lễ hội",
+      "từ tượng thanh sôi động",
+      "động từ tham gia"
+    ],
+    "focus": [
+      "hoạt động lễ hội",
+      "đám đông vui vẻ",
+      "khoảnh khắc rực rỡ"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_tro_vui_diep_nhip_hoi",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê trò vui & điệp nhịp hội"
+      },
+      {
+        "code": "tuong_thanh_nao_nhiet",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh náo nhiệt"
+      },
+      {
+        "code": "phep_doi_mau_sac_am_thanh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối màu sắc, âm thanh"
+      },
+      {
+        "code": "ngon_ngu_u_am",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ u ám"
+      },
+      {
+        "code": "mieu_ta_tinh_lang",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả tĩnh lặng"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"buồn chán\",\"vắng vẻ\"]",
+      "rules.avoid_structure": "[\"đoạn văn trầm lặng dài\"]",
+      "rules.emotion_limit": "\"không bi kịch, không lo âu\"",
+      "genre": "\"slice_of_life_comedy\"",
+      "settings": "\"quảng trường, lễ hội truyền thống, đèn hoa, đám đông vui vẻ\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "slice_of_life_comedy.prank_misunderstanding",
+    "category": "slice_of_life_comedy.prank_misunderstanding",
+    "name": "Chơi khăm & hiểu lầm",
+    "tone_pace": "FAST",
+    "tone_emotion": "bực bội nhẹ, buồn cười, hốt hoảng oái oăm",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "HIGH",
+    "tactile": "MEDIUM",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ ngữ hài hước",
+      "động từ hành động nhanh",
+      "từ tượng thanh chấn động"
+    ],
+    "focus": [
+      "chuỗi hiểu lầm",
+      "phản ứng nhân vật",
+      "sự trớ trêu"
+    ],
+    "devices": [
+      {
+        "code": "phep_phong_dai_tro_treu_diep_cau_truc_day_chuyen",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép phóng đại trớ trêu & điệp cấu trúc dây chuyền"
+      },
+      {
+        "code": "liet_ke_hieu_lam_chong_chat",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê hiểu lầm chồng chất"
+      },
+      {
+        "code": "tuong_thanh_hai_kich",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh hài kịch"
+      },
+      {
+        "code": "ngon_ngu_nghiem_tuc",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ nghiêm túc"
+      },
+      {
+        "code": "bi_kich_hoa",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Bi kịch hóa"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"nghiêm trọng\",\"thảm kịch\"]",
+      "rules.avoid_structure": "[\"đoạn văn dài dòng nghiêm túc\"]",
+      "rules.emotion_limit": "\"không ác ý thật sự, không tổn thương thật\"",
+      "genre": "\"slice_of_life_comedy\"",
+      "settings": "\"không gian sinh hoạt thường ngày, trò đùa, hiểu lầm dây chuyền\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "slice_of_life_comedy.shopping_preparation",
+    "category": "slice_of_life_comedy.shopping_preparation",
+    "name": "Mua sắm & chuẩn bị",
+    "tone_pace": "MODERATE",
+    "tone_emotion": "hào hứng, thoải mái, tỉ mỉ",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ miêu tả hàng hóa",
+      "từ mặc cả",
+      "động từ lựa chọn"
+    ],
+    "focus": [
+      "lựa chọn",
+      "giá cả",
+      "sự vui vẻ khi mua sắm"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_mon_do_doi_thoai_mac_ca_lap",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Phép liệt kê món đồ & đối thoại mặc cả lặp"
+      },
+      {
+        "code": "phep_doi_nguoi_ban_nguoi_mua",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Phép đối người bán – người mua"
+      },
+      {
+        "code": "tuong_thanh_cho_bua",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Tượng thanh chợ búa"
+      },
+      {
+        "code": "ngon_ngu_cang_thang",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ngôn ngữ căng thẳng"
+      },
+      {
+        "code": "mieu_ta_kho_khan",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Miêu tả khô khan"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"xa xỉ hóa\",\"bắt buộc\"]",
+      "rules.avoid_structure": "[\"đoạn văn trầm tĩnh dài\"]",
+      "rules.emotion_limit": "\"không buồn chán, không bi kịch\"",
+      "genre": "\"slice_of_life_comedy\"",
+      "settings": "\"chợ, siêu thị, phố mua sắm, chuẩn bị đồ đạc, mặc cả\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "transition.recovery_rest",
+    "category": "transition.recovery_rest",
+    "name": "Hồi phục & nghỉ ngơi",
+    "tone_pace": "LOW",
+    "tone_emotion": "thư thái, hồi phục, bình yên",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "LOW",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "LOW",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ ngữ êm dịu",
+      "ẩn dụ chữa lành",
+      "động từ buông lỏng"
+    ],
+    "focus": [
+      "cảm giác hồi phục",
+      "thời gian trôi chậm",
+      "sự trở về cân bằng"
+    ],
+    "devices": [
+      {
+        "code": "an_du_chua_lanh_diep_nhip_em_diu",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=low; phrase=Ẩn dụ chữa lành & điệp nhịp êm dịu"
+      },
+      {
+        "code": "phep_doi_truoc_sau",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Phép đối trước – sau"
+      },
+      {
+        "code": "tuong_thanh_nhe_nhang",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=low; phrase=Tượng thanh nhẹ nhàng"
+      },
+      {
+        "code": "ngon_ngu_gap_gap",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Ngôn ngữ gấp gáp"
+      },
+      {
+        "code": "kich_tinh",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=low; phrase=Kịch tính"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"vội vã\",\"khẩn cấp\"]",
+      "rules.avoid_structure": "[\"câu cụt giật gân\"]",
+      "rules.emotion_limit": "\"không căng thẳng, không lo âu\"",
+      "genre": "\"transition\"",
+      "settings": "\"chốn bình yên, sau trận chiến, giường bệnh, thiên nhiên tĩnh lặng\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "transition.time_skip",
+    "category": "transition.time_skip",
+    "name": "Nhảy thời gian",
+    "tone_pace": "FAST",
+    "tone_emotion": "hoài niệm, mới mẻ, trăn trở về thay đổi",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "LOW",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "từ chỉ sự trôi chảy thời gian",
+      "ẩn dụ quá khứ – hiện tại",
+      "động từ chuyển giao"
+    ],
+    "focus": [
+      "sự thay đổi",
+      "điều giữ nguyên",
+      "mất mát thời gian"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_mua_thang_phep_doi_truoc_sau",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê mùa / tháng & phép đối trước – sau"
+      },
+      {
+        "code": "an_du_dong_song_thoi_gian",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Ẩn dụ dòng sông thời gian"
+      },
+      {
+        "code": "cau_lung_hoai_niem",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu lửng hoài niệm"
+      },
+      {
+        "code": "mieu_ta_chi_tiet_tung_ngay",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả chi tiết từng ngày"
+      },
+      {
+        "code": "cau_chu_dai_dong",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Câu chữ dài dòng"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"ngày qua ngày\",\"nhàm chán\"]",
+      "rules.avoid_structure": "[\"đoạn văn kể lể chi tiết\"]",
+      "rules.emotion_limit": "\"không tiếc nuối thái quá, không phấn khích quá đà\"",
+      "genre": "\"transition\"",
+      "settings": "\"trôi qua ngày tháng, năm tháng, thay đổi lớn trong khoảnh khắc\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "transition.travel_montage",
+    "category": "transition.travel_montage",
+    "name": "Montage hành trình",
+    "tone_pace": "FAST",
+    "tone_emotion": "phiêu lưu, phấn khích, hân hoan",
+    "is_system": true,
+    "visual": "HIGH",
+    "auditory": "MEDIUM",
+    "tactile": "MEDIUM",
+    "olfactory": "MEDIUM",
+    "gustatory": "LOW",
+    "language_abstract": "LOW",
+    "syntax_sentence": "SHORT",
+    "syntax_variation": "HIGH",
+    "syntax_structure": "MIXED",
+    "vocab": [
+      "động từ di chuyển",
+      "từ miêu tả địa danh",
+      "từ tượng thanh chuyển cảnh"
+    ],
+    "focus": [
+      "sự thay đổi khung cảnh",
+      "chặng đường",
+      "cảm giác rộng mở"
+    ],
+    "devices": [
+      {
+        "code": "phep_liet_ke_chang_duong_diep_cau_truc_cat_canh",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Phép liệt kê chặng đường & điệp cấu trúc cắt cảnh"
+      },
+      {
+        "code": "phep_doi_vung_dat_nay_vung_dat_kia",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Phép đối vùng đất này – vùng đất kia"
+      },
+      {
+        "code": "tuong_thanh_nhip_di_chuyen",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Tượng thanh nhịp di chuyển"
+      },
+      {
+        "code": "mieu_ta_tinh_lang_keo_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Miêu tả tĩnh lặng kéo dài"
+      },
+      {
+        "code": "suy_tu_noi_tam_dai",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Suy tư nội tâm dài"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"dừng lại\",\"trì trệ\"]",
+      "rules.avoid_structure": "[\"đoạn văn tĩnh tại dài\"]",
+      "rules.emotion_limit": "\"không chán nản, không mệt mỏi tuyệt vọng\"",
+      "genre": "\"transition\"",
+      "settings": "\"di chuyển qua nhiều cảnh, chuyến đi dài, đổi khung cảnh liên tục\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  },
+  {
+    "code": "transition.waiting_anticipation",
+    "category": "transition.waiting_anticipation",
+    "name": "Chờ đợi & hồi hộp",
+    "tone_pace": "LOW",
+    "tone_emotion": "hồi hộp, sốt ruột, lo lắng, hy vọng",
+    "is_system": true,
+    "visual": "MEDIUM",
+    "auditory": "MEDIUM",
+    "tactile": "LOW",
+    "olfactory": "LOW",
+    "gustatory": "NONE",
+    "language_abstract": "MEDIUM",
+    "syntax_sentence": "LONG",
+    "syntax_variation": "MEDIUM",
+    "syntax_structure": "COMPLEX",
+    "vocab": [
+      "từ chỉ sự trì hoãn",
+      "động từ chờ đợi",
+      "ẩn dụ thời gian chậm lại"
+    ],
+    "focus": [
+      "sự trôi qua của thời gian",
+      "phản ứng cơ thể",
+      "khoảnh khắc sắp vỡ"
+    ],
+    "devices": [
+      {
+        "code": "diep_cau_truc_chua_an_du_thoi_gian_cham_lai",
+        "usage_type": "primary",
+        "custom_instruction": "intensity=medium; phrase=Điệp cấu trúc 'hưa...'& ẩn dụ thời gian chậm lại"
+      },
+      {
+        "code": "liet_ke_dau_hieu_mong_manh",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Liệt kê dấu hiệu mong manh"
+      },
+      {
+        "code": "cau_hoi_tu_tu_lo_lang",
+        "usage_type": "secondary",
+        "custom_instruction": "intensity=medium; phrase=Câu hỏi tu từ lo lắng"
+      },
+      {
+        "code": "ngon_ngu_on_ao",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Ngôn ngữ ồn ào"
+      },
+      {
+        "code": "hanh_dong_don_dap",
+        "usage_type": "avoid",
+        "custom_instruction": "intensity=medium; phrase=Hành động dồn dập"
+      }
+    ],
+    "notes": {
+      "rules.avoid_words": "[\"nhanh\",\"ngay lập tức\"]",
+      "rules.avoid_structure": "[\"đoạn văn hành động gấp gáp\"]",
+      "rules.emotion_limit": "\"không tuyệt vọng quá đà, không hài hước\"",
+      "genre": "\"transition\"",
+      "settings": "\"khoảng trống trước sự kiện, chờ tin tức, chờ đối thủ / người thân, giây phút căng thẳng\"",
+      "rhetorical_devices.examples": "[\"\"]"
+    }
+  }
+]

@@ -1,0 +1,260 @@
+[
+  {
+    "code": "ANTAGONISTIC.betrayer",
+    "category": "ANTAGONISTIC",
+    "sub_type": "betrayer",
+    "name": "betrayer"
+  },
+  {
+    "code": "ANTAGONISTIC.enemy",
+    "category": "ANTAGONISTIC",
+    "sub_type": "enemy",
+    "name": "enemy"
+  },
+  {
+    "code": "ANTAGONISTIC.hunter",
+    "category": "ANTAGONISTIC",
+    "sub_type": "hunter",
+    "name": "hunter"
+  },
+  {
+    "code": "ANTAGONISTIC.nemesis",
+    "category": "ANTAGONISTIC",
+    "sub_type": "nemesis",
+    "name": "nemesis"
+  },
+  {
+    "code": "ANTAGONISTIC.prey",
+    "category": "ANTAGONISTIC",
+    "sub_type": "prey",
+    "name": "prey"
+  },
+  {
+    "code": "ANTAGONISTIC.rival",
+    "category": "ANTAGONISTIC",
+    "sub_type": "rival",
+    "name": "rival"
+  },
+  {
+    "code": "ANTAGONISTIC.traitor",
+    "category": "ANTAGONISTIC",
+    "sub_type": "traitor",
+    "name": "traitor"
+  },
+  {
+    "code": "FAMILY.aunt",
+    "category": "FAMILY",
+    "sub_type": "aunt",
+    "name": "aunt"
+  },
+  {
+    "code": "FAMILY.cousin",
+    "category": "FAMILY",
+    "sub_type": "cousin",
+    "name": "cousin"
+  },
+  {
+    "code": "FAMILY.daughter",
+    "category": "FAMILY",
+    "sub_type": "daughter",
+    "name": "daughter"
+  },
+  {
+    "code": "FAMILY.father",
+    "category": "FAMILY",
+    "sub_type": "father",
+    "name": "father"
+  },
+  {
+    "code": "FAMILY.grandfather",
+    "category": "FAMILY",
+    "sub_type": "grandfather",
+    "name": "grandfather"
+  },
+  {
+    "code": "FAMILY.grandmother",
+    "category": "FAMILY",
+    "sub_type": "grandmother",
+    "name": "grandmother"
+  },
+  {
+    "code": "FAMILY.mother",
+    "category": "FAMILY",
+    "sub_type": "mother",
+    "name": "mother"
+  },
+  {
+    "code": "FAMILY.older_brother",
+    "category": "FAMILY",
+    "sub_type": "older_brother",
+    "name": "older_brother"
+  },
+  {
+    "code": "FAMILY.older_sister",
+    "category": "FAMILY",
+    "sub_type": "older_sister",
+    "name": "older_sister"
+  },
+  {
+    "code": "FAMILY.son",
+    "category": "FAMILY",
+    "sub_type": "son",
+    "name": "son"
+  },
+  {
+    "code": "FAMILY.uncle",
+    "category": "FAMILY",
+    "sub_type": "uncle",
+    "name": "uncle"
+  },
+  {
+    "code": "FAMILY.younger_brother",
+    "category": "FAMILY",
+    "sub_type": "younger_brother",
+    "name": "younger_brother"
+  },
+  {
+    "code": "FAMILY.younger_sister",
+    "category": "FAMILY",
+    "sub_type": "younger_sister",
+    "name": "younger_sister"
+  },
+  {
+    "code": "PROFESSIONAL.apprentice",
+    "category": "PROFESSIONAL",
+    "sub_type": "apprentice",
+    "name": "apprentice"
+  },
+  {
+    "code": "PROFESSIONAL.boss",
+    "category": "PROFESSIONAL",
+    "sub_type": "boss",
+    "name": "boss"
+  },
+  {
+    "code": "PROFESSIONAL.colleague",
+    "category": "PROFESSIONAL",
+    "sub_type": "colleague",
+    "name": "colleague"
+  },
+  {
+    "code": "PROFESSIONAL.master",
+    "category": "PROFESSIONAL",
+    "sub_type": "master",
+    "name": "master"
+  },
+  {
+    "code": "PROFESSIONAL.mentor",
+    "category": "PROFESSIONAL",
+    "sub_type": "mentor",
+    "name": "mentor"
+  },
+  {
+    "code": "PROFESSIONAL.servant",
+    "category": "PROFESSIONAL",
+    "sub_type": "servant",
+    "name": "servant"
+  },
+  {
+    "code": "PROFESSIONAL.student",
+    "category": "PROFESSIONAL",
+    "sub_type": "student",
+    "name": "student"
+  },
+  {
+    "code": "PROFESSIONAL.subordinate",
+    "category": "PROFESSIONAL",
+    "sub_type": "subordinate",
+    "name": "subordinate"
+  },
+  {
+    "code": "ROMANTIC.crush",
+    "category": "ROMANTIC",
+    "sub_type": "crush",
+    "name": "crush"
+  },
+  {
+    "code": "ROMANTIC.ex_lover",
+    "category": "ROMANTIC",
+    "sub_type": "ex_lover",
+    "name": "ex_lover"
+  },
+  {
+    "code": "ROMANTIC.fiance",
+    "category": "ROMANTIC",
+    "sub_type": "fiance",
+    "name": "fiance"
+  },
+  {
+    "code": "ROMANTIC.lover",
+    "category": "ROMANTIC",
+    "sub_type": "lover",
+    "name": "lover"
+  },
+  {
+    "code": "ROMANTIC.soulmate",
+    "category": "ROMANTIC",
+    "sub_type": "soulmate",
+    "name": "soulmate"
+  },
+  {
+    "code": "ROMANTIC.spouse",
+    "category": "ROMANTIC",
+    "sub_type": "spouse",
+    "name": "spouse"
+  },
+  {
+    "code": "ROMANTIC.unrequited_love",
+    "category": "ROMANTIC",
+    "sub_type": "unrequited_love",
+    "name": "unrequited_love"
+  },
+  {
+    "code": "SOCIAL.acquaintance",
+    "category": "SOCIAL",
+    "sub_type": "acquaintance",
+    "name": "acquaintance"
+  },
+  {
+    "code": "SOCIAL.ally",
+    "category": "SOCIAL",
+    "sub_type": "ally",
+    "name": "ally"
+  },
+  {
+    "code": "SOCIAL.best_friend",
+    "category": "SOCIAL",
+    "sub_type": "best_friend",
+    "name": "best_friend"
+  },
+  {
+    "code": "SOCIAL.classmate",
+    "category": "SOCIAL",
+    "sub_type": "classmate",
+    "name": "classmate"
+  },
+  {
+    "code": "SOCIAL.comrade",
+    "category": "SOCIAL",
+    "sub_type": "comrade",
+    "name": "comrade"
+  },
+  {
+    "code": "SOCIAL.friend",
+    "category": "SOCIAL",
+    "sub_type": "friend",
+    "name": "friend"
+  },
+  {
+    "code": "SOCIAL.neighbor",
+    "category": "SOCIAL",
+    "sub_type": "neighbor",
+    "name": "neighbor"
+  },
+  {
+    "code": "SOCIAL.roommate",
+    "category": "SOCIAL",
+    "sub_type": "roommate",
+    "name": "roommate"
+  }
+]

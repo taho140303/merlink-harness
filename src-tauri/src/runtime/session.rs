@@ -70,7 +70,7 @@ pub fn execute_tool_internal(
 ) -> Result<serde_json::Value, String> {
     let bound_project = if matches!(
         tool_name,
-        "super_json_get" | "super_json_set" | "super_json_missing"
+        "super_json_get" | "super_json_set" | "super_json_missing" | "outline"
     ) {
         let connection = db::open()?;
         let bound = db::project_for_session(&connection, session_id)?

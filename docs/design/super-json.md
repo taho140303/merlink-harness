@@ -154,7 +154,35 @@ Doc v2 (bảng nằm sai group, hoặc có entry thứ hai fields-only) được
 - Sort `schema` cả hai group theo thứ tự `schema::tables()` để ổn định.
 - Idempotent: load lần hai không đổi gì.
 
-## 7. Bất biến
+### 6.3 v2.1 → v3
+
+Migration v2.1 → v3 bổ sung các field cho phase 2 mà không thay đổi cấu trúc bảng hay số lượng path:
+- Refresh `fields` của mỗi bảng bằng skeleton v3, giữ nguyên `count` và `rows`.
+- Sort `schema` cả hai group theo thứ tự `schema::tables()`.
+- Backup `super.v2.json` được ghi cạnh `super.json` trước lần ghi đè đầu tiên (quyền 0600 trên Unix).
+- Idempotent: load lần hai không đổi byte nào và không tạo backup lần hai.
+
+## 7. v3 — Field bổ sung cho phase 2
+
+Bảng field bổ sung cho phase 2 outline engine:
+
+| Nhóm bảng | Field bổ sung | Kiểu | Lý do 1 dòng |
+| --- | --- | --- | --- |
+| `project_genres` | `genre_code`, `note` | Text, Text | Lưu mã thể loại chuẩn hoá từ catalog và ghi chú đặc thù |
+| `arcs` | `goal`, `outcome` | Text, Text | Xác định mục tiêu và kết quả chính của từng arc truyện |
+| `chapters` | `beats`, `scene_count`, `goal`, `outcome` | JSON array, NonNegativeInt, Text, Text | Chứa danh sách nhịp kể (beat sheet), số scene dự kiến và đích đến của chương |
+| `characters` | `role`, `archetype`, `motivation`, `want`, `need`, `flaw`, `summary`, `description` | Text (tất cả) | Định hình hồ sơ tâm lý và chức năng kể chuyện đầy đủ cho nhân vật |
+| `relationships` | `summary`, `origin`, `is_primary` | Text, Text, Bool | Tóm tắt động lực quan hệ, điểm xuất phát và đánh dấu mối quan hệ nòng cốt |
+| `project_motifs` | `name`, `description`, `significance` | Text, Text, Text | Mô tả rõ nội dung biểu tượng motif và ý nghĩa gắn với cốt truyện |
+| `themes` | `name`, `statement`, `weight` | Text, Text, UnitNumber (0..1) | Đặt tên chủ đề, phát biểu luận đề và định trọng số phân bổ |
+| `theme_arguments` | `claim`, `counter_claim`, `polarity` | Text, Text, Enum (SUPPORT/CHALLENGE/AMBIVALENT) | Khắc hoạ xung đột lập luận tư tưởng thông qua góc nhìn nhân vật |
+| `scenes` | `style_preset_code`, `narrator_code`, `directives`, `rules`, `relationships`, `target_words`, `content_path`, `word_count`, `status` | Text, Text, JSON array, JSON array, JSON array, NonNegativeInt, Text, NonNegativeInt, Enum (PLANNED/WRITTEN/REVISED/LOCKED) | Cung cấp đầy đủ chỉ thị kỹ thuật, ràng buộc và trạng thái sản xuất scene |
+
+### Quy ước đặc biệt trong phase 2:
+- **`scenes.content` luôn `null` trong phase 2**: nội dung văn bản hoàn chỉnh của scene được lưu tại file riêng trỏ bởi `content_path` (ví dụ `projects/<id>/scenes/<scene_code>.md`), không nhồi trực tiếp vào `super.json`.
+- **Quy ước `*_code` thay cho uuid**: các trường `genre_code`, `style_preset_code`, `narrator_code` lưu mã định danh ổn định (human-readable string từ catalog) thay vì chuỗi uuid động, giúp subagent dễ đọc và tạo prompt nhất quán.
+
+## 8. Bất biến
 
 - Không tool nào nhận path cũ; không có nhánh tương thích trong `get/set`.
 - Mỗi bảng có đúng một entry; không có entry fields-only thứ hai.

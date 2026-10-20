@@ -2,12 +2,16 @@
 //! session-scoped queries.
 
 mod agent;
+#[allow(dead_code)] // runtime API for the outline fan-out module
+mod complete;
 mod events;
 mod prompt;
 mod session;
 
 #[allow(unused_imports)] // part of the runtime API; not every item has a non-test caller
 pub use agent::{MAX_TOOL_ROUNDS, STOP_MARKER, run_agent_turn, send_chat_internal};
+#[allow(unused_imports)]
+pub use complete::{Completion, complete, extract_json};
 #[cfg(test)]
 pub use events::RecordingSink;
 #[allow(unused_imports)]

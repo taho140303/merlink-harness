@@ -186,6 +186,9 @@ The chat header shows a two-stop progress bar, computed from the super json:
   `field`, `value`.
 - `super_json_missing` — list required units that are still unset.
 - `echo` — diagnostics only.
+- `outline` — read the outline anchor; call it only after all 12 required units are filled.
+  The `anchor` action returns the six-paragraph brief (`text`) plus a compact one-paragraph form
+  (`compact`) and the same facts as JSON (`json`). Arguments: `action` (`status` | `anchor`).
 
 # Super json fields
 

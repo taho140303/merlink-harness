@@ -213,6 +213,38 @@ pub fn execute_tool(
                 "required_total": super_json::required_paths().len(),
             }))
         }
+        "outline" => {
+            let project_id = project_or_error(project_id)?;
+            let action = match args.get("action").and_then(Value::as_str) {
+                Some(act) => act,
+                None => return Err("Missing required argument `action` for tool `outline`".into()),
+            };
+            match action {
+                "status" => Ok(json!({
+                    "ok": true,
+                    "stage": "seed",
+                    "active": false,
+                    "note": "outline engine arrives in sprint 17.2",
+                    "project_id": project_id,
+                })),
+                "anchor" => {
+                    let doc = super_json::load_or_init(project_id)?;
+                    let text = crate::outline::anchor(&doc);
+                    let compact = crate::outline::anchor_compact(&doc);
+                    let json = crate::outline::anchor_json(&doc);
+                    Ok(json!({
+                        "ok": true,
+                        "project_id": project_id,
+                        "text": text,
+                        "compact": compact,
+                        "json": json,
+                    }))
+                }
+                other => Err(format!(
+                    "Unknown outline action: {other}. Available actions: status, anchor"
+                )),
+            }
+        }
         other => Err(format!(
             "Unknown tool: {other}. Available tools: {}",
             TOOL_NAMES.join(", ")
@@ -226,6 +258,25 @@ mod tests {
     use crate::{db, paths};
     use serde_json::Value;
     use std::fs;
+
+    #[test]
+    fn test_outline_tool_is_registered() {
+        let _home = crate::test_support::TempHome::new("tools-outline");
+        assert!(TOOL_NAMES.contains(&"outline"));
+        let status_res =
+            execute_tool("outline", &json!({"action": "status"}), "proj1", "s").unwrap();
+        assert_eq!(status_res["ok"], json!(true));
+        assert_eq!(status_res["stage"], json!("seed"));
+        assert_eq!(status_res["active"], json!(false));
+        assert_eq!(status_res["project_id"], json!("proj1"));
+
+        let anchor_res =
+            execute_tool("outline", &json!({"action": "anchor"}), "proj1", "s").unwrap();
+        assert_eq!(anchor_res["ok"], json!(true));
+        assert_eq!(anchor_res["project_id"], json!("proj1"));
+        assert!(anchor_res["text"].as_str().unwrap().contains("Dự án"));
+        assert!(anchor_res["json"].is_object());
+    }
 
     #[test]
     fn test_execute_tool_round_trip_and_unknown_tool() {

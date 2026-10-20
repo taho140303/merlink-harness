@@ -21,8 +21,8 @@ pub use progress::{
 };
 #[allow(unused_imports)]
 pub use schema::{
-    countable_group as schema_table_group, optional_paths, required_paths, skeleton,
-    tables as schema_tables, valid_paths,
+    countable_entry, countable_group as schema_table_group, optional_paths, required_paths,
+    skeleton, tables as schema_tables, valid_paths,
 };
 #[allow(unused_imports)]
 pub use summary::summary;

@@ -1,0 +1,102 @@
+[
+  {
+    "code": "adventure",
+    "name": "Phiêu lưu (Adventure)",
+    "description": "Hành trình khám phá những vùng đất mới, đối mặt cạm bẫy thiên nhiên và tìm kiếm kho báu/chân lý."
+  },
+  {
+    "code": "comedy",
+    "name": "Hài hước (Comedy)",
+    "description": "Sử dụng tình huống trớ trêu, châm biếm và đối thoại dí dỏm để mang lại tiếng cười và góc nhìn châm biến."
+  },
+  {
+    "code": "cyberpunk",
+    "name": "Cyberpunk",
+    "description": "Tương lai công nghệ cao nhưng xã hội suy đồi (High tech, low life), nơi các tập đoàn thống trị và tội phạm công nghệ tràn lan."
+  },
+  {
+    "code": "dark_fantasy",
+    "name": "Kỳ ảo u tối (Dark Fantasy)",
+    "description": "Thế giới huyền bí mang màu sắc u ám, khắc nghiệt, kinh dị và ranh giới đạo đức mập mờ."
+  },
+  {
+    "code": "fantasy",
+    "name": "Kỳ ảo (Fantasy)",
+    "description": "Thế giới có yếu tố phép thuật, sinh vật thần thoại hoặc quy luật siêu nhiên vượt ngoài thực tại."
+  },
+  {
+    "code": "high_fantasy",
+    "name": "Sử thi kỳ ảo (High / Epic Fantasy)",
+    "description": "Xây dựng thế giới hoàn toàn hư cấu với hệ thống phép thuật đồ sộ, lịch sử sâu rộng và xung đột quy mô thế giới."
+  },
+  {
+    "code": "historical_fiction",
+    "name": "Lịch sử (Historical Fiction)",
+    "description": "Lấy bối cảnh thời kỳ lịch sử có thật, kết hợp nhân vật hoặc sự kiện hư cấu với bức tranh thời đại."
+  },
+  {
+    "code": "horror",
+    "name": "Kinh dị (Horror)",
+    "description": "Khơi gợi nỗi sợ hãi, kinh hoàng thông qua các thực thể tà ác, siêu nhiên hoặc bản chất đen tối của con người."
+  },
+  {
+    "code": "mystery",
+    "name": "Huyền bí / Trinh thám (Mystery)",
+    "description": "Tập trung vào giải mã bí ẩn, điều tra vụ án, phát hiện âm mưu và truy tìm chân tướng."
+  },
+  {
+    "code": "political_drama",
+    "name": "Kịch tính chính trị (Political Drama)",
+    "description": "Đấu tranh quyền lực, mưu lược cung đình, tranh giành vị thế và xung đột ý thức hệ."
+  },
+  {
+    "code": "post_apocalyptic",
+    "name": "Hậu tận thế (Post-Apocalyptic)",
+    "description": "Bối cảnh sau thảm họa diệt vong (chiến tranh hạt nhân, dịch bệnh, thiên tai), con người đấu tranh để sinh tồn giữa đống đổ nát."
+  },
+  {
+    "code": "psychological_thriller",
+    "name": "Giật gân tâm lý (Psychological Thriller)",
+    "description": "Khai thác sự bất ổn tâm thần, thao túng tâm lý, ảo giác và ranh giới mong manh giữa thực tại với hoang tưởng."
+  },
+  {
+    "code": "romance",
+    "name": "Lãng mạn (Romance)",
+    "description": "Đặt mối quan hệ tình cảm, tình yêu đôi lứa và sự gắn kết cảm xúc làm trọng tâm câu chuyện."
+  },
+  {
+    "code": "sci_fi",
+    "name": "Khoa học viễn tưởng (Sci-Fi)",
+    "description": "Khai thác công nghệ tương lai, du hành vũ trụ, trí tuệ nhân tạo hoặc các lý thuyết khoa học giả định."
+  },
+  {
+    "code": "slice_of_life",
+    "name": "Đời thường (Slice of Life)",
+    "description": "Miêu tả chân thực những lát cắt giản dị, nhẹ nhàng trong cuộc sống thường nhật và các mối quan hệ con người."
+  },
+  {
+    "code": "space_opera",
+    "name": "Sử thi vũ trụ (Space Opera)",
+    "description": "Phiêu lưu kỳ vĩ giữa các vì sao, chiến tranh giữa các đế chế thiên hà và xung đột chính trị không gian."
+  },
+  {
+    "code": "thriller",
+    "name": "Giật gân (Thriller)",
+    "description": "Nhịp độ dồn dập, hồi hộp, hiểm nguy rình rập và các cuộc đấu trí căng thẳng đến nghẹt thở."
+  },
+  {
+    "code": "urban_fantasy",
+    "name": "Kỳ ảo đô thị (Urban Fantasy)",
+    "description": "Phép thuật, sinh vật kỳ bí tồn tại ngầm bên trong lòng các đô thị hiện đại."
+  },
+  {
+    "code": "wuxia",
+    "name": "Võ hiệp (Wuxia)",
+    "description": "Thế giới giang hồ, tinh thần nghĩa hiệp, ân oán giang hồ và võ học cổ truyền."
+  },
+  {
+    "code": "xianxia",
+    "name": "Tiên hiệp / Tu chân (Xianxia)",
+    "description": "Hành trình tu tiên, nghịch thiên cải mệnh, lĩnh hội đạo pháp và vượt thoát luân hồi."
+  }
+]

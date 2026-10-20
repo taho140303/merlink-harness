@@ -279,6 +279,14 @@ fn body_super_json_labels() -> Value {
     json!({})
 }
 
+fn body_outline_anchor() -> Value {
+    json!({ "projectId": "contract-project" })
+}
+
+fn body_outline_status() -> Value {
+    json!({ "sessionId": "contract-session-history" })
+}
+
 fn body_context_usage() -> Value {
     json!({"sessionId":"contract-session-context", "providerId":"openai", "modelId":"gpt-4o"})
 }
@@ -384,6 +392,14 @@ static CONTRACT: &[ContractEntry] = &[
     ContractEntry {
         cmd: "delete_session",
         body: body_delete_session,
+    },
+    ContractEntry {
+        cmd: "outline_anchor",
+        body: body_outline_anchor,
+    },
+    ContractEntry {
+        cmd: "outline_status",
+        body: body_outline_status,
     },
 ];
 
@@ -539,7 +555,7 @@ fn test_ipc_unknown_project_reads_do_not_create_ghost_document() {
     let harness = Harness::new("ipc-super-json-ghost");
     let ghost = "contract-ghost";
     let directory = harness.home.path().join("projects").join(ghost);
-    for command in ["super_json_read", "super_json_summary"] {
+    for command in ["super_json_read", "super_json_summary", "outline_anchor"] {
         let error = harness
             .call(command, json!({ "projectId": ghost }))
             .expect_err("unknown project must not be read");
@@ -553,7 +569,7 @@ fn test_ipc_unknown_project_reads_do_not_create_ghost_document() {
             "{command} created a ghost project directory"
         );
     }
-    for command in ["super_json_read", "super_json_summary"] {
+    for command in ["super_json_read", "super_json_summary", "outline_anchor"] {
         let error = harness
             .call(command, json!({ "projectId": "  " }))
             .expect_err("blank project id must be rejected");
