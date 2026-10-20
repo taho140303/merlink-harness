@@ -232,7 +232,7 @@ export type ChapterProposal = Pick<
  * passed to `outline_run`, one event per shard start/finish plus the run frames.
  */
 export type OutlineEvent =
-  | { type: "run_started"; stage: string }
+  | { type: "run_started"; stage: string; shards_total: number }
   | { type: "shard_started"; key: string; lane: string }
   | { type: "shard_finished"; key: string; lane: string; ok: boolean; error: string | null }
   | { type: "items_ready"; stage: string; count: number }
