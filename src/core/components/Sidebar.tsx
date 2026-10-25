@@ -6,10 +6,14 @@ import { SidebarNav } from "./sidebar/SidebarNav";
 import { SidebarHistory } from "./sidebar/SidebarHistory";
 import { SettingsDialog } from "./sidebar/SettingsDialog";
 
-export default function Sidebar() {
+interface SidebarProps {
+  activeTab: string;
+  onSelectTab: (tab: string) => void;
+}
+
+export default function Sidebar({ activeTab, onSelectTab }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [worldbuildingOpen, setWorldbuildingOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("new-chat");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -29,7 +33,7 @@ export default function Sidebar() {
           <SidebarNav
             collapsed={collapsed}
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={onSelectTab}
             worldbuildingOpen={worldbuildingOpen}
             onToggleWorldbuilding={() => {
               if (collapsed) setCollapsed(false);
@@ -40,7 +44,7 @@ export default function Sidebar() {
           <SidebarHistory
             collapsed={collapsed}
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={onSelectTab}
             onExpand={() => setCollapsed(false)}
           />
         </nav>
