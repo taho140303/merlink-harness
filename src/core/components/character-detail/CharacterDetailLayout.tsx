@@ -1,5 +1,10 @@
+import { Link } from 'react-router';
+import { Pencil, MessageSquare, GripVertical } from 'lucide-react';
+import { cn } from '../../../shared/utils/cn';
+import { truncate } from '../../../shared/utils/string';
+import { useResizablePanel } from '../../../shared/hooks/useResizablePanel';
+import { CharacterChatPane } from '../character/CharacterChatPane';
 import { useCharacterDetailStore } from './store';
-import { ChatSplitView } from './shared/ChatSplitView';
 import { CoreIdentityTab } from './tabs/CoreIdentityTab';
 import { LifeExperienceTab } from './tabs/LifeExperienceTab';
 import { PsychologicalTab } from './tabs/PsychologicalTab';
@@ -8,83 +13,155 @@ import type { DetailTab } from './types';
 const tabLabels: Record<DetailTab, string> = {
   core: 'Core Identity',
   life: 'Life Experience',
-  psych: 'Psychological Profile',
+  psych: 'Psychological',
 };
+
+const lifeSubLabels = {
+  knowledge: 'Knowledge',
+  competence: 'Competence',
+  memory: 'Memory',
+} as const;
 
 export function CharacterDetailLayout() {
   const character = useCharacterDetailStore((s) => s.character);
-  const activeTab = useCharacterDetailStore((s) => s.activeTab);
-  const setActiveTab = useCharacterDetailStore((s) => s.setActiveTab);
   const isEditing = useCharacterDetailStore((s) => s.isEditing);
   const toggleEditing = useCharacterDetailStore((s) => s.toggleEditing);
   const isChatOpen = useCharacterDetailStore((s) => s.isChatOpen);
   const toggleChat = useCharacterDetailStore((s) => s.toggleChat);
+  const activeTab = useCharacterDetailStore((s) => s.activeTab);
+  const setActiveTab = useCharacterDetailStore((s) => s.setActiveTab);
+  const activeLifeTab = useCharacterDetailStore((s) => s.activeLifeTab);
+
+  const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
+    initialRatio: 45,
+    minPx: 340,
+  });
+
+  const subSectionName =
+    activeTab === 'life'
+      ? `${tabLabels.life} › ${lifeSubLabels[activeLifeTab]}`
+      : tabLabels[activeTab];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-              {character.basicInfo.name.charAt(0)}
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                {character.basicInfo.name}
-              </h1>
-              <p className="text-xs text-gray-500">{character.basicInfo.species}</p>
-            </div>
+    <div
+      ref={containerRef}
+      className={cn(
+        'flex h-full w-full overflow-hidden',
+        isDragging && 'cursor-col-resize select-none',
+      )}
+    >
+      {/* Chat pane (trái) */}
+      {isChatOpen && (
+        <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
+          <CharacterChatPane
+            characterName={character.basicInfo.name}
+            activeSection={tabLabels[activeTab]}
+            onClose={() => toggleChat()}
+          />
+        </div>
+      )}
+
+      {/* Drag handle */}
+      {isChatOpen && (
+        <div
+          onMouseDown={startDragging}
+          className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
+        >
+          <div className="h-full w-px bg-slate-200 transition-colors group-hover:bg-blue-500 dark:bg-slate-800" />
+          <div
+            className={cn(
+              'absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800',
+              isDragging
+                ? 'opacity-100 ring-2 ring-blue-500'
+                : 'opacity-0 group-hover:opacity-100',
+            )}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           </div>
-          <div className="flex items-center gap-2">
+        </div>
+      )}
+
+      {/* Nội dung chính (phải) */}
+      <div
+        style={{ width: isChatOpen ? `${100 - leftRatio}%` : '100%' }}
+        className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8"
+      >
+        {/* Breadcrumb + actions */}
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+          <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <Link to="/character" className="shrink-0 hover:text-slate-900 dark:hover:text-slate-100">
+              Character
+            </Link>
+            <span>›</span>
+            <span
+              className="truncate text-slate-500 dark:text-slate-400"
+              title={character.basicInfo.name}
+            >
+              {truncate(character.basicInfo.name, 15)}
+            </span>
+            <span>›</span>
+            <span className="truncate font-bold text-slate-900 dark:text-slate-100">
+              {truncate(subSectionName, 20)}
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={toggleEditing}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors',
                 isEditing
-                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                  ? 'border-amber-500 bg-amber-50 text-amber-800 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-300'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800',
+              )}
             >
-              {isEditing ? 'Done' : 'Edit'}
+              <Pencil className="h-3.5 w-3.5" />
+              <span>{isEditing ? 'Viewing' : 'Edit'}</span>
             </button>
+
             <button
               type="button"
               onClick={toggleChat}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors',
                 isChatOpen
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800',
+              )}
             >
-              {isChatOpen ? 'Close Chat' : 'Open Chat'}
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>Chat</span>
             </button>
           </div>
         </div>
-        <nav className="px-6 flex gap-1 pb-2 overflow-x-auto">
+
+        {/* Tab switcher */}
+        <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
           {(Object.keys(tabLabels) as DetailTab[]).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`shrink-0 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${
+              className={cn(
+                'rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all',
                 activeTab === tab
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                  ? 'bg-slate-900 text-white shadow-xs dark:bg-slate-100 dark:text-slate-900'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
+              )}
             >
               {tabLabels[tab]}
             </button>
           ))}
-        </nav>
-      </header>
+        </div>
 
-      <ChatSplitView>
-        <div className="p-6 max-w-6xl mx-auto w-full">
+        {/* Nội dung tab */}
+        <div className="mt-6">
           {activeTab === 'core' && <CoreIdentityTab />}
           {activeTab === 'life' && <LifeExperienceTab />}
           {activeTab === 'psych' && <PsychologicalTab />}
         </div>
-      </ChatSplitView>
+      </div>
     </div>
   );
 }

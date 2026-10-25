@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useCharacterDetailStore } from '../store';
 import { MemoryCard } from '../MemoryCard';
-import type { KnowledgeCertainty, LifeSubTab } from '../types';
+import type { Competence, KnowledgeCertainty, LifeSubTab } from '../types';
 
 const certaintyColor: Record<KnowledgeCertainty, string> = {
-  Low: 'bg-red-100 text-red-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  High: 'bg-emerald-100 text-emerald-700',
+  Low: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  High: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
 };
 
 const subTabs: Array<{ id: LifeSubTab; label: string }> = [
@@ -19,19 +20,23 @@ export function LifeExperienceTab() {
   const active = useCharacterDetailStore((s) => s.activeLifeTab);
   const setActive = useCharacterDetailStore((s) => s.setActiveLifeTab);
   const character = useCharacterDetailStore((s) => s.character);
+  const isEditing = useCharacterDetailStore((s) => s.isEditing);
+  const addKnowledge = useCharacterDetailStore((s) => s.addKnowledge);
+  const updateKnowledgePath = useCharacterDetailStore((s) => s.updateKnowledgePath);
+  const removeKnowledge = useCharacterDetailStore((s) => s.removeKnowledge);
 
   return (
-    <div className="flex flex-col md:flex-row gap-4">
-      <nav className="md:w-48 shrink-0 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
+    <div className="flex flex-col gap-4 md:flex-row">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible">
         {subTabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setActive(t.id)}
-            className={`shrink-0 text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
               active === t.id
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
             }`}
           >
             {t.label}
@@ -39,27 +44,59 @@ export function LifeExperienceTab() {
         ))}
       </nav>
 
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         {active === 'knowledge' && (
           <div className="space-y-2">
             {character.knowledge.map((k) => (
               <div
                 key={k.id}
-                className="rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3 flex items-center justify-between gap-3"
+                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
               >
-                <div className="min-w-0">
-                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     {k.type}
                   </span>
-                  <p className="text-sm text-gray-900 truncate">{k.path}</p>
+                  {isEditing ? (
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                      value={k.path}
+                      onChange={(e) => updateKnowledgePath(k.id, e.target.value)}
+                    />
+                  ) : (
+                    <p className="truncate text-sm text-slate-900 dark:text-slate-100">
+                      {k.path}
+                    </p>
+                  )}
                 </div>
                 <span
-                  className={`px-2 py-0.5 text-[10px] rounded-full font-medium shrink-0 ${certaintyColor[k.certainty]}`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${certaintyColor[k.certainty]}`}
                 >
                   {k.certainty}
                 </span>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => removeKnowledge(k.id)}
+                    className="shrink-0 text-rose-500 hover:text-rose-600"
+                    title="Remove"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
+            {isEditing && (
+              <button
+                type="button"
+                onClick={() =>
+                  addKnowledge({ type: 'Initial', path: 'New source', certainty: 'Medium' })
+                }
+                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Knowledge
+              </button>
+            )}
           </div>
         )}
 
@@ -83,51 +120,55 @@ export function LifeExperienceTab() {
   );
 }
 
-function CompetenceCard({ competence }: { competence: import('../types').Competence }) {
+function CompetenceCard({ competence }: { competence: Competence }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h4 className="font-semibold text-gray-900">{competence.name}</h4>
-            <p className="text-xs text-gray-500">
+            <h4 className="font-semibold text-slate-900 dark:text-slate-100">{competence.name}</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {competence.domain} · {competence.level}
             </p>
           </div>
           <span
-            className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${certaintyColor[competence.reliability]}`}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${certaintyColor[competence.reliability]}`}
           >
             {competence.reliability}
           </span>
         </div>
-        <p className="text-sm text-gray-700 mt-2">{competence.description}</p>
-        <p className="text-xs text-gray-500 mt-1 italic">{competence.experience}</p>
+        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+          {competence.description}
+        </p>
+        <p className="mt-1 text-xs italic text-slate-500 dark:text-slate-400">
+          {competence.experience}
+        </p>
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 text-xs text-indigo-600 hover:underline"
+          className="mt-2 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
         >
           {expanded ? 'Hide details' : 'Show capabilities & limitations'}
         </button>
       </div>
       {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 pb-4 border-t border-gray-100 pt-3">
+        <div className="grid grid-cols-1 gap-4 border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800 md:grid-cols-2">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-emerald-700 mb-1.5">
+            <p className="mb-1.5 text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
               Capabilities
             </p>
-            <ul className="space-y-1 text-sm text-gray-800 list-disc pl-4">
+            <ul className="list-disc space-y-1 pl-4 text-sm text-slate-800 dark:text-slate-200">
               {competence.capabilities.map((c, i) => (
                 <li key={i}>{c}</li>
               ))}
             </ul>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-rose-700 mb-1.5">
+            <p className="mb-1.5 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-400">
               Limitations
             </p>
-            <ul className="space-y-1 text-sm text-gray-800 list-disc pl-4">
+            <ul className="list-disc space-y-1 pl-4 text-sm text-slate-800 dark:text-slate-200">
               {competence.limitations.map((c, i) => (
                 <li key={i}>{c}</li>
               ))}
