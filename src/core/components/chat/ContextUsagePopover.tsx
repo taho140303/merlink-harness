@@ -56,7 +56,7 @@ export function ContextUsagePopover() {
 
       {/* Popover chi tiết */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in-0 zoom-in-95">
+        <div className="absolute bottom-full right-0 mb-2 w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in-0 zoom-in-95">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-slate-900 dark:text-slate-100">
               {percent}% <span className="font-normal text-slate-500">of context used</span>
