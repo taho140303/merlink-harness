@@ -79,11 +79,6 @@ const en = {
   'chat.draftBuilding': 'Draft building',
   'chat.preview': 'preview',
 
-  'sex.male': 'Male',
-  'sex.female': 'Female',
-  'sex.intersex': 'Intersex',
-  'sex.unknown': 'Unknown',
-  'sex.all': 'All Sex',
 
   // ----- Character list -----
   'character.title': 'Character',
@@ -310,11 +305,6 @@ const vi: Record<keyof typeof en, string> = {
   'chat.draftBuilding': 'Xây dựng bản nháp',
   'chat.preview': 'xem trước',
 
-  'sex.male': 'Nam',
-  'sex.female': 'Nữ',
-  'sex.intersex': 'Liên giới',
-  'sex.unknown': 'Không rõ',
-  'sex.all': 'Tất cả giới tính',
 
   'character.title': 'Nhân vật',
   'character.subtitle': 'Quản lý danh sách nhân vật, hồ sơ nhân trắc học và đồ thị quan hệ.',
