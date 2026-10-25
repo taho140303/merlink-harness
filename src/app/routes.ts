@@ -1,7 +1,7 @@
 import { type RouteConfig, index, layout, route } from "@react-router/dev/routes";
 
 export default [
-  layout("../core/layouts/FullLayout.tsx", [
+  layout("layouts/FullLayout.tsx", [
     index("routes/home.tsx"),
     route("chat/:id", "routes/chat.tsx"),
     route("project", "routes/project.tsx"),
