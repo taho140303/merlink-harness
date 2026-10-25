@@ -15,33 +15,56 @@ import book13 from "../../assets/projects/cover/book13.svg";
 import book14 from "../../assets/projects/cover/book14.svg";
 import book15 from "../../assets/projects/cover/book15.svg";
 
+const DEFAULT_BLOCKS = [
+  {
+    id: "blk-1",
+    text: "Màn đêm buông xuống trên đỉnh thành phố Aethelgard. Dòng chảy ma pháp ngầm rít lên từng đợt qua các kẽ nứt của vỉa hè lát đá pha lê.",
+    locked: false,
+  },
+  {
+    id: "blk-2",
+    text: "Anh cúi nhìn lòng bàn tay của mình. Ký tự ma pháp cổ đại bắt đầu phát sáng với sắc tím ma mị, báo hiệu thời khắc giao ước đã cận kề.",
+    locked: false,
+  },
+  {
+    id: "blk-3",
+    text: "'Ngươi chắc chắn muốn ký kết khế ước này chứ?' - Giọng nói vô thực vang lên từ trong bóng tối của căn gác mái hoang tàn.",
+    locked: true,
+  },
+  {
+    id: "blk-4",
+    text: "Không một chút do dự, anh siết chặt cán kiếm gãy và bước tới. Định mệnh của lục địa này giờ đây hoàn toàn phụ thuộc vào quyết định của đêm nay.",
+    locked: false,
+  },
+];
+
 const SAMPLE_ARCS: ArcItem[] = [
   {
     id: "arc-1",
     title: "Tập 1: Khởi nguyên đứt gãy ma pháp",
     chapters: [
-      { id: "c-1", title: "Chương 1: Khế ước quỷ dữ", date: "18/04/2026", hasIllustration: true },
-      { id: "c-2", title: "Chương 2: Cuộc sống bị đảo lộn rồi...", date: "18/04/2026", hasIllustration: true },
-      { id: "c-3", title: "Chương 3: Mahou Change!", date: "24/04/2026", hasIllustration: true },
-      { id: "c-4", title: "Chương 4: \"Bạn gái\" của tôi", date: "08/05/2026", hasIllustration: true },
-      { id: "c-5", title: "Chương 5: Cô gia sư nghiêm khắc", date: "18/05/2026" },
-      { id: "c-6", title: "Chương 6: Bí mật của Reika", date: "25/05/2026" },
-      { id: "c-7", title: "Chương 7: Ma pháp thiếu nữ Azhra", date: "02/06/2026" },
-      { id: "c-8", title: "Chương 8: Hẹn hò với Ayaka", date: "15/06/2026" },
-      { id: "c-9", title: "Chương 9: Đừng tin người quá.", date: "03/07/2026" },
-      { id: "c-10", title: "Chương 10: Xin hãy cho em làm đệ tử!", date: "19/07/2026" },
-      { id: "c-11", title: "Chương 11: Món quà", date: "19/08/2026" },
-      { id: "c-12", title: "Chương 12: Lần đầu được đi săn cùng sư phụ", date: "26/09/2026" },
-      { id: "c-13", title: "Chương 13: Sự thật", date: "21/10/2026", isNew: true },
+      { id: "c-1", title: "Khế ước quỷ dữ", date: "18/04/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-2", title: "Cuộc sống bị đảo lộn rồi...", date: "18/04/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-3", title: "Mahou Change!", date: "24/04/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-4", title: "\"Bạn gái\" của tôi", date: "08/05/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-5", title: "Cô gia sư nghiêm khắc", date: "18/05/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-6", title: "Bí mật của Reika", date: "25/05/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-7", title: "Ma pháp thiếu nữ Azhra", date: "02/06/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-8", title: "Hẹn hò với Ayaka", date: "15/06/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-9", title: "Đừng tin người quá.", date: "03/07/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-10", title: "Xin hãy cho em làm đệ tử!", date: "19/07/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-11", title: "Món quà", date: "19/08/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-12", title: "Lần đầu được đi săn cùng sư phụ (Và cũng là lần cuối)", date: "26/09/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-13", title: "Sự thật", date: "21/10/2026", isNew: true, blocks: DEFAULT_BLOCKS },
     ],
   },
   {
     id: "arc-2",
     title: "Tập 2: Ánh sáng phán quyết và bóng tối hư không",
     chapters: [
-      { id: "c-14", title: "Chương 14: Cuộc viễn chinh qua dải sương mù", date: "28/10/2026", hasIllustration: true },
-      { id: "c-15", title: "Chương 15: Cung điện thất lạc dưới lòng đất", date: "05/11/2026" },
-      { id: "c-16", title: "Chương 16: Dấu ấn phong ấn bị phá vỡ", date: "12/11/2026", hasIllustration: true },
+      { id: "c-14", title: "Cuộc viễn chinh qua dải sương mù", date: "28/10/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-15", title: "Cung điện thất lạc dưới lòng đất", date: "05/11/2026", blocks: DEFAULT_BLOCKS },
+      { id: "c-16", title: "Dấu ấn phong ấn bị phá vỡ", date: "12/11/2026", blocks: DEFAULT_BLOCKS },
     ],
   },
 ];

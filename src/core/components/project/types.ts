@@ -1,11 +1,17 @@
 export type SortOption = "a-z" | "z-a" | "modified";
 
+export interface ChapterBlock {
+  id: string;
+  text: string;
+  locked: boolean;
+}
+
 export interface ChapterItem {
   id: string;
   title: string;
   date: string;
-  hasIllustration?: boolean;
   isNew?: boolean;
+  blocks?: ChapterBlock[];
 }
 
 export interface ArcItem {
