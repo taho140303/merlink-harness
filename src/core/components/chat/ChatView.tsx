@@ -10,42 +10,13 @@ import { DraftWorkspace } from "../draft/DraftWorkspace";
 import type { ChatMode, ChatMessage } from "./types";
 import type { FeedbackContext } from "../draft/types";
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: "msg-sample",
-    role: "assistant",
-    content: `Project đã tạo xong. Bạn đã đặt tổng số chữ là 500. Còn thiếu một số quyết định cốt lõi. Cho mình hỏi:
-
-1. **Tiêu đề** của truyện là gì (nếu chưa đặt tên, để trống cũng được)?
-2. **Ngôn ngữ** viết truyện? (VI / EN / JA / ZH_HANT / ZH_HANS)
-3. **Dàn bài**: bao nhiêu arc, chương, scene? (ví dụ: "1 arc, 1 chương, 3 scene"; với 500 chữ thì thường 1 arc, 1 chương là đủ)`,
-    thinkingSeconds: 7,
-    thinkingDetails: "Xác thực cấu hình dự án, kiểm tra định mức từ mục tiêu (500 chữ) và khởi tạo danh mục câu hỏi cốt lõi.",
-    timestamp: "18:04",
-    toolCalls: [
-      {
-        id: "tool-1",
-        name: "create_project",
-        parameters: { targetWords: 500, mode: "fast_draft" },
-        result: { status: "created", projectId: "proj-sample-500" },
-        status: "success",
-      },
-      {
-        id: "tool-2",
-        name: "schema_audit",
-        parameters: { requireMeta: ["title", "language", "structure"] },
-        result: { missingFields: ["title", "language", "outline"] },
-        status: "success",
-      },
-    ],
-  },
-];
-
 export default function ChatView() {
   const [mode, setMode] = useState<ChatMode>("chat");
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  
+  // Khởi tạo mảng rỗng để hiện quả cầu OrbSphere và câu chào ban đầu
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 50,
@@ -69,9 +40,10 @@ export default function ChatView() {
       timestamp: "Vừa xong",
     };
 
+    // Đẩy tin nhắn của user và thinking placeholder vào để ẩn quả cầu chào mừng
     setMessages((prev) => [...prev, userMsg, placeholderAssistant]);
 
-    // Giả lập thinking 3 giây rồi nạp markdown response kèm tool calls
+    // Giả lập thinking 3 giây rồi nạp markdown phản hồi theo đúng kịch bản
     setTimeout(() => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -79,15 +51,26 @@ export default function ChatView() {
             ? {
                 ...msg,
                 isThinking: false,
-                thinkingSeconds: 3,
-                thinkingDetails: "Phân tích yêu cầu kịch bản, tra cứu cơ sở dữ liệu các lore hiện có.",
-                content: `Đã ghi nhận yêu cầu: "${text}".\n\n1. **Khởi tạo dữ liệu**: Bản nháp đã được lưu vào workspace.\n2. **Đề xuất kế tiếp**: Bạn có thể mở **Draft building** ở góc trên để tùy biến chi tiết các arc và nhân vật.`,
+                thinkingSeconds: 7,
+                thinkingDetails: "Xác thực cấu hình dự án, kiểm tra định mức từ mục tiêu (500 chữ) và khởi tạo danh mục câu hỏi cốt lõi.",
+                content: `Project đã tạo xong. Bạn đã đặt tổng số chữ là 500. Còn thiếu một số quyết định cốt lõi. Cho mình hỏi:
+
+1. **Tiêu đề** của truyện là gì (nếu chưa đặt tên, để trống cũng được)?
+2. **Ngôn ngữ** viết truyện? (VI / EN / JA / ZH_HANT / ZH_HANS)
+3. **Dàn bài**: bao nhiêu arc, chương, scene? (ví dụ: "1 arc, 1 chương, 3 scene"; với 500 chữ thì thường 1 arc, 1 chương là đủ)`,
                 toolCalls: [
                   {
-                    id: `tool-${Date.now()}`,
-                    name: "sync_workspace_state",
-                    parameters: { input: text },
-                    result: { success: true, changesApplied: 1 },
+                    id: "tool-1",
+                    name: "create_project",
+                    parameters: { targetWords: 500, prompt: text },
+                    result: { status: "created", projectId: "proj-sample-500" },
+                    status: "success",
+                  },
+                  {
+                    id: "tool-2",
+                    name: "schema_audit",
+                    parameters: { requireMeta: ["title", "language", "structure"] },
+                    result: { missingFields: ["title", "language", "outline"] },
                     status: "success",
                   },
                 ],
@@ -118,6 +101,7 @@ export default function ChatView() {
           onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
         />
 
+        {/* Khung nội dung chat: Chưa có tin nhắn thì hiện Orb + Welcome, có rồi thì render list chat */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {messages.length === 0 ? (
             <ChatWelcome />
