@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router";
 import {
   MessageSquarePlus,
   FolderGit2,
@@ -12,53 +14,76 @@ import { cn } from "../../../shared/utils/cn";
 
 interface SidebarNavProps {
   collapsed: boolean;
-  activeTab: string;
-  onSelectTab: (tab: string) => void;
-  worldbuildingOpen: boolean;
-  onToggleWorldbuilding: () => void;
 }
 
-export function SidebarNav({
-  collapsed,
-  activeTab,
-  onSelectTab,
-  worldbuildingOpen,
-  onToggleWorldbuilding,
-}: SidebarNavProps) {
-  const primaryNavItems = [
-    { id: "new-chat", label: "New chat", icon: MessageSquarePlus },
-    { id: "project", label: "Project", icon: FolderGit2 },
-    { id: "character", label: "Character", icon: Users },
-  ];
+export function SidebarNav({ collapsed }: SidebarNavProps) {
+  const [worldbuildingOpen, setWorldbuildingOpen] = useState(true);
+  const location = useLocation();
+  const isWorldbuildingActive = location.pathname.startsWith("/worldbuilding");
 
   return (
     <div className="space-y-1">
-      {primaryNavItems.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          onClick={() => onSelectTab(id)}
-          className={cn(
+      <NavLink
+        to="/"
+        end
+        className={({ isActive }) =>
+          cn(
             "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-            activeTab === id
+            isActive
               ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
             collapsed && "justify-center px-0"
-          )}
-          title={collapsed ? label : undefined}
-        >
-          <Icon className="h-5 w-5 shrink-0" />
-          {!collapsed && <span>{label}</span>}
-        </button>
-      ))}
+          )
+        }
+        title={collapsed ? "New chat" : undefined}
+      >
+        <MessageSquarePlus className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>New chat</span>}
+      </NavLink>
+
+      <NavLink
+        to="/project"
+        className={({ isActive }) =>
+          cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+            collapsed && "justify-center px-0"
+          )
+        }
+        title={collapsed ? "Project" : undefined}
+      >
+        <FolderGit2 className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>Project</span>}
+      </NavLink>
+
+      <NavLink
+        to="/character"
+        className={({ isActive }) =>
+          cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+            collapsed && "justify-center px-0"
+          )
+        }
+        title={collapsed ? "Character" : undefined}
+      >
+        <Users className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>Character</span>}
+      </NavLink>
 
       {/* Worldbuilding Accordion */}
       <div>
         <button
-          onClick={onToggleWorldbuilding}
+          type="button"
+          onClick={() => setWorldbuildingOpen((prev) => !prev)}
           className={cn(
             "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-            activeTab.startsWith("worldbuilding")
-              ? "text-slate-900 dark:text-slate-100"
+            isWorldbuildingActive
+              ? "text-slate-900 dark:text-slate-100 font-semibold"
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
             collapsed && "justify-center px-0"
           )}
@@ -80,49 +105,54 @@ export function SidebarNav({
 
         {!collapsed && worldbuildingOpen && (
           <div className="ml-5 mt-1 space-y-1 border-l-2 border-slate-100 pl-3 dark:border-slate-800">
-            <button
-              onClick={() => onSelectTab("worldbuilding-lore")}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
-                activeTab === "worldbuilding-lore"
-                  ? "bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-              )}
+            <NavLink
+              to="/worldbuilding/lore"
+              className={({ isActive }) =>
+                cn(
+                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                  isActive
+                    ? "bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                )
+              }
             >
               <BookOpen className="h-4 w-4" />
               <span>Lore</span>
-            </button>
-            <button
-              onClick={() => onSelectTab("worldbuilding-settings")}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
-                activeTab === "worldbuilding-settings"
-                  ? "bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-              )}
+            </NavLink>
+            <NavLink
+              to="/worldbuilding/settings"
+              className={({ isActive }) =>
+                cn(
+                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                  isActive
+                    ? "bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                )
+              }
             >
               <Sliders className="h-4 w-4" />
               <span>Settings</span>
-            </button>
+            </NavLink>
           </div>
         )}
       </div>
 
-      {/* Config */}
-      <button
-        onClick={() => onSelectTab("config")}
-        className={cn(
-          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-          activeTab === "config"
-            ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
-            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
-          collapsed && "justify-center px-0"
-        )}
+      <NavLink
+        to="/config"
+        className={({ isActive }) =>
+          cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+            collapsed && "justify-center px-0"
+          )
+        }
         title={collapsed ? "Config" : undefined}
       >
         <Wrench className="h-5 w-5 shrink-0" />
         {!collapsed && <span>Config</span>}
-      </button>
+      </NavLink>
     </div>
   );
 }

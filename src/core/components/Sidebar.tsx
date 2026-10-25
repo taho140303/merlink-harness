@@ -6,14 +6,8 @@ import { SidebarNav } from "./sidebar/SidebarNav";
 import { SidebarHistory } from "./sidebar/SidebarHistory";
 import { SettingsDialog } from "./sidebar/SettingsDialog";
 
-interface SidebarProps {
-  activeTab: string;
-  onSelectTab: (tab: string) => void;
-}
-
-export default function Sidebar({ activeTab, onSelectTab }: SidebarProps) {
+export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [worldbuildingOpen, setWorldbuildingOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -30,26 +24,13 @@ export default function Sidebar({ activeTab, onSelectTab }: SidebarProps) {
         />
 
         <nav className="mt-4 flex-1 space-y-1 overflow-y-auto pr-0.5">
-          <SidebarNav
-            collapsed={collapsed}
-            activeTab={activeTab}
-            onSelectTab={onSelectTab}
-            worldbuildingOpen={worldbuildingOpen}
-            onToggleWorldbuilding={() => {
-              if (collapsed) setCollapsed(false);
-              setWorldbuildingOpen(!worldbuildingOpen);
-            }}
-          />
-
+          <SidebarNav collapsed={collapsed} />
           <SidebarHistory
             collapsed={collapsed}
-            activeTab={activeTab}
-            onSelectTab={onSelectTab}
             onExpand={() => setCollapsed(false)}
           />
         </nav>
 
-        {/* Bottom Pinned Settings */}
         <div className="shrink-0 border-t border-slate-100 py-3 dark:border-slate-800/80">
           <button
             onClick={() => setSettingsOpen(true)}

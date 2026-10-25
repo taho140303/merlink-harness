@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "../ui/dialog";
+import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
 import { SettingsSidebar } from "../settings/SettingsSidebar";
 import { GeneralTab } from "../settings/GeneralTab";
 import { AIProvidersTab } from "../settings/AIProvidersTab";

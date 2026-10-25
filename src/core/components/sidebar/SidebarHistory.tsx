@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NavLink } from "react-router";
 import { History as HistoryIcon, Folder, ChevronDown } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import type { ChatItem } from "./types";
@@ -18,17 +19,10 @@ function formatTitle(title: string): string {
 
 interface SidebarHistoryProps {
   collapsed: boolean;
-  activeTab: string;
-  onSelectTab: (tab: string) => void;
   onExpand: () => void;
 }
 
-export function SidebarHistory({
-  collapsed,
-  activeTab,
-  onSelectTab,
-  onExpand,
-}: SidebarHistoryProps) {
+export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
   const [groupByProject, setGroupByProject] = useState(false);
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({
     "Merlink Core": true,
@@ -112,21 +106,23 @@ export function SidebarHistory({
                 {isOpen && (
                   <div className="ml-3 space-y-0.5 border-l border-slate-100 pl-2 dark:border-slate-800">
                     {chats.map((chat) => (
-                      <button
+                      <NavLink
                         key={chat.id}
-                        onClick={() => onSelectTab(`chat-${chat.id}`)}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors text-left",
-                          activeTab === `chat-${chat.id}`
-                            ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-                        )}
+                        to={`/chat/${chat.id}`}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors text-left",
+                            isActive
+                              ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
+                              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                          )
+                        }
                       >
                         <span className="truncate">{formatTitle(chat.title)}</span>
                         <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
                           {chat.time}
                         </span>
-                      </button>
+                      </NavLink>
                     ))}
                   </div>
                 )}
@@ -135,21 +131,23 @@ export function SidebarHistory({
           })
         ) : (
           MOCK_HISTORY.map((chat) => (
-            <button
+            <NavLink
               key={chat.id}
-              onClick={() => onSelectTab(`chat-${chat.id}`)}
-              className={cn(
-                "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
-                activeTab === `chat-${chat.id}`
-                  ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-              )}
+              to={`/chat/${chat.id}`}
+              className={({ isActive }) =>
+                cn(
+                  "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
+                  isActive
+                    ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                )
+              }
             >
               <span className="truncate">{formatTitle(chat.title)}</span>
               <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
                 {chat.time}
               </span>
-            </button>
+            </NavLink>
           ))
         )}
       </div>

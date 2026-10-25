@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { GripVertical } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
+import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
 import { ChatHeader } from "./ChatHeader";
 import { ChatWelcome } from "./ChatWelcome";
 import { ChatInputBar } from "./ChatInputBar";
@@ -13,38 +14,10 @@ export default function ChatView() {
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
 
-  // Resizable state (tỷ lệ phần trăm cho cột trái, mặc định 50%)
-  const [leftRatio, setLeftRatio] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const currentPx = e.clientX - rect.left;
-      const totalPx = rect.width;
-
-      // Min-width ép tối thiểu 360px cho cả hai tab
-      const minPx = 360;
-      const clampedPx = Math.min(Math.max(currentPx, minPx), totalPx - minPx);
-      const newRatio = (clampedPx / totalPx) * 100;
-      setLeftRatio(newRatio);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging]);
+  const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
+    initialRatio: 50,
+    minPx: 360,
+  });
 
   return (
     <div
@@ -78,19 +51,13 @@ export default function ChatView() {
         </div>
       </div>
 
-      {/* Ranh giới kéo thả giữa 2 tab */}
+      {/* Ranh giới kéo thả */}
       {isDraftOpen && (
         <div
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
+          onMouseDown={startDragging}
           className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
         >
-          {/* Đường kẻ ranh giới */}
           <div className="h-full w-px bg-slate-200 transition-colors group-hover:bg-blue-500 dark:bg-slate-800" />
-
-          {/* Nút nắm kéo hiện khi hover hoặc đang drag */}
           <div
             className={cn(
               "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800",

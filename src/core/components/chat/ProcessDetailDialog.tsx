@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "../ui/dialog";
+import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
 
 interface ProcessDetailDialogProps {
   open: boolean;
