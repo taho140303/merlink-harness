@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { GripVertical } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
@@ -14,14 +14,18 @@ export default function ChatView() {
   const [mode, setMode] = useState<ChatMode>("chat");
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
-  
-  // Khởi tạo mảng rỗng để hiện quả cầu OrbSphere và câu chào ban đầu
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const scrollBottomRef = useRef<HTMLDivElement>(null);
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 50,
     minPx: 360,
   });
+
+  // Tự động cuộn xuống đáy khi có message mới hoặc đang streaming
+  useEffect(() => {
+    scrollBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = (text: string) => {
     const userMsg: ChatMessage = {
@@ -37,48 +41,84 @@ export default function ChatView() {
       role: "assistant",
       content: "",
       isThinking: true,
+      thinkingSeconds: 1,
+      thinkingDetails: "Khởi động mô hình và phân tích ngữ cảnh đầu vào...",
       timestamp: "Vừa xong",
     };
 
-    // Đẩy tin nhắn của user và thinking placeholder vào để ẩn quả cầu chào mừng
     setMessages((prev) => [...prev, userMsg, placeholderAssistant]);
 
-    // Giả lập thinking 3 giây rồi nạp markdown phản hồi theo đúng kịch bản
-    setTimeout(() => {
+    // Các mẩu log suy nghĩ stream theo thời gian
+    const thinkingSteps = [
+      "Kiểm tra các thực thể (Worldbuilding, Arcs, Characters) hiện có trong workspace...",
+      "Truy vấn thông số cấu hình và định mức mục tiêu văn bản...",
+      "Phát hiện thiếu hụt các tham số cốt lõi. Khởi tạo câu hỏi định hướng cho người dùng...",
+    ];
+
+    let currentSeconds = 1;
+    let stepIdx = 0;
+
+    // Timer đếm giây và streaming thinking logs
+    const thinkInterval = setInterval(() => {
+      currentSeconds += 1;
+      const currentDetail = thinkingSteps.slice(0, stepIdx + 1).join("\n");
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempAssistantId
             ? {
                 ...msg,
-                isThinking: false,
-                thinkingSeconds: 7,
-                thinkingDetails: "Xác thực cấu hình dự án, kiểm tra định mức từ mục tiêu (500 chữ) và khởi tạo danh mục câu hỏi cốt lõi.",
-                content: `Project đã tạo xong. Bạn đã đặt tổng số chữ là 500. Còn thiếu một số quyết định cốt lõi. Cho mình hỏi:
-
-1. **Tiêu đề** của truyện là gì (nếu chưa đặt tên, để trống cũng được)?
-2. **Ngôn ngữ** viết truyện? (VI / EN / JA / ZH_HANT / ZH_HANS)
-3. **Dàn bài**: bao nhiêu arc, chương, scene? (ví dụ: "1 arc, 1 chương, 3 scene"; với 500 chữ thì thường 1 arc, 1 chương là đủ)`,
-                toolCalls: [
-                  {
-                    id: "tool-1",
-                    name: "create_project",
-                    parameters: { targetWords: 500, prompt: text },
-                    result: { status: "created", projectId: "proj-sample-500" },
-                    status: "success",
-                  },
-                  {
-                    id: "tool-2",
-                    name: "schema_audit",
-                    parameters: { requireMeta: ["title", "language", "structure"] },
-                    result: { missingFields: ["title", "language", "outline"] },
-                    status: "success",
-                  },
-                ],
+                thinkingSeconds: currentSeconds,
+                thinkingDetails: currentDetail,
               }
             : msg
         )
       );
-    }, 3000);
+
+      stepIdx += 1;
+
+      // Khi suy nghĩ đủ 4 giây thì kết thúc thinking và stream markdown response
+      if (currentSeconds >= 4) {
+        clearInterval(thinkInterval);
+
+        const finalResponse = `Project đã tạo xong. Bạn đã đặt tổng số chữ là 500. Còn thiếu một số quyết định cốt lõi. Cho mình hỏi:
+
+1. **Tiêu đề** của truyện là gì (nếu chưa đặt tên, để trống cũng được)?
+2. **Ngôn ngữ** viết truyện? (VI / EN / JA / ZH_HANT / ZH_HANS)
+3. **Dàn bài**: bao nhiêu arc, chương, scene? (ví dụ: "1 arc, 1 chương, 3 scene"; với 500 chữ thì thường 1 arc, 1 chương là đủ)`;
+
+        // Kết thúc thinking, bắt đầu stream nội dung phản hồi
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempAssistantId
+              ? {
+                  ...msg,
+                  isThinking: false,
+                  thinkingSeconds: currentSeconds,
+                  thinkingDetails: thinkingSteps.join("\n"),
+                  content: finalResponse,
+                  toolCalls: [
+                    {
+                      id: "tool-1",
+                      name: "create_project",
+                      parameters: { targetWords: 500, prompt: text },
+                      result: { status: "created", projectId: "proj-sample-500" },
+                      status: "success",
+                    },
+                    {
+                      id: "tool-2",
+                      name: "schema_audit",
+                      parameters: { requireMeta: ["title", "language", "structure"] },
+                      result: { missingFields: ["title", "language", "outline"] },
+                      status: "success",
+                    },
+                  ],
+                }
+              : msg
+          )
+        );
+      }
+    }, 1000);
   };
 
   return (
@@ -101,13 +141,13 @@ export default function ChatView() {
           onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
         />
 
-        {/* Khung nội dung chat: Chưa có tin nhắn thì hiện Orb + Welcome, có rồi thì render list chat */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {messages.length === 0 ? (
             <ChatWelcome />
           ) : (
             messages.map((m) => <ChatMessageItem key={m.id} message={m} />)
           )}
+          <div ref={scrollBottomRef} />
         </div>
 
         <div className="shrink-0 p-6">
