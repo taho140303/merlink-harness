@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Users } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { MOCK_CHARACTERS } from "./mockCharacters";
 import { CharacterCard } from "./CharacterCard";
+import { CreateCharacterDialog } from "./CreateCharacterDialog";
 import type { CharacterItem } from "./types";
 
 export function CharacterListView() {
   const [characters, setCharacters] = useState<CharacterItem[]>(MOCK_CHARACTERS);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSex, setFilterSex] = useState<string>("ALL");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const filteredCharacters = useMemo(() => {
     return characters.filter((c) => {
@@ -19,36 +21,7 @@ export function CharacterListView() {
     });
   }, [characters, searchTerm, filterSex]);
 
-  const handleCreateCharacter = () => {
-    const newId = `char-${Date.now()}`;
-    const newChar: CharacterItem = {
-      id: newId,
-      name: `New Character #${characters.length + 1}`,
-      species: "Human",
-      biologicalSex: "Unknown",
-      genderIdentity: "Unspecified",
-      genderExpression: "Neutral",
-      avatarBg: "bg-blue-600",
-      appearance: {
-        height: 170,
-        heightUnit: "cm",
-        weight: 60,
-        weightUnit: "kg",
-        hairColor: "Black",
-        hairHex: "#000000",
-        hairNote: "",
-        eyeColor: "Brown",
-        eyeHex: "#5c4033",
-        eyeNote: "",
-        skinTone: "Fair",
-        skinHex: "#f0d5be",
-        skinNote: "",
-        outfitStyle: "Standard traveling attire",
-        defaultSummary: "A newly created character awaiting detailed lore.",
-      },
-      distinguishingMarks: [],
-      relationships: [],
-    };
+  const handleAddCharacter = (newChar: CharacterItem) => {
     setCharacters((prev) => [newChar, ...prev]);
   };
 
@@ -66,7 +39,7 @@ export function CharacterListView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Thanh tìm kiếm */}
+          {/* Search */}
           <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
@@ -78,7 +51,7 @@ export function CharacterListView() {
             />
           </div>
 
-          {/* Filter giới tính */}
+          {/* Filter */}
           <select
             value={filterSex}
             onChange={(e) => setFilterSex(e.target.value)}
@@ -91,10 +64,10 @@ export function CharacterListView() {
             <option value="Unknown">Unknown</option>
           </select>
 
-          {/* Nút Create Character */}
+          {/* Button mở dialog tạo */}
           <button
             type="button"
-            onClick={handleCreateCharacter}
+            onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-medium text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -115,6 +88,12 @@ export function CharacterListView() {
           </div>
         )}
       </div>
+
+      <CreateCharacterDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreate={handleAddCharacter}
+      />
     </div>
   );
 }
