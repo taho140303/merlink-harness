@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DraftHeader } from "./DraftHeader";
 import { DraftSetupStep } from "./DraftSetupStep";
 import { DraftCharacterStep } from "./DraftCharacterStep";
+import { DraftPlanStep } from "./DraftPlanStep";
 import type { DraftStep, FeedbackContext } from "./types";
 
 interface DraftWorkspaceProps {
@@ -14,7 +15,11 @@ export function DraftWorkspace({ onClose, onFeedback }: DraftWorkspaceProps) {
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 overflow-hidden">
-      <DraftHeader currentStep={currentStep} onClose={onClose} />
+      <DraftHeader
+        currentStep={currentStep}
+        onClose={onClose}
+        onStepClick={setCurrentStep}
+      />
 
       <div className="flex-1 overflow-y-auto">
         {currentStep === "setup" && (
@@ -28,13 +33,16 @@ export function DraftWorkspace({ onClose, onFeedback }: DraftWorkspaceProps) {
           <DraftCharacterStep
             onFeedback={onFeedback}
             onNext={() => setCurrentStep("plan")}
+            onBack={() => setCurrentStep("setup")}
           />
         )}
 
         {currentStep === "plan" && (
-          <div className="flex h-full items-center justify-center p-6 text-center text-xs text-slate-400">
-            Plan stage under construction.
-          </div>
+          <DraftPlanStep
+            onFeedback={onFeedback}
+            onBack={() => setCurrentStep("character")}
+            onStart={() => alert("Khởi chạy pipeline xây dựng kịch bản thế giới thành công!")}
+          />
         )}
       </div>
     </aside>

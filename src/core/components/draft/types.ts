@@ -12,6 +12,7 @@ export interface SetupBlock {
   tag: string;
   title: string;
   content: string;
+  loadingTitle: string;
 }
 
 export interface CharacterRelationship {
@@ -24,6 +25,7 @@ export interface CharacterProfile {
   id: string;
   name: string;
   role: string;
+  loadingTitle: string;
   coreIdentity: {
     age: string;
     origin: string;
@@ -32,4 +34,12 @@ export interface CharacterProfile {
   };
   lifeExperience: string;
   psychological: string;
+}
+
+export interface PlanPhase {
+  id: string;
+  tag: string;
+  title: string;
+  content: string;
+  loadingTitle: string;
 }
