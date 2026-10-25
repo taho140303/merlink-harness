@@ -7,16 +7,23 @@ import type { ChatMode } from "./types";
 interface ChatHeaderProps {
   mode: ChatMode;
   onModeChange: (mode: ChatMode) => void;
+  onToggleDraft: () => void;
+  isDraftOpen: boolean;
   progressPercent?: number;
 }
 
-export function ChatHeader({ mode, onModeChange, progressPercent = 65 }: ChatHeaderProps) {
+export function ChatHeader({
+  mode,
+  onModeChange,
+  onToggleDraft,
+  isDraftOpen,
+  progressPercent = 65,
+}: ChatHeaderProps) {
   const [infoOpen, setInfoOpen] = useState(false);
 
   return (
     <>
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/70 px-6 backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-950/70">
-        {/* Left: Title + Preview Badge */}
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
             Merlink-harness
@@ -26,9 +33,7 @@ export function ChatHeader({ mode, onModeChange, progressPercent = 65 }: ChatHea
           </span>
         </div>
 
-        {/* Center: Mode toggle + Process bar + Info icon */}
         <div className="flex items-center gap-3">
-          {/* Toggle 2 mode: Chat & Manual */}
           <div className="flex items-center rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
             <button
               type="button"
@@ -58,7 +63,6 @@ export function ChatHeader({ mode, onModeChange, progressPercent = 65 }: ChatHea
             </button>
           </div>
 
-          {/* Process bar */}
           <div className="flex items-center gap-2">
             <div className="h-2 w-28 overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-900">
               <div
@@ -77,11 +81,16 @@ export function ChatHeader({ mode, onModeChange, progressPercent = 65 }: ChatHea
           </div>
         </div>
 
-        {/* Right: Draft building button with pencil */}
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={onToggleDraft}
+            className={cn(
+              "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
+              isDraftOpen
+                ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
+                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            )}
           >
             <Pencil className="h-3.5 w-3.5" />
             <span>Draft building</span>
