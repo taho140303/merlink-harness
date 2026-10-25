@@ -7,9 +7,14 @@ import type { FeedbackContext } from "../draft/types";
 interface ChatInputBarProps {
   feedbackContext?: FeedbackContext | null;
   onClearFeedback?: () => void;
+  onSend?: (text: string) => void;
 }
 
-export function ChatInputBar({ feedbackContext, onClearFeedback }: ChatInputBarProps) {
+export function ChatInputBar({
+  feedbackContext,
+  onClearFeedback,
+  onSend,
+}: ChatInputBarProps) {
   const [prompt, setPrompt] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -19,9 +24,15 @@ export function ChatInputBar({ feedbackContext, onClearFeedback }: ChatInputBarP
     }
   }, [feedbackContext]);
 
+  const handleSend = () => {
+    if (!prompt.trim()) return;
+    onSend?.(prompt);
+    setPrompt("");
+    onClearFeedback?.();
+  };
+
   return (
     <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none transition-all">
-      {/* Component đính kèm khi ấn "Góp ý & sửa đổi" */}
       {feedbackContext && (
         <div className="mb-2 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
           <div className="flex items-center gap-2 truncate">
@@ -49,6 +60,12 @@ export function ChatInputBar({ feedbackContext, onClearFeedback }: ChatInputBarP
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
           placeholder={
             feedbackContext
               ? `Nhập nội dung chỉnh sửa hoặc góp ý cho [${feedbackContext.title}]...`
@@ -82,6 +99,7 @@ export function ChatInputBar({ feedbackContext, onClearFeedback }: ChatInputBarP
           <ContextUsagePopover />
           <button
             type="button"
+            onClick={handleSend}
             className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors"
             title="Send"
           >
