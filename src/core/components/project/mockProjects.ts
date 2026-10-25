@@ -1,4 +1,4 @@
-import type { ProjectItem } from "./types";
+import type { ProjectItem, ArcItem } from "./types";
 
 import book1 from "../../assets/projects/cover/book1.svg";
 import book2 from "../../assets/projects/cover/book2.svg";
@@ -14,6 +14,37 @@ import book12 from "../../assets/projects/cover/book12.svg";
 import book13 from "../../assets/projects/cover/book13.svg";
 import book14 from "../../assets/projects/cover/book14.svg";
 import book15 from "../../assets/projects/cover/book15.svg";
+
+const SAMPLE_ARCS: ArcItem[] = [
+  {
+    id: "arc-1",
+    title: "Tập 1: Khởi nguyên đứt gãy ma pháp",
+    chapters: [
+      { id: "c-1", title: "Chương 1: Khế ước quỷ dữ", date: "18/04/2026", hasIllustration: true },
+      { id: "c-2", title: "Chương 2: Cuộc sống bị đảo lộn rồi...", date: "18/04/2026", hasIllustration: true },
+      { id: "c-3", title: "Chương 3: Mahou Change!", date: "24/04/2026", hasIllustration: true },
+      { id: "c-4", title: "Chương 4: \"Bạn gái\" của tôi", date: "08/05/2026", hasIllustration: true },
+      { id: "c-5", title: "Chương 5: Cô gia sư nghiêm khắc", date: "18/05/2026" },
+      { id: "c-6", title: "Chương 6: Bí mật của Reika", date: "25/05/2026" },
+      { id: "c-7", title: "Chương 7: Ma pháp thiếu nữ Azhra", date: "02/06/2026" },
+      { id: "c-8", title: "Chương 8: Hẹn hò với Ayaka", date: "15/06/2026" },
+      { id: "c-9", title: "Chương 9: Đừng tin người quá.", date: "03/07/2026" },
+      { id: "c-10", title: "Chương 10: Xin hãy cho em làm đệ tử!", date: "19/07/2026" },
+      { id: "c-11", title: "Chương 11: Món quà", date: "19/08/2026" },
+      { id: "c-12", title: "Chương 12: Lần đầu được đi săn cùng sư phụ", date: "26/09/2026" },
+      { id: "c-13", title: "Chương 13: Sự thật", date: "21/10/2026", isNew: true },
+    ],
+  },
+  {
+    id: "arc-2",
+    title: "Tập 2: Ánh sáng phán quyết và bóng tối hư không",
+    chapters: [
+      { id: "c-14", title: "Chương 14: Cuộc viễn chinh qua dải sương mù", date: "28/10/2026", hasIllustration: true },
+      { id: "c-15", title: "Chương 15: Cung điện thất lạc dưới lòng đất", date: "05/11/2026" },
+      { id: "c-16", title: "Chương 16: Dấu ấn phong ấn bị phá vỡ", date: "12/11/2026", hasIllustration: true },
+    ],
+  },
+];
 
 export const MOCK_PROJECTS: ProjectItem[] = [
   {
@@ -31,6 +62,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "42 entries",
       createdDate: "2025-11-10",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-2",
@@ -47,6 +79,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "19 entries",
       createdDate: "2026-01-15",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-3",
@@ -63,6 +96,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "27 entries",
       createdDate: "2025-08-04",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-4",
@@ -79,6 +113,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "14 entries",
       createdDate: "2026-03-01",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-5",
@@ -95,6 +130,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "33 entries",
       createdDate: "2025-09-12",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-6",
@@ -111,6 +147,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "58 entries",
       createdDate: "2025-02-20",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-7",
@@ -127,6 +164,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "22 entries",
       createdDate: "2026-05-18",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-8",
@@ -143,6 +181,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "31 entries",
       createdDate: "2025-12-01",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-9",
@@ -159,6 +198,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "15 entries",
       createdDate: "2026-07-22",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-10",
@@ -175,6 +215,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "49 entries",
       createdDate: "2025-04-14",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-11",
@@ -191,6 +232,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "25 entries",
       createdDate: "2026-02-11",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-12",
@@ -207,6 +249,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "38 entries",
       createdDate: "2025-06-30",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-13",
@@ -223,6 +266,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "18 entries",
       createdDate: "2026-08-05",
     },
+    arcs: SAMPLE_ARCS,
   },
   {
     id: "proj-14",
@@ -239,5 +283,6 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "12 entries",
       createdDate: "2026-09-01",
     },
+    arcs: SAMPLE_ARCS,
   },
 ];

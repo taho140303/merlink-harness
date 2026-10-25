@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 160" width="384" height="640"
+     shape-rendering="crispEdges" style="image-rendering:pixelated">
+
+  <!-- ===== Nền canvas ===== -->
+  <rect width="96" height="160" fill="#f7edd8"/>
+
+  <!-- Vân canvas -->
+  <g fill="#eadcbe">
+    <rect x="3"  y="3"   width="1" height="1"/>
+    <rect x="14" y="2"   width="1" height="1"/>
+    <rect x="28" y="4"   width="1" height="1"/>
+    <rect x="44" y="2"   width="1" height="1"/>
+    <rect x="62" y="3"   width="1" height="1"/>
+    <rect x="78" y="2"   width="1" height="1"/>
+    <rect x="90" y="4"   width="1" height="1"/>
+    <rect x="6"  y="30"  width="1" height="1"/>
+    <rect x="88" y="30"  width="1" height="1"/>
+    <rect x="4"  y="60"  width="1" height="1"/>
+    <rect x="92" y="70"  width="1" height="1"/>
+    <rect x="5"  y="110" width="1" height="1"/>
+    <rect x="90" y="115" width="1" height="1"/>
+    <rect x="8"  y="140" width="1" height="1"/>
+    <rect x="86" y="145" width="1" height="1"/>
+    <rect x="44" y="155" width="1" height="1"/>
+    <rect x="60" y="152" width="1" height="1"/>
+  </g>
+
+  <!-- ===== Tiêu đề ART ===== -->
+  <g>
+    <!-- A -->
+    <g fill="#ef476f">
+      <rect x="35" y="7"  width="3" height="3"/>
+      <rect x="32" y="10" width="3" height="3"/><rect x="38" y="10" width="3" height="3"/>
+      <rect x="32" y="13" width="9" height="3"/>
+      <rect x="32" y="16" width="3" height="3"/><rect x="38" y="16" width="3" height="3"/>
+      <rect x="32" y="19" width="3" height="3"/><rect x="38" y="19" width="3" height="3"/>
+    </g>
+    <!-- R -->
+    <g fill="#ffb703">
+      <rect x="44" y="7"  width="6" height="3"/>
+      <rect x="44" y="10" width="3" height="3"/><rect x="50" y="10" width="3" height="3"/>
+      <rect x="44" y="13" width="6" height="3"/>
+      <rect x="44" y="16" width="3" height="3"/><rect x="50" y="16" width="3" height="3"/>
+      <rect x="44" y="19" width="3" height="3"/><rect x="50" y="19" width="3" height="3"/>
+    </g>
+    <!-- T -->
+    <g fill="#118ab2">
+      <rect x="56" y="7"  width="9" height="3"/>
+      <rect x="59" y="10" width="3" height="3"/>
+      <rect x="59" y="13" width="3" height="3"/>
+      <rect x="59" y="16" width="3" height="3"/>
+      <rect x="59" y="19" width="3" height="3"/>
+    </g>
+  </g>
+
+  <!-- Đường phụ đề -->
+  <rect x="34" y="25" width="28" height="1" fill="#2b1b4d"/>
+  <rect x="44" y="27" width="8"  height="1" fill="#2b1b4d"/>
+
+  <!-- ===== Khung tranh ===== -->
+  <rect x="6" y="32" width="84" height="76" fill="#1a0f2e"/>
+  <rect x="7" y="33" width="82" height="74" fill="#c9a227"/>
+
+  <!-- Bầu trời hoàng hôn -->
+  <rect x="10" y="36" width="76" height="6"  fill="#2b1b4d"/>
+  <rect x="10" y="42" width="76" height="6"  fill="#5a2a8a"/>
+  <rect x="10" y="48" width="76" height="6"  fill="#b5179e"/>
+  <rect x="10" y="54" width="76" height="6"  fill="#f72585"/>
+  <rect x="10" y="60" width="76" height="7"  fill="#ff6b35"/>
+  <rect x="10" y="67" width="76" height="7"  fill="#ff9e00"/>
+  <rect x="10" y="74" width="76" height="7"  fill="#ffd60a"/>
+  <rect x="10" y="81" width="76" height="7"  fill="#ffb703"/>
+  <rect x="10" y="88" width="76" height="16" fill="#ff9e00"/>
+
+  <!-- Sao lấp lánh -->
+  <g fill="#e0c3fc">
+    <rect x="20" y="40" width="1" height="1"/>
+    <rect x="70" y="38" width="1" height="1"/>
+    <rect x="34" y="46" width="1" height="1"/>
+    <rect x="80" y="46" width="1" height="1"/>
+    <rect x="16" y="52" width="1" height="1"/>
+  </g>
+
+  <!-- Mặt trời -->
+  <circle cx="48" cy="71" r="9" fill="#ffb703" opacity="0.35"/>
+  <circle cx="48" cy="71" r="6" fill="#fff3b0"/>
+
+  <!-- Đồi xa -->
+  <polygon points="10,104 10,90 24,80 40,90 56,78 72,90 86,82 86,104" fill="#3a2d5c"/>
+  <!-- Đồi gần -->
+  <polygon points="10,104 10,98 22,90 36,100 50,92 66,102 86,96 86,104" fill="#241a3f"/>
+
+  <!-- Viền sáng khung -->
+  <rect x="10" y="36" width="76" height="1" fill="#ffffff" opacity="0.15"/>
+
+  <!-- ===== Vệt sơn cầu vồng ===== -->
+  <g>
+    <rect x="14" y="113" width="12" height="5" fill="#ef476f"/>
+    <rect x="26" y="111" width="12" height="5" fill="#ff9e00"/>
+    <rect x="38" y="113" width="12" height="5" fill="#ffd60a"/>
+    <rect x="50" y="111" width="12" height="5" fill="#06d6a0"/>
+    <rect x="62" y="113" width="12" height="5" fill="#118ab2"/>
+    <rect x="74" y="111" width="8"  height="5" fill="#7b2cbf"/>
+  </g>
+
+  <!-- Vệt sơn bắn -->
+  <g>
+    <rect x="22" y="122" width="2" height="2" fill="#ef476f"/>
+    <rect x="30" y="124" width="1" height="1" fill="#ffd60a"/>
+    <rect x="44" y="122" width="2" height="2" fill="#06d6a0"/>
+    <rect x="58" y="124" width="1" height="1" fill="#118ab2"/>
+    <rect x="66" y="121" width="2" height="2" fill="#ff9e00"/>
+    <rect x="76" y="123" width="1" height="1" fill="#7b2cbf"/>
+  </g>
+
+  <!-- ===== Chữ PIXEL (font pixel 3x5) ===== -->
+  <g fill="#2b1b4d">
+    <!-- P -->
+    <rect x="39" y="132" width="2" height="1"/>
+    <rect x="39" y="133" width="1" height="1"/><rect x="41" y="133" width="1" height="1"/>
+    <rect x="39" y="134" width="2" height="1"/>
+    <rect x="39" y="135" width="1" height="1"/>
+    <rect x="39" y="136" width="1" height="1"/>
+    <!-- I -->
+    <rect x="43" y="132" width="3" height="1"/>
+    <rect x="44" y="133" width="1" height="1"/>
+    <rect x="44" y="134" width="1" height="1"/>
+    <rect x="44" y="135" width="1" height="1"/>
+    <rect x="43" y="136" width="3" height="1"/>
+    <!-- X -->
+    <rect x="47" y="132" width="1" height="1"/><rect x="49" y="132" width="1" height="1"/>
+    <rect x="47" y="133" width="1" height="1"/><rect x="49" y="133" width="1" height="1"/>
+    <rect x="48" y="134" width="1" height="1"/>
+    <rect x="47" y="135" width="1" height="1"/><rect x="49" y="135" width="1" height="1"/>
+    <rect x="47" y="136" width="1" height="1"/><rect x="49" y="136" width="1" height="1"/>
+    <!-- E -->
+    <rect x="51" y="132" width="3" height="1"/>
+    <rect x="51" y="133" width="1" height="1"/>
+    <rect x="51" y="134" width="2" height="1"/>
+    <rect x="51" y="135" width="1" height="1"/>
+    <rect x="51" y="136" width="3" height="1"/>
+    <!-- L -->
+    <rect x="55" y="132" width="1" height="1"/>
+    <rect x="55" y="133" width="1" height="1"/>
+    <rect x="55" y="134" width="1" height="1"/>
+    <rect x="55" y="135" width="1" height="1"/>
+    <rect x="55" y="136" width="3" height="1"/>
+  </g>
+
+  <!-- ===== Bảng pha màu ===== -->
+  <rect x="13" y="141" width="14" height="9" rx="3" fill="#d4a373"/>
+  <rect x="13" y="141" width="14" height="1" fill="#b8865a"/>
+  <circle cx="17" cy="145" r="1.2" fill="#ef476f"/>
+  <circle cx="21" cy="144" r="1.2" fill="#ffd60a"/>
+  <circle cx="24" cy="146" r="1.2" fill="#06d6a0"/>
+  <circle cx="19" cy="148" r="1.2" fill="#118ab2"/>
+
+  <!-- ===== Cọ vẽ ===== -->
+  <rect x="70" y="140" width="3" height="7" fill="#8b5a2b"/>
+  <rect x="69" y="147" width="5" height="2" fill="#c0c0c0"/>
+  <rect x="68" y="149" width="7" height="2" fill="#ef476f"/>
+
+  <!-- ===== Viền dưới ===== -->
+  <rect x="6" y="154" width="84" height="1" fill="#2b1b4d"/>
+  <rect x="6" y="155" width="1"  height="1" fill="#2b1b4d"/>
+  <rect x="89" y="155" width="1" height="1" fill="#2b1b4d"/>
+
+  <!-- Góc trang trí -->
+  <g fill="#2b1b4d">
+    <rect x="2"  y="2"   width="2" height="1"/>
+    <rect x="2"  y="2"   width="1" height="2"/>
+    <rect x="92" y="2"   width="2" height="1"/>
+    <rect x="93" y="2"   width="1" height="2"/>
+    <rect x="2"  y="157" width="2" height="1"/>
+    <rect x="2"  y="156" width="1" height="2"/>
+    <rect x="92" y="157" width="2" height="1"/>
+    <rect x="93" y="156" width="1" height="2"/>
+  </g>
+
+</svg>

@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== NỀN GRADIENT ===== -->
+    <rect width="120" height="200" fill="#0f172a"/>
+    <rect x="0" y="0"   width="120" height="40"  fill="#0f172a"/>
+    <rect x="0" y="40"  width="120" height="40"  fill="#1e293b"/>
+    <rect x="0" y="80"  width="120" height="40"  fill="#334155"/>
+
+    <!-- ===== LƯỚI KỸ THUẬT SỐ ===== -->
+    <g stroke="#38bdf8" stroke-width="1" opacity="0.15">
+      <line x1="0" y1="20" x2="120" y2="20"/>
+      <line x1="0" y1="40" x2="120" y2="40"/>
+      <line x1="0" y1="60" x2="120" y2="60"/>
+      <line x1="0" y1="80" x2="120" y2="80"/>
+      <line x1="0" y1="100" x2="120" y2="100"/>
+      <line x1="20" y1="0" x2="20" y2="120"/>
+      <line x1="40" y1="0" x2="40" y2="120"/>
+      <line x1="60" y1="0" x2="60" y2="120"/>
+      <line x1="80" y1="0" x2="80" y2="120"/>
+      <line x1="100" y1="0" x2="100" y2="120"/>
+    </g>
+
+    <!-- ===== ĐIỂM NHẤN SÁNG ===== -->
+    <g fill="#38bdf8" opacity="0.4">
+      <rect x="19" y="19" width="2" height="2"/>
+      <rect x="59" y="39" width="2" height="2"/>
+      <rect x="99" y="59" width="2" height="2"/>
+      <rect x="39" y="79" width="2" height="2"/>
+      <rect x="79" y="19" width="2" height="2"/>
+      <rect x="19" y="99" width="2" height="2"/>
+      <rect x="99" y="99" width="2" height="2"/>
+    </g>
+
+    <!-- ===== VÒNG TRÒN SỐ ===== -->
+    <circle cx="60" cy="40" r="26" fill="none" stroke="#38bdf8" stroke-width="1" opacity="0.3"/>
+    <circle cx="60" cy="40" r="20" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.25"/>
+
+    <!-- ===== HỘP KIỆN LỚN ===== -->
+    <!-- Hộp chính phía sau -->
+    <rect x="44" y="42" width="32" height="28" fill="#c2410c"/>
+    <rect x="44" y="42" width="32" height="4" fill="#ea580c"/>
+    <rect x="44" y="46" width="4" height="24" fill="#9a3412"/>
+    <!-- Dải băng dán -->
+    <rect x="58" y="42" width="4" height="28" fill="#fbbf24"/>
+    <rect x="58" y="42" width="2" height="28" fill="#fde68a"/>
+
+    <!-- Hộp nhỏ bên trái -->
+    <rect x="20" y="56" width="22" height="20" fill="#c2410c"/>
+    <rect x="20" y="56" width="22" height="3" fill="#ea580c"/>
+    <rect x="20" y="59" width="3" height="17" fill="#9a3412"/>
+    <rect x="30" y="56" width="3" height="20" fill="#fbbf24"/>
+
+    <!-- Hộp nhỏ bên phải -->
+    <rect x="78" y="52" width="22" height="22" fill="#c2410c"/>
+    <rect x="78" y="52" width="22" height="3" fill="#ea580c"/>
+    <rect x="78" y="55" width="3" height="19" fill="#9a3412"/>
+    <rect x="88" y="52" width="3" height="22" fill="#fbbf24"/>
+
+    <!-- ===== GIỎ HÀNG (cart) ===== -->
+    <!-- Thân giỏ -->
+    <polygon points="42,100 78,100 74,118 46,118" fill="#0284c7"/>
+    <polygon points="42,100 78,100 76,104 44,104" fill="#38bdf8"/>
+    <!-- Đường nan -->
+    <line x1="50" y1="100" x2="52" y2="118" stroke="#0c4a6e" stroke-width="1"/>
+    <line x1="60" y1="100" x2="60" y2="118" stroke="#0c4a6e" stroke-width="1"/>
+    <line x1="70" y1="100" x2="68" y2="118" stroke="#0c4a6e" stroke-width="1"/>
+    <line x1="46" y1="108" x2="74" y2="108" stroke="#0c4a6e" stroke-width="1"/>
+    <!-- Tay cầm -->
+    <rect x="36" y="96" width="8" height="4" fill="#0284c7"/>
+    <rect x="34" y="92" width="4" height="4" fill="#0284c7"/>
+    <rect x="38" y="96" width="2" height="4" fill="#38bdf8"/>
+    <!-- Bánh xe -->
+    <rect x="50" y="118" width="4" height="4" fill="#0c4a6e"/>
+    <rect x="66" y="118" width="4" height="4" fill="#0c4a6e"/>
+    <rect x="51" y="119" width="2" height="2" fill="#38bdf8"/>
+    <rect x="67" y="119" width="2" height="2" fill="#38bdf8"/>
+
+    <!-- Sản phẩm trong giỏ -->
+    <rect x="50" y="94" width="6" height="6" fill="#a78bfa"/>
+    <rect x="50" y="94" width="6" height="2" fill="#c4b5fd"/>
+    <rect x="58" y="92" width="8" height="8" fill="#f472b6"/>
+    <rect x="58" y="92" width="8" height="2" fill="#f9a8d4"/>
+    <rect x="66" y="96" width="5" height="4" fill="#fbbf24"/>
+
+    <!-- ===== THẺ TÍN DỤNG ===== -->
+    <rect x="20" y="128" width="26" height="16" fill="#a78bfa"/>
+    <rect x="20" y="128" width="26" height="16" fill="none" stroke="#7c3aed" stroke-width="1"/>
+    <rect x="20" y="132" width="26" height="3" fill="#7c3aed"/>
+    <rect x="24" y="138" width="8" height="2" fill="#ede9fe"/>
+    <rect x="24" y="141" width="12" height="1" fill="#c4b5fd"/>
+    <rect x="40" y="138" width="4" height="3" fill="#fbbf24"/>
+
+    <!-- ===== TAG GIẢM GIÁ ===== -->
+    <polygon points="88,128 108,128 108,140 98,148 88,140" fill="#22c55e"/>
+    <polygon points="88,128 108,128 108,140 98,148 88,140" fill="none" stroke="#15803d" stroke-width="1"/>
+    <rect x="90" y="130" width="4" height="4" fill="#15803d"/>
+    <text x="99" y="139" font-family="'Courier New', monospace" font-weight="900" font-size="6" fill="#ffffff" text-anchor="middle">%</text>
+
+    <!-- ===== XU / ĐỒNG TIỀN ===== -->
+    <rect x="78" y="90" width="10" height="10" fill="#fbbf24"/>
+    <rect x="78" y="90" width="10" height="2" fill="#fde68a"/>
+    <rect x="78" y="90" width="2" height="10" fill="#f59e0b"/>
+    <rect x="82" y="94" width="2" height="2" fill="#92400e"/>
+
+    <!-- ===== MŨI TÊN TĂNG TRƯỞNG ===== -->
+    <g fill="#22c55e">
+      <rect x="14" y="112" width="2" height="2"/>
+      <rect x="16" y="110" width="2" height="2"/>
+      <rect x="18" y="108" width="2" height="2"/>
+      <rect x="20" y="106" width="2" height="2"/>
+      <rect x="22" y="104" width="2" height="2"/>
+      <polygon points="24,102 28,102 24,106"/>
+    </g>
+
+    <!-- ===== NODE KẾT NỐI (network) ===== -->
+    <g stroke="#38bdf8" stroke-width="1" opacity="0.5">
+      <line x1="60" y1="70" x2="34" y2="88"/>
+      <line x1="60" y1="70" x2="86" y2="86"/>
+      <line x1="60" y1="70" x2="60" y2="92"/>
+    </g>
+    <g fill="#38bdf8">
+      <rect x="32" y="86" width="3" height="3"/>
+      <rect x="85" y="84" width="3" height="3"/>
+      <rect x="59" y="90" width="3" height="3"/>
+    </g>
+
+    <!-- ===== DẢI TIÊU ĐỀ ===== -->
+    <rect x="0" y="148" width="120" height="52" fill="#020617"/>
+    <rect x="0" y="148" width="120" height="2" fill="#38bdf8"/>
+    <rect x="0" y="150" width="120" height="1" fill="#0284c7"/>
+
+    <!-- Điểm nhấn tiêu đề -->
+    <rect x="14" y="164" width="4" height="1" fill="#38bdf8"/>
+    <rect x="102" y="164" width="4" height="1" fill="#38bdf8"/>
+    <rect x="20" y="164" width="80" height="1" fill="#1e293b"/>
+
+    <!-- ===== CHỮ TIÊU ĐỀ ===== -->
+    <text x="60" y="162" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="6"
+          fill="#38bdf8" text-anchor="middle" letter-spacing="3">THE COMPLETE GUIDE TO</text>
+    <text x="60" y="178" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="17"
+          fill="#f8fafc" text-anchor="middle" letter-spacing="1">ECOMMERCE</text>
+    <text x="60" y="190" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="5"
+          fill="#a78bfa" text-anchor="middle" letter-spacing="2">SELL · SCALE · SUCCEED</text>
+    <text x="60" y="197" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="4"
+          fill="#64748b" text-anchor="middle" letter-spacing="2">PIXEL PRESS EDITION</text>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#38bdf8" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#1e40af" stroke-width="1"/>
+
+    <!-- Góc khung trang trí -->
+    <g fill="#38bdf8">
+      <rect x="2" y="2" width="4" height="4"/>
+      <rect x="114" y="2" width="4" height="4"/>
+      <rect x="2" y="194" width="4" height="4"/>
+      <rect x="114" y="194" width="4" height="4"/>
+    </g>
+
+  </g>
+</svg>

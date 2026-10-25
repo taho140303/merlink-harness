@@ -1,0 +1,222 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== NỀN GIẤC MƠ ===== -->
+    <rect width="120" height="200" fill="#0a0616"/>
+    <rect x="0" y="0"   width="120" height="30"  fill="#1a0a3a"/>
+    <rect x="0" y="30"  width="120" height="40"  fill="#251548"/>
+    <rect x="0" y="70"  width="120" height="40"  fill="#2c1a5e"/>
+    <rect x="0" y="110" width="120" height="40"  fill="#1e1246"/>
+    <rect x="0" y="150" width="120" height="50"  fill="#0f0828"/>
+
+    <!-- ===== QUẦNG SÁNG MƠ ===== -->
+    <circle cx="60" cy="80" r="48" fill="#d946ef" opacity="0.06"/>
+    <circle cx="60" cy="80" r="34" fill="#a855f7" opacity="0.08"/>
+    <circle cx="60" cy="80" r="20" fill="#f0abfc" opacity="0.10"/>
+
+    <!-- ===== SAO MỀM ===== -->
+    <g fill="#e9d5ff" opacity="0.7">
+      <rect x="8"  y="8"  width="2" height="2"/>
+      <rect x="22" y="14" width="2" height="2"/>
+      <rect x="40" y="6"  width="2" height="2"/>
+      <rect x="56" y="18" width="2" height="2"/>
+      <rect x="72" y="10" width="2" height="2"/>
+      <rect x="88" y="6"  width="2" height="2"/>
+      <rect x="104" y="16" width="2" height="2"/>
+      <rect x="14" y="30" width="2" height="2"/>
+      <rect x="30" y="24" width="2" height="2"/>
+      <rect x="46" y="34" width="2" height="2"/>
+      <rect x="62" y="26" width="2" height="2"/>
+      <rect x="78" y="34" width="2" height="2"/>
+      <rect x="96" y="24" width="2" height="2"/>
+      <rect x="112" y="34" width="2" height="2"/>
+      <rect x="6"  y="52" width="2" height="2"/>
+      <rect x="24" y="60" width="2" height="2"/>
+      <rect x="42" y="50" width="2" height="2"/>
+      <rect x="96" y="52" width="2" height="2"/>
+      <rect x="112" y="46" width="2" height="2"/>
+      <rect x="14" y="86" width="2" height="2"/>
+      <rect x="106" y="80" width="2" height="2"/>
+      <rect x="8"  y="128" width="2" height="2"/>
+      <rect x="110" y="128" width="2" height="2"/>
+      <rect x="18" y="144" width="2" height="2"/>
+      <rect x="100" y="144" width="2" height="2"/>
+    </g>
+    <g fill="#f0abfc" opacity="0.6">
+      <rect x="16" y="20" width="1" height="1"/>
+      <rect x="38" y="16" width="1" height="1"/>
+      <rect x="68" y="20" width="1" height="1"/>
+      <rect x="92" y="18" width="1" height="1"/>
+      <rect x="108" y="30" width="1" height="1"/>
+      <rect x="12" y="44" width="1" height="1"/>
+      <rect x="36" y="46" width="1" height="1"/>
+      <rect x="86" y="48" width="1" height="1"/>
+      <rect x="20" y="74" width="1" height="1"/>
+      <rect x="102" y="70" width="1" height="1"/>
+      <rect x="28" y="134" width="1" height="1"/>
+      <rect x="94" y="138" width="1" height="1"/>
+    </g>
+
+    <!-- ===== MẶT TRĂNG LƯỠI LIỀM ===== -->
+    <circle cx="92" cy="30" r="12" fill="#fef3c7" opacity="0.12"/>
+    <circle cx="92" cy="30" r="9"  fill="#fde68a" opacity="0.20"/>
+    <circle cx="92" cy="30" r="9"  fill="#f5e9b8"/>
+    <circle cx="96" cy="27" r="7"  fill="#1a0a3a"/>
+
+    <!-- ===== MÂY MƠ ===== -->
+    <g fill="#a855f7" opacity="0.25">
+      <rect x="10" y="70" width="22" height="4"/>
+      <rect x="14" y="68" width="14" height="2"/>
+      <rect x="6"  y="72" width="30" height="2"/>
+      <rect x="84" y="76" width="26" height="4"/>
+      <rect x="88" y="74" width="16" height="2"/>
+      <rect x="80" y="78" width="34" height="2"/>
+    </g>
+    <g fill="#d946ef" opacity="0.18">
+      <rect x="16" y="66" width="10" height="2"/>
+      <rect x="92" y="72" width="12" height="2"/>
+    </g>
+
+    <!-- ===== MẮT THỨ BA (con mắt giấc mơ) ===== -->
+    <!-- Quầng sáng -->
+    <ellipse cx="60" cy="56" rx="16" ry="9" fill="#a855f7" opacity="0.25"/>
+    <ellipse cx="60" cy="56" rx="11" ry="6" fill="#d946ef" opacity="0.35"/>
+    <!-- Lòng trắng -->
+    <ellipse cx="60" cy="56" rx="9" ry="5" fill="#faf5ff"/>
+    <!-- Tròng mắt -->
+    <circle cx="60" cy="56" r="3" fill="#7c3aed"/>
+    <circle cx="60" cy="56" r="2" fill="#0a0616"/>
+    <!-- Điểm sáng -->
+    <rect x="58" y="54" width="1" height="1" fill="#ffffff"/>
+    <rect x="62" y="57" width="1" height="1" fill="#f0abfc"/>
+    <!-- Lông mi -->
+    <g fill="#7c3aed">
+      <rect x="52" y="52" width="1" height="2"/>
+      <rect x="55" y="50" width="1" height="2"/>
+      <rect x="64" y="50" width="1" height="2"/>
+      <rect x="67" y="52" width="1" height="2"/>
+    </g>
+
+    <!-- ===== NGƯỜI ĐANG NGỦ ===== -->
+    <!-- Nệm mây -->
+    <g fill="#c4b5fd" opacity="0.55">
+      <rect x="30" y="128" width="60" height="6"/>
+      <rect x="34" y="124" width="52" height="4"/>
+      <rect x="26" y="130" width="68" height="4"/>
+    </g>
+    <g fill="#e9d5ff" opacity="0.6">
+      <rect x="40" y="124" width="16" height="2"/>
+      <rect x="62" y="122" width="14" height="2"/>
+    </g>
+
+    <!-- Chăn -->
+    <polygon points="42,124 78,124 80,144 44,144" fill="#7c3aed"/>
+    <polygon points="42,124 78,124 78,128 42,128" fill="#a855f7"/>
+    <g fill="#6d28d9">
+      <rect x="48" y="132" width="6" height="2"/>
+      <rect x="58" y="136" width="8" height="2"/>
+      <rect x="68" y="132" width="6" height="2"/>
+      <rect x="52" y="140" width="4" height="2"/>
+    </g>
+
+    <!-- Gối -->
+    <rect x="28" y="122" width="16" height="8" fill="#ddd6fe"/>
+    <rect x="28" y="122" width="16" height="3" fill="#f3e8ff"/>
+    <rect x="28" y="129" width="16" height="1" fill="#a78bfa"/>
+
+    <!-- Đầu người ngủ -->
+    <rect x="34" y="112" width="12" height="12" fill="#fcd9b6"/>
+    <rect x="34" y="112" width="12" height="3" fill="#e8bc98"/>
+    <!-- Tóc -->
+    <rect x="32" y="108" width="16" height="6" fill="#4c1d95"/>
+    <rect x="32" y="108" width="5" height="10" fill="#3b1578"/>
+    <rect x="44" y="108" width="4" height="8" fill="#3b1578"/>
+    <rect x="34" y="106" width="12" height="2" fill="#5b21b6"/>
+    <!-- Mắt nhắm (nét cong) -->
+    <rect x="37" y="118" width="2" height="1" fill="#3b1578"/>
+    <rect x="42" y="118" width="2" height="1" fill="#3b1578"/>
+    <!-- Miệng nhẹ -->
+    <rect x="39" y="121" width="2" height="1" fill="#c2410c" opacity="0.6"/>
+
+    <!-- Vệt sáng giấc mơ bay lên từ đầu -->
+    <g fill="#f0abfc" opacity="0.5">
+      <rect x="40" y="100" width="2" height="2"/>
+      <rect x="44" y="92" width="2" height="2"/>
+      <rect x="38" y="84" width="2" height="2"/>
+      <rect x="46" y="76" width="2" height="2"/>
+      <rect x="42" y="68" width="1" height="1"/>
+    </g>
+    <g fill="#e9d5ff" opacity="0.35">
+      <rect x="50" y="96" width="1" height="1"/>
+      <rect x="34" y="90" width="1" height="1"/>
+      <rect x="48" y="84" width="1" height="1"/>
+    </g>
+
+    <!-- ===== CÁNH BƯỚM MƠ ===== -->
+    <g fill="#f0abfc" opacity="0.7">
+      <rect x="72" y="86" width="3" height="3"/>
+      <rect x="74" y="84" width="3" height="3"/>
+      <rect x="76" y="82" width="3" height="3"/>
+      <rect x="70" y="88" width="2" height="2"/>
+      <rect x="78" y="84" width="2" height="2"/>
+    </g>
+    <g fill="#d946ef" opacity="0.6">
+      <rect x="74" y="88" width="2" height="2"/>
+      <rect x="77" y="86" width="1" height="1"/>
+    </g>
+
+    <!-- ===== ĐỒNG HỒ CÁT (thời gian trôi) ===== -->
+    <rect x="14" y="110" width="8" height="2" fill="#c9a227"/>
+    <rect x="14" y="124" width="8" height="2" fill="#c9a227"/>
+    <polygon points="15,112 21,112 18,117" fill="#fde68a" opacity="0.5"/>
+    <polygon points="15,122 21,122 18,117" fill="#fde68a" opacity="0.5"/>
+    <rect x="16" y="112" width="1" height="1" fill="#fde68a"/>
+    <rect x="19" y="118" width="1" height="1" fill="#fde68a"/>
+    <rect x="17" y="120" width="1" height="1" fill="#fde68a"/>
+    <rect x="16" y="116" width="4" height="1" fill="#c9a227"/>
+
+    <!-- ===== KHÓA / CHÌA KHÓA GIẤC MƠ ===== -->
+    <g fill="#fde68a">
+      <rect x="98" y="108" width="4" height="4"/>
+      <rect x="99" y="112" width="2" height="8"/>
+      <rect x="101" y="116" width="2" height="1"/>
+      <rect x="101" y="118" width="2" height="1"/>
+    </g>
+    <rect x="99" y="109" width="2" height="2" fill="#fef3c7"/>
+
+    <!-- ===== DẢI TIÊU ĐỀ ===== -->
+    <rect x="0" y="150" width="120" height="50" fill="#05020e"/>
+    <rect x="0" y="150" width="120" height="2" fill="#a855f7"/>
+    <rect x="0" y="152" width="120" height="1" fill="#7c3aed"/>
+
+    <!-- Trang trí -->
+    <g fill="#d946ef">
+      <rect x="24" y="162" width="3" height="3"/>
+      <rect x="93" y="162" width="3" height="3"/>
+      <rect x="20" y="163" width="4" height="1"/>
+      <rect x="96" y="163" width="4" height="1"/>
+      <rect x="30" y="163" width="60" height="1"/>
+    </g>
+
+    <!-- ===== CHỮ TIÊU ĐỀ ===== -->
+    <text x="60" y="178" font-family="'Courier New', monospace" font-weight="900" font-size="16"
+          fill="#f0abfc" text-anchor="middle" letter-spacing="2">LUCID</text>
+    <text x="60" y="190" font-family="'Courier New', monospace" font-weight="700" font-size="8"
+          fill="#a855f7" text-anchor="middle" letter-spacing="4">DREAM</text>
+    <text x="60" y="197" font-family="'Courier New', monospace" font-weight="700" font-size="3"
+          fill="#7c3aed" text-anchor="middle" letter-spacing="2">AWAKE INSIDE THE MIND</text>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#a855f7" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#6d28d9" stroke-width="1"/>
+
+    <!-- Góc khung -->
+    <g fill="#f0abfc">
+      <rect x="2" y="2" width="4" height="4"/>
+      <rect x="114" y="2" width="4" height="4"/>
+      <rect x="2" y="194" width="4" height="4"/>
+      <rect x="114" y="194" width="4" height="4"/>
+    </g>
+
+  </g>
+</svg>

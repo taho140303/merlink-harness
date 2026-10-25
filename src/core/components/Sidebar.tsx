@@ -14,7 +14,7 @@ export default function Sidebar() {
     <>
       <aside
         className={cn(
-          "relative flex h-screen flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out select-none dark:border-slate-800 dark:bg-slate-950",
+          "relative flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out select-none dark:border-slate-800 dark:bg-slate-950",
           collapsed ? "w-18 px-2" : "w-64 px-3"
         )}
       >

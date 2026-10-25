@@ -1,0 +1,342 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 160" width="384" height="640"
+     shape-rendering="crispEdges" style="image-rendering:pixelated">
+
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#ffd89b"/>
+      <stop offset="0.35" stop-color="#ffb680"/>
+      <stop offset="0.65" stop-color="#a8d8ec"/>
+      <stop offset="1"    stop-color="#5eb8e0"/>
+    </linearGradient>
+
+    <g id="S">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/>
+      <rect x="2" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="C">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="H">
+      <rect x="0" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="O">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="L">
+      <rect x="0" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="I">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="1" y="1" width="1" height="1"/>
+      <rect x="1" y="2" width="1" height="1"/>
+      <rect x="1" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+    <g id="F">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/>
+    </g>
+    <g id="E">
+      <rect x="0" y="0" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/>
+      <rect x="0" y="1" width="1" height="1"/>
+      <rect x="0" y="2" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/>
+      <rect x="0" y="3" width="1" height="1"/>
+      <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/>
+    </g>
+  </defs>
+
+  <!-- Nền giấy -->
+  <rect width="96" height="160" fill="#f7edd8"/>
+
+  <!-- Bầu trời -->
+  <rect x="0" y="20" width="96" height="88" fill="url(#sky)"/>
+
+  <!-- Mặt trời -->
+  <g fill="#ffd93d">
+    <rect x="70" y="30" width="12" height="12"/>
+    <rect x="73" y="28" width="6"  height="16"/>
+    <rect x="68" y="33" width="16" height="6"/>
+  </g>
+  <rect x="74" y="33" width="4" height="4" fill="#fff3b0"/>
+
+  <!-- Tia nắng -->
+  <g fill="#ffd93d" opacity="0.6">
+    <rect x="66" y="35" width="3" height="1"/>
+    <rect x="84" y="35" width="3" height="1"/>
+    <rect x="75" y="24" width="2" height="3"/>
+    <rect x="63" y="42" width="3" height="1"/>
+    <rect x="86" y="42" width="3" height="1"/>
+  </g>
+
+  <!-- Mây -->
+  <g fill="#ffffff" opacity="0.92">
+    <rect x="10" y="34" width="12" height="3"/>
+    <rect x="8"  y="37" width="16" height="2"/>
+    <rect x="6"  y="39" width="20" height="1"/>
+    <rect x="56" y="42" width="10" height="3"/>
+    <rect x="54" y="45" width="14" height="2"/>
+  </g>
+
+  <!-- Chim -->
+  <g fill="#2b1b4d">
+    <rect x="28" y="40" width="1" height="1"/>
+    <rect x="30" y="39" width="1" height="1"/>
+    <rect x="32" y="40" width="1" height="1"/>
+    <rect x="36" y="36" width="1" height="1"/>
+    <rect x="38" y="35" width="1" height="1"/>
+    <rect x="40" y="36" width="1" height="1"/>
+  </g>
+
+  <!-- Lấp lánh -->
+  <g fill="#fff3b0" opacity="0.8">
+    <rect x="6"  y="26" width="1" height="1"/>
+    <rect x="86" y="28" width="1" height="1"/>
+    <rect x="18" y="46" width="1" height="1"/>
+    <rect x="90" y="50" width="1" height="1"/>
+  </g>
+
+  <!-- Cây trái -->
+  <rect x="8" y="68" width="2" height="38" fill="#5d3a1a"/>
+  <g fill="#2d6a2d">
+    <rect x="2"  y="56" width="14" height="10"/>
+    <rect x="4"  y="52" width="10" height="4"/>
+    <rect x="0"  y="62" width="18" height="4"/>
+  </g>
+  <g fill="#1e4d1e">
+    <rect x="6"  y="58" width="4" height="4"/>
+    <rect x="2"  y="64" width="2" height="2"/>
+    <rect x="14" y="60" width="2" height="2"/>
+  </g>
+
+  <!-- Cây phải -->
+  <rect x="86" y="68" width="2" height="38" fill="#5d3a1a"/>
+  <g fill="#2d6a2d">
+    <rect x="80" y="56" width="14" height="10"/>
+    <rect x="82" y="52" width="10" height="4"/>
+    <rect x="78" y="62" width="18" height="4"/>
+  </g>
+  <g fill="#1e4d1e">
+    <rect x="86" y="58" width="4" height="4"/>
+    <rect x="92" y="64" width="2" height="2"/>
+    <rect x="80" y="60" width="2" height="2"/>
+  </g>
+
+  <!-- Tường trường -->
+  <rect x="18" y="65" width="60" height="42" fill="#f0dfb8"/>
+  <g fill="#e0c99a">
+    <rect x="18" y="72"  width="60" height="1"/>
+    <rect x="18" y="79"  width="60" height="1"/>
+    <rect x="18" y="86"  width="60" height="1"/>
+    <rect x="18" y="93"  width="60" height="1"/>
+    <rect x="18" y="100" width="60" height="1"/>
+  </g>
+
+  <!-- Mái chính -->
+  <polygon points="16,65 48,52 80,65" fill="#8b2f2f"/>
+  <polygon points="16,65 48,52 48,58" fill="#a63a3a"/>
+
+  <!-- Tháp đồng hồ -->
+  <rect x="42" y="40" width="12" height="25" fill="#f0dfb8"/>
+  <rect x="42" y="40" width="1"  height="25" fill="#d4bf8e"/>
+  <rect x="53" y="40" width="1"  height="25" fill="#d4bf8e"/>
+  <rect x="42" y="60" width="12" height="1"  fill="#e0c99a"/>
+
+  <!-- Mái tháp -->
+  <polygon points="40,40 48,30 56,40" fill="#8b2f2f"/>
+  <polygon points="40,40 48,30 48,35" fill="#a63a3a"/>
+
+  <!-- Chuông -->
+  <rect x="46" y="28" width="4"  height="1" fill="#8b6f1e"/>
+  <rect x="44" y="29" width="8"  height="2" fill="#e8c547"/>
+  <rect x="43" y="31" width="10" height="1" fill="#c9a227"/>
+  <rect x="47" y="32" width="2"  height="1" fill="#4a3510"/>
+
+  <!-- Mặt đồng hồ -->
+  <rect x="44" y="48" width="8" height="8" fill="#ffffff"/>
+  <rect x="44" y="48" width="8" height="1" fill="#c0c0c0"/>
+  <rect x="44" y="55" width="8" height="1" fill="#c0c0c0"/>
+  <rect x="47" y="49" width="2" height="1" fill="#888"/>
+  <rect x="50" y="51" width="1" height="2" fill="#888"/>
+  <rect x="47" y="54" width="2" height="1" fill="#888"/>
+  <rect x="45" y="51" width="1" height="2" fill="#888"/>
+  <!-- Kim 3:00 -->
+  <rect x="47" y="49" width="2" height="3" fill="#2b1b4d"/>
+  <rect x="48" y="52" width="3" height="1" fill="#2b1b4d"/>
+  <rect x="47" y="51" width="2" height="2" fill="#e63946"/>
+
+  <!-- Khe tháp -->
+  <rect x="47" y="44" width="2" height="2" fill="#5c3a21"/>
+  <rect x="47" y="59" width="2" height="3" fill="#5c3a21"/>
+
+  <!-- Cửa sổ -->
+  <g fill="#87ceeb">
+    <rect x="22" y="68" width="6" height="6"/>
+    <rect x="32" y="68" width="6" height="6"/>
+    <rect x="58" y="68" width="6" height="6"/>
+    <rect x="68" y="68" width="6" height="6"/>
+    <rect x="22" y="79" width="6" height="6"/>
+    <rect x="32" y="79" width="6" height="6"/>
+    <rect x="58" y="79" width="6" height="6"/>
+    <rect x="68" y="79" width="6" height="6"/>
+  </g>
+  <g fill="#6b4423">
+    <rect x="24" y="70" width="2" height="2"/>
+    <rect x="34" y="70" width="2" height="2"/>
+    <rect x="60" y="70" width="2" height="2"/>
+    <rect x="70" y="70" width="2" height="2"/>
+    <rect x="24" y="81" width="2" height="2"/>
+    <rect x="34" y="81" width="2" height="2"/>
+    <rect x="60" y="81" width="2" height="2"/>
+    <rect x="70" y="81" width="2" height="2"/>
+  </g>
+
+  <!-- Cửa chính -->
+  <rect x="42" y="88"  width="12" height="19" fill="#6b4423"/>
+  <rect x="43" y="89"  width="10" height="17" fill="#8b5a2b"/>
+  <rect x="46" y="93"  width="4"  height="4"  fill="#87ceeb"/>
+  <rect x="44" y="99"  width="1"  height="1"  fill="#ffd93d"/>
+  <rect x="51" y="99"  width="1"  height="1"  fill="#ffd93d"/>
+  <rect x="40" y="107" width="16" height="1"  fill="#5c3a21"/>
+
+  <!-- Mặt đất -->
+  <rect x="0" y="107" width="96" height="29" fill="#7cb342"/>
+
+  <!-- Lối đi -->
+  <rect x="40" y="107" width="16" height="29" fill="#d4a373"/>
+  <rect x="40" y="107" width="16" height="1"  fill="#b8895a"/>
+
+  <!-- Cỏ chi tiết -->
+  <g fill="#558b2f">
+    <rect x="4"  y="112" width="1" height="2"/>
+    <rect x="10" y="120" width="1" height="2"/>
+    <rect x="16" y="115" width="1" height="2"/>
+    <rect x="26" y="124" width="1" height="2"/>
+    <rect x="32" y="110" width="1" height="2"/>
+    <rect x="60" y="112" width="1" height="2"/>
+    <rect x="66" y="118" width="1" height="2"/>
+    <rect x="74" y="113" width="1" height="2"/>
+    <rect x="82" y="122" width="1" height="2"/>
+    <rect x="88" y="116" width="1" height="2"/>
+    <rect x="92" y="108" width="1" height="2"/>
+  </g>
+
+  <!-- Hoa -->
+  <g>
+    <rect x="14" y="120" width="1" height="1" fill="#e63946"/>
+    <rect x="22" y="126" width="1" height="1" fill="#ffd93d"/>
+    <rect x="70" y="122" width="1" height="1" fill="#e63946"/>
+    <rect x="80" y="126" width="1" height="1" fill="#ffd93d"/>
+  </g>
+
+  <!-- Học sinh 1 -->
+  <rect x="44" y="112" width="2" height="1" fill="#2b1b4d"/>
+  <rect x="44" y="113" width="2" height="2" fill="#f5d7b0"/>
+  <rect x="44" y="115" width="2" height="3" fill="#e63946"/>
+  <rect x="44" y="118" width="1" height="2" fill="#2b1b4d"/>
+  <rect x="45" y="118" width="1" height="2" fill="#2b1b4d"/>
+  <rect x="43" y="115" width="1" height="2" fill="#118ab2"/>
+
+  <!-- Học sinh 2 -->
+  <rect x="50" y="112" width="2" height="1" fill="#2b1b4d"/>
+  <rect x="50" y="113" width="2" height="2" fill="#f5d7b0"/>
+  <rect x="50" y="115" width="2" height="2" fill="#06d6a0"/>
+  <rect x="49" y="117" width="4" height="2" fill="#ffd93d"/>
+  <rect x="50" y="119" width="1" height="2" fill="#f5d7b0"/>
+  <rect x="51" y="119" width="1" height="2" fill="#f5d7b0"/>
+
+  <!-- Bàn gỗ cuối trang -->
+  <rect x="0" y="136" width="96" height="22" fill="#d4a373"/>
+  <rect x="0" y="136" width="96" height="1"  fill="#8b5a2b"/>
+  <g fill="#b8895a" opacity="0.4">
+    <rect x="6"  y="142" width="30" height="1"/>
+    <rect x="58" y="145" width="30" height="1"/>
+    <rect x="20" y="151" width="40" height="1"/>
+  </g>
+
+  <!-- Chồng sách -->
+  <rect x="6"  y="147" width="22" height="5" fill="#8b2f2f"/>
+  <rect x="6"  y="147" width="22" height="1" fill="#a63a3a"/>
+  <rect x="26" y="147" width="2"  height="5" fill="#f7edd8"/>
+  <rect x="8"  y="142" width="20" height="5" fill="#118ab2"/>
+  <rect x="8"  y="142" width="20" height="1" fill="#3a9cc4"/>
+  <rect x="26" y="142" width="2"  height="5" fill="#f7edd8"/>
+  <rect x="10" y="137" width="18" height="5" fill="#ffb703"/>
+  <rect x="10" y="137" width="18" height="1" fill="#ffd060"/>
+  <rect x="26" y="137" width="2"  height="5" fill="#f7edd8"/>
+
+  <!-- Bút chì -->
+  <rect x="38" y="145" width="20" height="3" fill="#ffd93d"/>
+  <rect x="38" y="145" width="20" height="1" fill="#ffe680"/>
+  <rect x="58" y="145" width="2"  height="3" fill="#e63946"/>
+  <rect x="56" y="145" width="2"  height="3" fill="#a0a0a0"/>
+  <rect x="34" y="146" width="4"  height="1" fill="#f5deb3"/>
+  <rect x="33" y="146" width="1"  height="1" fill="#2b1b4d"/>
+
+  <!-- Quả táo -->
+  <rect x="70" y="147" width="8" height="6" fill="#e63946"/>
+  <rect x="72" y="145" width="4" height="2" fill="#e63946"/>
+  <rect x="73" y="143" width="2" height="2" fill="#5c3a21"/>
+  <rect x="75" y="143" width="2" height="1" fill="#2d6a2d"/>
+  <rect x="71" y="149" width="2" height="2" fill="#ff8a95"/>
+
+  <!-- Tiêu đề LIFE -->
+  <g fill="#1e3a5f">
+    <use href="#L" transform="translate(33,3) scale(2)"/>
+    <use href="#I" transform="translate(41,3) scale(2)"/>
+    <use href="#F" transform="translate(49,3) scale(2)"/>
+    <use href="#E" transform="translate(57,3) scale(2)"/>
+  </g>
+
+  <!-- Tiêu đề SCHOOL -->
+  <g fill="#1e3a5f">
+    <use href="#S" transform="translate(25,14) scale(2)"/>
+    <use href="#C" transform="translate(33,14) scale(2)"/>
+    <use href="#H" transform="translate(41,14) scale(2)"/>
+    <use href="#O" transform="translate(49,14) scale(2)"/>
+    <use href="#O" transform="translate(57,14) scale(2)"/>
+    <use href="#L" transform="translate(65,14) scale(2)"/>
+  </g>
+
+  <!-- Gạch chân trang trí -->
+  <rect x="30" y="26" width="36" height="1" fill="#1e3a5f" opacity="0.4"/>
+
+  <!-- Khung viền -->
+  <rect x="0"  y="0"   width="96" height="2"   fill="#1e3a5f"/>
+  <rect x="0"  y="158" width="96" height="2"   fill="#1e3a5f"/>
+  <rect x="0"  y="0"   width="2"  height="160" fill="#1e3a5f"/>
+  <rect x="94" y="0"   width="2"  height="160" fill="#1e3a5f"/>
+
+  <!-- Góc trang trí -->
+  <g fill="#1e3a5f">
+    <rect x="4"  y="4"   width="3" height="1"/>
+    <rect x="4"  y="4"   width="1" height="3"/>
+    <rect x="89" y="4"   width="3" height="1"/>
+    <rect x="91" y="4"   width="1" height="3"/>
+    <rect x="4"  y="155" width="3" height="1"/>
+    <rect x="4"  y="152" width="1" height="3"/>
+    <rect x="89" y="155" width="3" height="1"/>
+    <rect x="91" y="152" width="1" height="3"/>
+  </g>
+</svg>

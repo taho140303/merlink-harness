@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== NỀN ĐÊM KINH DỊ ===== -->
+    <rect width="120" height="200" fill="#050205"/>
+    <rect x="0" y="0"   width="120" height="30"  fill="#0a0410"/>
+    <rect x="0" y="30"  width="120" height="40"  fill="#120818"/>
+    <rect x="0" y="70"  width="120" height="40"  fill="#1a0c22"/>
+    <rect x="0" y="110" width="120" height="30"  fill="#100618"/>
+
+    <!-- ===== QUẦNG SÁNG ĐỎ ===== -->
+    <circle cx="60" cy="60" r="55" fill="#7f1d1d" opacity="0.10"/>
+    <circle cx="60" cy="60" r="40" fill="#991b1b" opacity="0.08"/>
+
+    <!-- ===== TRĂNG MÁU ===== -->
+    <circle cx="60" cy="42" r="22" fill="#7f1d1d" opacity="0.15"/>
+    <circle cx="60" cy="42" r="16" fill="#991b1b" opacity="0.25"/>
+    <circle cx="60" cy="42" r="12" fill="#dc2626" opacity="0.7"/>
+    <circle cx="60" cy="42" r="10" fill="#ef4444"/>
+    <circle cx="60" cy="42" r="10" fill="none" stroke="#7f1d1d" stroke-width="1"/>
+    <!-- Vết lõm trên trăng -->
+    <circle cx="56" cy="38" r="2" fill="#b91c1c"/>
+    <circle cx="64" cy="44" r="3" fill="#b91c1c"/>
+    <circle cx="58" cy="48" r="2" fill="#b91c1c"/>
+    <circle cx="63" cy="36" r="1" fill="#b91c1c"/>
+
+    <!-- ===== MÂY ĐEN ===== -->
+    <g fill="#0a0410" opacity="0.9">
+      <rect x="0"  y="30" width="30" height="4"/>
+      <rect x="6"  y="28" width="20" height="2"/>
+      <rect x="90" y="34" width="30" height="4"/>
+      <rect x="94" y="32" width="20" height="2"/>
+    </g>
+    <g fill="#120818" opacity="0.8">
+      <rect x="14" y="26" width="14" height="2"/>
+      <rect x="98" y="30" width="16" height="2"/>
+    </g>
+
+    <!-- ===== DƠI ===== -->
+    <!-- Dơi lớn giữa -->
+    <g fill="#050205">
+      <polygon points="50,52 40,46 42,50 38,52 44,54 46,58"/>
+      <polygon points="70,52 80,46 78,50 82,52 76,54 74,58"/>
+      <rect x="52" y="52" width="16" height="6"/>
+      <rect x="56" y="50" width="8" height="4"/>
+      <rect x="58" y="48" width="4" height="4"/>
+      <polygon points="57,48 57,44 59,48"/>
+      <polygon points="63,48 63,44 61,48"/>
+    </g>
+    <g fill="#dc2626">
+      <rect x="58" y="51" width="1" height="1"/>
+      <rect x="62" y="51" width="1" height="1"/>
+    </g>
+    <!-- Dơi nhỏ trái -->
+    <g fill="#050205">
+      <polygon points="20,68 14,64 16,67 13,69 18,70 19,74"/>
+      <polygon points="32,68 38,64 36,67 39,69 34,70 33,74"/>
+      <rect x="22" y="68" width="8" height="4"/>
+      <rect x="24" y="66" width="4" height="2"/>
+    </g>
+    <!-- Dơi nhỏ phải -->
+    <g fill="#050205">
+      <polygon points="88,58 82,54 84,57 81,59 86,60 87,64"/>
+      <polygon points="100,58 106,54 104,57 107,59 102,60 101,64"/>
+      <rect x="90" y="58" width="8" height="4"/>
+      <rect x="92" y="56" width="4" height="2"/>
+    </g>
+
+    <!-- ===== NGÔI NHÀ HOANG ===== -->
+    <!-- Nền nhà -->
+    <polygon points="30,120 90,120 86,132 34,132" fill="#0f0a12"/>
+    <!-- Thân nhà -->
+    <rect x="36" y="86" width="48" height="36" fill="#1a1218"/>
+    <rect x="36" y="86" width="4"  height="36" fill="#0f0a12"/>
+    <rect x="80" y="86" width="4"  height="36" fill="#0f0a12"/>
+
+    <!-- Mái nhà chính -->
+    <polygon points="32,86 60,62 88,86" fill="#0f0a12"/>
+    <polygon points="36,84 60,64 84,84" fill="#1a1218"/>
+    <!-- Ngói mái -->
+    <g fill="#0a0508">
+      <rect x="44" y="76" width="32" height="2"/>
+      <rect x="50" y="70" width="20" height="2"/>
+      <rect x="56" y="66" width="8" height="2"/>
+    </g>
+
+    <!-- Ống khói -->
+    <rect x="68" y="58" width="8" height="14" fill="#0f0a12"/>
+    <rect x="66" y="58" width="12" height="3" fill="#1a1218"/>
+    <!-- Khói -->
+    <g fill="#2a1a22" opacity="0.6">
+      <rect x="70" y="52" width="4" height="4"/>
+      <rect x="74" y="46" width="6" height="4"/>
+      <rect x="78" y="40" width="8" height="4"/>
+      <rect x="82" y="34" width="6" height="4"/>
+    </g>
+
+    <!-- Tháp phụ trái -->
+    <rect x="24" y="90" width="16" height="32" fill="#1a1218"/>
+    <polygon points="20,90 32,74 44,90" fill="#0f0a12"/>
+    <!-- Tháp phụ phải -->
+    <rect x="80" y="94" width="14" height="28" fill="#1a1218"/>
+    <polygon points="78,94 87,80 96,94" fill="#0f0a12"/>
+
+    <!-- Cửa sổ phát sáng -->
+    <g fill="#f59e0b">
+      <rect x="42" y="94" width="6" height="8"/>
+      <rect x="60" y="94" width="6" height="8"/>
+      <rect x="28" y="98" width="5" height="6"/>
+      <rect x="84" y="100" width="5" height="6"/>
+    </g>
+    <g fill="#7f1d1d">
+      <rect x="44" y="94" width="1" height="8"/>
+      <rect x="47" y="94" width="1" height="8"/>
+      <rect x="42" y="97" width="6" height="1"/>
+      <rect x="62" y="94" width="1" height="8"/>
+      <rect x="65" y="94" width="1" height="8"/>
+      <rect x="60" y="97" width="6" height="1"/>
+    </g>
+
+    <!-- Cửa chính -->
+    <rect x="54" y="108" width="12" height="14" fill="#0a0508"/>
+    <rect x="54" y="108" width="12" height="2" fill="#1a1218"/>
+    <rect x="54" y="108" width="1" height="14" fill="#2a1a22"/>
+    <rect x="65" y="108" width="1" height="14" fill="#2a1a22"/>
+    <!-- Tay nắm cửa -->
+    <rect x="62" y="115" width="1" height="2" fill="#f59e0b"/>
+
+    <!-- Cửa sổ gác mái -->
+    <circle cx="60" cy="76" r="3" fill="#0a0508"/>
+    <circle cx="60" cy="76" r="2" fill="#f59e0b" opacity="0.7"/>
+    <rect x="59" y="75" width="2" height="2" fill="#7f1d1d"/>
+
+    <!-- Mái ngói vỡ -->
+    <g fill="#050205">
+      <rect x="40" y="82" width="3" height="3"/>
+      <rect x="70" y="80" width="4" height="4"/>
+    </g>
+
+    <!-- Rêu mốc -->
+    <g fill="#1f3320" opacity="0.6">
+      <rect x="38" y="118" width="4" height="2"/>
+      <rect x="76" y="116" width="6" height="2"/>
+      <rect x="26" y="120" width="4" height="2"/>
+    </g>
+
+    <!-- ===== CỔNG SẮT ===== -->
+    <rect x="0"  y="128" width="2" height="14" fill="#0a0508"/>
+    <rect x="118" y="128" width="2" height="14" fill="#0a0508"/>
+    <rect x="0"  y="130" width="120" height="1" fill="#2a1a22"/>
+    <rect x="0"  y="136" width="120" height="1" fill="#2a1a22"/>
+    <g fill="#0a0508">
+      <rect x="10" y="128" width="2" height="14"/>
+      <rect x="22" y="128" width="2" height="14"/>
+      <rect x="34" y="128" width="2" height="14"/>
+      <rect x="46" y="128" width="2" height="14"/>
+      <rect x="70" y="128" width="2" height="14"/>
+      <rect x="82" y="128" width="2" height="14"/>
+      <rect x="94" y="128" width="2" height="14"/>
+      <rect x="106" y="128" width="2" height="14"/>
+    </g>
+
+    <!-- ===== MẶT ĐẤT ===== -->
+    <polygon points="0,132 20,128 40,132 60,126 80,132 100,128 120,132 120,160 0,160" fill="#08030a"/>
+    <polygon points="0,142 20,138 40,142 60,136 80,142 100,138 120,142 120,160 0,160" fill="#050205"/>
+
+    <!-- ===== SƯƠNG MÙ ===== -->
+    <g fill="#4a3a52" opacity="0.25">
+      <rect x="0"  y="124" width="14" height="2"/>
+      <rect x="20" y="122" width="10" height="2"/>
+      <rect x="90" y="126" width="14" height="2"/>
+      <rect x="106" y="124" width="14" height="2"/>
+      <rect x="6"  y="128" width="18" height="2"/>
+      <rect x="84" y="130" width="22" height="2"/>
+    </g>
+    <g fill="#6a5a72" opacity="0.18">
+      <rect x="14" y="120" width="8" height="2"/>
+      <rect x="96" y="122" width="10" height="2"/>
+    </g>
+
+    <!-- ===== BÓNG MA ===== -->
+    <!-- Bóng ma bên trái (mờ) -->
+    <g fill="#e2e8f0" opacity="0.20">
+      <rect x="12" y="100" width="8" height="10"/>
+      <rect x="10" y="102" width="12" height="6"/>
+      <rect x="14" y="110" width="4" height="4"/>
+      <rect x="12" y="114" width="2" height="2"/>
+      <rect x="18" y="114" width="2" height="2"/>
+    </g>
+    <g fill="#dc2626" opacity="0.5">
+      <rect x="13" y="103" width="2" height="2"/>
+      <rect x="17" y="103" width="2" height="2"/>
+    </g>
+
+    <!-- Bóng ma bên phải -->
+    <g fill="#e2e8f0" opacity="0.18">
+      <rect x="100" y="94" width="8" height="12"/>
+      <rect x="98"  y="96" width="12" height="8"/>
+      <rect x="102" y="106" width="4" height="4"/>
+      <rect x="100" y="110" width="2" height="2"/>
+      <rect x="106" y="110" width="2" height="2"/>
+    </g>
+    <g fill="#dc2626" opacity="0.5">
+      <rect x="101" y="98" width="2" height="2"/>
+      <rect x="105" y="98" width="2" height="2"/>
+    </g>
+
+    <!-- Bóng ma nhỏ giữa (mờ hơn) -->
+    <g fill="#e2e8f0" opacity="0.12">
+      <rect x="54" y="118" width="6" height="8"/>
+      <rect x="53" y="120" width="8" height="4"/>
+    </g>
+
+    <!-- ===== MỘ BIA ===== -->
+    <rect x="88" y="142" width="8" height="12" fill="#1f1a22"/>
+    <rect x="88" y="142" width="8" height="2" fill="#2a1a22"/>
+    <rect x="90" y="146" width="4" height="1" fill="#0a0508"/>
+    <rect x="91" y="148" width="2" height="1" fill="#0a0508"/>
+    <polygon points="86,154 98,154 100,156 84,156" fill="#0a0508"/>
+
+    <!-- ===== CÂY KHÔ ===== -->
+    <g fill="#0a0508">
+      <rect x="16" y="128" width="3" height="20"/>
+      <rect x="8"  y="132" width="8" height="2"/>
+      <rect x="10" y="128" width="2" height="6"/>
+      <rect x="14" y="122" width="2" height="8"/>
+      <rect x="19" y="130" width="8" height="2"/>
+      <rect x="24" y="124" width="2" height="8"/>
+      <rect x="18" y="118" width="2" height="6"/>
+    </g>
+    <g fill="#0a0508">
+      <rect x="102" y="134" width="3" height="18"/>
+      <rect x="98"  y="138" width="6" height="2"/>
+      <rect x="96"  y="132" width="2" height="8"/>
+      <rect x="106" y="136" width="8" height="2"/>
+      <rect x="112" y="130" width="2" height="8"/>
+    </g>
+
+    <!-- ===== MẮT ĐỎ TRONG BÓNG TỐI ===== -->
+    <g fill="#dc2626">
+      <rect x="4"  y="98" width="2" height="2"/>
+      <rect x="8"  y="98" width="2" height="2"/>
+      <rect x="112" y="108" width="2" height="2"/>
+      <rect x="116" y="108" width="2" height="2"/>
+    </g>
+    <g fill="#fca5a5" opacity="0.6">
+      <rect x="5"  y="99" width="1" height="1"/>
+      <rect x="113" y="109" width="1" height="1"/>
+    </g>
+
+    <!-- ===== DẢI TIÊU ĐỀ ===== -->
+    <rect x="0" y="160" width="120" height="40" fill="#050205"/>
+    <rect x="0" y="160" width="120" height="2" fill="#dc2626"/>
+    <rect x="0" y="162" width="120" height="1" fill="#7f1d1d"/>
+
+    <!-- Đường máu nhỏ giọt -->
+    <g fill="#dc2626">
+      <rect x="20" y="162" width="1" height="6"/>
+      <rect x="40" y="162" width="1" height="3"/>
+      <rect x="58" y="162" width="1" height="8"/>
+      <rect x="76" y="162" width="1" height="4"/>
+      <rect x="94" y="162" width="1" height="7"/>
+    </g>
+    <g fill="#991b1b">
+      <rect x="20" y="168" width="1" height="1"/>
+      <rect x="58" y="170" width="1" height="1"/>
+      <rect x="94" y="169" width="1" height="1"/>
+    </g>
+
+    <!-- ===== CHỮ TIÊU ĐỀ ===== -->
+    <text x="60" y="176" font-family="'Courier New', monospace" font-weight="900" font-size="15"
+          fill="#dc2626" text-anchor="middle" letter-spacing="2">CREEPY</text>
+    <text x="60" y="190" font-family="'Courier New', monospace" font-weight="700" font-size="7"
+          fill="#991b1b" text-anchor="middle" letter-spacing="3">TALES</text>
+    <text x="60" y="197" font-family="'Courier New', monospace" font-weight="700" font-size="3"
+          fill="#7f1d1d" text-anchor="middle" letter-spacing="2">DO NOT ENTER AT NIGHT</text>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#7f1d1d" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#450a0a" stroke-width="1"/>
+
+    <!-- Góc khung máu -->
+    <g fill="#dc2626">
+      <rect x="2" y="2" width="4" height="4"/>
+      <rect x="114" y="2" width="4" height="4"/>
+      <rect x="2" y="194" width="4" height="4"/>
+      <rect x="114" y="194" width="4" height="4"/>
+    </g>
+
+  </g>
+</svg>

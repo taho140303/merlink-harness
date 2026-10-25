@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== NỀN RỪNG ===== -->
+    <rect width="120" height="200" fill="#04140c"/>
+    <rect x="0" y="0"   width="120" height="30"  fill="#04140c"/>
+    <rect x="0" y="30"  width="120" height="40"  fill="#082014"/>
+    <rect x="0" y="70"  width="120" height="40"  fill="#0c2c1c"/>
+    <rect x="0" y="110" width="120" height="30"  fill="#103a26"/>
+
+    <!-- ===== ÁNH TRĂNG XANH ===== -->
+    <circle cx="60" cy="40" r="26" fill="#7ad4b0" opacity="0.08"/>
+    <circle cx="60" cy="40" r="18" fill="#7ad4b0" opacity="0.15"/>
+    <circle cx="60" cy="40" r="12" fill="#a8f0d0" opacity="0.35"/>
+    <circle cx="60" cy="40" r="8"  fill="#d4ffe8"/>
+
+    <!-- ===== TIA SÁNG ===== -->
+    <g fill="#a8f0d0" opacity="0.10">
+      <polygon points="58,40 40,0 42,0 60,40"/>
+      <polygon points="62,40 78,0 80,0 60,40"/>
+      <polygon points="56,40 24,10 26,10 58,40"/>
+      <polygon points="64,40 94,10 96,10 62,40"/>
+    </g>
+
+    <!-- ===== CÂY CỔ THỤ BÊN TRÁI ===== -->
+    <rect x="6"  y="60" width="10" height="120" fill="#020a06"/>
+    <rect x="10" y="56" width="2"  height="124" fill="#041008"/>
+    <polygon points="0,60 12,44 24,60" fill="#061a0e"/>
+    <polygon points="2,76 12,62 22,76" fill="#061a0e"/>
+    <polygon points="0,92 12,78 24,92" fill="#061a0e"/>
+    <rect x="14" y="72" width="8" height="2" fill="#020a06"/>
+    <rect x="16" y="88" width="6" height="2" fill="#020a06"/>
+
+    <!-- ===== CÂY CỔ THỤ BÊN PHẢI ===== -->
+    <rect x="104" y="52" width="12" height="128" fill="#020a06"/>
+    <rect x="108" y="48" width="2"  height="132" fill="#041008"/>
+    <polygon points="96,56 110,38 122,56" fill="#061a0e"/>
+    <polygon points="96,74 110,58 122,74" fill="#061a0e"/>
+    <polygon points="98,92 110,76 122,92" fill="#061a0e"/>
+    <rect x="98" y="70" width="8" height="2" fill="#020a06"/>
+    <rect x="100" y="88" width="6" height="2" fill="#020a06"/>
+
+    <!-- ===== CÂY NHỎ GIỮA NỀN ===== -->
+    <rect x="30" y="86" width="4" height="60" fill="#020a06"/>
+    <polygon points="24,90 32,76 40,90" fill="#04140a"/>
+    <polygon points="26,102 32,90 38,102" fill="#04140a"/>
+    <rect x="86" y="90" width="4" height="56" fill="#020a06"/>
+    <polygon points="80,92 88,78 96,92" fill="#04140a"/>
+
+    <!-- ===== ĐOM ĐÓM ===== -->
+    <g fill="#d4ffe8">
+      <rect x="22" y="50" width="2" height="2"/>
+      <rect x="34" y="34" width="2" height="2"/>
+      <rect x="44" y="58" width="2" height="2"/>
+      <rect x="76" y="52" width="2" height="2"/>
+      <rect x="88" y="42" width="2" height="2"/>
+      <rect x="98" y="68" width="2" height="2"/>
+      <rect x="18" y="80" width="2" height="2"/>
+      <rect x="42" y="86" width="2" height="2"/>
+      <rect x="72" y="80" width="2" height="2"/>
+      <rect x="102" y="86" width="2" height="2"/>
+    </g>
+    <g fill="#7ad4b0" opacity="0.7">
+      <rect x="26" y="62" width="1" height="1"/>
+      <rect x="38" y="42" width="1" height="1"/>
+      <rect x="80" y="60" width="1" height="1"/>
+      <rect x="92" y="54" width="1" height="1"/>
+      <rect x="22" y="90" width="1" height="1"/>
+      <rect x="98" y="78" width="1" height="1"/>
+      <rect x="68" y="94" width="1" height="1"/>
+    </g>
+
+    <!-- ===== ĐẤT / CỎ ===== -->
+    <rect x="0" y="140" width="120" height="60" fill="#020c06"/>
+    <rect x="0" y="140" width="120" height="2" fill="#0c2c1c"/>
+
+    <!-- ===== NỮ ELF ===== -->
+    <!-- Tóc dài (sau lưng) -->
+    <rect x="50" y="88" width="3" height="40" fill="#d4a843"/>
+    <rect x="66" y="88" width="3" height="40" fill="#d4a843"/>
+    <rect x="48" y="100" width="2" height="30" fill="#b8922e"/>
+    <rect x="70" y="100" width="2" height="30" fill="#b8922e"/>
+
+    <!-- Áo choàng xanh -->
+    <polygon points="54,132 50,168 70,168 66,132" fill="#0a4a2c"/>
+    <polygon points="54,132 52,166 56,166 56,132" fill="#0c5c36"/>
+    <rect x="56" y="132" width="8" height="34" fill="#0c5c36"/>
+    <rect x="58" y="132" width="4" height="34" fill="#0e7040"/>
+
+    <!-- Thân -->
+    <rect x="56" y="116" width="8" height="18" fill="#0c5c36"/>
+    <rect x="58" y="116" width="4" height="18" fill="#0e7040"/>
+
+    <!-- Vai / cổ -->
+    <rect x="56" y="110" width="8" height="6" fill="#e8c9a0"/>
+    <rect x="58" y="108" width="4" height="4" fill="#f0d8b0"/>
+
+    <!-- Đầu -->
+    <rect x="55" y="96" width="10" height="12" fill="#e8c9a0"/>
+    <rect x="57" y="96" width="6" height="12" fill="#f0d8b0"/>
+
+    <!-- Tai nhọn (đặc trưng elf) -->
+    <polygon points="55,100 50,96 52,104" fill="#e8c9a0"/>
+    <polygon points="65,100 70,96 68,104" fill="#e8c9a0"/>
+    <polygon points="51,98 51,100 53,100" fill="#d4b088"/>
+    <polygon points="69,98 69,100 67,100" fill="#d4b088"/>
+
+    <!-- Tóc mái -->
+    <rect x="54" y="92" width="12" height="4" fill="#d4a843"/>
+    <rect x="55" y="90" width="10" height="4" fill="#e8bc50"/>
+    <rect x="55" y="90" width="3" height="6" fill="#f0c860"/>
+    <rect x="62" y="90" width="3" height="6" fill="#f0c860"/>
+
+    <!-- Mắt (xanh lá) -->
+    <rect x="57" y="100" width="2" height="2" fill="#0a2a1a"/>
+    <rect x="62" y="100" width="2" height="2" fill="#0a2a1a"/>
+    <rect x="57" y="100" width="1" height="1" fill="#7ad4b0"/>
+    <rect x="62" y="100" width="1" height="1" fill="#7ad4b0"/>
+
+    <!-- Vòng cổ / trang sức -->
+    <rect x="58" y="108" width="4" height="1" fill="#e8c860"/>
+    <rect x="59" y="109" width="2" height="1" fill="#7ad4b0"/>
+
+    <!-- Tay trái cầm cung -->
+    <rect x="48" y="120" width="3" height="10" fill="#e8c9a0"/>
+    <rect x="46" y="128" width="4" height="4" fill="#f0d8b0"/>
+    <!-- Cung -->
+    <rect x="44" y="112" width="2" height="30" fill="#8b5a2b"/>
+    <rect x="42" y="116" width="2" height="4" fill="#8b5a2b"/>
+    <rect x="42" y="134" width="2" height="4" fill="#8b5a2b"/>
+    <rect x="45" y="114" width="1" height="26" fill="#a07030"/>
+    <!-- Dây cung -->
+    <rect x="46" y="114" width="1" height="26" fill="#d4c4a0"/>
+    <!-- Mũi tên -->
+    <rect x="45" y="124" width="12" height="1" fill="#c8b088"/>
+    <polygon points="57,122 60,124 57,126" fill="#d4e4f0"/>
+
+    <!-- Tay phải giương cung -->
+    <rect x="68" y="118" width="3" height="8" fill="#e8c9a0"/>
+    <rect x="70" y="122" width="4" height="3" fill="#f0d8b0"/>
+
+    <!-- ===== DẢI TIÊU ĐỀ ===== -->
+    <rect x="0" y="162" width="120" height="38" fill="#041208"/>
+    <rect x="0" y="162" width="120" height="2" fill="#7ad4b0"/>
+    <rect x="0" y="164" width="120" height="1" fill="#3a8c68"/>
+
+    <!-- Họa tiết lá trang trí -->
+    <rect x="16" y="188" width="6" height="1" fill="#7ad4b0"/>
+    <rect x="98" y="188" width="6" height="1" fill="#7ad4b0"/>
+    <polygon points="14,186 16,184 18,186 16,188" fill="#3a8c68"/>
+    <polygon points="106,186 104,184 102,186 104,188" fill="#3a8c68"/>
+
+    <!-- ===== CHỮ TIÊU ĐỀ ===== -->
+    <text x="60" y="178" font-family="'Courier New', monospace" font-weight="900" font-size="16"
+          fill="#d4ffe8" text-anchor="middle" letter-spacing="3">ELF</text>
+    <text x="60" y="190" font-family="'Courier New', monospace" font-weight="700" font-size="7"
+          fill="#7ad4b0" text-anchor="middle" letter-spacing="2">OF THE FOREST</text>
+    <text x="60" y="197" font-family="'Courier New', monospace" font-weight="700" font-size="4"
+          fill="#3a8c68" text-anchor="middle" letter-spacing="2">BOOK ONE</text>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#7ad4b0" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#3a8c68" stroke-width="1"/>
+
+    <!-- Góc khung trang trí -->
+    <g fill="#7ad4b0">
+      <rect x="2" y="2" width="4" height="4"/>
+      <rect x="114" y="2" width="4" height="4"/>
+      <rect x="2" y="194" width="4" height="4"/>
+      <rect x="114" y="194" width="4" height="4"/>
+    </g>
+
+  </g>
+</svg>

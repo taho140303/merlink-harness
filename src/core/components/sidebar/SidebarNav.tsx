@@ -9,6 +9,7 @@ import {
   ChevronDown,
   BookOpen,
   Sliders,
+  Trash2,
 } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 
@@ -152,6 +153,23 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
       >
         <Wrench className="h-5 w-5 shrink-0" />
         {!collapsed && <span>Config</span>}
+      </NavLink>
+
+      <NavLink
+        to="/recycle-bin"
+        className={({ isActive }) =>
+          cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+            collapsed && "justify-center px-0"
+          )
+        }
+        title={collapsed ? "Recycle Bin" : undefined}
+      >
+        <Trash2 className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>Recycle bin</span>}
       </NavLink>
     </div>
   );

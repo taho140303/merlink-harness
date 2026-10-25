@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== BẦU TRỜI NHẬT ===== -->
+    <rect width="120" height="200" fill="#1a0f2e"/>
+    <rect x="0" y="0"   width="120" height="30"  fill="#2d1b4e"/>
+    <rect x="0" y="30"  width="120" height="25"  fill="#4a2a5e"/>
+    <rect x="0" y="55"  width="120" height="25"  fill="#6b3a5e"/>
+    <rect x="0" y="80"  width="120" height="30"  fill="#a85570"/>
+    <rect x="0" y="110" width="120" height="30"  fill="#d17a8e"/>
+
+    <!-- ===== MẶT TRỜI ĐỎ ===== -->
+    <circle cx="60" cy="55" r="30" fill="#dc2626" opacity="0.15"/>
+    <circle cx="60" cy="55" r="22" fill="#ef4444" opacity="0.25"/>
+    <circle cx="60" cy="55" r="15" fill="#dc2626"/>
+    <circle cx="60" cy="55" r="15" fill="none" stroke="#991b1b" stroke-width="1"/>
+    <circle cx="60" cy="55" r="11" fill="#ef4444"/>
+    <circle cx="60" cy="55" r="11" fill="none" stroke="#b91c1c" stroke-width="1"/>
+    <circle cx="57" cy="52" r="3" fill="#f87171" opacity="0.6"/>
+
+    <!-- ===== MÂY SONG SONG (kiểu Nhật) ===== -->
+    <g fill="#f0a8b8" opacity="0.5">
+      <rect x="6"  y="34" width="26" height="2"/>
+      <rect x="10" y="38" width="18" height="2"/>
+      <rect x="88" y="30" width="28" height="2"/>
+      <rect x="92" y="34" width="20" height="2"/>
+      <rect x="0"  y="44" width="18" height="2"/>
+      <rect x="102" y="42" width="18" height="2"/>
+    </g>
+    <g fill="#f8c8d4" opacity="0.4">
+      <rect x="14" y="30" width="12" height="1"/>
+      <rect x="96" y="26" width="14" height="1"/>
+    </g>
+
+    <!-- ===== CHIM BAY ===== -->
+    <g fill="#1a0f2e">
+      <polygon points="20,46 24,42 26,46 22,48"/>
+      <polygon points="30,42 34,38 36,42 32,44"/>
+      <polygon points="86,50 90,46 92,50 88,52"/>
+      <polygon points="96,44 100,40 102,44 98,46"/>
+    </g>
+
+    <!-- ===== NÚI PHÚ SĨ ===== -->
+    <!-- Bóng núi xa -->
+    <polygon points="0,132 0,118 18,108 32,116 48,102 62,110 78,98 94,108 108,102 120,110 120,132"
+             fill="#6b3a5e" opacity="0.7"/>
+
+    <!-- Thân núi chính -->
+    <polygon points="22,140 60,80 98,140" fill="#4a2a5e"/>
+    <polygon points="22,140 60,80 60,140" fill="#3a1f4e"/>
+    <!-- Sườn núi -->
+    <polygon points="60,80 98,140 60,140" fill="#5c3468"/>
+    <!-- Đường vân núi -->
+    <g fill="#3a1f4e" opacity="0.6">
+      <polygon points="48,110 54,108 60,114 66,108 72,112 68,120 52,120"/>
+      <polygon points="42,122 48,120 56,126 64,122 72,126 68,132 46,132"/>
+      <polygon points="32,134 40,130 48,134 56,132 64,136 60,140 34,140"/>
+    </g>
+
+    <!-- Chóp tuyết -->
+    <polygon points="60,80 70,96 64,94 60,98 56,94 50,96" fill="#f8f0f4"/>
+    <polygon points="60,80 64,88 60,86 56,88" fill="#ffffff"/>
+    <!-- Rãnh tuyết -->
+    <g fill="#d8c8d4">
+      <polygon points="60,80 62,90 60,96 58,90"/>
+      <rect x="54" y="94" width="2" height="2"/>
+      <rect x="64" y="92" width="2" height="2"/>
+    </g>
+
+    <!-- ===== MÂY QUANH NÚI ===== -->
+    <g fill="#f8c8d4" opacity="0.6">
+      <rect x="30" y="118" width="18" height="3"/>
+      <rect x="34" y="116" width="10" height="2"/>
+      <rect x="72" y="120" width="20" height="3"/>
+      <rect x="76" y="118" width="12" height="2"/>
+      <rect x="20" y="126" width="14" height="2"/>
+      <rect x="88" y="128" width="16" height="2"/>
+    </g>
+
+    <!-- ===== CỔNG TORII ===== -->
+    <!-- Cột trái -->
+    <rect x="28" y="112" width="4" height="30" fill="#dc2626"/>
+    <rect x="28" y="112" width="1" height="30" fill="#991b1b"/>
+    <!-- Cột phải -->
+    <rect x="88" y="112" width="4" height="30" fill="#dc2626"/>
+    <rect x="91" y="112" width="1" height="30" fill="#991b1b"/>
+    <!-- Xà ngang trên (kasagi) -->
+    <rect x="22" y="108" width="76" height="4" fill="#dc2626"/>
+    <rect x="22" y="108" width="76" height="1" fill="#991b1b"/>
+    <rect x="22" y="111" width="76" height="1" fill="#7f1d1d"/>
+    <!-- Đầu xà hơi cong -->
+    <rect x="18" y="107" width="6" height="2" fill="#dc2626"/>
+    <rect x="96" y="107" width="6" height="2" fill="#dc2626"/>
+    <!-- Xà ngang giữa (nuki) -->
+    <rect x="26" y="120" width="68" height="3" fill="#dc2626"/>
+    <rect x="26" y="120" width="68" height="1" fill="#991b1b"/>
+    <!-- Xà dọc giữa (gakuzuka) -->
+    <rect x="58" y="112" width="4" height="8" fill="#dc2626"/>
+    <rect x="58" y="112" width="1" height="8" fill="#991b1b"/>
+
+    <!-- Đèn lồng giấy treo -->
+    <rect x="34" y="114" width="4" height="4" fill="#fde68a"/>
+    <rect x="34" y="114" width="4" height="1" fill="#f59e0b"/>
+    <rect x="34" y="117" width="4" height="1" fill="#f59e0b"/>
+    <rect x="82" y="114" width="4" height="4" fill="#fde68a"/>
+    <rect x="82" y="114" width="4" height="1" fill="#f59e0b"/>
+    <rect x="82" y="117" width="4" height="1" fill="#f59e0b"/>
+
+    <!-- ===== ĐẤT / BẬC THANG ===== -->
+    <polygon points="0,142 20,138 40,142 60,136 80,142 100,138 120,142 120,160 0,160"
+             fill="#2a1a3e"/>
+    <polygon points="0,150 24,146 48,150 72,144 96,150 120,146 120,160 0,160"
+             fill="#1a0f2e"/>
+
+    <!-- ===== HOA ANH ĐÀO (cành và cánh hoa) ===== -->
+    <!-- Cành trái -->
+    <rect x="0" y="94" width="18" height="2" fill="#4a2a3e"/>
+    <rect x="4" y="88" width="2" height="8" fill="#4a2a3e"/>
+    <rect x="10" y="92" width="2" height="6" fill="#4a2a3e"/>
+    <rect x="14" y="88" width="2" height="6" fill="#4a2a3e"/>
+    <!-- Hoa trên cành trái -->
+    <g fill="#f9a8d4">
+      <rect x="2"  y="92" width="4" height="4"/>
+      <rect x="8"  y="86" width="4" height="4"/>
+      <rect x="12" y="90" width="4" height="4"/>
+      <rect x="16" y="86" width="3" height="3"/>
+    </g>
+    <g fill="#fbcfe8">
+      <rect x="3"  y="93" width="2" height="2"/>
+      <rect x="9"  y="87" width="2" height="2"/>
+      <rect x="13" y="91" width="2" height="2"/>
+    </g>
+
+    <!-- Cành phải -->
+    <rect x="102" y="92" width="18" height="2" fill="#4a2a3e"/>
+    <rect x="106" y="86" width="2" height="8" fill="#4a2a3e"/>
+    <rect x="112" y="90" width="2" height="6" fill="#4a2a3e"/>
+    <rect x="116" y="86" width="2" height="6" fill="#4a2a3e"/>
+    <!-- Hoa trên cành phải -->
+    <g fill="#f9a8d4">
+      <rect x="104" y="90" width="4" height="4"/>
+      <rect x="110" y="84" width="4" height="4"/>
+      <rect x="114" y="88" width="4" height="4"/>
+      <rect x="118" y="84" width="2" height="3"/>
+    </g>
+    <g fill="#fbcfe8">
+      <rect x="105" y="91" width="2" height="2"/>
+      <rect x="111" y="85" width="2" height="2"/>
+      <rect x="115" y="89" width="2" height="2"/>
+    </g>
+
+    <!-- Cánh hoa bay lả tả -->
+    <g fill="#fbcfe8" opacity="0.85">
+      <rect x="24" y="70" width="2" height="2"/>
+      <rect x="14" y="62" width="2" height="2"/>
+      <rect x="8"  y="54" width="1" height="2"/>
+      <rect x="30" y="80" width="2" height="1"/>
+      <rect x="18" y="76" width="2" height="2"/>
+      <rect x="92" y="70" width="2" height="2"/>
+      <rect x="102" y="62" width="2" height="2"/>
+      <rect x="110" y="56" width="1" height="2"/>
+      <rect x="86" y="80" width="2" height="1"/>
+      <rect x="100" y="76" width="2" height="2"/>
+      <rect x="40" y="58" width="1" height="2"/>
+      <rect x="76" y="62" width="2" height="1"/>
+      <rect x="48" y="48" width="1" height="1"/>
+      <rect x="70" y="44" width="1" height="1"/>
+    </g>
+
+    <!-- ===== CÂY THÔNG NHỎ ===== -->
+    <rect x="6" y="136" width="2" height="8" fill="#2a1a1e"/>
+    <polygon points="2,138 7,130 12,138" fill="#1e3a2e"/>
+    <polygon points="3,134 7,128 11,134" fill="#2a4a3a"/>
+    <rect x="112" y="136" width="2" height="8" fill="#2a1a1e"/>
+    <polygon points="108,138 113,130 118,138" fill="#1e3a2e"/>
+    <polygon points="109,134 113,128 117,134" fill="#2a4a3a"/>
+
+    <!-- ===== DẢI TIÊU ĐỀ ===== -->
+    <rect x="0" y="160" width="120" height="40" fill="#0f0620"/>
+    <rect x="0" y="160" width="120" height="2" fill="#dc2626"/>
+    <rect x="0" y="162" width="120" height="1" fill="#991b1b"/>
+
+    <!-- Họa tiết sóng Nhật (seigaiha) -->
+    <g fill="none" stroke="#4a2a5e" stroke-width="1">
+      <path d="M 10,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 20,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 30,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 40,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 50,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 60,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 70,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 80,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 90,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 100,172 a 5,5 0 0 1 10,0"/>
+      <path d="M 110,172 a 5,5 0 0 1 10,0"/>
+    </g>
+
+    <!-- ===== CHỮ TIÊU ĐỀ ===== -->
+    <text x="60" y="170" font-family="'Courier New', monospace" font-weight="700" font-size="5"
+          fill="#f9a8d4" text-anchor="middle" letter-spacing="3">JOURNEY TO THE EAST</text>
+    <text x="60" y="184" font-family="'Courier New', monospace" font-weight="900" font-size="15"
+          fill="#f8f0f4" text-anchor="middle" letter-spacing="2">JAPAN</text>
+    <text x="60" y="194" font-family="'Courier New', monospace" font-weight="700" font-size="6"
+          fill="#dc2626" text-anchor="middle" letter-spacing="3">MOUNTAIN</text>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#dc2626" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#7f1d1d" stroke-width="1"/>
+
+    <!-- Góc khung -->
+    <g fill="#f9a8d4">
+      <rect x="2" y="2" width="4" height="4"/>
+      <rect x="114" y="2" width="4" height="4"/>
+      <rect x="2" y="194" width="4" height="4"/>
+      <rect x="114" y="194" width="4" height="4"/>
+    </g>
+
+  </g>
+</svg>

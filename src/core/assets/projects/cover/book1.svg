@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" style="image-rendering:pixelated">
+  <g shape-rendering="crispEdges">
+
+    <!-- ===== NỀN ===== -->
+    <rect width="120" height="200" fill="#07061a"/>
+
+    <!-- ===== BẦU TRỜI (dải màu) ===== -->
+    <rect y="0"   width="120" height="45" fill="#090826"/>
+    <rect y="45"  width="120" height="40" fill="#100c33"/>
+    <rect y="85"  width="120" height="35" fill="#181142"/>
+    <rect y="120" width="120" height="80" fill="#201650"/>
+
+    <!-- ===== SAO ===== -->
+    <g fill="#ffffff">
+      <rect x="10" y="10" width="2" height="2"/>
+      <rect x="26" y="6"  width="2" height="2"/>
+      <rect x="44" y="14" width="2" height="2"/>
+      <rect x="60" y="8"  width="2" height="2"/>
+      <rect x="74" y="16" width="2" height="2"/>
+      <rect x="104" y="10" width="2" height="2"/>
+      <rect x="14" y="28" width="2" height="2"/>
+      <rect x="34" y="34" width="2" height="2"/>
+      <rect x="50" y="24" width="2" height="2"/>
+      <rect x="8"  y="44" width="2" height="2"/>
+      <rect x="22" y="50" width="2" height="2"/>
+      <rect x="40" y="60" width="2" height="2"/>
+      <rect x="56" y="52" width="2" height="2"/>
+      <rect x="70" y="64" width="2" height="2"/>
+      <rect x="96" y="48" width="2" height="2"/>
+      <rect x="112" y="36" width="2" height="2"/>
+      <rect x="14" y="66" width="2" height="2"/>
+      <rect x="30" y="72" width="2" height="2"/>
+      <rect x="46" y="80" width="2" height="2"/>
+      <rect x="62" y="72" width="2" height="2"/>
+      <rect x="78" y="84" width="2" height="2"/>
+      <rect x="94" y="72" width="2" height="2"/>
+      <rect x="110" y="88" width="2" height="2"/>
+      <rect x="6"  y="88" width="2" height="2"/>
+      <rect x="20" y="94" width="2" height="2"/>
+      <rect x="36" y="90" width="2" height="2"/>
+      <rect x="52" y="96" width="2" height="2"/>
+      <rect x="68" y="90" width="2" height="2"/>
+      <rect x="84" y="96" width="2" height="2"/>
+      <rect x="100" y="92" width="2" height="2"/>
+    </g>
+    <g fill="#6a6a9a">
+      <rect x="18" y="18" width="1" height="1"/>
+      <rect x="38" y="20" width="1" height="1"/>
+      <rect x="66" y="30" width="1" height="1"/>
+      <rect x="12" y="38" width="1" height="1"/>
+      <rect x="48" y="42" width="1" height="1"/>
+      <rect x="28" y="58" width="1" height="1"/>
+      <rect x="58" y="62" width="1" height="1"/>
+      <rect x="88" y="58" width="1" height="1"/>
+      <rect x="106" y="64" width="1" height="1"/>
+      <rect x="24" y="84" width="1" height="1"/>
+      <rect x="74" y="78" width="1" height="1"/>
+      <rect x="114" y="94" width="1" height="1"/>
+    </g>
+
+    <!-- ===== MẶT TRĂNG ===== -->
+    <circle cx="90" cy="32" r="16" fill="#6a6ab0" opacity="0.25"/>
+    <circle cx="90" cy="32" r="12" fill="#f5e9b8"/>
+    <rect x="86" y="28" width="3" height="3" fill="#d8c98a"/>
+    <rect x="92" y="34" width="4" height="3" fill="#d8c98a"/>
+    <rect x="88" y="38" width="2" height="2" fill="#d8c98a"/>
+
+    <!-- ===== NÚI XA ===== -->
+    <polygon points="0,134 0,116 16,100 30,116 44,96 58,114 72,98 86,114 100,100 112,116 120,106 120,134"
+             fill="#171041"/>
+    <!-- ===== NÚI GẦN ===== -->
+    <polygon points="0,152 0,136 14,122 28,138 42,120 56,136 70,122 84,138 98,124 112,138 120,126 120,152"
+             fill="#0d0a2a"/>
+
+    <!-- ===== LÂU ĐÀI ===== -->
+    <!-- tháp trái -->
+    <rect x="48" y="108" width="8" height="32" fill="#08061c"/>
+    <polygon points="48,108 52,100 56,108" fill="#08061c"/>
+    <!-- tháp phải -->
+    <rect x="68" y="104" width="8" height="36" fill="#08061c"/>
+    <polygon points="68,104 72,96 76,104" fill="#08061c"/>
+    <!-- thân chính -->
+    <rect x="56" y="100" width="12" height="40" fill="#0a0820"/>
+    <!-- lỗ châu mai -->
+    <rect x="56" y="96" width="3" height="4" fill="#0a0820"/>
+    <rect x="61" y="96" width="3" height="4" fill="#0a0820"/>
+    <rect x="66" y="96" width="2" height="4" fill="#0a0820"/>
+
+    <!-- cửa sổ sáng -->
+    <g fill="#ffb347">
+      <rect x="60" y="108" width="3" height="4"/>
+      <rect x="60" y="120" width="3" height="4"/>
+      <rect x="51" y="116" width="3" height="4"/>
+      <rect x="71" y="112" width="3" height="4"/>
+      <rect x="71" y="126" width="3" height="4"/>
+    </g>
+
+    <!-- cột cờ + cờ -->
+    <rect x="61" y="84" width="2" height="16" fill="#2a2a44"/>
+    <polygon points="63,84 72,87 63,90" fill="#b83232"/>
+
+    <!-- ===== MẶT ĐẤT ===== -->
+    <rect x="0" y="142" width="120" height="58" fill="#05040f"/>
+
+    <!-- ===== BĂNG RÔN TỰA SÁCH ===== -->
+    <rect x="10" y="146" width="100" height="46" fill="#1c0d18" stroke="#c9a227" stroke-width="2"/>
+    <rect x="13" y="149" width="94" height="40" fill="none" stroke="#7a5c1a" stroke-width="1"/>
+    <rect x="30" y="174" width="60" height="1" fill="#7a5c1a"/>
+
+    <!-- ===== KHUNG VIỀN ===== -->
+    <rect x="2" y="2" width="116" height="196" fill="none" stroke="#c9a227" stroke-width="2"/>
+    <rect x="6" y="6" width="108" height="188" fill="none" stroke="#7a5c1a" stroke-width="1"/>
+
+  </g>
+
+  <!-- ===== CHỮ ===== -->
+  <g font-family="'Courier New', monospace" font-weight="bold" text-anchor="middle">
+    <text x="60" y="168" font-size="14" fill="#e8c872" letter-spacing="1">FANTASY</text>
+    <text x="60" y="186" font-size="7"  fill="#c9a227" letter-spacing="1">BOOK ONE</text>
+  </g>
+</svg>

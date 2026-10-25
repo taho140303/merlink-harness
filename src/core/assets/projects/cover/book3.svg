@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 200" width="480" height="800" shape-rendering="crispEdges">
+  <g>
+
+    <!-- ===== NỀN ===== -->
+    <rect width="120" height="200" fill="#0b1120"/>
+
+    <!-- ===== HỌA TIẾT HÌNH HỌC ===== -->
+
+    <!-- Vòng tròn cam lớn (góc trên phải) -->
+    <circle cx="84" cy="54" r="40" fill="#f97316"/>
+    <circle cx="84" cy="54" r="26" fill="#ea580c"/>
+
+    <!-- Vòng tròn xanh teal mảnh (giao thoa) -->
+    <circle cx="40" cy="98" r="30" fill="none" stroke="#38bdf8" stroke-width="3"/>
+
+    <!-- Ô vuông vàng nhỏ (góc trên trái) -->
+    <rect x="14" y="26" width="10" height="10" fill="#eab308"/>
+
+    <!-- Chấm cream lấm tấm (texture) -->
+    <g fill="#fef3c7" opacity="0.35">
+      <rect x="16" y="52" width="2" height="2"/>
+      <rect x="24" y="68" width="2" height="2"/>
+      <rect x="14" y="86" width="2" height="2"/>
+      <rect x="20" y="114" width="2" height="2"/>
+      <rect x="104" y="100" width="2" height="2"/>
+      <rect x="110" y="82" width="2" height="2"/>
+      <rect x="100" y="120" width="2" height="2"/>
+      <rect x="92" y="26" width="2" height="2"/>
+    </g>
+
+    <!-- Đường kẻ ngang mảnh -->
+    <g stroke="#1e293b" stroke-width="1">
+      <line x1="0" y1="118" x2="120" y2="118"/>
+      <line x1="0" y1="122" x2="120" y2="122"/>
+    </g>
+
+    <!-- ===== DẢI CREAM DƯỚI ===== -->
+    <rect x="0" y="132" width="120" height="68" fill="#fef3c7"/>
+    <rect x="0" y="132" width="120" height="2" fill="#eab308"/>
+
+    <!-- ===== CHỮ ===== -->
+    <text x="60" y="162" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="22" fill="#0b1120" text-anchor="middle" letter-spacing="1">MODERN</text>
+
+    <text x="60" y="177" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="6" fill="#f97316" text-anchor="middle" letter-spacing="3">A NEW ERA</text>
+
+    <rect x="46" y="182" width="28" height="1" fill="#0b1120" opacity="0.3"/>
+
+    <text x="60" y="194" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="5" fill="#64748b" text-anchor="middle" letter-spacing="2">PIXEL PRESS</text>
+
+  </g>
+</svg>

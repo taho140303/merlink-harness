@@ -1,17 +1,20 @@
 import { useState, useMemo } from "react";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, Trash2, Check } from "lucide-react";
+import { cn } from "../../../shared/utils/cn";
 import { MOCK_PROJECTS } from "./mockProjects";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectDetailSidebar } from "./ProjectDetailSidebar";
 import type { ProjectItem, SortOption } from "./types";
 
 export default function ProjectView() {
+  const [projects, setProjects] = useState<ProjectItem[]>(MOCK_PROJECTS);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("a-z");
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
 
   const filteredAndSortedProjects = useMemo(() => {
-    return MOCK_PROJECTS.filter((p) => {
+    return projects.filter((p) => {
       const matchSearch =
         p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -23,7 +26,31 @@ export default function ProjectView() {
       if (sortBy === "modified") return b.modifiedAt.localeCompare(a.modifiedAt);
       return 0;
     });
-  }, [searchTerm, sortBy]);
+  }, [projects, searchTerm, sortBy]);
+
+  const allSelected =
+    filteredAndSortedProjects.length > 0 &&
+    filteredAndSortedProjects.every((p) => selectedIds.includes(p.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredAndSortedProjects.map((p) => p.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSoftDelete = () => {
+    if (selectedIds.length === 0) return;
+    setProjects((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
+    setSelectedIds([]);
+  };
 
   return (
     <div className="relative flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8">
@@ -38,9 +65,48 @@ export default function ProjectView() {
           </p>
         </div>
 
-        {/* Input Search nằm kế Select Box sort */}
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64">
+        {/* Action Controls: Radio Select All + Soft Delete + Search + Sort */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Nút radio Select All / Deselect All */}
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className={cn(
+              "flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-2xs transition-colors",
+              allSelected
+                ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            )}
+            title={allSelected ? "Deselect All" : "Select All"}
+          >
+            <div
+              className={cn(
+                "flex h-4 w-4 items-center justify-center rounded-full border transition-all",
+                allSelected
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-400 bg-transparent"
+              )}
+            >
+              {allSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+            </div>
+            <span>{allSelected ? "Deselect All" : "Select All"}</span>
+          </button>
+
+          {/* Nút Soft Delete */}
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSoftDelete}
+              className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition-colors animate-in fade-in-0 duration-200"
+              title="Xóa mềm các dự án đã chọn"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Soft Delete ({selectedIds.length})</span>
+            </button>
+          )}
+
+          {/* Search box */}
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -51,6 +117,7 @@ export default function ProjectView() {
             />
           </div>
 
+          {/* Sort selector */}
           <div className="relative">
             <select
               value={sortBy}
@@ -66,13 +133,15 @@ export default function ProjectView() {
         </div>
       </div>
 
-      {/* Grid danh sách Project (2 cột trên màn hình rộng) */}
+      {/* Grid danh sách Project */}
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2">
         {filteredAndSortedProjects.map((project) => (
           <ProjectCard
             key={project.id}
             project={project}
-            onView={(p) => setSelectedProject(p)}
+            isSelected={selectedIds.includes(project.id)}
+            onToggleSelect={toggleSelectOne}
+            onOverview={(p) => setSelectedProject(p)}
           />
         ))}
 

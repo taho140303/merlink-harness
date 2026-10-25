@@ -1,5 +1,20 @@
 export type SortOption = "a-z" | "z-a" | "modified";
 
+export interface ChapterItem {
+  id: string;
+  title: string;
+  date: string;
+  hasIllustration?: boolean;
+  isNew?: boolean;
+}
+
+export interface ArcItem {
+  id: string;
+  title: string;
+  cover?: string;
+  chapters: ChapterItem[];
+}
+
 export interface ProjectItem {
   id: string;
   title: string;
@@ -15,4 +30,5 @@ export interface ProjectItem {
     worldLore: string;
     createdDate: string;
   };
+  arcs?: ArcItem[];
 }
