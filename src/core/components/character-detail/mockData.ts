@@ -5,9 +5,9 @@ export const rimuruProfile: CharacterFullProfile = {
   basicInfo: {
     name: 'Rimuru Tempest',
     species: 'Ultimate Slime (True Dragon-tier)',
-    biologicalSex: 'None (Slime physiology)',
-    genderIdentity: 'Genderless',
-    genderExpression: ['Androgynous', 'Neutral', 'Adaptive'],
+    biologicalSex: 'none',
+    genderIdentity: 'genderless',
+    genderExpression: 'androgynous',
   },
   appearance: {
     height: 170,

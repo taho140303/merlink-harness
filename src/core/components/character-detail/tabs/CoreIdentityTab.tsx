@@ -3,7 +3,14 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useCharacterDetailStore } from '../store';
 import { FieldDisplay } from '../shared/FieldDisplay';
 import { EditableField } from '../shared/EditableField';
+import { EnumSelect } from '../shared/EnumSelect';
 import { RelationshipCard } from '../RelationshipCard';
+import type { BiologicalSex, GenderExpression, GenderIdentity } from '../types';
+import {
+  BIOLOGICAL_SEX_OPTIONS,
+  GENDER_EXPRESSION_OPTIONS,
+  GENDER_IDENTITY_OPTIONS,
+} from '../types';
 
 function Section({
   title,
@@ -52,33 +59,37 @@ export function CoreIdentityTab() {
             value={character.basicInfo.species}
             onChange={(v) => updateBasicInfo({ species: v })}
           />
-          <EditableField
+          <EnumSelect
             label="Biological Sex"
             value={character.basicInfo.biologicalSex}
-            onChange={(v) => updateBasicInfo({ biologicalSex: v })}
+            options={BIOLOGICAL_SEX_OPTIONS}
+            onChange={
+              isEditing
+                ? (v) => updateBasicInfo({ biologicalSex: v as BiologicalSex })
+                : undefined
+            }
           />
-          <EditableField
+          <EnumSelect
             label="Gender Identity"
             value={character.basicInfo.genderIdentity}
-            onChange={(v) => updateBasicInfo({ genderIdentity: v })}
+            options={GENDER_IDENTITY_OPTIONS}
+            onChange={
+              isEditing
+                ? (v) => updateBasicInfo({ genderIdentity: v as GenderIdentity })
+                : undefined
+            }
           />
-          <div className="sm:col-span-2">
-            <FieldDisplay
-              label="Gender Expression"
-              value={
-                <div className="flex flex-wrap gap-1.5">
-                  {character.basicInfo.genderExpression.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              }
-            />
-          </div>
+          <EnumSelect
+            label="Gender Expression"
+            value={character.basicInfo.genderExpression}
+            options={GENDER_EXPRESSION_OPTIONS}
+            onChange={
+              isEditing
+                ? (v) => updateBasicInfo({ genderExpression: v as GenderExpression })
+                : undefined
+            }
+            className="sm:col-span-2 sm:max-w-xs"
+          />
         </div>
       </Section>
 
@@ -153,7 +164,22 @@ export function CoreIdentityTab() {
               key={mark.id}
               className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60"
             >
-              <span className="text-sm text-slate-800 dark:text-slate-200">{mark.content}</span>
+              {isEditing ? (
+                <input
+                  value={mark.content}
+                  onChange={(e) =>
+                    useCharacterDetailStore.getState().patchCharacter((c) => {
+                      const m = c.distinguishingMarks.find((x) => x.id === mark.id);
+                      if (m) m.content = e.target.value;
+                    })
+                  }
+                  className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                />
+              ) : (
+                <span className="text-sm text-slate-800 dark:text-slate-200">
+                  {mark.content}
+                </span>
+              )}
               {isEditing && (
                 <button
                   type="button"

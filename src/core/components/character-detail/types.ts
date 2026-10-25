@@ -8,6 +8,47 @@ export type MemoryStatus = 'Active' | 'Suppressed' | 'Forgotten' | 'Distorted';
 export type DetailTab = 'core' | 'life' | 'psych';
 export type LifeSubTab = 'knowledge' | 'competence' | 'memory';
 
+export const INTENSITY_LEVELS: IntensityLevel[] = [
+  'NONE',
+  'LOW',
+  'MODERATE',
+  'HIGH',
+  'ABSOLUTE',
+];
+
+export const BIOLOGICAL_SEX_OPTIONS = ['male', 'female', 'intersex', 'none', 'unknown'] as const;
+export type BiologicalSex = (typeof BIOLOGICAL_SEX_OPTIONS)[number];
+
+export const GENDER_IDENTITY_OPTIONS = [
+  'male',
+  'female',
+  'non_binary',
+  'genderfluid',
+  'agender',
+  'genderless',
+  'other',
+] as const;
+export type GenderIdentity = (typeof GENDER_IDENTITY_OPTIONS)[number];
+
+export const GENDER_EXPRESSION_OPTIONS = [
+  'masculine',
+  'feminine',
+  'androgynous',
+  'neutral',
+  'mixed',
+] as const;
+export type GenderExpression = (typeof GENDER_EXPRESSION_OPTIONS)[number];
+
+export const KNOWLEDGE_TYPE_OPTIONS: KnowledgeType[] = ['Initial', 'Lore'];
+export const CERTAINTY_OPTIONS: KnowledgeCertainty[] = ['Low', 'Medium', 'High'];
+export const MEMORY_TYPE_OPTIONS: MemoryType[] = ['Episodic', 'Semantic', 'Procedural'];
+export const MEMORY_STATUS_OPTIONS: MemoryStatus[] = [
+  'Active',
+  'Suppressed',
+  'Forgotten',
+  'Distorted',
+];
+
 export interface ColorOption {
   value: string;
   hex?: string;
@@ -16,9 +57,9 @@ export interface ColorOption {
 export interface CharacterBasicInfo {
   name: string;
   species: string;
-  biologicalSex: string;
-  genderIdentity: string;
-  genderExpression: string[];
+  biologicalSex: BiologicalSex;
+  genderIdentity: GenderIdentity;
+  genderExpression: GenderExpression;
 }
 
 export interface Appearance {

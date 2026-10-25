@@ -1,5 +1,6 @@
-import type { IntensityLevel, Relationship } from './types';
-import { ProgressBar } from './shared/ProgressBar';
+import type { IntensityLevel, Relationship, RelationshipStates } from './types';
+import { useCharacterDetailStore } from './store';
+import { IntensitySlider } from './shared/IntensitySlider';
 
 const roleColor: Record<string, string> = {
   Superior: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
@@ -15,7 +16,7 @@ const categoryColor: Record<string, string> = {
   Rival: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
 };
 
-const stateLabels: Array<[keyof Relationship['states'], string]> = [
+const stateLabels: Array<[keyof RelationshipStates, string]> = [
   ['trust', 'Trust'],
   ['affection', 'Affection'],
   ['hostility', 'Hostility'],
@@ -26,6 +27,15 @@ const stateLabels: Array<[keyof Relationship['states'], string]> = [
 ];
 
 export function RelationshipCard({ relationship }: { relationship: Relationship }) {
+  const isEditing = useCharacterDetailStore((s) => s.isEditing);
+  const patch = useCharacterDetailStore((s) => s.patchCharacter);
+
+  const setState = (key: keyof RelationshipStates, level: IntensityLevel) =>
+    patch((c) => {
+      const rel = c.relationships.find((r) => r.id === relationship.id);
+      if (rel) rel.states[key] = level;
+    });
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-3">
@@ -35,14 +45,14 @@ export function RelationshipCard({ relationship }: { relationship: Relationship 
         <div className="mt-1 flex flex-wrap gap-1.5">
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              roleColor[relationship.role] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              roleColor[relationship.role] ?? 'bg-slate-100 text-slate-700'
             }`}
           >
             {relationship.role}
           </span>
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              categoryColor[relationship.category] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              categoryColor[relationship.category] ?? 'bg-slate-100 text-slate-700'
             }`}
           >
             {relationship.category}
@@ -51,10 +61,11 @@ export function RelationshipCard({ relationship }: { relationship: Relationship 
       </div>
       <div className="space-y-2">
         {stateLabels.map(([key, label]) => (
-          <ProgressBar
+          <IntensitySlider
             key={key}
             label={label}
-            level={relationship.states[key] as IntensityLevel}
+            value={relationship.states[key]}
+            onChange={isEditing ? (v) => setState(key, v) : undefined}
           />
         ))}
       </div>

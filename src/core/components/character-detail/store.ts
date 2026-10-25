@@ -16,6 +16,7 @@ interface CharacterDetailState {
   activeTab: DetailTab;
   activeLifeTab: LifeSubTab;
   setCharacter: (c: CharacterFullProfile) => void;
+  patchCharacter: (updater: (draft: CharacterFullProfile) => void) => void;
   updateBasicInfo: (partial: Partial<CharacterBasicInfo>) => void;
   updateAppearance: (partial: Partial<Appearance>) => void;
   addMark: (content: string) => void;
@@ -36,6 +37,12 @@ export const useCharacterDetailStore = create<CharacterDetailState>((set) => ({
   activeTab: 'core',
   activeLifeTab: 'knowledge',
   setCharacter: (character) => set({ character }),
+  patchCharacter: (updater) =>
+    set((s) => {
+      const clone = structuredClone(s.character);
+      updater(clone);
+      return { character: clone };
+    }),
   updateBasicInfo: (partial) =>
     set((s) => ({
       character: { ...s.character, basicInfo: { ...s.character.basicInfo, ...partial } },

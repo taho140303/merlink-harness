@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCharacterDetailStore } from '../store';
+import type { PsychologicalProfile } from '../types';
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -10,7 +11,30 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function ProseField({ label, value }: { label: string; value: string }) {
+function ProseField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+}) {
+  if (onChange) {
+    return (
+      <div>
+        <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          {label}
+        </p>
+        <textarea
+          rows={4}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-serif text-[14px] leading-7 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+        />
+      </div>
+    );
+  }
   return (
     <div>
       <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -25,14 +49,35 @@ function ProseField({ label, value }: { label: string; value: string }) {
 
 export function PsychologicalTab() {
   const p = useCharacterDetailStore((s) => s.character).psychological;
+  const isEditing = useCharacterDetailStore((s) => s.isEditing);
+  const patch = useCharacterDetailStore((s) => s.patchCharacter);
+
+  const upd = (fn: (draft: PsychologicalProfile) => void) =>
+    patch((c) => fn(c.psychological));
 
   return (
     <div className="space-y-4">
       <Block title="Core Trauma & Belief">
         <div className="grid gap-4 md:grid-cols-3">
-          <ProseField label="The Wound" value={p.coreTrauma.theWound} />
-          <ProseField label="The Lie" value={p.coreTrauma.theLie} />
-          <ProseField label="Fundamental Fear" value={p.coreTrauma.fundamentalFear} />
+          <ProseField
+            label="The Wound"
+            value={p.coreTrauma.theWound}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.coreTrauma.theWound = v)) : undefined
+            }
+          />
+          <ProseField
+            label="The Lie"
+            value={p.coreTrauma.theLie}
+            onChange={isEditing ? (v) => upd((d) => (d.coreTrauma.theLie = v)) : undefined}
+          />
+          <ProseField
+            label="Fundamental Fear"
+            value={p.coreTrauma.fundamentalFear}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.coreTrauma.fundamentalFear = v)) : undefined
+            }
+          />
         </div>
       </Block>
 
@@ -42,30 +87,83 @@ export function PsychologicalTab() {
             <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Moral Alignment
             </p>
-            <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              {p.cognitiveMoral.moralAlignment}
-            </span>
+            {isEditing ? (
+              <input
+                value={p.cognitiveMoral.moralAlignment}
+                onChange={(e) =>
+                  upd((d) => (d.cognitiveMoral.moralAlignment = e.target.value))
+                }
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+              />
+            ) : (
+              <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                {p.cognitiveMoral.moralAlignment}
+              </span>
+            )}
           </div>
-          <ProseField label="Cognitive Bias" value={p.cognitiveMoral.cognitiveBias} />
+          <ProseField
+            label="Cognitive Bias"
+            value={p.cognitiveMoral.cognitiveBias}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.cognitiveMoral.cognitiveBias = v)) : undefined
+            }
+          />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <ProseField label="Moral Code" value={p.cognitiveMoral.moralCode} />
+          <ProseField
+            label="Moral Code"
+            value={p.cognitiveMoral.moralCode}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.cognitiveMoral.moralCode = v)) : undefined
+            }
+          />
           <div className="rounded-lg border border-rose-100 bg-rose-50 p-3 dark:border-rose-900/60 dark:bg-rose-950/30">
             <p className="mb-1 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-300">
               Breaking Point
             </p>
-            <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-rose-900 dark:text-rose-100">
-              {p.cognitiveMoral.breakingPoint}
-            </p>
+            {isEditing ? (
+              <textarea
+                rows={4}
+                value={p.cognitiveMoral.breakingPoint}
+                onChange={(e) =>
+                  upd((d) => (d.cognitiveMoral.breakingPoint = e.target.value))
+                }
+                className="w-full resize-y rounded-lg border border-rose-200 bg-white px-2 py-1.5 font-serif text-[14px] leading-7 text-rose-900 focus:outline-hidden focus:ring-2 focus:ring-rose-400 dark:border-rose-900 dark:bg-slate-950 dark:text-rose-100"
+              />
+            ) : (
+              <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-rose-900 dark:text-rose-100">
+                {p.cognitiveMoral.breakingPoint}
+              </p>
+            )}
           </div>
         </div>
       </Block>
 
       <Block title="Narrative Engine">
         <div className="grid gap-4 md:grid-cols-3">
-          <ProseField label="External Want" value={p.narrativeEngine.externalWant} />
-          <ProseField label="Internal Need" value={p.narrativeEngine.internalNeed} />
-          <ProseField label="Internal Conflict" value={p.narrativeEngine.internalConflict} />
+          <ProseField
+            label="External Want"
+            value={p.narrativeEngine.externalWant}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.narrativeEngine.externalWant = v)) : undefined
+            }
+          />
+          <ProseField
+            label="Internal Need"
+            value={p.narrativeEngine.internalNeed}
+            onChange={
+              isEditing ? (v) => upd((d) => (d.narrativeEngine.internalNeed = v)) : undefined
+            }
+          />
+          <ProseField
+            label="Internal Conflict"
+            value={p.narrativeEngine.internalConflict}
+            onChange={
+              isEditing
+                ? (v) => upd((d) => (d.narrativeEngine.internalConflict = v))
+                : undefined
+            }
+          />
         </div>
       </Block>
 
@@ -79,10 +177,20 @@ export function PsychologicalTab() {
               <ProseField
                 label="Persona Type"
                 value={p.behavioralAdaptation.socialMask.personaType}
+                onChange={
+                  isEditing
+                    ? (v) => upd((d) => (d.behavioralAdaptation.socialMask.personaType = v))
+                    : undefined
+                }
               />
               <ProseField
                 label="Verbal Style"
                 value={p.behavioralAdaptation.socialMask.verbalStyle}
+                onChange={
+                  isEditing
+                    ? (v) => upd((d) => (d.behavioralAdaptation.socialMask.verbalStyle = v))
+                    : undefined
+                }
               />
             </div>
           </div>
@@ -94,14 +202,32 @@ export function PsychologicalTab() {
               <ProseField
                 label="Primary Reaction"
                 value={p.behavioralAdaptation.defenseMechanisms.primaryReaction}
+                onChange={
+                  isEditing
+                    ? (v) =>
+                        upd((d) => (d.behavioralAdaptation.defenseMechanisms.primaryReaction = v))
+                    : undefined
+                }
               />
               <ProseField
                 label="Stress Trigger"
                 value={p.behavioralAdaptation.defenseMechanisms.stressTrigger}
+                onChange={
+                  isEditing
+                    ? (v) =>
+                        upd((d) => (d.behavioralAdaptation.defenseMechanisms.stressTrigger = v))
+                    : undefined
+                }
               />
               <ProseField
                 label="Coping Strategy"
                 value={p.behavioralAdaptation.defenseMechanisms.copingStrategy}
+                onChange={
+                  isEditing
+                    ? (v) =>
+                        upd((d) => (d.behavioralAdaptation.defenseMechanisms.copingStrategy = v))
+                    : undefined
+                }
               />
             </div>
           </div>

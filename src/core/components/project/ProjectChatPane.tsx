@@ -23,7 +23,7 @@ export function ProjectChatPane({
         <div className="flex items-center gap-2 truncate">
           <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />
           <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-            Copilot: {projectName}
+            Merlink: {projectName}
           </span>
         </div>
         <button
