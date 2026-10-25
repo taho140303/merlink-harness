@@ -1,13 +1,13 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import ChatView from "../../src/core/components/chat/ChatView";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Merlink Harness - Chat" },
+    { name: "description", content: "Merlink Harness UI Chat Space" },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return <ChatView />;
 }
