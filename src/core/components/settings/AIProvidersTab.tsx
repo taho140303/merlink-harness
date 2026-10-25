@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { ProviderForm } from "./ProviderForm";
+import { DeleteConfirmDialog } from "../../../shared/components/ui/delete-confirm-dialog";
+import { toast } from "../../../shared/components/ui/toast";
+import { useT } from "../../../shared/i18n/useT";
 import type { AIProviderItem } from "./types";
 
 const INITIAL_PROVIDERS: AIProviderItem[] = [
@@ -15,9 +18,12 @@ const INITIAL_PROVIDERS: AIProviderItem[] = [
 ];
 
 export function AIProvidersTab() {
+  const t = useT();
   const [providers, setProviders] = useState<AIProviderItem[]>(INITIAL_PROVIDERS);
   const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AIProviderItem | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const handleSave = (provider: AIProviderItem) => {
     if (editingProvider) {
@@ -29,8 +35,16 @@ export function AIProvidersTab() {
     setEditingProvider(null);
   };
 
-  const handleDelete = (id: string) => {
-    setProviders(providers.filter((p) => p.id !== id));
+  const requestDelete = (provider: AIProviderItem) => {
+    setDeleteTarget(provider);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    setProviders((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+    toast({ title: t("common.deleted"), variant: "success" });
+    setDeleteTarget(null);
   };
 
   if (isAdding || editingProvider) {
@@ -49,13 +63,14 @@ export function AIProvidersTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Models</h3>
+        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          {t("providers.models")}
+        </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Enter your API keys to use models from the following providers.
+          {t("providers.subtitle")}
         </p>
       </div>
 
-      {/* Providers List Container */}
       <div className="space-y-2">
         {providers.map((provider) => (
           <div
@@ -66,53 +81,59 @@ export function AIProvidersTab() {
               <span className="truncate text-xs font-medium text-slate-900 dark:text-slate-100">
                 {provider.name}
               </span>
-
               {provider.isCustom && (
                 <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  Custom
+                  {t("providers.custom")}
                 </span>
               )}
-
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
               {provider.status === "signed-in" && (
                 <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">
-                  Signed in
+                  {t("providers.signedIn")}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => setEditingProvider(provider)}
                 className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
-                Edit
+                {t("providers.edit")}
               </button>
               {provider.name !== "DeepSeek Account" && (
                 <button
                   type="button"
-                  onClick={() => handleDelete(provider.id)}
+                  onClick={() => requestDelete(provider)}
                   className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
                 >
-                  Delete
+                  {t("providers.delete")}
                 </button>
               )}
             </div>
           </div>
         ))}
 
-        {/* Add Provider Button */}
         <button
           type="button"
           onClick={() => setIsAdding(true)}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
         >
           <Plus className="h-4 w-4" />
-          <span>Add model provider</span>
+          <span>{t("providers.add")}</span>
         </button>
       </div>
+
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t("providers.delete.title")}
+        description={`${deleteTarget?.name ?? ""} — ${t("providers.delete.description")}`}
+        confirmLabel={t("delete.confirm")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

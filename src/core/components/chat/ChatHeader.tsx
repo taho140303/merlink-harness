@@ -2,6 +2,8 @@ import { useState } from "react";
 import { MessageSquare, Sliders, Info, Pencil } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { ProcessDetailDialog } from "./ProcessDetailDialog";
+import { toast } from "../../../shared/components/ui/toast";
+import { useT } from "../../../shared/i18n/useT";
 import type { ChatMode } from "./types";
 
 interface ChatHeaderProps {
@@ -20,6 +22,11 @@ export function ChatHeader({
   progressPercent = 65,
 }: ChatHeaderProps) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const t = useT();
+
+  const handleManualClick = () => {
+    toast({ title: t("toast.featureInProgress") });
+  };
 
   return (
     <>
@@ -29,7 +36,7 @@ export function ChatHeader({
             Merlink-harness
           </h2>
           <span className="rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            preview
+            {t("chat.preview")}
           </span>
         </div>
 
@@ -42,24 +49,19 @@ export function ChatHeader({
                 "flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-all",
                 mode === "chat"
                   ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200",
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              <span>Chat</span>
+              <span>{t("chat.mode.chat")}</span>
             </button>
             <button
               type="button"
-              onClick={() => onModeChange("manual")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-all",
-                mode === "manual"
-                  ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
-              )}
+              onClick={handleManualClick}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium text-slate-600 transition-all hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             >
               <Sliders className="h-3.5 w-3.5" />
-              <span>Manual</span>
+              <span>{t("chat.mode.manual")}</span>
             </button>
           </div>
 
@@ -74,7 +76,7 @@ export function ChatHeader({
               type="button"
               onClick={() => setInfoOpen(true)}
               className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-              title="Xem chi tiết tiến trình"
+              title="View progress detail"
             >
               <Info className="h-4 w-4" />
             </button>
@@ -89,11 +91,11 @@ export function ChatHeader({
               "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
               isDraftOpen
                 ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
-                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
             )}
           >
             <Pencil className="h-3.5 w-3.5" />
-            <span>Draft building</span>
+            <span>{t("chat.draftBuilding")}</span>
           </button>
         </div>
       </header>

@@ -1,5 +1,6 @@
 import { Outlet } from "react-router";
 import Sidebar from "../../core/components/Sidebar";
+import { ToastViewport } from "../../shared/components/ui/toast";
 
 export default function FullLayout() {
   return (
@@ -8,6 +9,7 @@ export default function FullLayout() {
       <main className="flex-1 h-full overflow-hidden">
         <Outlet />
       </main>
+      <ToastViewport />
     </div>
   );
 }

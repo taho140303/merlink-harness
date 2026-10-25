@@ -11,6 +11,7 @@ import { rimuruProfile } from './mockData';
 
 interface CharacterDetailState {
   character: CharacterFullProfile;
+  editSnapshot: CharacterFullProfile | null;
   isEditing: boolean;
   isChatOpen: boolean;
   activeTab: DetailTab;
@@ -24,7 +25,9 @@ interface CharacterDetailState {
   addKnowledge: (entry: Omit<KnowledgeSource, 'id'>) => void;
   updateKnowledgePath: (id: string, path: string) => void;
   removeKnowledge: (id: string) => void;
-  toggleEditing: () => void;
+  startEditing: () => void;
+  saveEditing: () => void;
+  cancelEditing: () => void;
   toggleChat: () => void;
   setActiveTab: (t: DetailTab) => void;
   setActiveLifeTab: (t: LifeSubTab) => void;
@@ -32,6 +35,7 @@ interface CharacterDetailState {
 
 export const useCharacterDetailStore = create<CharacterDetailState>((set) => ({
   character: rimuruProfile,
+  editSnapshot: null,
   isEditing: false,
   isChatOpen: false,
   activeTab: 'core',
@@ -89,7 +93,18 @@ export const useCharacterDetailStore = create<CharacterDetailState>((set) => ({
         knowledge: s.character.knowledge.filter((k) => k.id !== id),
       },
     })),
-  toggleEditing: () => set((s) => ({ isEditing: !s.isEditing })),
+  startEditing: () =>
+    set((s) => ({
+      isEditing: true,
+      editSnapshot: structuredClone(s.character),
+    })),
+  saveEditing: () => set({ isEditing: false, editSnapshot: null }),
+  cancelEditing: () =>
+    set((s) => ({
+      isEditing: false,
+      character: s.editSnapshot ?? s.character,
+      editSnapshot: null,
+    })),
   toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen })),
   setActiveTab: (activeTab) => set({ activeTab }),
   setActiveLifeTab: (activeLifeTab) => set({ activeLifeTab }),

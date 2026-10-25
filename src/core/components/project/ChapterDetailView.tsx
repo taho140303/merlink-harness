@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
-import { Pencil, MessageSquare, Lock, Unlock, GripVertical } from "lucide-react";
+import { Pencil, MessageSquare, Lock, Unlock, GripVertical, X, Check } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { truncate } from "../../../shared/utils/string";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
 import { ProjectChatPane } from "./ProjectChatPane";
+import { ConfirmDialog } from "../../../shared/components/ui/confirm-dialog";
+import { toast } from "../../../shared/components/ui/toast";
+import { useT } from "../../../shared/i18n/useT";
 import type { ProjectItem, ChapterItem, ChapterBlock } from "./types";
 
 interface ChapterDetailViewProps {
@@ -13,7 +16,6 @@ interface ChapterDetailViewProps {
   chapterIndex: number;
 }
 
-// Component Textarea tự dãn theo nội dung chữ và tắt triệt để scrollbar
 function AutoResizeTextarea({
   value,
   disabled,
@@ -43,23 +45,22 @@ function AutoResizeTextarea({
         "w-full resize-none overflow-hidden bg-transparent text-xs leading-relaxed focus:outline-hidden",
         disabled
           ? "cursor-not-allowed text-slate-400 select-none dark:text-slate-500"
-          : "text-slate-800 dark:text-slate-200"
+          : "text-slate-800 dark:text-slate-200",
       )}
     />
   );
 }
 
-export function ChapterDetailView({
-  project,
-  chapter,
-  chapterIndex,
-}: ChapterDetailViewProps) {
+export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDetailViewProps) {
+  const t = useT();
   const [isEditing, setIsEditing] = useState(false);
+  const [editSnapshot, setEditSnapshot] = useState<ChapterBlock[] | null>(null);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [blocks, setBlocks] = useState<ChapterBlock[]>(
     chapter.blocks || [
       { id: "b1", text: "Nội dung chương đang được soạn thảo...", locked: false },
-    ]
+    ],
   );
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
@@ -67,15 +68,30 @@ export function ChapterDetailView({
     minPx: 340,
   });
 
-  const toggleLock = (blockId: string) => {
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, locked: !b.locked } : b))
-    );
+  const handleStartEdit = () => {
+    setEditSnapshot(structuredClone(blocks));
+    setIsEditing(true);
+  };
+  const handleSave = () => {
+    setIsEditing(false);
+    setEditSnapshot(null);
+    toast({ title: t("common.saved"), variant: "success" });
+  };
+  const handleCancelConfirm = () => {
+    if (editSnapshot) setBlocks(editSnapshot);
+    setIsEditing(false);
+    setEditSnapshot(null);
+    setDiscardOpen(false);
   };
 
+  const toggleLock = (blockId: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, locked: !b.locked } : b)),
+    );
+  };
   const updateBlockText = (blockId: string, newText: string) => {
     setBlocks((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, text: newText } : b))
+      prev.map((b) => (b.id === blockId ? { ...b, text: newText } : b)),
     );
   };
 
@@ -86,10 +102,9 @@ export function ChapterDetailView({
       ref={containerRef}
       className={cn(
         "flex h-full w-full overflow-hidden",
-        isDragging && "cursor-col-resize select-none"
+        isDragging && "cursor-col-resize select-none",
       )}
     >
-      {/* Pane Trái: Chat Layout */}
       {isChatOpen && (
         <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
           <ProjectChatPane
@@ -100,7 +115,6 @@ export function ChapterDetailView({
         </div>
       )}
 
-      {/* Ranh giới kéo cột */}
       {isChatOpen && (
         <div
           onMouseDown={startDragging}
@@ -110,7 +124,7 @@ export function ChapterDetailView({
           <div
             className={cn(
               "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800",
-              isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100"
+              isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100",
             )}
           >
             <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
@@ -118,12 +132,10 @@ export function ChapterDetailView({
         </div>
       )}
 
-      {/* Pane Phải: Nội dung chương */}
       <div
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
         className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8"
       >
-        {/* Header Breadcrumbs */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
           <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
             <Link to="/project" className="shrink-0 hover:text-slate-900 dark:hover:text-slate-100">
@@ -147,19 +159,35 @@ export function ChapterDetailView({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsEditing(!isEditing)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
-                isEditing
-                  ? "border-amber-500 bg-amber-50 text-amber-800 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-300"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-              )}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>{isEditing ? "Viewing" : "Edit"}</span>
-            </button>
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>{t("common.edit")}</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setDiscardOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>{t("common.cancel")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>{t("common.save")}</span>
+                </button>
+              </>
+            )}
 
             <button
               type="button"
@@ -168,7 +196,7 @@ export function ChapterDetailView({
                 "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
                 isChatOpen
                   ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -177,8 +205,7 @@ export function ChapterDetailView({
           </div>
         </div>
 
-        {/* Nội dung chương (thêm pr-14 để chừa khoảng trống cho icon Lock nằm ngoài mà không bị cấn lề) */}
-        <div className="mx-auto mt-6 w-full max-w-3xl pr-14 space-y-5">
+        <div className="mx-auto mt-6 w-full max-w-3xl space-y-5 pr-14">
           <div className="border-b border-slate-100 pb-4 dark:border-slate-800">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
               {fullChapterTitle}
@@ -194,18 +221,15 @@ export function ChapterDetailView({
                   "group relative rounded-2xl transition-all duration-200",
                   isEditing
                     ? "border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-                    : "text-sm leading-relaxed text-slate-700 dark:text-slate-300"
+                    : "text-sm leading-relaxed text-slate-700 dark:text-slate-300",
                 )}
               >
                 {isEditing ? (
                   <>
-                    {/* Icon Lock nằm ngoài khối ở mép phải, căn giữa theo chiều dọc */}
                     <div
                       className={cn(
                         "absolute -right-11 top-1/2 z-10 -translate-y-1/2 transition-all duration-200",
-                        block.locked
-                          ? "opacity-100"
-                          : "opacity-0 group-hover:opacity-100"
+                        block.locked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                       )}
                     >
                       <button
@@ -215,9 +239,8 @@ export function ChapterDetailView({
                           "flex h-7 w-7 items-center justify-center rounded-lg border shadow-xs transition-colors",
                           block.locked
                             ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                            : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                            : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
                         )}
-                        title={block.locked ? "Khối đã khóa (Click mở)" : "Khóa khối này"}
                       >
                         {block.locked ? (
                           <Lock className="h-3.5 w-3.5" />
@@ -248,6 +271,17 @@ export function ChapterDetailView({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title={t("discard.title")}
+        description={t("discard.description")}
+        confirmLabel={t("discard.confirm")}
+        cancelLabel={t("discard.cancel")}
+        variant="danger"
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   );
 }
