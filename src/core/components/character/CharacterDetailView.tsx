@@ -8,12 +8,16 @@ import {
   Plus,
   Trash2,
   GripVertical,
+  X,
   Check,
 } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { truncate } from "../../../shared/utils/string";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
 import { CharacterChatPane } from "./CharacterChatPane";
+import { ConfirmDialog } from "../../../shared/components/ui/confirm-dialog";
+import { toast } from "../../../shared/components/ui/toast";
+import { useT } from "../../../shared/i18n/useT";
 import type {
   CharacterItem,
   RelationshipStateLevel,
@@ -36,9 +40,12 @@ const STATE_COLORS: Record<RelationshipStateLevel, string> = {
 };
 
 export function CharacterDetailView({ initialCharacter }: CharacterDetailViewProps) {
+  const t = useT();
   const [character, setCharacter] = useState<CharacterItem>(initialCharacter);
+  const [editSnapshot, setEditSnapshot] = useState<CharacterItem | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("basic");
   const [isEditing, setIsEditing] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [lockedFields, setLockedFields] = useState<Record<string, boolean>>({});
 
@@ -46,6 +53,22 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
     initialRatio: 45,
     minPx: 340,
   });
+
+  const handleStartEdit = () => {
+    setEditSnapshot(structuredClone(character));
+    setIsEditing(true);
+  };
+  const handleSave = () => {
+    setIsEditing(false);
+    setEditSnapshot(null);
+    toast({ title: t("common.saved"), variant: "success" });
+  };
+  const handleCancelConfirm = () => {
+    if (editSnapshot) setCharacter(editSnapshot);
+    setIsEditing(false);
+    setEditSnapshot(null);
+    setDiscardOpen(false);
+  };
 
   const toggleLock = (fieldKey: string) => {
     setLockedFields((prev) => ({ ...prev, [fieldKey]: !prev[fieldKey] }));
@@ -63,12 +86,11 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
     });
   };
 
-  // Thêm/Xóa Distinguishing Mark
   const handleAddMark = () => {
     const newMark: DistinguishingMark = {
       id: `mark-${Date.now()}`,
-      location: "New location",
-      description: "Mô tả điểm nhận dạng...",
+      location: "",
+      description: "",
     };
     setCharacter((prev) => ({
       ...prev,
@@ -83,23 +105,6 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
     }));
   };
 
-  // Xác định sub-section hiển thị trên Breadcrumb
-  const getSubSectionName = () => {
-    const tabMap: Record<TabType, string> = {
-      basic: "Basic Info",
-      appearance: "Appearance",
-      marks: "Marks",
-      relationships: "Relationships",
-    };
-    if (isEditing && isChatOpen) return `Edit - ${tabMap[activeTab]}`;
-    if (isEditing) return `Edit: ${tabMap[activeTab]}`;
-    if (isChatOpen) return `Chat: ${tabMap[activeTab]}`;
-    return "";
-  };
-
-  const subSectionTitle = getSubSectionName();
-
-  // Helper render input block với Lock icon khi hover ở top-right
   const renderField = (
     label: string,
     fieldKey: string,
@@ -110,18 +115,17 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
       currentUnit: MeasurementUnit;
       unitPath: string[];
       units: MeasurementUnit[];
-    }
+    },
   ) => {
     const isLocked = lockedFields[fieldKey] ?? false;
 
     return (
       <div className="group relative rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition-all dark:border-slate-800 dark:bg-slate-900">
-        {/* Lock Toggle ở góc trên bên phải khi hover hoặc khi đã khóa */}
         {isEditing && (
           <div
             className={cn(
               "absolute right-2.5 top-2.5 z-10 transition-opacity",
-              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
           >
             <button
@@ -131,16 +135,15 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 "flex h-6 w-6 items-center justify-center rounded-lg border shadow-2xs transition-colors",
                 isLocked
                   ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
               )}
-              title={isLocked ? "Đang khóa (Click để mở)" : "Khóa trường này"}
             >
               {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
             </button>
           </div>
         )}
 
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {label}
         </label>
 
@@ -153,8 +156,8 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 value={value}
                 onChange={(e) => handleUpdateField(path, e.target.value)}
                 className={cn(
-                  "w-full resize-none rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-xs leading-relaxed focus:outline-hidden dark:border-slate-700 dark:bg-slate-950",
-                  isLocked && "cursor-not-allowed text-slate-400 dark:text-slate-500"
+                  "w-full resize-none rounded-lg border border-slate-200 bg-slate-50/60 p-2 text-xs leading-relaxed focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200",
+                  isLocked && "cursor-not-allowed text-slate-400 dark:text-slate-500",
                 )}
               />
             ) : (
@@ -165,17 +168,17 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 onChange={(e) =>
                   handleUpdateField(
                     path,
-                    type === "number" ? Number(e.target.value) : e.target.value
+                    type === "number" ? Number(e.target.value) : e.target.value,
                   )
                 }
                 className={cn(
                   "w-full rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200",
-                  isLocked && "cursor-not-allowed text-slate-400 dark:text-slate-500"
+                  isLocked && "cursor-not-allowed text-slate-400 dark:text-slate-500",
                 )}
               />
             )
           ) : (
-            <p className="text-xs font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+            <p className="text-xs font-medium leading-relaxed text-slate-800 dark:text-slate-200">
               {value || "—"}
             </p>
           )}
@@ -201,21 +204,20 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
         {isLocked && isEditing && (
           <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-rose-500">
             <Lock className="h-2.5 w-2.5" />
-            <span>Trường này đã bị khóa</span>
+            <span>{t("character.detail.lockedHint")}</span>
           </span>
         )}
       </div>
     );
   };
 
-  // Helper render bảng màu với ô vuông preview
   const renderColorField = (
     label: string,
     colorKey: string,
     colorName: string,
     colorHex: string,
     colorPath: string[],
-    hexPath: string[]
+    hexPath: string[],
   ) => {
     const isLocked = lockedFields[colorKey] ?? false;
 
@@ -225,7 +227,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
           <div
             className={cn(
               "absolute right-2.5 top-2.5 z-10 transition-opacity",
-              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              isLocked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
           >
             <button
@@ -235,7 +237,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 "flex h-6 w-6 items-center justify-center rounded-lg border shadow-2xs transition-colors",
                 isLocked
                   ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  : "border-slate-200 bg-white text-slate-400 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
               )}
             >
               {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
@@ -243,12 +245,11 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
           </div>
         )}
 
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {label}
         </label>
 
         <div className="mt-2 flex items-center gap-3">
-          {/* Ô vuông màu nhỏ */}
           <div
             className="h-6 w-6 shrink-0 rounded-md border border-slate-300 shadow-2xs dark:border-slate-700"
             style={{ backgroundColor: colorHex }}
@@ -262,7 +263,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 value={colorName}
                 onChange={(e) => handleUpdateField(colorPath, e.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50/60 px-2 py-1 text-xs text-slate-800 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                placeholder="Tên màu"
+                placeholder={t("character.detail.colorNamePlaceholder")}
               />
               <input
                 type="color"
@@ -283,26 +284,31 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
     );
   };
 
+  const tabs: Array<{ id: TabType; label: string }> = [
+    { id: "basic", label: t("character.detail.basicInfo") },
+    { id: "appearance", label: t("character.detail.appearance") },
+    { id: "marks", label: t("character.detail.marks") },
+    { id: "relationships", label: t("character.detail.relationships") },
+  ];
+
   return (
     <div
       ref={containerRef}
       className={cn(
         "flex h-full w-full overflow-hidden",
-        isDragging && "cursor-col-resize select-none"
+        isDragging && "cursor-col-resize select-none",
       )}
     >
-      {/* Pane Trái: Chat Layout */}
       {isChatOpen && (
         <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
           <CharacterChatPane
             characterName={character.name}
-            activeSection={activeTab}
+            activeSection={t(`character.detail.${activeTab}` as any)}
             onClose={() => setIsChatOpen(false)}
           />
         </div>
       )}
 
-      {/* Ranh giới kéo cột */}
       {isChatOpen && (
         <div
           onMouseDown={startDragging}
@@ -312,7 +318,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
           <div
             className={cn(
               "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800",
-              isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100"
+              isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100",
             )}
           >
             <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
@@ -320,53 +326,54 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
         </div>
       )}
 
-      {/* Pane Phải: Character Content */}
       <div
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
         className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8"
       >
-        {/* Header Breadcrumbs */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
-            <Link to="/character" className="hover:text-slate-900 dark:hover:text-slate-100 shrink-0">
-              Character
+          <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <Link to="/character" className="shrink-0 hover:text-slate-900 dark:hover:text-slate-100">
+              {t("character.title")}
             </Link>
             <span>›</span>
             <span
-              className={cn(
-                "truncate",
-                !subSectionTitle ? "text-slate-900 dark:text-slate-100 font-bold" : "text-slate-500 dark:text-slate-400"
-              )}
+              className="truncate font-bold text-slate-900 dark:text-slate-100"
               title={character.name}
             >
-              {truncate(character.name, 15)}
+              {truncate(character.name, 20)}
             </span>
-
-            {subSectionTitle && (
-              <>
-                <span>›</span>
-                <span className="text-slate-900 dark:text-slate-100 font-bold truncate">
-                  {truncate(subSectionTitle, 15)}
-                </span>
-              </>
-            )}
           </div>
 
-          {/* Action buttons: Edit & Chat */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsEditing(!isEditing)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
-                isEditing
-                  ? "border-amber-500 bg-amber-50 text-amber-800 dark:border-amber-600 dark:bg-amber-950/60 dark:text-amber-300"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-              )}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>{isEditing ? "Viewing" : "Edit"}</span>
-            </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>{t("character.detail.edit")}</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setDiscardOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>{t("common.cancel")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>{t("common.save")}</span>
+                </button>
+              </>
+            )}
 
             <button
               type="button"
@@ -375,60 +382,64 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                 "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
                 isChatOpen
                   ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              <span>Chat</span>
+              <span>{t("character.detail.chat")}</span>
             </button>
           </div>
         </div>
 
-        {/* Tab switcher */}
         <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-          {(
-            [
-              { id: "basic", label: "Basic Info" },
-              { id: "appearance", label: "Appearance" },
-              { id: "marks", label: "Distinguishing Marks" },
-              { id: "relationships", label: "Relationships" },
-            ] as const
-          ).map((t) => (
+          {tabs.map((tab) => (
             <button
-              key={t.id}
+              key={tab.id}
               type="button"
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all",
-                activeTab === t.id
+                activeTab === tab.id
                   ? "bg-slate-900 text-white shadow-xs dark:bg-slate-100 dark:text-slate-900"
-                  : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                  : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800",
               )}
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
 
-        {/* Tab Contents */}
         <div className="mt-6 space-y-6">
-          {/* TAB 1: BASIC INFO */}
           {activeTab === "basic" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {renderField("Full Name", "name", character.name, ["name"])}
-              {renderField("Species", "species", character.species, ["species"])}
-              {renderField("Biological Sex", "biologicalSex", character.biologicalSex, ["biologicalSex"])}
-              {renderField("Gender Identity", "genderIdentity", character.genderIdentity, ["genderIdentity"])}
-              {renderField("Gender Expression", "genderExpression", character.genderExpression, ["genderExpression"])}
+              {renderField(t("character.detail.fullName"), "name", character.name, ["name"])}
+              {renderField(t("character.detail.species"), "species", character.species, ["species"])}
+              {renderField(
+                t("character.detail.biologicalSex"),
+                "biologicalSex",
+                character.biologicalSex,
+                ["biologicalSex"],
+              )}
+              {renderField(
+                t("character.detail.genderIdentity"),
+                "genderIdentity",
+                character.genderIdentity,
+                ["genderIdentity"],
+              )}
+              {renderField(
+                t("character.detail.genderExpression"),
+                "genderExpression",
+                character.genderExpression,
+                ["genderExpression"],
+              )}
             </div>
           )}
 
-          {/* TAB 2: APPEARANCE */}
           {activeTab === "appearance" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {renderField(
-                  "Height",
+                  t("character.detail.height"),
                   "height",
                   character.appearance.height,
                   ["appearance", "height"],
@@ -437,10 +448,10 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                     currentUnit: character.appearance.heightUnit,
                     unitPath: ["appearance", "heightUnit"],
                     units: ["cm", "m", "ft", "in"],
-                  }
+                  },
                 )}
                 {renderField(
-                  "Weight",
+                  t("character.detail.weight"),
                   "weight",
                   character.appearance.weight,
                   ["appearance", "weight"],
@@ -449,59 +460,87 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                     currentUnit: character.appearance.weightUnit,
                     unitPath: ["appearance", "weightUnit"],
                     units: ["kg", "lbs"],
-                  }
+                  },
                 )}
               </div>
 
-              {/* Nhóm màu sắc và note */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-3">
                   {renderColorField(
-                    "Hair Color",
+                    t("character.detail.hairColor"),
                     "hairColor",
                     character.appearance.hairColor,
                     character.appearance.hairHex,
                     ["appearance", "hairColor"],
-                    ["appearance", "hairHex"]
+                    ["appearance", "hairHex"],
                   )}
-                  {renderField("Hair Note", "hairNote", character.appearance.hairNote, ["appearance", "hairNote"], "textarea")}
+                  {renderField(
+                    t("character.detail.hairNote"),
+                    "hairNote",
+                    character.appearance.hairNote,
+                    ["appearance", "hairNote"],
+                    "textarea",
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   {renderColorField(
-                    "Eye Color",
+                    t("character.detail.eyeColor"),
                     "eyeColor",
                     character.appearance.eyeColor,
                     character.appearance.eyeHex,
                     ["appearance", "eyeColor"],
-                    ["appearance", "eyeHex"]
+                    ["appearance", "eyeHex"],
                   )}
-                  {renderField("Eye Note", "eyeNote", character.appearance.eyeNote, ["appearance", "eyeNote"], "textarea")}
+                  {renderField(
+                    t("character.detail.eyeNote"),
+                    "eyeNote",
+                    character.appearance.eyeNote,
+                    ["appearance", "eyeNote"],
+                    "textarea",
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   {renderColorField(
-                    "Skin Tone",
+                    t("character.detail.skinTone"),
                     "skinTone",
                     character.appearance.skinTone,
                     character.appearance.skinHex,
                     ["appearance", "skinTone"],
-                    ["appearance", "skinHex"]
+                    ["appearance", "skinHex"],
                   )}
-                  {renderField("Skin Note", "skinNote", character.appearance.skinNote, ["appearance", "skinNote"], "textarea")}
+                  {renderField(
+                    t("character.detail.skinNote"),
+                    "skinNote",
+                    character.appearance.skinNote,
+                    ["appearance", "skinNote"],
+                    "textarea",
+                  )}
                 </div>
               </div>
 
-              {renderField("Outfit Style", "outfitStyle", character.appearance.outfitStyle, ["appearance", "outfitStyle"], "textarea")}
-              {renderField("Default Summary", "defaultSummary", character.appearance.defaultSummary, ["appearance", "defaultSummary"], "textarea")}
+              {renderField(
+                t("character.detail.outfitStyle"),
+                "outfitStyle",
+                character.appearance.outfitStyle,
+                ["appearance", "outfitStyle"],
+                "textarea",
+              )}
+              {renderField(
+                t("character.detail.defaultSummary"),
+                "defaultSummary",
+                character.appearance.defaultSummary,
+                ["appearance", "defaultSummary"],
+                "textarea",
+              )}
             </div>
           )}
 
-          {/* TAB 3: DISTINGUISHING MARKS */}
           {activeTab === "marks" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-500">Các vết sẹo, hình xăm, hoặc dấu tích nhân dạng đặc biệt.</p>
+                <p className="text-xs text-slate-500">{t("character.detail.marksHint")}</p>
                 {isEditing && (
                   <button
                     type="button"
@@ -509,7 +548,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                     className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>Add Mark</span>
+                    <span>{t("character.detail.addMark")}</span>
                   </button>
                 )}
               </div>
@@ -531,8 +570,8 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                               updated[idx].location = e.target.value;
                               setCharacter((prev) => ({ ...prev, distinguishingMarks: updated }));
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-semibold dark:border-slate-700 dark:bg-slate-950"
-                            placeholder="Vị trí..."
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-semibold dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                            placeholder={t("character.detail.markLocationPlaceholder")}
                           />
                           <textarea
                             rows={2}
@@ -542,16 +581,16 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                               updated[idx].description = e.target.value;
                               setCharacter((prev) => ({ ...prev, distinguishingMarks: updated }));
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950"
-                            placeholder="Mô tả chi tiết..."
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                            placeholder={t("character.detail.markDescriptionPlaceholder")}
                           />
                         </div>
                       ) : (
                         <>
                           <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                            {mark.location}
+                            {mark.location || "—"}
                           </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                          <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                             {mark.description}
                           </p>
                         </>
@@ -563,7 +602,6 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                         type="button"
                         onClick={() => handleDeleteMark(mark.id)}
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50"
-                        title="Xóa dấu ấn"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -573,18 +611,17 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
 
                 {character.distinguishingMarks.length === 0 && (
                   <div className="py-10 text-center text-xs text-slate-400">
-                    Chưa có dấu ấn nhận dạng đặc biệt nào được ghi nhận.
+                    {t("character.detail.marksEmpty")}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* TAB 4: RELATIONSHIPS */}
           {activeTab === "relationships" && (
             <div className="space-y-4">
               <p className="text-xs text-slate-500">
-                Đồ thị trạng thái quan hệ với các thực thể liên quan.
+                {t("character.detail.relationshipsHint")}
               </p>
 
               <div className="space-y-4">
@@ -593,7 +630,7 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                     key={rel.id}
                     className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <div className="flex flex-col gap-2 border-b border-slate-100 pb-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                           {rel.targetName}
@@ -602,39 +639,41 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
                       </div>
 
                       <span className="self-start rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                        Role: {rel.role}
+                        {t("character.detail.role")}: {rel.role}
                       </span>
                     </div>
 
-                    {/* Relationship State Badges */}
-                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7 text-center">
-                      {(Object.entries(rel.states) as [keyof typeof rel.states, RelationshipStateLevel][]).map(
-                        ([stateKey, stateVal]) => (
-                          <div
-                            key={stateKey}
-                            className="rounded-xl border border-slate-100 bg-slate-50/60 p-2 dark:border-slate-800/80 dark:bg-slate-950/50"
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4 lg:grid-cols-7">
+                      {(
+                        Object.entries(rel.states) as [
+                          keyof typeof rel.states,
+                          RelationshipStateLevel,
+                        ][]
+                      ).map(([stateKey, stateVal]) => (
+                        <div
+                          key={stateKey}
+                          className="rounded-xl border border-slate-100 bg-slate-50/60 p-2 dark:border-slate-800/80 dark:bg-slate-950/50"
+                        >
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {stateKey}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+                              STATE_COLORS[stateVal],
+                            )}
                           >
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                              {stateKey}
-                            </span>
-                            <span
-                              className={cn(
-                                "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold",
-                                STATE_COLORS[stateVal]
-                              )}
-                            >
-                              {stateVal}
-                            </span>
-                          </div>
-                        )
-                      )}
+                            {stateVal}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
 
                 {character.relationships.length === 0 && (
                   <div className="py-12 text-center text-xs text-slate-400">
-                    Chưa có quan hệ nào được thiết lập cho nhân vật này.
+                    {t("character.detail.relationshipsEmpty")}
                   </div>
                 )}
               </div>
@@ -642,6 +681,17 @@ export function CharacterDetailView({ initialCharacter }: CharacterDetailViewPro
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title={t("discard.title")}
+        description={t("discard.description")}
+        confirmLabel={t("discard.confirm")}
+        cancelLabel={t("discard.cancel")}
+        variant="danger"
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   );
 }

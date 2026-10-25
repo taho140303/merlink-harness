@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCharacterDetailStore } from '../store';
+import { useT } from '../../../../shared/i18n/useT';
 import type { PsychologicalProfile } from '../types';
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
@@ -48,51 +49,45 @@ function ProseField({
 }
 
 export function PsychologicalTab() {
+  const t = useT();
   const p = useCharacterDetailStore((s) => s.character).psychological;
   const isEditing = useCharacterDetailStore((s) => s.isEditing);
   const patch = useCharacterDetailStore((s) => s.patchCharacter);
 
-  const upd = (fn: (draft: PsychologicalProfile) => void) =>
-    patch((c) => fn(c.psychological));
+  const upd = (fn: (draft: PsychologicalProfile) => void) => patch((c) => fn(c.psychological));
 
   return (
     <div className="space-y-4">
-      <Block title="Core Trauma & Belief">
+      <Block title={t('detail.psych.coreTrauma')}>
         <div className="grid gap-4 md:grid-cols-3">
           <ProseField
-            label="The Wound"
+            label={t('detail.psych.theWound')}
             value={p.coreTrauma.theWound}
-            onChange={
-              isEditing ? (v) => upd((d) => (d.coreTrauma.theWound = v)) : undefined
-            }
+            onChange={isEditing ? (v) => upd((d) => (d.coreTrauma.theWound = v)) : undefined}
           />
           <ProseField
-            label="The Lie"
+            label={t('detail.psych.theLie')}
             value={p.coreTrauma.theLie}
             onChange={isEditing ? (v) => upd((d) => (d.coreTrauma.theLie = v)) : undefined}
           />
           <ProseField
-            label="Fundamental Fear"
+            label={t('detail.psych.fundamentalFear')}
             value={p.coreTrauma.fundamentalFear}
-            onChange={
-              isEditing ? (v) => upd((d) => (d.coreTrauma.fundamentalFear = v)) : undefined
-            }
+            onChange={isEditing ? (v) => upd((d) => (d.coreTrauma.fundamentalFear = v)) : undefined}
           />
         </div>
       </Block>
 
-      <Block title="Cognitive & Moral Framework">
+      <Block title={t('detail.psych.cognitiveMoral')}>
         <div className="mb-4 grid gap-4 md:grid-cols-2">
           <div>
             <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Moral Alignment
+              {t('detail.psych.moralAlignment')}
             </p>
             {isEditing ? (
               <input
                 value={p.cognitiveMoral.moralAlignment}
-                onChange={(e) =>
-                  upd((d) => (d.cognitiveMoral.moralAlignment = e.target.value))
-                }
+                onChange={(e) => upd((d) => (d.cognitiveMoral.moralAlignment = e.target.value))}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
               />
             ) : (
@@ -102,7 +97,7 @@ export function PsychologicalTab() {
             )}
           </div>
           <ProseField
-            label="Cognitive Bias"
+            label={t('detail.psych.cognitiveBias')}
             value={p.cognitiveMoral.cognitiveBias}
             onChange={
               isEditing ? (v) => upd((d) => (d.cognitiveMoral.cognitiveBias = v)) : undefined
@@ -111,23 +106,19 @@ export function PsychologicalTab() {
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <ProseField
-            label="Moral Code"
+            label={t('detail.psych.moralCode')}
             value={p.cognitiveMoral.moralCode}
-            onChange={
-              isEditing ? (v) => upd((d) => (d.cognitiveMoral.moralCode = v)) : undefined
-            }
+            onChange={isEditing ? (v) => upd((d) => (d.cognitiveMoral.moralCode = v)) : undefined}
           />
           <div className="rounded-lg border border-rose-100 bg-rose-50 p-3 dark:border-rose-900/60 dark:bg-rose-950/30">
             <p className="mb-1 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-300">
-              Breaking Point
+              {t('detail.psych.breakingPoint')}
             </p>
             {isEditing ? (
               <textarea
                 rows={4}
                 value={p.cognitiveMoral.breakingPoint}
-                onChange={(e) =>
-                  upd((d) => (d.cognitiveMoral.breakingPoint = e.target.value))
-                }
+                onChange={(e) => upd((d) => (d.cognitiveMoral.breakingPoint = e.target.value))}
                 className="w-full resize-y rounded-lg border border-rose-200 bg-white px-2 py-1.5 font-serif text-[14px] leading-7 text-rose-900 focus:outline-hidden focus:ring-2 focus:ring-rose-400 dark:border-rose-900 dark:bg-slate-950 dark:text-rose-100"
               />
             ) : (
@@ -139,43 +130,41 @@ export function PsychologicalTab() {
         </div>
       </Block>
 
-      <Block title="Narrative Engine">
+      <Block title={t('detail.psych.narrativeEngine')}>
         <div className="grid gap-4 md:grid-cols-3">
           <ProseField
-            label="External Want"
+            label={t('detail.psych.externalWant')}
             value={p.narrativeEngine.externalWant}
             onChange={
               isEditing ? (v) => upd((d) => (d.narrativeEngine.externalWant = v)) : undefined
             }
           />
           <ProseField
-            label="Internal Need"
+            label={t('detail.psych.internalNeed')}
             value={p.narrativeEngine.internalNeed}
             onChange={
               isEditing ? (v) => upd((d) => (d.narrativeEngine.internalNeed = v)) : undefined
             }
           />
           <ProseField
-            label="Internal Conflict"
+            label={t('detail.psych.internalConflict')}
             value={p.narrativeEngine.internalConflict}
             onChange={
-              isEditing
-                ? (v) => upd((d) => (d.narrativeEngine.internalConflict = v))
-                : undefined
+              isEditing ? (v) => upd((d) => (d.narrativeEngine.internalConflict = v)) : undefined
             }
           />
         </div>
       </Block>
 
-      <Block title="Behavioral Adaptation">
+      <Block title={t('detail.psych.behavioralAdaptation')}>
         <div className="space-y-4">
           <div>
             <h4 className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Social Mask
+              {t('detail.psych.socialMask')}
             </h4>
             <div className="grid gap-4 md:grid-cols-2">
               <ProseField
-                label="Persona Type"
+                label={t('detail.psych.personaType')}
                 value={p.behavioralAdaptation.socialMask.personaType}
                 onChange={
                   isEditing
@@ -184,7 +173,7 @@ export function PsychologicalTab() {
                 }
               />
               <ProseField
-                label="Verbal Style"
+                label={t('detail.psych.verbalStyle')}
                 value={p.behavioralAdaptation.socialMask.verbalStyle}
                 onChange={
                   isEditing
@@ -196,11 +185,11 @@ export function PsychologicalTab() {
           </div>
           <div>
             <h4 className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Defense Mechanisms
+              {t('detail.psych.defenseMechanisms')}
             </h4>
             <div className="grid gap-4 md:grid-cols-3">
               <ProseField
-                label="Primary Reaction"
+                label={t('detail.psych.primaryReaction')}
                 value={p.behavioralAdaptation.defenseMechanisms.primaryReaction}
                 onChange={
                   isEditing
@@ -210,7 +199,7 @@ export function PsychologicalTab() {
                 }
               />
               <ProseField
-                label="Stress Trigger"
+                label={t('detail.psych.stressTrigger')}
                 value={p.behavioralAdaptation.defenseMechanisms.stressTrigger}
                 onChange={
                   isEditing
@@ -220,7 +209,7 @@ export function PsychologicalTab() {
                 }
               />
               <ProseField
-                label="Coping Strategy"
+                label={t('detail.psych.copingStrategy')}
                 value={p.behavioralAdaptation.defenseMechanisms.copingStrategy}
                 onChange={
                   isEditing

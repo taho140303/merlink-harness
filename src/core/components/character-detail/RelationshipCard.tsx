@@ -1,6 +1,8 @@
 import type { IntensityLevel, Relationship, RelationshipStates } from './types';
 import { useCharacterDetailStore } from './store';
 import { IntensitySlider } from './shared/IntensitySlider';
+import { useT } from '../../../shared/i18n/useT';
+import type { TKey } from '../../../shared/i18n/dict';
 
 const roleColor: Record<string, string> = {
   Superior: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
@@ -16,19 +18,20 @@ const categoryColor: Record<string, string> = {
   Rival: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
 };
 
-const stateLabels: Array<[keyof RelationshipStates, string]> = [
-  ['trust', 'Trust'],
-  ['affection', 'Affection'],
-  ['hostility', 'Hostility'],
-  ['fear', 'Fear'],
-  ['respect', 'Respect'],
-  ['familiarity', 'Familiarity'],
-  ['dependency', 'Dependency'],
+const stateEntries: Array<[keyof RelationshipStates, TKey]> = [
+  ['trust', 'detail.state.trust'],
+  ['affection', 'detail.state.affection'],
+  ['hostility', 'detail.state.hostility'],
+  ['fear', 'detail.state.fear'],
+  ['respect', 'detail.state.respect'],
+  ['familiarity', 'detail.state.familiarity'],
+  ['dependency', 'detail.state.dependency'],
 ];
 
 export function RelationshipCard({ relationship }: { relationship: Relationship }) {
   const isEditing = useCharacterDetailStore((s) => s.isEditing);
   const patch = useCharacterDetailStore((s) => s.patchCharacter);
+  const t = useT();
 
   const setState = (key: keyof RelationshipStates, level: IntensityLevel) =>
     patch((c) => {
@@ -60,10 +63,10 @@ export function RelationshipCard({ relationship }: { relationship: Relationship 
         </div>
       </div>
       <div className="space-y-2">
-        {stateLabels.map(([key, label]) => (
+        {stateEntries.map(([key, labelKey]) => (
           <IntensitySlider
             key={key}
-            label={label}
+            label={t(labelKey)}
             value={relationship.states[key]}
             onChange={isEditing ? (v) => setState(key, v) : undefined}
           />

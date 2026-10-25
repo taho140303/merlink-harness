@@ -8,6 +8,7 @@ import type {
 } from './types';
 import { CERTAINTY_OPTIONS } from './types';
 import { useCharacterDetailStore } from './store';
+import { useT } from '../../../shared/i18n/useT';
 
 const typeColor: Record<MemoryType, string> = {
   Episodic: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
@@ -81,6 +82,7 @@ function CompactSelect({
 }
 
 export function MemoryCard({ memory }: { memory: Memory }) {
+  const t = useT();
   const isEditing = useCharacterDetailStore((s) => s.isEditing);
   const patch = useCharacterDetailStore((s) => s.patchCharacter);
 
@@ -124,13 +126,13 @@ export function MemoryCard({ memory }: { memory: Memory }) {
           {isEditing ? (
             <>
               <CompactInput
-                label="Recollection"
+                label={t('detail.life.recollection')}
                 value={memory.recollection}
                 onChange={(v) => update((m) => (m.recollection = v))}
                 multiline
               />
               <CompactInput
-                label="Interpretation"
+                label={t('detail.life.interpretation')}
                 value={memory.interpretation}
                 onChange={(v) => update((m) => (m.interpretation = v))}
                 multiline
@@ -140,7 +142,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
             <>
               <div>
                 <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Recollection
+                  {t('detail.life.recollection')}
                 </p>
                 <p className="leading-relaxed text-slate-800 dark:text-slate-200">
                   {memory.recollection}
@@ -148,7 +150,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
               </div>
               <div>
                 <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Interpretation
+                  {t('detail.life.interpretation')}
                 </p>
                 <p className="leading-relaxed text-slate-800 dark:text-slate-200">
                   {memory.interpretation}
@@ -161,38 +163,38 @@ export function MemoryCard({ memory }: { memory: Memory }) {
         {isEditing ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <CompactSelect
-              label="Certainty"
+              label={t('detail.life.certainty')}
               value={memory.certainty}
               options={CERTAINTY_OPTIONS}
               onChange={(v) => update((m) => (m.certainty = v as KnowledgeCertainty))}
             />
             <CompactInput
-              label="Source"
+              label={t('detail.life.source')}
               value={memory.knowledgeSource}
               onChange={(v) => update((m) => (m.knowledgeSource = v))}
             />
             <CompactInput
-              label="Occurred At"
+              label={t('detail.life.occurredAt')}
               value={memory.occurredAt}
               onChange={(v) => update((m) => (m.occurredAt = v))}
             />
             <CompactInput
-              label="Perceived At"
+              label={t('detail.life.perceivedAt')}
               value={memory.perceivedAt}
               onChange={(v) => update((m) => (m.perceivedAt = v))}
             />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
-            <Info label="Certainty" value={memory.certainty} />
-            <Info label="Knowledge Source" value={memory.knowledgeSource} />
-            <Info label="Occurred At" value={memory.occurredAt} />
-            <Info label="Perceived At" value={memory.perceivedAt} />
+            <Info label={t('detail.life.certainty')} value={memory.certainty} />
+            <Info label={t('detail.life.knowledgeSource')} value={memory.knowledgeSource} />
+            <Info label={t('detail.life.occurredAt')} value={memory.occurredAt} />
+            <Info label={t('detail.life.perceivedAt')} value={memory.perceivedAt} />
           </div>
         )}
 
         {(isEditing || memory.references.length > 0) && (
-          <Section title="References">
+          <Section title={t('detail.life.references')}>
             {isEditing ? (
               <div className="space-y-2">
                 {memory.references.map((r, i) => (
@@ -200,13 +202,13 @@ export function MemoryCard({ memory }: { memory: Memory }) {
                     <input
                       value={r.role}
                       onChange={(e) => update((m) => (m.references[i].role = e.target.value))}
-                      placeholder="Role"
+                      placeholder={t('detail.life.rolePlaceholder')}
                       className="w-28 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     <input
                       value={r.name}
                       onChange={(e) => update((m) => (m.references[i].name = e.target.value))}
-                      placeholder="Name"
+                      placeholder={t('detail.life.namePlaceholder')}
                       className="flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     <button
@@ -225,7 +227,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
                   }
                   className="flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
                 >
-                  <Plus className="h-3 w-3" /> Add reference
+                  <Plus className="h-3 w-3" /> {t('detail.life.addReference')}
                 </button>
               </div>
             ) : (
@@ -244,17 +246,15 @@ export function MemoryCard({ memory }: { memory: Memory }) {
         )}
 
         {(isEditing || memory.emotions.length > 0) && (
-          <Section title="Emotions">
+          <Section title={t('detail.life.emotions')}>
             {isEditing ? (
               <div className="space-y-2">
                 {memory.emotions.map((e, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <input
                       value={e.name}
-                      onChange={(ev) =>
-                        update((m) => (m.emotions[i].name = ev.target.value))
-                      }
-                      placeholder="Emotion"
+                      onChange={(ev) => update((m) => (m.emotions[i].name = ev.target.value))}
+                      placeholder={t('detail.life.emotionPlaceholder')}
                       className="w-32 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     <input
@@ -286,7 +286,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
                   }
                   className="flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
                 >
-                  <Plus className="h-3 w-3" /> Add emotion
+                  <Plus className="h-3 w-3" /> {t('detail.life.addEmotion')}
                 </button>
               </div>
             ) : (
@@ -305,7 +305,7 @@ export function MemoryCard({ memory }: { memory: Memory }) {
         )}
 
         {memory.connections.length > 0 && (
-          <Section title="Connections">
+          <Section title={t('detail.life.connections')}>
             <ul className="space-y-1">
               {memory.connections.map((c, i) => (
                 <li key={i} className="text-xs text-slate-700 dark:text-slate-300">
@@ -320,13 +320,13 @@ export function MemoryCard({ memory }: { memory: Memory }) {
         )}
 
         {memory.revisions.length > 0 && (
-          <Section title="Revision History">
+          <Section title={t('detail.life.revisionHistory')}>
             <ol className="relative ml-1 space-y-3 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
               {memory.revisions.map((rev) => (
                 <li key={rev.revisionNumber} className="relative">
                   <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-indigo-500 dark:border-slate-900" />
                   <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                    Rev {rev.revisionNumber} — {rev.reason}
+                    {t('detail.life.revisionShort')} {rev.revisionNumber} — {rev.reason}
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">{rev.change}</p>
                 </li>

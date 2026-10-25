@@ -2,12 +2,8 @@ import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useCharacterDetailStore } from '../store';
 import { MemoryCard } from '../MemoryCard';
-import type {
-  Competence,
-  KnowledgeCertainty,
-  KnowledgeType,
-  LifeSubTab,
-} from '../types';
+import { useT } from '../../../../shared/i18n/useT';
+import type { Competence, KnowledgeCertainty, KnowledgeType, LifeSubTab } from '../types';
 import { CERTAINTY_OPTIONS, KNOWLEDGE_TYPE_OPTIONS } from '../types';
 
 const certaintyColor: Record<KnowledgeCertainty, string> = {
@@ -16,13 +12,8 @@ const certaintyColor: Record<KnowledgeCertainty, string> = {
   High: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
 };
 
-const subTabs: Array<{ id: LifeSubTab; label: string }> = [
-  { id: 'knowledge', label: 'Knowledge' },
-  { id: 'competence', label: 'Competence' },
-  { id: 'memory', label: 'Memory' },
-];
-
 export function LifeExperienceTab() {
+  const t = useT();
   const active = useCharacterDetailStore((s) => s.activeLifeTab);
   const setActive = useCharacterDetailStore((s) => s.setActiveLifeTab);
   const character = useCharacterDetailStore((s) => s.character);
@@ -31,21 +22,27 @@ export function LifeExperienceTab() {
   const removeKnowledge = useCharacterDetailStore((s) => s.removeKnowledge);
   const patch = useCharacterDetailStore((s) => s.patchCharacter);
 
+  const subTabs: Array<{ id: LifeSubTab; label: string }> = [
+    { id: 'knowledge', label: t('detail.life.knowledge') },
+    { id: 'competence', label: t('detail.life.competence') },
+    { id: 'memory', label: t('detail.life.memory') },
+  ];
+
   return (
     <div className="flex flex-col gap-4 md:flex-row">
       <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible">
-        {subTabs.map((t) => (
+        {subTabs.map((st) => (
           <button
-            key={t.id}
+            key={st.id}
             type="button"
-            onClick={() => setActive(t.id)}
+            onClick={() => setActive(st.id)}
             className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
-              active === t.id
+              active === st.id
                 ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
             }`}
           >
-            {t.label}
+            {st.label}
           </button>
         ))}
       </nav>
@@ -128,7 +125,7 @@ export function LifeExperienceTab() {
                     type="button"
                     onClick={() => removeKnowledge(k.id)}
                     className="shrink-0 text-rose-500 hover:text-rose-600"
-                    title="Remove"
+                    title={t('common.remove')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -139,12 +136,16 @@ export function LifeExperienceTab() {
               <button
                 type="button"
                 onClick={() =>
-                  addKnowledge({ type: 'Initial', path: 'New source', certainty: 'Medium' })
+                  addKnowledge({
+                    type: 'Initial',
+                    path: t('detail.life.newSource'),
+                    certainty: 'Medium',
+                  })
                 }
                 className="flex items-center gap-1.5 text-sm text-indigo-600 hover:underline dark:text-indigo-400"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add Knowledge
+                {t('detail.life.addKnowledge')}
               </button>
             )}
           </div>
@@ -171,6 +172,7 @@ export function LifeExperienceTab() {
 }
 
 function CompetenceCard({ competence }: { competence: Competence }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const isEditing = useCharacterDetailStore((s) => s.isEditing);
   const patch = useCharacterDetailStore((s) => s.patchCharacter);
@@ -277,20 +279,22 @@ function CompetenceCard({ competence }: { competence: Competence }) {
           onClick={() => setExpanded(!expanded)}
           className="mt-2 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
         >
-          {expanded ? 'Hide details' : 'Show capabilities & limitations'}
+          {expanded ? t('detail.life.hideDetails') : t('detail.life.showDetails')}
         </button>
       </div>
       {expanded && (
         <div className="grid grid-cols-1 gap-4 border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800 md:grid-cols-2">
           <div>
             <p className="mb-1.5 text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-              Capabilities
+              {t('detail.life.capabilities')}
             </p>
             {isEditing ? (
               <EditableList
                 items={competence.capabilities}
+                addLabel={t('detail.life.addItem')}
+                newValue={t('detail.life.newCapability')}
                 onChange={(i, v) => update((c) => (c.capabilities[i] = v))}
-                onAdd={() => update((c) => c.capabilities.push('New capability'))}
+                onAdd={() => update((c) => c.capabilities.push(t('detail.life.newCapability')))}
                 onRemove={(i) => update((c) => c.capabilities.splice(i, 1))}
               />
             ) : (
@@ -303,13 +307,15 @@ function CompetenceCard({ competence }: { competence: Competence }) {
           </div>
           <div>
             <p className="mb-1.5 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-400">
-              Limitations
+              {t('detail.life.limitations')}
             </p>
             {isEditing ? (
               <EditableList
                 items={competence.limitations}
+                addLabel={t('detail.life.addItem')}
+                newValue={t('detail.life.newLimitation')}
                 onChange={(i, v) => update((c) => (c.limitations[i] = v))}
-                onAdd={() => update((c) => c.limitations.push('New limitation'))}
+                onAdd={() => update((c) => c.limitations.push(t('detail.life.newLimitation')))}
                 onRemove={(i) => update((c) => c.limitations.splice(i, 1))}
               />
             ) : (
@@ -328,15 +334,20 @@ function CompetenceCard({ competence }: { competence: Competence }) {
 
 function EditableList({
   items,
+  addLabel,
+  newValue,
   onChange,
   onAdd,
   onRemove,
 }: {
   items: string[];
+  addLabel: string;
+  newValue: string;
   onChange: (i: number, v: string) => void;
   onAdd: () => void;
   onRemove: (i: number) => void;
 }) {
+  void newValue;
   return (
     <div className="space-y-1.5">
       {items.map((item, i) => (
@@ -356,7 +367,7 @@ function EditableList({
         onClick={onAdd}
         className="flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
       >
-        <Plus className="h-3 w-3" /> Add item
+        <Plus className="h-3 w-3" /> {addLabel}
       </button>
     </div>
   );

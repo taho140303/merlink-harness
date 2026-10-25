@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
+import { useT } from "../../../shared/i18n/useT";
 import type { CharacterItem } from "./types";
 
 interface CreateCharacterDialogProps {
@@ -13,6 +14,7 @@ export function CreateCharacterDialog({
   onOpenChange,
   onCreate,
 }: CreateCharacterDialogProps) {
+  const t = useT();
   const [name, setName] = useState("");
   const [species, setSpecies] = useState("Human");
   const [biologicalSex, setBiologicalSex] = useState<CharacterItem["biologicalSex"]>("Male");
@@ -26,7 +28,12 @@ export function CreateCharacterDialog({
       name: name.trim(),
       species: species.trim() || "Human",
       biologicalSex,
-      genderIdentity: biologicalSex === "Male" ? "Male" : biologicalSex === "Female" ? "Female" : "Non-binary",
+      genderIdentity:
+        biologicalSex === "Male"
+          ? "Male"
+          : biologicalSex === "Female"
+            ? "Female"
+            : "Non-binary",
       genderExpression: "Neutral",
       avatarBg: "bg-blue-600",
       appearance: {
@@ -44,7 +51,7 @@ export function CreateCharacterDialog({
         skinHex: "#f0d5be",
         skinNote: "",
         outfitStyle: "Standard traveling attire",
-        defaultSummary: "Hồ sơ nhân vật mới được tạo.",
+        defaultSummary: "",
       },
       distinguishingMarks: [],
       relationships: [],
@@ -60,53 +67,53 @@ export function CreateCharacterDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-6">
         <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-          Khởi tạo nhân vật mới
+          {t("character.create.title")}
         </h3>
-        <p className="text-xs text-slate-500">
-          Nhập các thông số cơ bản để khởi tạo hồ sơ nhân vật vào kho lưu trữ.
-        </p>
+        <p className="text-xs text-slate-500">{t("character.create.subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Tên nhân vật *
+              {t("character.create.nameLabel")}
             </label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ví dụ: Kaelen Vance"
+              placeholder={t("character.create.namePlaceholder")}
               className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
             />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Chủng tộc (Species)
+              {t("character.create.speciesLabel")}
             </label>
             <input
               type="text"
               value={species}
               onChange={(e) => setSpecies(e.target.value)}
-              placeholder="Ví dụ: High Human, Elf, Shadeborn..."
+              placeholder={t("character.create.speciesPlaceholder")}
               className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
             />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Giới tính sinh học
+              {t("character.create.sexLabel")}
             </label>
             <select
               value={biologicalSex}
-              onChange={(e) => setBiologicalSex(e.target.value as CharacterItem["biologicalSex"])}
+              onChange={(e) =>
+                setBiologicalSex(e.target.value as CharacterItem["biologicalSex"])
+              }
               className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
             >
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Intersex">Intersex</option>
-              <option value="Unknown">Unknown</option>
+              <option value="Male">{t("sex.male")}</option>
+              <option value="Female">{t("sex.female")}</option>
+              <option value="Intersex">{t("sex.intersex")}</option>
+              <option value="Unknown">{t("sex.unknown")}</option>
             </select>
           </div>
 
@@ -116,13 +123,13 @@ export function CreateCharacterDialog({
               onClick={() => onOpenChange(false)}
               className="rounded-xl px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             >
-              Hủy
+              {t("character.create.cancel")}
             </button>
             <button
               type="submit"
               className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              Tạo nhân vật
+              {t("character.create.submit")}
             </button>
           </div>
         </form>

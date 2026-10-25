@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
 import { ArrowUpRight } from "lucide-react";
+import { useT } from "../../../shared/i18n/useT";
 import type { CharacterItem } from "./types";
 
 interface CharacterCardProps {
@@ -8,6 +9,7 @@ interface CharacterCardProps {
 
 export function CharacterCard({ character }: CharacterCardProps) {
   const navigate = useNavigate();
+  const t = useT();
 
   return (
     <div
@@ -16,15 +18,13 @@ export function CharacterCard({ character }: CharacterCardProps) {
     >
       <div>
         <div className="flex items-center gap-3.5">
-          {/* Avatar placeholder chữ cái đầu */}
           <div
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-bold text-white shadow-xs ${character.avatarBg}`}
           >
             {character.name.charAt(0)}
           </div>
-
           <div className="truncate">
-            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 transition-colors">
+            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
               {character.name}
             </h3>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
@@ -33,7 +33,6 @@ export function CharacterCard({ character }: CharacterCardProps) {
           </div>
         </div>
 
-        {/* Tags cơ bản */}
         <div className="mt-4 flex flex-wrap gap-1.5">
           <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
             {character.biologicalSex}
@@ -45,8 +44,10 @@ export function CharacterCard({ character }: CharacterCardProps) {
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-slate-800/80">
-        <span>{character.relationships.length} Relationships</span>
-        <ArrowUpRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100 text-slate-700 dark:text-slate-200" />
+        <span>
+          {character.relationships.length} {t("character.relationshipsCount")}
+        </span>
+        <ArrowUpRight className="h-4 w-4 text-slate-700 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-200" />
       </div>
     </div>
   );
