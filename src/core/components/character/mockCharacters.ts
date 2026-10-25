@@ -6,8 +6,8 @@ export const MOCK_CHARACTERS: CharacterItem[] = [
     name: "Kaelen Vance",
     species: "High Human (Aether-touched)",
     biologicalSex: "Male",
-    genderIdentity: "Cisgender Male",
-    genderExpression: "Androgynous Aristocrat",
+    genderIdentity: "MALE",
+    genderExpression: "MALE",
     avatarBg: "bg-indigo-500",
     appearance: {
       height: 182,
@@ -68,8 +68,8 @@ export const MOCK_CHARACTERS: CharacterItem[] = [
     name: "Lyra Dawnseeker",
     species: "Human (Solar Blessed)",
     biologicalSex: "Female",
-    genderIdentity: "Female",
-    genderExpression: "Feminine Knight",
+    genderIdentity: "FEMALE",
+    genderExpression: "FEMALE",
     avatarBg: "bg-amber-500",
     appearance: {
       height: 174,
@@ -114,8 +114,8 @@ export const MOCK_CHARACTERS: CharacterItem[] = [
     name: "Vaelin Grey",
     species: "Shadeborn",
     biologicalSex: "Male",
-    genderIdentity: "Non-binary",
-    genderExpression: "Stealth Rogue",
+    genderIdentity: "NONE",
+    genderExpression: "NONE",
     avatarBg: "bg-emerald-600",
     appearance: {
       height: 168,

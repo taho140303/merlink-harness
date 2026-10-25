@@ -19,25 +19,8 @@ export const INTENSITY_LEVELS: IntensityLevel[] = [
 export const BIOLOGICAL_SEX_OPTIONS = ['male', 'female', 'intersex', 'none', 'unknown'] as const;
 export type BiologicalSex = (typeof BIOLOGICAL_SEX_OPTIONS)[number];
 
-export const GENDER_IDENTITY_OPTIONS = [
-  'male',
-  'female',
-  'non_binary',
-  'genderfluid',
-  'agender',
-  'genderless',
-  'other',
-] as const;
-export type GenderIdentity = (typeof GENDER_IDENTITY_OPTIONS)[number];
-
-export const GENDER_EXPRESSION_OPTIONS = [
-  'masculine',
-  'feminine',
-  'androgynous',
-  'neutral',
-  'mixed',
-] as const;
-export type GenderExpression = (typeof GENDER_EXPRESSION_OPTIONS)[number];
+export const GENDER_OPTIONS = ['NONE', 'MALE', 'FEMALE'] as const;
+export type Gender = (typeof GENDER_OPTIONS)[number];
 
 export const KNOWLEDGE_TYPE_OPTIONS: KnowledgeType[] = ['Initial', 'Lore'];
 export const CERTAINTY_OPTIONS: KnowledgeCertainty[] = ['Low', 'Medium', 'High'];
@@ -58,8 +41,8 @@ export interface CharacterBasicInfo {
   name: string;
   species: string;
   biologicalSex: BiologicalSex;
-  genderIdentity: GenderIdentity;
-  genderExpression: GenderExpression;
+  genderIdentity: Gender;
+  genderExpression: Gender;
 }
 
 export interface Appearance {

@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
 import { useT } from "../../../shared/i18n/useT";
-import type { CharacterItem } from "./types";
+import type { TKey } from "../../../shared/i18n/dict";
+import type { CharacterItem, Gender } from "./types";
+import { GENDER_OPTIONS } from "./types";
+
+const GENDER_LABEL: Record<Gender, TKey> = {
+  NONE: "gender.NONE",
+  MALE: "gender.MALE",
+  FEMALE: "gender.FEMALE",
+};
 
 interface CreateCharacterDialogProps {
   open: boolean;
@@ -18,6 +26,8 @@ export function CreateCharacterDialog({
   const [name, setName] = useState("");
   const [species, setSpecies] = useState("Human");
   const [biologicalSex, setBiologicalSex] = useState<CharacterItem["biologicalSex"]>("Male");
+  const [genderIdentity, setGenderIdentity] = useState<Gender>("NONE");
+  const [genderExpression, setGenderExpression] = useState<Gender>("NONE");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,13 +38,8 @@ export function CreateCharacterDialog({
       name: name.trim(),
       species: species.trim() || "Human",
       biologicalSex,
-      genderIdentity:
-        biologicalSex === "Male"
-          ? "Male"
-          : biologicalSex === "Female"
-            ? "Female"
-            : "Non-binary",
-      genderExpression: "Neutral",
+      genderIdentity,
+      genderExpression,
       avatarBg: "bg-blue-600",
       appearance: {
         height: 175,
@@ -61,6 +66,8 @@ export function CreateCharacterDialog({
     onOpenChange(false);
     setName("");
     setSpecies("Human");
+    setGenderIdentity("NONE");
+    setGenderExpression("NONE");
   };
 
   return (
@@ -114,6 +121,40 @@ export function CreateCharacterDialog({
               <option value="Female">{t("sex.female")}</option>
               <option value="Intersex">{t("sex.intersex")}</option>
               <option value="Unknown">{t("sex.unknown")}</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              {t("character.create.genderIdentityLabel")}
+            </label>
+            <select
+              value={genderIdentity}
+              onChange={(e) => setGenderIdentity(e.target.value as Gender)}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+            >
+              {GENDER_OPTIONS.map((g) => (
+                <option key={g} value={g}>
+                  {t(GENDER_LABEL[g])}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              {t("character.create.genderExpressionLabel")}
+            </label>
+            <select
+              value={genderExpression}
+              onChange={(e) => setGenderExpression(e.target.value as Gender)}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+            >
+              {GENDER_OPTIONS.map((g) => (
+                <option key={g} value={g}>
+                  {t(GENDER_LABEL[g])}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -1,5 +1,8 @@
 export type MeasurementUnit = "cm" | "m" | "ft" | "in" | "kg" | "lbs";
 
+export type Gender = "NONE" | "MALE" | "FEMALE";
+export const GENDER_OPTIONS: Gender[] = ["NONE", "MALE", "FEMALE"];
+
 export type RelationshipStateLevel = "NONE" | "LOW" | "MODERATE" | "HIGH" | "ABSOLUTE";
 
 export interface RelationshipStates {
@@ -49,8 +52,8 @@ export interface CharacterItem {
   name: string;
   species: string;
   biologicalSex: "Male" | "Female" | "Intersex" | "Unknown";
-  genderIdentity: string;
-  genderExpression: string;
+  genderIdentity: Gender;
+  genderExpression: Gender;
   avatarBg: string;
   appearance: CharacterAppearance;
   distinguishingMarks: DistinguishingMark[];

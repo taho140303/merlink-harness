@@ -6,12 +6,8 @@ import { EditableField } from '../shared/EditableField';
 import { EnumSelect } from '../shared/EnumSelect';
 import { RelationshipCard } from '../RelationshipCard';
 import { useT } from '../../../../shared/i18n/useT';
-import type { BiologicalSex, GenderExpression, GenderIdentity } from '../types';
-import {
-  BIOLOGICAL_SEX_OPTIONS,
-  GENDER_EXPRESSION_OPTIONS,
-  GENDER_IDENTITY_OPTIONS,
-} from '../types';
+import type { BiologicalSex, Gender } from '../types';
+import { BIOLOGICAL_SEX_OPTIONS, GENDER_OPTIONS } from '../types';
 
 function Section({
   title,
@@ -71,14 +67,14 @@ export function CoreIdentityTab() {
           <EnumSelect
             label={t('detail.core.genderIdentity')}
             value={character.basicInfo.genderIdentity}
-            options={GENDER_IDENTITY_OPTIONS}
-            onChange={isEditing ? (v) => updateBasicInfo({ genderIdentity: v as GenderIdentity }) : undefined}
+            options={GENDER_OPTIONS}
+            onChange={isEditing ? (v) => updateBasicInfo({ genderIdentity: v as Gender }) : undefined}
           />
           <EnumSelect
             label={t('detail.core.genderExpression')}
             value={character.basicInfo.genderExpression}
-            options={GENDER_EXPRESSION_OPTIONS}
-            onChange={isEditing ? (v) => updateBasicInfo({ genderExpression: v as GenderExpression }) : undefined}
+            options={GENDER_OPTIONS}
+            onChange={isEditing ? (v) => updateBasicInfo({ genderExpression: v as Gender }) : undefined}
             className="sm:col-span-2 sm:max-w-xs"
           />
         </div>

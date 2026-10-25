@@ -10,6 +10,19 @@ const en = {
   'common.remove': 'Remove',
   'common.add': 'Add',
 
+  'sex.all': 'All Sex',
+  'sex.male': 'Male',
+  'sex.female': 'Female',
+  'sex.intersex': 'Intersex',
+  'sex.unknown': 'Unknown',
+
+  'gender.NONE': 'None',
+  'gender.MALE': 'Male',
+  'gender.FEMALE': 'Female',
+
+  'character.create.genderIdentityLabel': 'Gender Identity',
+  'character.create.genderExpressionLabel': 'Gender Expression',
+
   'discard.title': 'Discard changes?',
   'discard.description': 'You have unsaved changes. Are you sure you want to discard them?',
   'discard.confirm': 'Discard',
@@ -227,6 +240,19 @@ const vi: Record<keyof typeof en, string> = {
   'common.close': 'Đóng',
   'common.remove': 'Xóa',
   'common.add': 'Thêm',
+
+  'sex.all': 'Tất cả giới tính',
+  'sex.male': 'Nam',
+  'sex.female': 'Nữ',
+  'sex.intersex': 'Liên giới',
+  'sex.unknown': 'Không rõ',
+
+  'gender.NONE': 'Không',
+  'gender.MALE': 'Nam',
+  'gender.FEMALE': 'Nữ',
+
+  'character.create.genderIdentityLabel': 'Bản dạng giới',
+  'character.create.genderExpressionLabel': 'Thể hiện giới',
 
   'discard.title': 'Hủy thay đổi?',
   'discard.description': 'Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?',
