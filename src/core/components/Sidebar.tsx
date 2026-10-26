@@ -16,8 +16,8 @@ export default function Sidebar() {
     <>
       <aside
         className={cn(
-          "relative flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out select-none dark:border-slate-800 dark:bg-slate-950",
-          collapsed ? "w-18 px-2" : "w-64 px-3"
+          "relative m-4 mr-0 flex h-[calc(100vh-2rem)] shrink-0 flex-col rounded-3xl neu-flat transition-all duration-300 ease-in-out select-none",
+          collapsed ? "w-[76px] px-2 py-4" : "w-64 px-3 py-4"
         )}
       >
         <SidebarHeader
@@ -33,17 +33,17 @@ export default function Sidebar() {
           />
         </nav>
 
-        <div className="shrink-0 border-t border-slate-100 py-3 dark:border-slate-800/80">
+        <div className="shrink-0 pt-3">
           <button
             onClick={() => setSettingsOpen(true)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all hover:text-slate-900 hover:neu-pressed dark:text-slate-400 dark:hover:text-slate-200",
               collapsed && "justify-center px-0"
             )}
             title={t("sidebar.settings")}
           >
             <Settings className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>{t('sidebar.settings')}</span>}
+            {!collapsed && <span>{t("sidebar.settings")}</span>}
           </button>
         </div>
       </aside>

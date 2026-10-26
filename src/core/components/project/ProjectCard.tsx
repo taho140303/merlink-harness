@@ -11,17 +11,17 @@ interface ProjectCardProps {
 export function ProjectCard({ project, onDelete, onOverview }: ProjectCardProps) {
   const t = useT();
   return (
-    <div className="group relative flex rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+    <div className="group relative flex rounded-3xl p-5 neu-flat transition-all duration-300 hover:scale-[1.01]">
       <button
         type="button"
         onClick={() => onDelete(project)}
         title={t("project.trashTooltip")}
-        className="absolute right-3.5 top-3.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 shadow-2xs transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-rose-900/60 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+        className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-all hover:neu-pressed hover:text-rose-500"
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-4 w-4" />
       </button>
 
-      <div className="aspect-[3/5] w-24 shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 sm:w-28">
+      <div className="aspect-[3/5] w-24 shrink-0 overflow-hidden rounded-2xl shadow-md">
         <img
           src={project.cover}
           alt={project.title}
@@ -29,30 +29,30 @@ export function ProjectCard({ project, onDelete, onOverview }: ProjectCardProps)
         />
       </div>
 
-      <div className="ml-4 flex flex-1 flex-col justify-between">
+      <div className="ml-5 flex flex-1 flex-col justify-between">
         <div>
           <div className="flex items-start justify-between gap-2 pr-8">
-            <h3 className="line-clamp-1 text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <h3 className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-slate-100">
               {project.title}
             </h3>
           </div>
-          <div className="mt-1">
-            <span className="rounded-none bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <div className="mt-2">
+            <span className="rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 neu-pressed dark:text-indigo-400">
               {project.status}
             </span>
           </div>
-          <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
             {project.description}
           </p>
         </div>
 
-        <div className="mt-4 flex items-center justify-end border-t border-slate-100 pt-2.5 dark:border-slate-800/80">
+        <div className="mt-4 flex items-center justify-end">
           <button
             type="button"
             onClick={() => onOverview(project)}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750"
+            className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
           >
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-4 w-4" />
             <span>{t("project.overview")}</span>
           </button>
         </div>
