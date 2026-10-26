@@ -360,6 +360,8 @@ const en = {
   'sidebar.settings': 'Settings',
   'chat.welcomeTitle': 'Tell me about the world you want to build',
   'chat.welcomeGreeting': 'Hello, I am Merlink',
+  'project.lockAll': 'Lock All',
+  'project.unlockAll': 'Unlock All',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -719,6 +721,8 @@ const vi: Record<keyof typeof en, string> = {
   'sidebar.settings': 'Cài đặt',
   'chat.welcomeTitle': 'Hãy kể cho tôi nghe về thế giới mà bạn muốn xây dựng',
   'chat.welcomeGreeting': 'Xin chào, tôi là Merlink',
+  'project.lockAll': 'Khóa tất cả',
+  'project.unlockAll': 'Mở khóa tất cả',
 };
 
 export const dict = { en, vi };
