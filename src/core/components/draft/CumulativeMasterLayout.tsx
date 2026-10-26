@@ -3,6 +3,7 @@ import { mockArcs, mockChapters, mockScenes, mockConfigs, mockWorlds, mockCharac
 import { ThemeDisplay } from './shared/ThemeDisplay';
 import { ConfigBlock, SceneBlock, WorldBlock, CharacterBlock, CharacterDetailBlock } from './shared/ToggleBlocks';
 import { MotifBlock } from './shared/MotifBlock';
+import type { DraftCharacter } from './types';
 import type { DraftStep, FeedbackContext } from './types';
 import { BookOpen, MessageSquareQuote, ArrowLeft, ArrowRight, CheckCircle2, Play } from 'lucide-react';
 
@@ -30,6 +31,17 @@ export function CumulativeMasterLayout({
 
   const streamedCount = useDraftStream(streamCount, 400);
   const isLoaded = streamedCount >= streamCount;
+
+  const [selectedChar, setSelectedChar] = useState<DraftCharacter | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleCharacterClick = (charName: string) => {
+    const char = mockCharacters.find(c => c.name === charName);
+    if (char) {
+      setSelectedChar(char);
+      setDialogOpen(true);
+    }
+  };
 
   // Hàm đệ quy render cây
   let chapterIndex = 0;
@@ -119,6 +131,7 @@ export function CumulativeMasterLayout({
                               isStreaming={isSceneStreaming}
                               phase={phase}
                               onFeedback={onFeedback}
+                              onCharacterClick={handleCharacterClick}
                             >
                               {/* INJECT: WORLD */}
                               {phase === 'world' && sceneWorld && (
@@ -188,6 +201,15 @@ export function CumulativeMasterLayout({
           )}
         </div>
       )}
+
+      <CharacterDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        character={selectedChar}
+        detail={mockCharacterDetails.find(d => d.name === selectedChar?.name)}
+        currentPhase={phase}
+        onFeedback={onFeedback}
+      />
     </div>
   );
 }

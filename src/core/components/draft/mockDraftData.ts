@@ -121,7 +121,13 @@ export const mockWorlds: DraftWorld[] = [
 ];
 
 export const mockCharacters: DraftCharacter[] = [
-  { id: 'ch1', name: 'Kaelen Vance', role: 'Protagonist', appearances: ['Ch 1 - Scene 1.1'] }
+  { 
+    id: 'ch1', 
+    name: 'Kaelen Vance', 
+    role: 'Protagonist', 
+    appearances: ['Ch 1 - Scene 1.1'],
+    motifs: [motifRedemption] // Gắn motif Redemption Arc (Project level) vào nhân vật
+  }
 ];
 
 export const mockCharacterDetails: DraftCharacterDetail[] = [

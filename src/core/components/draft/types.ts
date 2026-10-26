@@ -147,6 +147,7 @@ export interface DraftCharacter {
   name: string;
   role: string;
   appearances: string[];
+  motifs: DraftMotif[]; // Character-specific motifs
 }
 
 export interface DraftCharacterDetail {

@@ -32,7 +32,21 @@ export function ConfigBlock({ config, isStreaming, onFeedback }: { config: Draft
 }
 
 // --- Scene Block ---
-export function SceneBlock({ scene, isStreaming, phase, onFeedback, children }: { scene: DraftScene, isStreaming: boolean, phase: string, onFeedback: (f: FeedbackContext) => void, children?: React.ReactNode }) {
+export function SceneBlock({ 
+  scene, 
+  isStreaming, 
+  phase, 
+  onFeedback, 
+  onCharacterClick,
+  children 
+}: { 
+  scene: DraftScene; 
+  isStreaming: boolean; 
+  phase: string; 
+  onFeedback: (f: FeedbackContext) => void; 
+  onCharacterClick: (charName: string) => void;
+  children?: React.ReactNode;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -65,23 +79,25 @@ export function SceneBlock({ scene, isStreaming, phase, onFeedback, children }: 
               </div>
             </div>
 
-            {/* Scene Characters */}
+            {/* Scene Characters (Clickable) */}
             <div>
               <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Scene Characters</span>
               <div className="flex flex-wrap gap-1.5">
                 {scene.characters.map(c => (
-                  <span 
-                    key={c.name} 
+                  <button 
+                    key={c.name}
+                    onClick={() => onCharacterClick(c.name)}
                     className={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1",
+                      "px-2 py-1 rounded text-[10px] font-medium border flex items-center gap-1 transition-colors cursor-pointer hover:shadow-sm",
                       c.isPov 
-                        ? "bg-amber-100 border-amber-200 text-amber-800 dark:bg-amber-950/60 dark:border-amber-900/60 dark:text-amber-300" 
-                        : "bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
+                        ? "bg-amber-100 border-amber-200 text-amber-800 dark:bg-amber-950/60 dark:border-amber-900/60 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900" 
+                        : "bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     )}
                   >
+                    <User className="h-3 w-3 opacity-50" />
                     {c.name} 
-                    {c.isPov && <span className="text-[8px] opacity-70 font-bold uppercase">(POV)</span>}
-                  </span>
+                    {c.isPov && <span className="text-[8px] opacity-70 font-bold uppercase ml-0.5">(POV)</span>}
+                  </button>
                 ))}
               </div>
             </div>
