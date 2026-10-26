@@ -1,3 +1,4 @@
+import { CharacterDialog } from './shared/CharacterDialog';
 import { useState } from 'react';
 import { useDraftStream } from './useDraftStream';
 import { mockArcs, mockChapters, mockScenes, mockConfigs, mockWorlds, mockCharacters, mockCharacterDetails } from './mockDraftData';
