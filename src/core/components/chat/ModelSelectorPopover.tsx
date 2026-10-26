@@ -55,7 +55,7 @@ export function ModelSelectorPopover() {
 
       {/* Popover danh sách model theo provider */}
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in-0 zoom-in-95">
+        <div className="no-scrollbar absolute bottom-full right-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in-0 zoom-in-95">
           {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
             <div key={provider} className="py-1">
               <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
