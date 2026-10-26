@@ -75,7 +75,10 @@ export const mockScenes: DraftScene[] = [
     summarize: 'Kaelen thực hiện nghi thức triệu hồi trong bóng tối.',
     stylePreset: 'psychological_drama.inner_monologue',
     narratorConfig: 'first_person_unreliable',
-    characters: ['Kaelen Vance', 'The Voice (Entity)'],
+    characters: [
+      { name: 'Kaelen Vance', isPov: true },
+      { name: 'The Voice (Entity)', isPov: false }
+    ],
     forbidden: ['Ánh sáng mặt trời trực tiếp', 'Phép thuật hệ Lửa'],
     allowed: ['Ma pháp hệ Bóng tối', 'Âm thanh môi trường ẩm ướt']
   },
@@ -84,7 +87,9 @@ export const mockScenes: DraftScene[] = [
     summarize: 'Kaelen tỉnh dậy với vết ấn chú trên tay, nhận ra mình đã mất đi ký ức về tuổi thơ.',
     stylePreset: 'mystery.clue_hunting',
     narratorConfig: 'third_person_limited',
-    characters: ['Kaelen Vance'],
+    characters: [
+      { name: 'Kaelen Vance', isPov: true }
+    ],
     forbidden: ['Sự xuất hiện của Lyra'],
     allowed: ['Hồi tưởng mờ nhạt', 'Đồ vật cá nhân']
   },
@@ -93,7 +98,11 @@ export const mockScenes: DraftScene[] = [
     summarize: 'Cuộc phục kích bất ngờ của Hội Thánh Quang tại khu chợ đen.',
     stylePreset: 'action.combat',
     narratorConfig: 'third_person_objective',
-    characters: ['Kaelen Vance', 'Lyra Dawnseeker', 'Zealots'],
+    characters: [
+      { name: 'Kaelen Vance', isPov: true },
+      { name: 'Lyra Dawnseeker', isPov: false },
+      { name: 'Zealots', isPov: false }
+    ],
     forbidden: ['Thương lượng hòa bình'],
     allowed: ['Đổ máu', 'Phá hủy tài sản', 'Sử dụng ma pháp công khai']
   }

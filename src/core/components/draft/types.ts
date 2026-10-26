@@ -63,6 +63,11 @@ export interface DraftChapter {
   description: string;
 }
 
+export interface SceneCharacter {
+  name: string;
+  isPov: boolean;
+}
+
 export interface DraftScene {
   id: string;
   chapterId: string;
@@ -70,7 +75,7 @@ export interface DraftScene {
   summarize: string;
   stylePreset: string;
   narratorConfig: string;
-  characters: string[];
+  characters: SceneCharacter[];
   forbidden: string[];
   allowed: string[];
 }

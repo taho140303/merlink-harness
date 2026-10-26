@@ -106,7 +106,9 @@ export function CumulativeMasterLayout({
                         {chapScenes.map(scene => {
                           const isSceneStreaming = phase === 'scene' && sceneIndex++ >= streamedCount;
                           const sceneWorld = mockWorlds.find(w => w.id === `w${sceneIndex}`); // Mock mapping
-                          const sceneChars = mockCharacters.filter(c => c.appearances.some(a => a.includes(scene.name.split(':')[0])));
+                          const sceneChars = mockCharacters.filter(c => 
+                            scene.characters.some(sc => sc.name === c.name)
+                          );
 
                           return (
                             <SceneBlock

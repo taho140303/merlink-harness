@@ -53,6 +53,7 @@ export function SceneBlock({ scene, isStreaming, phase, onFeedback, children }: 
         {isOpen && (
           <div className="border-t border-slate-100 p-3 dark:border-slate-800 space-y-3">
             <p className="text-[11px] text-slate-600 dark:text-slate-400">{scene.summarize}</p>
+            
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="rounded bg-slate-50 p-2 dark:bg-slate-800/50">
                 <span className="text-slate-400 block mb-0.5">Style Preset</span>
@@ -63,6 +64,28 @@ export function SceneBlock({ scene, isStreaming, phase, onFeedback, children }: 
                 <span className="font-medium text-slate-700 dark:text-slate-300">{scene.narratorConfig}</span>
               </div>
             </div>
+
+            {/* Scene Characters */}
+            <div>
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Scene Characters</span>
+              <div className="flex flex-wrap gap-1.5">
+                {scene.characters.map(c => (
+                  <span 
+                    key={c.name} 
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1",
+                      c.isPov 
+                        ? "bg-amber-100 border-amber-200 text-amber-800 dark:bg-amber-950/60 dark:border-amber-900/60 dark:text-amber-300" 
+                        : "bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
+                    )}
+                  >
+                    {c.name} 
+                    {c.isPov && <span className="text-[8px] opacity-70 font-bold uppercase">(POV)</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-2 text-[9px]">
               <div className="rounded border border-rose-100 bg-rose-50 p-2 dark:border-rose-900/60 dark:bg-rose-950/30">
                 <span className="font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-1 mb-1"><ShieldAlert className="h-2.5 w-2.5" /> Forbidden</span>
