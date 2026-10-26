@@ -3,6 +3,7 @@ import type {
   Constraint,
   EmotionalRange,
   EventBlock,
+  EventBlockEmotional,
   EventTransition,
   Genre,
   Motif,
@@ -352,4 +353,13 @@ export const themeArguments: ThemeArgument[] = [
     answerMode: 'VERBAL',
     note: 'Explicit statement at the arc climax.',
   },
+];
+
+export const eventBlockEmotionals: EventBlockEmotional[] = [
+  { id: 'ebe-1', eventBlockId: 'eb-1', emotionalRangeId: 'er-1' },
+  { id: 'ebe-2', eventBlockId: 'eb-1', emotionalRangeId: 'er-2' },
+  { id: 'ebe-3', eventBlockId: 'eb-2', emotionalRangeId: 'er-2' },
+  { id: 'ebe-4', eventBlockId: 'eb-2', emotionalRangeId: 'er-4' },
+  { id: 'ebe-5', eventBlockId: 'eb-3', emotionalRangeId: 'er-4' },
+  { id: 'ebe-6', eventBlockId: 'eb-3', emotionalRangeId: 'er-3' },
 ];

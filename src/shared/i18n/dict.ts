@@ -317,6 +317,18 @@ const en = {
   'sp.genres.desc': 'Story genres usable for filtering motifs.',
   'sp.genres.applicable': 'Applicable Motifs',
   'sp.genres.motifsCount': 'motifs',
+  'sp.motif.viewDetail': 'View detail',
+  'sp.motifs.clickHint': 'Click a motif to inspect its event blocks and dependent entities.',
+  'sp.motifs.noConstraints': 'No constraints attached to this motif.',
+  'sp.motifs.noEventBlocks': 'This motif has no event blocks yet.',
+  'sp.eventBlock.component': 'Component',
+  'sp.eventBlock.state': 'State',
+  'sp.eventBlock.emotionalRanges': 'Emotional ranges',
+  'sp.eventBlock.outgoingTransitions': 'Outgoing transitions',
+  'sp.eventBlock.childHint':
+    'Child entities resolved through schema relations: component, state, emotional_ranges (-N), event_transitions (-N).',
+  'sp.eventBlock.noEmotionals': 'No emotional ranges linked.',
+  'sp.eventBlock.noTransitions': 'No outgoing transitions.',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -633,6 +645,18 @@ const vi: Record<keyof typeof en, string> = {
   'sp.genres.desc': 'Thể loại truyện dùng để lọc motif.',
   'sp.genres.applicable': 'Motif áp dụng',
   'sp.genres.motifsCount': 'motif',
+  'sp.motif.viewDetail': 'Xem chi tiết',
+  'sp.motifs.clickHint': 'Nhấn vào một motif để xem event block và các thực thể phụ thuộc.',
+  'sp.motifs.noConstraints': 'Motif này chưa có constraint nào.',
+  'sp.motifs.noEventBlocks': 'Motif này chưa có event block nào.',
+  'sp.eventBlock.component': 'Component',
+  'sp.eventBlock.state': 'State',
+  'sp.eventBlock.emotionalRanges': 'Khoảng cảm xúc',
+  'sp.eventBlock.outgoingTransitions': 'Chuyển tiếp đi ra',
+  'sp.eventBlock.childHint':
+    'Các thực thể con được đối chiếu qua quan hệ -N trong schema: component, state, emotional_ranges, event_transitions.',
+  'sp.eventBlock.noEmotionals': 'Chưa có khoảng cảm xúc nào.',
+  'sp.eventBlock.noTransitions': 'Không có chuyển tiếp đi ra.',
 };
 
 export const dict = { en, vi };
