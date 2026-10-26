@@ -359,6 +359,7 @@ const en = {
   'sidebar.history': 'History',
   'sidebar.settings': 'Settings',
   'chat.welcomeTitle': 'Tell me about the world you want to build',
+  'chat.welcomeGreeting': 'Hello, I am Merlink',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -717,6 +718,7 @@ const vi: Record<keyof typeof en, string> = {
   'sidebar.history': 'Lịch sử',
   'sidebar.settings': 'Cài đặt',
   'chat.welcomeTitle': 'Hãy kể cho tôi nghe về thế giới mà bạn muốn xây dựng',
+  'chat.welcomeGreeting': 'Xin chào, tôi là Merlink',
 };
 
 export const dict = { en, vi };
