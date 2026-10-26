@@ -4,6 +4,7 @@ import { mockArcs } from '../mockDraftData';
 import type { FeedbackContext } from '../types';
 import { MessageSquareQuote, ArrowRight, ArrowLeft } from 'lucide-react';
 import { ThemeDisplay } from '../shared/ThemeDisplay';
+import { MotifBlock } from '../shared/MotifBlock';
 
 export function ArcsStep({ onFeedback, onNext, onBack }: { onFeedback: (f: FeedbackContext) => void; onNext: () => void; onBack: () => void }) {
   const streamed = useDraftStream(mockArcs.length, 500);
@@ -30,6 +31,7 @@ export function ArcsStep({ onFeedback, onNext, onBack }: { onFeedback: (f: Feedb
             <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{arc.summarize}</p>
 
             {/* Gọi Component hiển thị Theme */}
+            <MotifBlock motifs={arc.motifs} onFeedback={onFeedback} />
             <ThemeDisplay themes={arc.themes} defaultOpen={true} />
           </div>
         </DraftStreamableBlock>

@@ -2,6 +2,7 @@ import { useDraftStream } from './useDraftStream';
 import { mockArcs, mockChapters, mockScenes, mockConfigs, mockWorlds, mockCharacters, mockCharacterDetails } from './mockDraftData';
 import { ThemeDisplay } from './shared/ThemeDisplay';
 import { ConfigBlock, SceneBlock, WorldBlock, CharacterBlock, CharacterDetailBlock } from './shared/ToggleBlocks';
+import { MotifBlock } from './shared/MotifBlock';
 import type { DraftStep, FeedbackContext } from './types';
 import { BookOpen, MessageSquareQuote, ArrowLeft, ArrowRight, CheckCircle2, Play } from 'lucide-react';
 
@@ -88,6 +89,7 @@ export function CumulativeMasterLayout({
                       </div>
                       <button onClick={() => onFeedback({ id: chap.id, tag: 'Chapter', title: chap.name })} className="text-[10px] text-slate-400 hover:text-blue-600 transition-colors">Góp ý</button>
                     </div>
+                    <MotifBlock motifs={chap.motifs} onFeedback={onFeedback} />
 
                     {/* INJECT: CHAPTER CONFIG */}
                     {phase === 'config' && mockConfigs.find(c => c.targetScope.includes(chap.name.split(':')[0])) && (

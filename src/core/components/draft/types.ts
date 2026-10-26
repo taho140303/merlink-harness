@@ -15,12 +15,40 @@ export interface FeedbackContext {
   content?: string;
 }
 
+
+// --- Motif System ---
+export type MotifCategory = 'character_arc' | 'relationship' | 'symbolic' | 'plot';
+export type MotifScope = 'project' | 'arc' | 'chapter';
+
+export interface MotifEventBlock {
+  id: string;
+  code: string;
+  component: string;
+  state: string;
+}
+
+export interface DraftMotif {
+  id: string;
+  code: string;
+  name: string;
+  category: MotifCategory;
+  scope: MotifScope;
+  version: string;
+  isSystem: boolean;
+  description: string;
+  minChapter?: number;
+  maxChapter?: number;
+  from: string; // vd: project.code | project.code.arc.code
+  eventBlocks?: MotifEventBlock[];
+}
+
 export interface DraftOverview {
   title: string;
   author: string;
   language: string;
   summarize: string;
   targetWords: string;
+  motifs: DraftMotif[];
 }
 
 // --- Theme System ---
@@ -54,6 +82,7 @@ export interface DraftArc {
   name: string;
   summarize: string;
   themes: DraftTheme[];
+  motifs: DraftMotif[];
 }
 
 export interface DraftChapter {
@@ -61,6 +90,7 @@ export interface DraftChapter {
   arcId: string;
   name: string;
   description: string;
+  motifs: DraftMotif[];
 }
 
 export interface SceneCharacter {
@@ -84,7 +114,6 @@ export interface DraftConfig {
   id: string;
   targetScope: string;
   theme: string;
-  motifs: string[];
 }
 
 export interface DraftWorld {

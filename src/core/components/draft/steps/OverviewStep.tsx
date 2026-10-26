@@ -3,6 +3,7 @@ import { DraftStreamableBlock } from '../DraftStreamableBlock';
 import { mockOverview } from '../mockDraftData';
 import type { FeedbackContext } from '../types';
 import { MessageSquareQuote, CheckCircle2 } from 'lucide-react';
+import { MotifBlock } from '../shared/MotifBlock';
 
 export function OverviewStep({ onFeedback, onNext }: { onFeedback: (f: FeedbackContext) => void; onNext: () => void }) {
   const streamed = useDraftStream(1);
@@ -26,6 +27,7 @@ export function OverviewStep({ onFeedback, onNext }: { onFeedback: (f: FeedbackC
           <p className="mt-3 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
             {mockOverview.summarize}
           </p>
+          <MotifBlock motifs={mockOverview.motifs} onFeedback={onFeedback} />
           <div className="mt-3 flex justify-end">
             <button
               onClick={() => onFeedback({ id: 'ov1', tag: 'Overview', title: mockOverview.title })}
