@@ -181,11 +181,11 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
 
           <div className="flex shrink-0 items-center gap-2">
             {isEditing && (
-              <div className="flex items-center gap-1 mr-2 border-r border-slate-200 pr-3 dark:border-slate-800">
+              <div className="mr-2 flex items-center gap-1 border-r border-slate-200 pr-3 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={handleLockAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-all duration-100 hover:bg-rose-50 active:scale-95 dark:text-rose-400 dark:hover:bg-rose-950/50"
                   title={t("project.lockAll")}
                 >
                   <Lock className="h-3.5 w-3.5" />
@@ -194,7 +194,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 <button
                   type="button"
                   onClick={handleUnlockAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-all duration-100 hover:bg-emerald-50 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   title={t("project.unlockAll")}
                 >
                   <Unlock className="h-3.5 w-3.5" />

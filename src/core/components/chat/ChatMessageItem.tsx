@@ -68,10 +68,10 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
       {Boolean(message.content) && (
         <div
           className={cn(
-            "group relative rounded-2xl border transition-all duration-200",
+            "group relative rounded-2xl border p-4 transition-all duration-200",
             isAssistant
-              ? "border-slate-200 bg-white/95 p-4 shadow-xs dark:border-slate-800/80 dark:bg-[#151921]"
-              : "border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30"
+              ? "w-full border-slate-200 bg-white/95 shadow-xs dark:border-slate-800/80 dark:bg-[#151921]"
+              : "ml-auto w-fit max-w-[85%] border-blue-100 bg-blue-50/70 dark:border-blue-900/50 dark:bg-blue-950/30 sm:max-w-[75%]"
           )}
         >
           <div className="relative">
