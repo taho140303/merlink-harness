@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
 import { SettingsSidebar } from "../settings/SettingsSidebar";
 import { GeneralTab } from "../settings/GeneralTab";
 import { AIProvidersTab } from "../settings/AIProvidersTab";
+import { RecycleBinTab } from "../settings/RecycleBinTab";
 import type { SettingsTabId } from "../settings/types";
 
 interface SettingsDialogProps {
@@ -20,6 +21,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         <main className="flex-1 overflow-y-auto p-6">
           {activeTab === "general" && <GeneralTab />}
           {activeTab === "ai-providers" && <AIProvidersTab />}
+          {activeTab === "recycle-bin" && <RecycleBinTab />}
         </main>
       </DialogContent>
     </Dialog>

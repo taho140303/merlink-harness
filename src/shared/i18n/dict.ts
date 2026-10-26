@@ -336,6 +336,19 @@ const en = {
   'sp.narrator.empty': 'No narrator configs match this filter.',
   'sp.canvas.openDetail': 'View event block details',
   'sp.canvas.detail.title': 'Event Block',
+  'settings.recycleBin': 'Recycle Bin',
+  'recycleBin.title': 'Recycle Bin',
+  'recycleBin.subtitle': 'Recover or permanently delete soft-deleted projects and characters.',
+  'recycleBin.filter.all': 'All',
+  'recycleBin.filter.projects': 'Projects',
+  'recycleBin.filter.characters': 'Characters',
+  'recycleBin.searchPlaceholder': 'Search bin...',
+  'recycleBin.empty': 'Recycle bin is empty.',
+  'recycleBin.restore': 'Restore',
+  'recycleBin.delete': 'Delete',
+  'recycleBin.deletedAt': 'Deleted',
+  'recycleBin.confirmDeleteTitle': 'Permanently delete?',
+  'recycleBin.confirmDeleteDesc': 'This action cannot be undone.',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -671,6 +684,19 @@ const vi: Record<keyof typeof en, string> = {
   'sp.narrator.empty': 'Không có narrator config nào khớp bộ lọc.',
   'sp.canvas.openDetail': 'Xem chi tiết event block',
   'sp.canvas.detail.title': 'Event Block',
+  'settings.recycleBin': 'Thùng rác',
+  'recycleBin.title': 'Thùng rác',
+  'recycleBin.subtitle': 'Phục hồi hoặc xóa vĩnh viễn dự án và nhân vật đã xóa mềm.',
+  'recycleBin.filter.all': 'Tất cả',
+  'recycleBin.filter.projects': 'Dự án',
+  'recycleBin.filter.characters': 'Nhân vật',
+  'recycleBin.searchPlaceholder': 'Tìm kiếm...',
+  'recycleBin.empty': 'Thùng rác trống.',
+  'recycleBin.restore': 'Phục hồi',
+  'recycleBin.delete': 'Xóa',
+  'recycleBin.deletedAt': 'Đã xóa lúc',
+  'recycleBin.confirmDeleteTitle': 'Xóa vĩnh viễn?',
+  'recycleBin.confirmDeleteDesc': 'Hành động này không thể hoàn tác.',
 };
 
 export const dict = { en, vi };

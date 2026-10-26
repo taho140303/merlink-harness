@@ -1,4 +1,4 @@
-import { Sliders, Cpu } from "lucide-react";
+import { Sliders, Cpu, Trash2 } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { useT } from "../../../shared/i18n/useT";
 import type { SettingsTabId } from "./types";
@@ -13,6 +13,7 @@ export function SettingsSidebar({ activeTab, onSelectTab }: SettingsSidebarProps
   const tabs = [
     { id: "general" as SettingsTabId, label: t("settings.general"), icon: Sliders },
     { id: "ai-providers" as SettingsTabId, label: t("settings.aiProviders"), icon: Cpu },
+    { id: "recycle-bin" as SettingsTabId, label: t("settings.recycleBin"), icon: Trash2 },
   ];
 
   return (

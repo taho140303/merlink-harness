@@ -11,6 +11,5 @@ export default [
     route("character/:characterId", "routes/character-detail.tsx"),
     route("worldbuilding/:sub", "routes/worldbuilding.tsx"),
     route("config", "routes/config.tsx"),
-    route("recycle-bin", "routes/recycle-bin.tsx"),
   ]),
 ] satisfies RouteConfig;
