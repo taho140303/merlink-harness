@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { cn } from '../../../../shared/utils/cn';
 import { useT } from '../../../../shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
 import { narrativeDirectives, narratorConfigs } from '../mockData';
-import type { DirectiveCategory, GrammaticalPerson, PovScope } from '../types';
+import type {
+  DirectiveCategory,
+  GrammaticalPerson,
+  PovScope,
+} from '../types';
 
 const PERSON_LABEL: Record<GrammaticalPerson, string> = {
   FIRST_PERSON: 'First-person',
@@ -35,6 +40,15 @@ const CATEGORY_COLOR: Record<DirectiveCategory, string> = {
   INFORMATION_CONTROL: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
 };
 
+type PersonFilter = 'ALL' | GrammaticalPerson;
+
+const PERSON_FILTERS: PersonFilter[] = [
+  'ALL',
+  'FIRST_PERSON',
+  'SECOND_PERSON',
+  'THIRD_PERSON',
+];
+
 function SectionTitle({ title, description }: { title: string; description: string }) {
   return (
     <div className="mb-3 flex items-start gap-2">
@@ -49,6 +63,12 @@ function SectionTitle({ title, description }: { title: string; description: stri
 
 export function NarrativeDirectivesTab() {
   const t = useT();
+  const [personFilter, setPersonFilter] = useState<PersonFilter>('ALL');
+
+  const filteredConfigs =
+    personFilter === 'ALL'
+      ? narratorConfigs
+      : narratorConfigs.filter((nc) => nc.person === personFilter);
 
   const byCategory = new Map<DirectiveCategory, typeof narrativeDirectives>();
   for (const nd of narrativeDirectives) {
@@ -56,78 +76,127 @@ export function NarrativeDirectivesTab() {
     byCategory.get(nd.category)!.push(nd);
   }
 
+  const filterLabel = (f: PersonFilter) =>
+    f === 'ALL' ? t('sp.narrator.filter.all') : t(`sp.narrator.filter.${f}` as const);
+
   return (
     <div className="space-y-8">
       {/* Narrator configs */}
       <section>
-        <SectionTitle title={t('sp.narrator.title')} description={t('sp.narrator.desc')} />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {narratorConfigs.map((nc) => (
-            <div
-              key={nc.id}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">{nc.name}</h4>
-                  <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                    {nc.code}
-                  </p>
-                </div>
-                <InfoTooltip content={nc.description} className="mt-0.5 shrink-0" />
-              </div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <SectionTitle title={t('sp.narrator.title')} description={t('sp.narrator.desc')} />
 
-              <p className="mt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
-                {nc.description}
-              </p>
-
-              <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2.5 text-[11px] dark:border-slate-800">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">{t('sp.narrator.person')}:</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {PERSON_LABEL[nc.person]}
-                  </span>
-                  <InfoTooltip content={PERSON_DESC[nc.person]} />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">{t('sp.narrator.personSubtype')}:</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {humanize(nc.personSubtype)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">{t('sp.narrator.povScope')}:</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {SCOPE_LABEL[nc.povScope]}
-                  </span>
-                  <InfoTooltip content={SCOPE_DESC[nc.povScope]} />
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+          {/* Person filter */}
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
+            {PERSON_FILTERS.map((f) => {
+              const count =
+                f === 'ALL'
+                  ? narratorConfigs.length
+                  : narratorConfigs.filter((nc) => nc.person === f).length;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setPersonFilter(f)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all',
+                    personFilter === f
+                      ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200',
+                  )}
+                >
+                  <span>{filterLabel(f)}</span>
                   <span
                     className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                      nc.isReliable
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                        : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                      personFilter === f
+                        ? 'bg-slate-900 text-white dark:bg-slate-900 dark:text-white'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
                     )}
                   >
-                    {t('sp.narrator.reliable')}: {nc.isReliable ? t('sp.narrator.yes') : t('sp.narrator.no')}
+                    {count}
                   </span>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                      nc.breaksFourthWall
-                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-                    )}
-                  >
-                    {t('sp.narrator.breaksFourthWall')}: {nc.breaksFourthWall ? t('sp.narrator.yes') : t('sp.narrator.no')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        {filteredConfigs.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-10 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/40">
+            {t('sp.narrator.empty')}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {filteredConfigs.map((nc) => (
+              <div
+                key={nc.id}
+                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      {nc.name}
+                    </h4>
+                    <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                      {nc.code}
+                    </p>
+                  </div>
+                  <InfoTooltip content={nc.description} className="mt-0.5 shrink-0" />
+                </div>
+
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  {nc.description}
+                </p>
+
+                <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2.5 text-[11px] dark:border-slate-800">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">{t('sp.narrator.person')}:</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {PERSON_LABEL[nc.person]}
+                    </span>
+                    <InfoTooltip content={PERSON_DESC[nc.person]} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">{t('sp.narrator.personSubtype')}:</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {humanize(nc.personSubtype)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">{t('sp.narrator.povScope')}:</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {SCOPE_LABEL[nc.povScope]}
+                    </span>
+                    <InfoTooltip content={SCOPE_DESC[nc.povScope]} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                        nc.isReliable
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+                      )}
+                    >
+                      {t('sp.narrator.reliable')}: {nc.isReliable ? t('sp.narrator.yes') : t('sp.narrator.no')}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                        nc.breaksFourthWall
+                          ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300'
+                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                      )}
+                    >
+                      {t('sp.narrator.breaksFourthWall')}: {nc.breaksFourthWall ? t('sp.narrator.yes') : t('sp.narrator.no')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Narrative directives grouped by category */}
@@ -138,7 +207,10 @@ export function NarrativeDirectivesTab() {
             <div key={category}>
               <div className="mb-2 flex items-center gap-2">
                 <span
-                  className={cn('rounded-full px-2.5 py-0.5 text-[10px] font-medium', CATEGORY_COLOR[category])}
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-[10px] font-medium',
+                    CATEGORY_COLOR[category],
+                  )}
                 >
                   {humanize(category)}
                 </span>

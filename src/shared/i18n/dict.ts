@@ -329,6 +329,11 @@ const en = {
     'Child entities resolved through schema relations: component, state, emotional_ranges (-N), event_transitions (-N).',
   'sp.eventBlock.noEmotionals': 'No emotional ranges linked.',
   'sp.eventBlock.noTransitions': 'No outgoing transitions.',
+  'sp.narrator.filter.all': 'All',
+  'sp.narrator.filter.FIRST_PERSON': 'First',
+  'sp.narrator.filter.SECOND_PERSON': 'Second',
+  'sp.narrator.filter.THIRD_PERSON': 'Third',
+  'sp.narrator.empty': 'No narrator configs match this filter.',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -657,6 +662,11 @@ const vi: Record<keyof typeof en, string> = {
     'Các thực thể con được đối chiếu qua quan hệ -N trong schema: component, state, emotional_ranges, event_transitions.',
   'sp.eventBlock.noEmotionals': 'Chưa có khoảng cảm xúc nào.',
   'sp.eventBlock.noTransitions': 'Không có chuyển tiếp đi ra.',
+  'sp.narrator.filter.all': 'Tất cả',
+  'sp.narrator.filter.FIRST_PERSON': 'Ngôi 1',
+  'sp.narrator.filter.SECOND_PERSON': 'Ngôi 2',
+  'sp.narrator.filter.THIRD_PERSON': 'Ngôi 3',
+  'sp.narrator.empty': 'Không có narrator config nào khớp bộ lọc.',
 };
 
 export const dict = { en, vi };
