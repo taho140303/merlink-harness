@@ -42,11 +42,10 @@ export function ChatInputBar({
             </span>
             <span className="truncate font-medium">{feedbackContext.title}</span>
           </div>
-
           <button
             type="button"
             onClick={onClearFeedback}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+            className="rounded-md p-1 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -75,7 +74,7 @@ export function ChatInputBar({
         />
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-800/80">
+      <div className="mt-3 flex items-center justify-between border-t border-slate-200/50 pt-2.5 dark:border-slate-800/50">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -85,9 +84,10 @@ export function ChatInputBar({
             <span>Attach</span>
           </button>
 
+          {/* Select Source Button - Đồng bộ 100% với Model Selector */}
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-750 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
           >
             <span>Select Source</span>
             <ChevronDown className="h-3 w-3 text-slate-400" />
