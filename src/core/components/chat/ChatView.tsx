@@ -7,6 +7,7 @@ import { ChatWelcome } from "./ChatWelcome";
 import { ChatInputBar } from "./ChatInputBar";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { DraftWorkspace } from "../draft/DraftWorkspace";
+import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
 import type { ChatMode, ChatMessage } from "./types";
 import type { FeedbackContext } from "../draft/types";
 
@@ -121,6 +122,16 @@ export default function ChatView() {
     }, 1000);
   };
 
+  const scrollToMessage = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const outlineItems = messages.map(m => ({
+    id: m.id,
+    title: m.content || (m.isThinking ? "Thinking..." : "Message")
+  }));
+
   return (
     <div
       ref={containerRef}
@@ -149,6 +160,14 @@ export default function ChatView() {
           )}
           <div ref={scrollBottomRef} />
         </div>
+
+        {/* Thanh Outline (Minimap) */}
+        {messages.length > 0 && (
+          <FloatingOutline 
+            items={outlineItems} 
+            onItemClick={scrollToMessage} 
+          />
+        )}
 
         <div className="shrink-0 p-6">
           <ChatInputBar

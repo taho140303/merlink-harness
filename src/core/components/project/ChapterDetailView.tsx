@@ -5,6 +5,7 @@ import { cn } from "../../../shared/utils/cn";
 import { truncate } from "../../../shared/utils/string";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
 import { ProjectChatPane } from "./ProjectChatPane";
+import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
 import { ConfirmDialog } from "../../../shared/components/ui/confirm-dialog";
 import { toast } from "../../../shared/components/ui/toast";
 import { useT } from "../../../shared/i18n/useT";
@@ -96,6 +97,16 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
   };
 
   const fullChapterTitle = `Chương ${chapterIndex}: ${chapter.title}`;
+
+  const scrollToBlock = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const outlineItems = blocks.map((b, idx) => ({
+    id: b.id,
+    title: b.text || `Block ${idx + 1}`
+  }));
 
   return (
     <div
@@ -217,6 +228,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
             {blocks.map((block) => (
               <div
                 key={block.id}
+                id={block.id}
                 className={cn(
                   "group relative rounded-2xl transition-all duration-200",
                   isEditing

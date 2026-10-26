@@ -23,7 +23,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
   const isAssistant = message.role === "assistant";
 
   return (
-    <div className="mx-auto w-full max-w-4xl py-3 space-y-2 select-text">
+    <div id={message.id} className="mx-auto w-full max-w-4xl py-3 space-y-2 select-text scroll-mt-6">
       {/* 1. Trạng thái Đang suy nghĩ: Đồng hồ đếm giây + Stream dòng suy nghĩ */}
       {isAssistant && message.isThinking && (
         <div className="space-y-2 animate-in fade-in-0 duration-200">
