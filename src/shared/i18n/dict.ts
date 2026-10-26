@@ -716,7 +716,7 @@ const vi: Record<keyof typeof en, string> = {
   'sidebar.worldbuilding': 'Xây dựng thế giới',
   'sidebar.lore': 'Truyền thuyết',
   'sidebar.worldSettings': 'Thiết lập',
-  'sidebar.systemPrompt': 'Writing techniques',
+  'sidebar.systemPrompt': 'Kỹ thuật viết',
   'sidebar.history': 'Lịch sử',
   'sidebar.settings': 'Cài đặt',
   'chat.welcomeTitle': 'Hãy kể cho tôi nghe về thế giới mà bạn muốn xây dựng',
