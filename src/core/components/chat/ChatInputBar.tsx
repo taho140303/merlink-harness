@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Sparkles, ChevronDown, Paperclip, ArrowUp, X, MessageSquareQuote } from "lucide-react";
 import { ContextUsagePopover } from "./ContextUsagePopover";
 import { ModelSelectorPopover } from "./ModelSelectorPopover";
+import { useT } from "../../../shared/i18n/useT";
 import type { FeedbackContext } from "../draft/types";
 
 interface ChatInputBarProps {
@@ -15,6 +16,7 @@ export function ChatInputBar({
   onClearFeedback,
   onSend,
 }: ChatInputBarProps) {
+  const t = useT();
   const [prompt, setPrompt] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -81,7 +83,7 @@ export function ChatInputBar({
             className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
           >
             <Paperclip className="h-3.5 w-3.5" />
-            <span>Attach</span>
+            <span>{t("chat.attach")}</span>
           </button>
 
           {/* Select Source Button - Đồng bộ 100% với Model Selector */}
@@ -89,7 +91,7 @@ export function ChatInputBar({
             type="button"
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
           >
-            <span>Select Source</span>
+            <span>{t("chat.selectSource")}</span>
             <ChevronDown className="h-3 w-3 text-slate-400" />
           </button>
         </div>

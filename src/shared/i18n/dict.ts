@@ -362,6 +362,8 @@ const en = {
   'chat.welcomeGreeting': 'Hello, I am Merlink',
   'project.lockAll': 'Lock All',
   'project.unlockAll': 'Unlock All',
+  'chat.attach': 'Attach',
+  'chat.selectSource': 'Select Source',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -723,6 +725,8 @@ const vi: Record<keyof typeof en, string> = {
   'chat.welcomeGreeting': 'Xin chào, tôi là Merlink',
   'project.lockAll': 'Khóa tất cả',
   'project.unlockAll': 'Mở khóa tất cả',
+  'chat.attach': 'Đính kèm',
+  'chat.selectSource': 'Chọn nguồn',
 };
 
 export const dict = { en, vi };
