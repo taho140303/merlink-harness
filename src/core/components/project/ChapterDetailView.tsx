@@ -5,10 +5,10 @@ import { cn } from "../../../shared/utils/cn";
 import { truncate } from "../../../shared/utils/string";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
 import { ProjectChatPane } from "./ProjectChatPane";
-import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
 import { ConfirmDialog } from "../../../shared/components/ui/confirm-dialog";
 import { toast } from "../../../shared/components/ui/toast";
 import { useT } from "../../../shared/i18n/useT";
+import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
 import type { ProjectItem, ChapterItem, ChapterBlock } from "./types";
 
 interface ChapterDetailViewProps {
@@ -112,7 +112,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full overflow-hidden",
+        "relative flex h-full w-full overflow-hidden",
         isDragging && "cursor-col-resize select-none",
       )}
     >
@@ -145,7 +145,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
 
       <div
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
-        className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8"
+        className="relative flex h-full flex-col overflow-y-auto bg-transparent p-6 dark:bg-transparent sm:p-8"
       >
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
           <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -230,7 +230,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 key={block.id}
                 id={block.id}
                 className={cn(
-                  "group relative rounded-2xl transition-all duration-200",
+                  "group relative rounded-2xl transition-all duration-200 scroll-mt-6",
                   isEditing
                     ? "border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                     : "text-sm leading-relaxed text-slate-700 dark:text-slate-300",
@@ -283,6 +283,14 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
           </div>
         </div>
       </div>
+
+      {/* Thanh Outline (Minimap) - Nằm cố định bên ngoài khung cuộn */}
+      {blocks.length > 0 && (
+        <FloatingOutline 
+          items={outlineItems} 
+          onItemClick={scrollToBlock} 
+        />
+      )}
 
       <ConfirmDialog
         open={discardOpen}

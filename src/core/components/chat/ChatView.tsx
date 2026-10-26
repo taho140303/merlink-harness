@@ -127,10 +127,12 @@ export default function ChatView() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const outlineItems = messages.map(m => ({
-    id: m.id,
-    title: m.content || (m.isThinking ? "Thinking..." : "Message")
-  }));
+  const outlineItems = messages
+    .filter(m => m.role === 'user')
+    .map(m => ({
+      id: m.id,
+      title: m.content || "Message"
+    }));
 
   return (
     <div
