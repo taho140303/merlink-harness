@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronRight, LayoutGrid, Network } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
-import { truncate } from '../../../../shared/utils/string';
 import { useT } from '../../../../shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
@@ -20,8 +19,8 @@ import {
   stateRules,
   states,
 } from '../mockData';
-import type { Motif, MotifCategory } from '../types';
 import { MotifCanvas } from '../canvas/MotifCanvas';
+import type { Motif, MotifCategory } from '../types';
 
 const CATEGORY_COLOR: Record<MotifCategory, string> = {
   character_arc: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
@@ -30,26 +29,27 @@ const CATEGORY_COLOR: Record<MotifCategory, string> = {
   plot: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
 };
 
-export function MotifsTab() {
-  const [selectedMotifId, setSelectedMotifId] = useState<string | null>(null);
+interface MotifsTabProps {
+  activeChild: { id: string; name: string } | null;
+  onSelectChild: (child: { id: string; name: string } | null) => void;
+}
 
-  if (selectedMotifId) {
-    const motif = motifs.find((m) => m.id === selectedMotifId);
+export function MotifsTab({ activeChild, onSelectChild }: MotifsTabProps) {
+  if (activeChild) {
+    const motif = motifs.find((m) => m.id === activeChild.id);
     if (motif) {
-      return (
-        <MotifDetailView motif={motif} onBack={() => setSelectedMotifId(null)} />
-      );
+      return <MotifDetailView motif={motif} onBack={() => onSelectChild(null)} />;
     }
   }
 
-  return <MotifListView onSelect={(id) => setSelectedMotifId(id)} />;
+  return <MotifListView onSelect={(mo) => onSelectChild({ id: mo.id, name: mo.name })} />;
 }
 
 /* ============================================================
  * LIST VIEW
  * ============================================================ */
 
-function MotifListView({ onSelect }: { onSelect: (id: string) => void }) {
+function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
   const t = useT();
   const genreById = new Map(genres.map((g) => [g.id, g]));
 
@@ -60,20 +60,17 @@ function MotifListView({ onSelect }: { onSelect: (id: string) => void }) {
       .filter((g): g is (typeof genres)[number] => Boolean(g));
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {t('sp.motifs.title')}
-        </h3>
-        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{t('sp.motifs.clickHint')}</p>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {motifs.map((mo) => {
+    <div className="space-y-4">
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('sp.motifs.clickHint')}</p>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {motifs.map((mo) => {
           const applicable = genresForMotif(mo.id);
           return (
             <button
               key={mo.id}
               type="button"
-              onClick={() => onSelect(mo.id)}
+              onClick={() => onSelect(mo)}
               className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
             >
               <div className="flex items-start justify-between gap-2">
@@ -124,63 +121,8 @@ function MotifListView({ onSelect }: { onSelect: (id: string) => void }) {
               </div>
             </button>
           );
-          })}
-        </div>
-      </section>
-
-      {/* State Mechanics Section */}
-      <section>
-        <div className="mb-3 flex items-start justify-between">
-          <div>
-            <h3 className="font-semibold text-slate-900 dark:text-slate-100">State Mechanics</h3>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Các quy tắc (rules) có thể hạ trạng thái (state) xuống.
-            </p>
-          </div>
-          <InfoTooltip content="state_down_by_rules: Ánh xạ giữa State, Rule và việc Rule đó có làm hạ State không (is_allowed)." />
-        </div>
-        
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {states.map((st) => {
-            const downRules = stateDownByRules.filter((r) => r.stateId === st.id);
-            return (
-              <div key={st.id} className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">{st.name}</h4>
-                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{st.description}</p>
-                </div>
-                <div className="p-4 space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                    State Rules
-                  </p>
-                  {downRules.length === 0 ? (
-                    <p className="text-xs text-slate-400">Không có rule nào.</p>
-                  ) : (
-                    downRules.map((dr) => {
-                      const rule = stateRules.find((r) => r.id === dr.stateRuleId);
-                      return (
-                        <div key={dr.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 dark:bg-slate-800/60">
-                          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            {rule?.name}
-                          </span>
-                          <span className={cn(
-                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                            dr.isAllowed 
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              : "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                          )}>
-                            {dr.isAllowed ? "Allowed" : "Forbidden"}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+        })}
+      </div>
     </div>
   );
 }
@@ -224,28 +166,12 @@ function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }
       .map((et) => ({ et, target: eventBlockById.get(et.toEventBlockId) }))
       .filter((r) => Boolean(r.target));
 
+  // State Mechanics: lấy các state xuất hiện trong event blocks của motif
+  const usedStateIds = Array.from(new Set(motifEventBlocks.map(eb => eb.stateId)));
+  const relevantStates = states.filter(st => usedStateIds.includes(st.id));
+
   return (
     <div className="space-y-4">
-      {/* Breadcrumb */}
-      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-        <span>{t('sp.title')}</span>
-        <span>›</span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="hover:text-slate-900 dark:hover:text-slate-100"
-        >
-          {t('sp.tab.motifs')}
-        </button>
-        <span>›</span>
-        <span
-          className="max-w-[200px] truncate font-bold text-slate-900 dark:text-slate-100"
-          title={motif.name}
-        >
-          {truncate(motif.name, 15)}
-        </span>
-      </div>
-
       {/* Header card */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-start justify-between gap-3">
@@ -299,7 +225,7 @@ function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }
         </div>
       </div>
 
-      {/* View mode switch (only inside motif detail) */}
+      {/* View mode switch */}
       <div className="flex w-fit items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
         <button
           type="button"
@@ -338,12 +264,7 @@ function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }
           )}
           componentById={componentById}
           stateById={stateById}
-          emotionsForEventBlock={(ebId) =>
-            eventBlockEmotionals
-              .filter((ebe) => ebe.eventBlockId === ebId)
-              .map((ebe) => emotionalById.get(ebe.emotionalRangeId))
-              .filter((e): e is (typeof emotionalRanges)[number] => Boolean(e))
-          }
+          emotionsForEventBlock={emotionsForEventBlock}
         />
       ) : (
         <>
@@ -380,6 +301,66 @@ function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }
               </ul>
             )}
           </section>
+
+          {/* State Mechanics (Chỉ relevantStates của motif này) */}
+          {relevantStates.length > 0 && (
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="mb-3 flex items-start justify-between">
+                <div className="flex items-start gap-1.5">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      State Mechanics
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      Các quy tắc (rules) có thể hạ trạng thái (state) xuống cho motif này.
+                    </p>
+                  </div>
+                  <InfoTooltip content="state_down_by_rules: Ánh xạ giữa State, Rule và việc Rule đó có làm hạ State không (is_allowed)." className="mt-0.5" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {relevantStates.map((st) => {
+                  const downRules = stateDownByRules.filter((r) => r.stateId === st.id);
+                  return (
+                    <div key={st.id} className="rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-800 dark:bg-slate-950/30">
+                      <div className="border-b border-slate-100 px-3 py-2 dark:border-slate-800">
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs">{st.name}</h4>
+                        <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">{st.description}</p>
+                      </div>
+                      <div className="p-3 space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
+                          State Rules
+                        </p>
+                        {downRules.length === 0 ? (
+                          <p className="text-[11px] text-slate-400">Không có rule nào.</p>
+                        ) : (
+                          downRules.map((dr) => {
+                            const rule = stateRules.find((r) => r.id === dr.stateRuleId);
+                            return (
+                              <div key={dr.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2 py-1.5 shadow-2xs dark:bg-slate-900">
+                                <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                                  {rule?.name}
+                                </span>
+                                <span className={cn(
+                                  "rounded-full px-1.5 py-0.5 text-[9px] font-medium",
+                                  dr.isAllowed 
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                    : "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                                )}>
+                                  {dr.isAllowed ? "Allowed" : "Forbidden"}
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Event Blocks */}
           <section>

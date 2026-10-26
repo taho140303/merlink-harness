@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Lock } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
+import { truncate } from '../../../shared/utils/string';
 import { useT } from '../../../shared/i18n/useT';
 import type { TKey } from '../../../shared/i18n/dict';
 import { MotifsTab } from './tabs/MotifsTab';
@@ -22,16 +23,38 @@ const TAB_LABELS: Record<SpTab, TKey> = {
 export function SystemPromptLayout() {
   const t = useT();
   const [tab, setTab] = useState<SpTab>('motifs');
+  const [activeChild, setActiveChild] = useState<{ id: string; name: string } | null>(null);
+
+  const handleTabChange = (newTab: SpTab) => {
+    setTab(newTab);
+    setActiveChild(null);
+  };
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8">
+      {/* Header: Dynamic Breadcrumb as Title */}
       <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+          <div className="flex items-center gap-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+            <span className={cn(tab === 'motifs' && !activeChild ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400')}>
               {t('sp.title')}
-            </h1>
-            <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            </span>
+            <ChevronRight className="h-5 w-5 text-slate-300 dark:text-slate-600 shrink-0" />
+            <span className={cn(activeChild ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100')}>
+              {t(TAB_LABELS[tab])}
+            </span>
+            {activeChild && (
+              <>
+                <ChevronRight className="h-5 w-5 text-slate-300 dark:text-slate-600 shrink-0" />
+                <span
+                  className="max-w-[200px] truncate text-slate-900 dark:text-slate-100"
+                  title={activeChild.name}
+                >
+                  {truncate(activeChild.name, 15)}
+                </span>
+              </>
+            )}
+            <span className="ml-2 flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300 shrink-0">
               <Lock className="h-2.5 w-2.5" />
               {t('sp.readonly')}
             </span>
@@ -40,12 +63,13 @@ export function SystemPromptLayout() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
         {(Object.keys(TAB_LABELS) as SpTab[]).map((key) => (
           <button
             key={key}
             type="button"
-            onClick={() => setTab(key)}
+            onClick={() => handleTabChange(key)}
             className={cn(
               'rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all',
               tab === key
@@ -58,8 +82,11 @@ export function SystemPromptLayout() {
         ))}
       </div>
 
+      {/* Content */}
       <div className="mt-6">
-        {tab === 'motifs' && <MotifsTab />}
+        {tab === 'motifs' && (
+          <MotifsTab activeChild={activeChild} onSelectChild={setActiveChild} />
+        )}
         {tab === 'stylePresets' && <StylePresetsTab />}
         {tab === 'narrativeDirectives' && <NarrativeDirectivesTab />}
         {tab === 'themes' && <ThemesTab />}
