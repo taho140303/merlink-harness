@@ -9,7 +9,6 @@ const motifRedemption: DraftMotif = {
   from: 'aethelgard', version: '1.0.0', isSystem: true,
   description: 'Character wrestles with past wrongdoing, seeks atonement through costly action. Arc resolves only when the character accepts responsibility without external validation.',
   genres: ['Fantasy', 'Dark Fantasy'],
-  symbolics: ['Crystal Light', 'Shattered Mirror'],
   constraints: [
     { code: 'req-motive', require: 'Character must have a stated motive for change', reason: 'Without a motive the arc feels externally imposed.' }
   ],
@@ -39,7 +38,6 @@ const motifRisingTension: DraftMotif = {
   description: 'Escalating stakes and shrinking windows of resolution. Each success narrows the path to the next confrontation.',
   minChapter: 1, maxChapter: 3,
   genres: ['Thriller', 'Action'],
-  symbolics: ['Ticking Clock', 'Shrinking Room'],
   constraints: [],
   eventBlocks: [
     {
@@ -60,7 +58,6 @@ const motifMysteryClue: DraftMotif = {
   description: 'A hidden clue surfaces, requiring careful deduction.',
   minChapter: 1, maxChapter: 1,
   genres: ['Mystery'],
-  symbolics: ['Magnifying Glass'],
   constraints: [
     { code: 'no-magic', require: 'Cannot use magic to solve the clue', reason: 'The mystery must be solved by human intellect.' }
   ],

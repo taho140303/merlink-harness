@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GitMerge, ChevronRight, Activity, Target, Book, Sparkles, ShieldAlert, ArrowRight } from 'lucide-react';
+import { GitMerge, ChevronRight, Activity, Target, Book, ShieldAlert, ArrowRight } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
 import type { DraftMotif, MotifCategory, FeedbackContext } from '../types';
 
@@ -68,25 +68,15 @@ export function MotifBlock({ motifs, onFeedback }: { motifs: DraftMotif[]; onFee
                     </div>
                   </div>
 
-                  {/* Genres & Symbolics */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {mo.genres.length > 0 && (
-                      <div>
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1"><Book className="h-3 w-3"/> Genres</span>
-                        <div className="flex flex-wrap gap-1">
-                          {mo.genres.map(g => <span key={g} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">{g}</span>)}
-                        </div>
+                  {/* Genres */}
+                  {mo.genres.length > 0 && (
+                    <div>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1"><Book className="h-3 w-3"/> Genres</span>
+                      <div className="flex flex-wrap gap-1">
+                        {mo.genres.map(g => <span key={g} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">{g}</span>)}
                       </div>
-                    )}
-                    {mo.symbolics.length > 0 && (
-                      <div>
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1"><Sparkles className="h-3 w-3"/> Symbolics</span>
-                        <div className="flex flex-wrap gap-1">
-                          {mo.symbolics.map(s => <span key={s} className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">{s}</span>)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Constraints */}
                   {mo.constraints.length > 0 && (

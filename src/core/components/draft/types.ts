@@ -56,7 +56,6 @@ export interface DraftMotif {
   maxChapter?: number;
   
   genres: string[];        // motif_applicable_genres
-  symbolics: string[];     // symbolic_motifs
   constraints: MotifConstraint[]; // motif_constraints
   eventBlocks: MotifEventBlock[];
 }
