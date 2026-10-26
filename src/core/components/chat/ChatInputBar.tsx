@@ -32,7 +32,7 @@ export function ChatInputBar({
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none transition-all">
+    <div className="mx-auto w-full max-w-4xl rounded-3xl p-3 neu-flat transition-all">
       {feedbackContext && (
         <div className="mb-2 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
           <div className="flex items-center gap-2 truncate">

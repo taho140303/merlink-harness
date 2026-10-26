@@ -132,7 +132,7 @@ export default function ChatView() {
       {/* Cột trái: Chat Area */}
       <div
         style={{ width: isDraftOpen ? `${leftRatio}%` : "100%" }}
-        className="flex flex-col overflow-hidden bg-slate-50/50 dark:bg-slate-950/20"
+        className="flex flex-col overflow-hidden "
       >
         <ChatHeader
           mode={mode}

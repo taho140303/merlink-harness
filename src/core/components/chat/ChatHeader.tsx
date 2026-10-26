@@ -30,7 +30,7 @@ export function ChatHeader({
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/70 px-6 backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-950/70">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/70 px-6  dark:border-slate-800/80 dark:bg-slate-950/70">
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
             Merlink-harness
