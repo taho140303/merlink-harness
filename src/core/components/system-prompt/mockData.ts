@@ -120,14 +120,41 @@ export const emotionalRanges: EmotionalRange[] = [
 ];
 
 export const eventBlocks: EventBlock[] = [
+  // Motif 1: Redemption Arc — loyal → conflicted → resolved
   { id: 'eb-1', code: 'eb-loyal-choice', componentId: 'co-1', stateId: 'st-1', motifId: 'mo-1' },
+  { id: 'eb-4', code: 'eb-conflicted-revelation-arc', componentId: 'co-2', stateId: 'st-2', motifId: 'mo-1' },
+  { id: 'eb-5', code: 'eb-resolved-choice-arc', componentId: 'co-1', stateId: 'st-4', motifId: 'mo-1' },
+
+  // Motif 2: Bond & Betrayal — loyal → conflicted → betrayed
+  { id: 'eb-6', code: 'eb-loyal-choice-bond', componentId: 'co-1', stateId: 'st-1', motifId: 'mo-2' },
   { id: 'eb-2', code: 'eb-conflicted-revelation', componentId: 'co-2', stateId: 'st-2', motifId: 'mo-2' },
+  { id: 'eb-7', code: 'eb-betrayed-confrontation-bond', componentId: 'co-3', stateId: 'st-3', motifId: 'mo-2' },
+
+  // Motif 3: Crystal Light — betrayed → resolved (shatter then clarity)
+  { id: 'eb-9', code: 'eb-betrayed-confrontation-light', componentId: 'co-3', stateId: 'st-3', motifId: 'mo-3' },
+  { id: 'eb-8', code: 'eb-resolved-revelation', componentId: 'co-2', stateId: 'st-4', motifId: 'mo-3' },
+
+  // Motif 4: Rising Tension — conflicted → betrayed → resolved
+  { id: 'eb-10', code: 'eb-conflicted-revelation-tension', componentId: 'co-2', stateId: 'st-2', motifId: 'mo-4' },
   { id: 'eb-3', code: 'eb-betrayed-confrontation', componentId: 'co-3', stateId: 'st-3', motifId: 'mo-4' },
+  { id: 'eb-11', code: 'eb-resolved-choice-tension', componentId: 'co-1', stateId: 'st-4', motifId: 'mo-4' },
 ];
 
 export const eventTransitions: EventTransition[] = [
-  { id: 'et-1', name: 'Revelation Shift', fromEventBlockId: 'eb-1', toEventBlockId: 'eb-2', priority: 1 },
-  { id: 'et-2', name: 'Confrontation Break', fromEventBlockId: 'eb-2', toEventBlockId: 'eb-3', priority: 1 },
+  // Motif 1: Redemption Arc
+  { id: 'et-1', name: 'Revelation Shift', fromEventBlockId: 'eb-1', toEventBlockId: 'eb-4', priority: 1 },
+  { id: 'et-3', name: 'Resolution Path', fromEventBlockId: 'eb-4', toEventBlockId: 'eb-5', priority: 2 },
+
+  // Motif 2: Bond & Betrayal
+  { id: 'et-4', name: 'Trust Collapse', fromEventBlockId: 'eb-6', toEventBlockId: 'eb-2', priority: 1 },
+  { id: 'et-2', name: 'Confrontation Break', fromEventBlockId: 'eb-2', toEventBlockId: 'eb-7', priority: 2 },
+
+  // Motif 3: Crystal Light
+  { id: 'et-5', name: 'Light Shatters', fromEventBlockId: 'eb-9', toEventBlockId: 'eb-8', priority: 1 },
+
+  // Motif 4: Rising Tension
+  { id: 'et-6', name: 'Tension Escalates', fromEventBlockId: 'eb-10', toEventBlockId: 'eb-3', priority: 1 },
+  { id: 'et-7', name: 'Pressure Breaks', fromEventBlockId: 'eb-3', toEventBlockId: 'eb-11', priority: 2 },
 ];
 
 export const constraints: Constraint[] = [
@@ -215,41 +242,118 @@ export const stylePresetFocusItems: StylePresetFocusItem[] = [
 
 // NARRATOR CONFIGS
 export const narratorConfigs: NarratorConfig[] = [
+  // ── FIRST PERSON ─────────────────────────────────────────
   {
     id: 'nc-1',
-    code: 'first-person-past',
-    name: 'First Person, Past Tense',
+    code: 'first-person-protagonist',
+    name: 'First Person · Protagonist',
     person: 'FIRST_PERSON',
     personSubtype: 'PROTAGONIST',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'Classic intimate narrator recalling events from memory. Confessional tone, all knowledge filtered through the narrator.',
+      'The protagonist narrates their own experience in first person. Immediate, confessional, intimate — every event filtered through their memory.',
   },
   {
     id: 'nc-2',
-    code: 'third-limited-present',
-    name: 'Third Person Limited, Present Tense',
-    person: 'THIRD_PERSON',
-    personSubtype: 'LIMITED',
-    povScope: 'MULTIPLE_POV',
-    isReliable: true,
-    breaksFourthWall: false,
-    description:
-      'Deeply anchored to one viewpoint per chapter, rotating between chapters. Immediate, present-tense — events unfold as they happen.',
-  },
-  {
-    id: 'nc-3',
-    code: 'unreliable-first',
-    name: 'Unreliable First Person',
+    code: 'first-person-unreliable',
+    name: 'First Person · Unreliable',
     person: 'FIRST_PERSON',
     personSubtype: 'UNRELIABLE_FIRST',
     povScope: 'SINGLE_POV',
     isReliable: false,
     breaksFourthWall: false,
     description:
-      'Narrator withholds and reframes. Reader must infer truth from inconsistencies. Used for psychological tension.',
+      'First-person narrator who withholds, misremembers, or misrepresents. Readers must infer truth from contradictions and gaps.',
+  },
+  {
+    id: 'nc-3',
+    code: 'first-person-witness',
+    name: 'First Person · Witness',
+    person: 'FIRST_PERSON',
+    personSubtype: 'WITNESS_PERIPHERAL',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'A peripheral character recounts the story of someone else. The protagonist is seen from the outside; the narrator is a close observer, not the centre.',
+  },
+
+  // ── SECOND PERSON ────────────────────────────────────────
+  {
+    id: 'nc-4',
+    code: 'second-person-direct',
+    name: 'Second Person · Direct Address',
+    person: 'SECOND_PERSON',
+    personSubtype: 'DIRECT_ADDRESS',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'The narrator speaks to the reader as "you". Immersive and disorienting — actions are phrased as commands or invitations.',
+  },
+  {
+    id: 'nc-5',
+    code: 'second-person-self-reflection',
+    name: 'Second Person · Self-Reflection',
+    person: 'SECOND_PERSON',
+    personSubtype: 'SELF_REFLECTION',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'The narrator addresses their own past or shadow-self as "you". Introspective; blurs the line between narrator and subject.',
+  },
+  {
+    id: 'nc-6',
+    code: 'second-person-interactive',
+    name: 'Second Person · Interactive',
+    person: 'SECOND_PERSON',
+    personSubtype: 'INTERACTIVE',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'The reader inhabits the role of the protagonist; agency is explicitly granted or revoked. Used in branching or experimental narratives.',
+  },
+
+  // ── THIRD PERSON ─────────────────────────────────────────
+  {
+    id: 'nc-7',
+    code: 'third-person-omniscient',
+    name: 'Third Person · Omniscient',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OMNISCIENT',
+    povScope: 'SHIFTING_OMNISCIENT',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'An all-knowing narrator moves freely between minds, times, and places. God’s-eye view; knowledge is not filtered through any single character.',
+  },
+  {
+    id: 'nc-8',
+    code: 'third-person-limited',
+    name: 'Third Person · Limited',
+    person: 'THIRD_PERSON',
+    personSubtype: 'LIMITED',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Deeply anchored to one viewpoint at a time; viewpoints rotate across chapters. Keeps interiority close while covering a wider cast.',
+  },
+  {
+    id: 'nc-9',
+    code: 'third-person-objective',
+    name: 'Third Person · Objective',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OBJECTIVE',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Camera-eye narration. Records only what can be seen or heard — actions, dialogue, events. No interiority is disclosed.',
   },
 ];
 
@@ -356,10 +460,27 @@ export const themeArguments: ThemeArgument[] = [
 ];
 
 export const eventBlockEmotionals: EventBlockEmotional[] = [
-  { id: 'ebe-1', eventBlockId: 'eb-1', emotionalRangeId: 'er-1' },
-  { id: 'ebe-2', eventBlockId: 'eb-1', emotionalRangeId: 'er-2' },
-  { id: 'ebe-3', eventBlockId: 'eb-2', emotionalRangeId: 'er-2' },
-  { id: 'ebe-4', eventBlockId: 'eb-2', emotionalRangeId: 'er-4' },
-  { id: 'ebe-5', eventBlockId: 'eb-3', emotionalRangeId: 'er-4' },
-  { id: 'ebe-6', eventBlockId: 'eb-3', emotionalRangeId: 'er-3' },
+  { id: 'ebe-1',  eventBlockId: 'eb-1',  emotionalRangeId: 'er-1' },
+  { id: 'ebe-2',  eventBlockId: 'eb-1',  emotionalRangeId: 'er-2' },
+  { id: 'ebe-3',  eventBlockId: 'eb-4',  emotionalRangeId: 'er-2' },
+  { id: 'ebe-4',  eventBlockId: 'eb-4',  emotionalRangeId: 'er-4' },
+  { id: 'ebe-5',  eventBlockId: 'eb-5',  emotionalRangeId: 'er-1' },
+  { id: 'ebe-6',  eventBlockId: 'eb-5',  emotionalRangeId: 'er-3' },
+
+  { id: 'ebe-7',  eventBlockId: 'eb-6',  emotionalRangeId: 'er-1' },
+  { id: 'ebe-8',  eventBlockId: 'eb-6',  emotionalRangeId: 'er-3' },
+  { id: 'ebe-9',  eventBlockId: 'eb-2',  emotionalRangeId: 'er-2' },
+  { id: 'ebe-10', eventBlockId: 'eb-2',  emotionalRangeId: 'er-4' },
+  { id: 'ebe-11', eventBlockId: 'eb-7',  emotionalRangeId: 'er-4' },
+  { id: 'ebe-12', eventBlockId: 'eb-7',  emotionalRangeId: 'er-2' },
+
+  { id: 'ebe-13', eventBlockId: 'eb-9',  emotionalRangeId: 'er-4' },
+  { id: 'ebe-14', eventBlockId: 'eb-8',  emotionalRangeId: 'er-1' },
+  { id: 'ebe-15', eventBlockId: 'eb-8',  emotionalRangeId: 'er-3' },
+
+  { id: 'ebe-16', eventBlockId: 'eb-10', emotionalRangeId: 'er-2' },
+  { id: 'ebe-17', eventBlockId: 'eb-3',  emotionalRangeId: 'er-4' },
+  { id: 'ebe-18', eventBlockId: 'eb-3',  emotionalRangeId: 'er-2' },
+  { id: 'ebe-19', eventBlockId: 'eb-11', emotionalRangeId: 'er-3' },
+  { id: 'ebe-20', eventBlockId: 'eb-11', emotionalRangeId: 'er-1' },
 ];
