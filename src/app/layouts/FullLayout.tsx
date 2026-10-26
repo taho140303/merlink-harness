@@ -5,7 +5,7 @@ import { AuroraBackground } from "../../shared/components/background/AuroraBackg
 
 export default function FullLayout() {
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-transparent p-6 gap-8 text-slate-900 dark:text-slate-100 selection:bg-pink-200 dark:selection:bg-purple-900 z-0">
+    <div className="relative flex h-screen w-full overflow-hidden p-4 gap-4 text-slate-900 dark:text-slate-100 selection:bg-pink-200 dark:selection:bg-purple-900 z-0">
       <AuroraBackground />
       
       {/* Sidebar Container */}
@@ -13,11 +13,9 @@ export default function FullLayout() {
         <Sidebar />
       </div>
       
-      {/* Main Container */}
-      <main className="relative z-10 flex-1 h-full overflow-hidden">
-        <div className="h-full w-full overflow-hidden rounded-3xl neu-flat">
-          <Outlet />
-        </div>
+      {/* Main Container: Trực tiếp bọc neu-flat */}
+      <main className="relative z-10 flex-1 h-full overflow-hidden rounded-[2.5rem] neu-flat">
+        <Outlet />
       </main>
       
       <ToastViewport />
