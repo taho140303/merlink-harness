@@ -58,11 +58,14 @@ function MotifListView({ onSelect }: { onSelect: (id: string) => void }) {
       .filter((g): g is (typeof genres)[number] => Boolean(g));
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-slate-500 dark:text-slate-400">{t('sp.motifs.clickHint')}</p>
-
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {motifs.map((mo) => {
+    <div className="space-y-8">
+      <section>
+        <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {t('sp.motifs.title')}
+        </h3>
+        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{t('sp.motifs.clickHint')}</p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {motifs.map((mo) => {
           const applicable = genresForMotif(mo.id);
           return (
             <button
@@ -119,8 +122,63 @@ function MotifListView({ onSelect }: { onSelect: (id: string) => void }) {
               </div>
             </button>
           );
-        })}
-      </div>
+          })}
+        </div>
+      </section>
+
+      {/* State Mechanics Section */}
+      <section>
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">State Mechanics</h3>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Các quy tắc (rules) có thể hạ trạng thái (state) xuống.
+            </p>
+          </div>
+          <InfoTooltip content="state_down_by_rules: Ánh xạ giữa State, Rule và việc Rule đó có làm hạ State không (is_allowed)." />
+        </div>
+        
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {states.map((st) => {
+            const downRules = stateDownByRules.filter((r) => r.stateId === st.id);
+            return (
+              <div key={st.id} className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">{st.name}</h4>
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{st.description}</p>
+                </div>
+                <div className="p-4 space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
+                    State Rules
+                  </p>
+                  {downRules.length === 0 ? (
+                    <p className="text-xs text-slate-400">Không có rule nào.</p>
+                  ) : (
+                    downRules.map((dr) => {
+                      const rule = stateRules.find((r) => r.id === dr.stateRuleId);
+                      return (
+                        <div key={dr.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 dark:bg-slate-800/60">
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                            {rule?.name}
+                          </span>
+                          <span className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            dr.isAllowed 
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              : "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                          )}>
+                            {dr.isAllowed ? "Allowed" : "Forbidden"}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

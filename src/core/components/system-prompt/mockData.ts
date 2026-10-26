@@ -179,40 +179,24 @@ export const motifConstraints: MotifConstraint[] = [
 
 // STYLE PRESETS
 export const stylePresets: StylePreset[] = [
-  {
-    id: 'sp-1',
-    code: 'noir-melancholy',
-    category: 'dark.noir',
-    tonePace: 'VERY_LOW',
-    toneEmotion: 'Melancholic',
-    isSystem: true,
-    visual: 'HIGH',
-    auditory: 'MEDIUM',
-    tactile: 'LOW',
-    olfactory: 'MEDIUM',
-    gustatory: 'NONE',
-    languageAbstract: 'HIGH',
-    syntaxSentence: 'SHORT',
-    syntaxVariation: 'MEDIUM',
-    syntaxStructure: 'FRAGMENT',
-  },
-  {
-    id: 'sp-2',
-    code: 'epic-heroic',
-    category: 'epic.heroic',
-    tonePace: 'FAST',
-    toneEmotion: 'Awe',
-    isSystem: true,
-    visual: 'HIGH',
-    auditory: 'HIGH',
-    tactile: 'MEDIUM',
-    olfactory: 'LOW',
-    gustatory: 'NONE',
-    languageAbstract: 'LOW',
-    syntaxSentence: 'MEDIUM',
-    syntaxVariation: 'HIGH',
-    syntaxStructure: 'COMPOUND',
-  },
+  // Action
+  { id: 'sp-1', code: 'action.combat', category: 'action', tonePace: 'VERY_FAST', toneEmotion: 'căng thẳng, dồn dập', isSystem: true, visual: 'HIGH', auditory: 'HIGH', tactile: 'HIGH', olfactory: 'LOW', gustatory: 'NONE', languageAbstract: 'LOW', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'SIMPLE' },
+  { id: 'sp-2', code: 'action.assassination', category: 'action', tonePace: 'VERY_LOW', toneEmotion: 'căng thẳng nghẹt thở', isSystem: true, visual: 'HIGH', auditory: 'LOW', tactile: 'HIGH', olfactory: 'MEDIUM', gustatory: 'NONE', languageAbstract: 'MEDIUM', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'MIXED' },
+  // Mystery
+  { id: 'sp-3', code: 'mystery.deduction', category: 'mystery', tonePace: 'LOW', toneEmotion: 'tập trung, lạnh lùng', isSystem: true, visual: 'LOW', auditory: 'LOW', tactile: 'NONE', olfactory: 'NONE', gustatory: 'NONE', languageAbstract: 'HIGH', syntaxSentence: 'LONG', syntaxVariation: 'LOW', syntaxStructure: 'MIXED' },
+  { id: 'sp-4', code: 'mystery.revelation', category: 'mystery', tonePace: 'VERY_FAST', toneEmotion: 'sốc, phẫn nộ, kinh hoàng', isSystem: true, visual: 'HIGH', auditory: 'HIGH', tactile: 'MEDIUM', olfactory: 'LOW', gustatory: 'NONE', languageAbstract: 'MEDIUM', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'MIXED' },
+  // Romance
+  { id: 'sp-5', code: 'romance_relationship.confession', category: 'romance_relationship', tonePace: 'LOW', toneEmotion: 'mong manh, dũng cảm, hồi hộp', isSystem: true, visual: 'HIGH', auditory: 'HIGH', tactile: 'MEDIUM', olfactory: 'LOW', gustatory: 'NONE', languageAbstract: 'MEDIUM', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'MIXED' },
+  // Psychological
+  { id: 'sp-6', code: 'psychological_drama.betrayal', category: 'psychological_drama', tonePace: 'FAST', toneEmotion: 'sốc, đau đớn tột cùng, phẫn uất', isSystem: true, visual: 'HIGH', auditory: 'HIGH', tactile: 'MEDIUM', olfactory: 'LOW', gustatory: 'LOW', languageAbstract: 'MEDIUM', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'MIXED' },
+  // Slice of Life
+  { id: 'sp-7', code: 'slice_of_life_comedy.daily_routine', category: 'slice_of_life_comedy', tonePace: 'LOW', toneEmotion: 'ấm cúng, thoải mái', isSystem: true, visual: 'HIGH', auditory: 'MEDIUM', tactile: 'MEDIUM', olfactory: 'MEDIUM', gustatory: 'LOW', languageAbstract: 'LOW', syntaxSentence: 'MEDIUM', syntaxVariation: 'LOW', syntaxStructure: 'MIXED' },
+  // Political
+  { id: 'sp-8', code: 'political_social.negotiation_treaty', category: 'political_social', tonePace: 'LOW', toneEmotion: 'căng thẳng, khôn khéo, thận trọng', isSystem: true, visual: 'MEDIUM', auditory: 'HIGH', tactile: 'LOW', olfactory: 'NONE', gustatory: 'NONE', languageAbstract: 'HIGH', syntaxSentence: 'LONG', syntaxVariation: 'LOW', syntaxStructure: 'COMPLEX' },
+  // Exploration
+  { id: 'sp-9', code: 'exploration_discovery.first_contact', category: 'exploration_discovery', tonePace: 'LOW', toneEmotion: 'kinh ngạc, thận trọng, hồi hộp', isSystem: true, visual: 'HIGH', auditory: 'MEDIUM', tactile: 'MEDIUM', olfactory: 'MEDIUM', gustatory: 'NONE', languageAbstract: 'MEDIUM', syntaxSentence: 'MEDIUM', syntaxVariation: 'MEDIUM', syntaxStructure: 'MIXED' },
+  // Transition
+  { id: 'sp-10', code: 'transition.time_skip', category: 'transition', tonePace: 'FAST', toneEmotion: 'hoài niệm, mới mẻ, trăn trở', isSystem: true, visual: 'MEDIUM', auditory: 'LOW', tactile: 'LOW', olfactory: 'LOW', gustatory: 'NONE', languageAbstract: 'MEDIUM', syntaxSentence: 'SHORT', syntaxVariation: 'HIGH', syntaxStructure: 'MIXED' },
 ];
 
 export const rhetoricalDevices: RhetoricalDevice[] = [
@@ -222,22 +206,92 @@ export const rhetoricalDevices: RhetoricalDevice[] = [
 ];
 
 export const stylePresetRhetoricalDevices: StylePresetRhetoricalDevice[] = [
-  { id: 'sprd-1', presetId: 'sp-1', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Sparse metaphor — one per scene, image-driven, no explanation.' },
-  { id: 'sprd-2', presetId: 'sp-1', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Quiet, structural irony — never stated outright.' },
-  { id: 'sprd-3', presetId: 'sp-2', rhetoricalDeviceId: 'rd-3', usageType: 'primary', customInstruction: 'Stakes feel world-ending; exaggeration mirrors emotional reality.' },
+  // action.combat
+  { id: 'sprd-1', presetId: 'sp-1', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Điệp động từ mạnh & tượng thanh va chạm' },
+  { id: 'sprd-2', presetId: 'sp-1', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Câu cụt liên tiếp' },
+  { id: 'sprd-3', presetId: 'sp-1', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ẩn dụ trữ tình' },
+  // action.assassination
+  { id: 'sprd-4', presetId: 'sp-2', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Ẩn dụ' },
+  { id: 'sprd-5', presetId: 'sp-2', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Điệp cấu trúc câu cụt mơ hồ' },
+  { id: 'sprd-6', presetId: 'sp-2', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Tượng thanh ồn' },
+  // mystery.deduction
+  { id: 'sprd-7', presetId: 'sp-3', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép tam đoạn luận & điệp cấu trúc suy luận' },
+  { id: 'sprd-8', presetId: 'sp-3', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Phép loại suy' },
+  { id: 'sprd-9', presetId: 'sp-3', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Câu hỏi tu từ bộc phát' },
+  // mystery.revelation
+  { id: 'sprd-10', presetId: 'sp-4', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép đảo ngữ & nhấn hoá ra/thì ra' },
+  { id: 'sprd-11', presetId: 'sp-4', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Câu cụt dứt khoát' },
+  { id: 'sprd-12', presetId: 'sp-4', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ngôn ngữ mơ hồ' },
+  // romance.confession
+  { id: 'sprd-13', presetId: 'sp-5', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Ẩn dụ tình cảm & câu chấm lửng do dự' },
+  { id: 'sprd-14', presetId: 'sp-5', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Điệp động từ bộc lộ cảm xúc' },
+  { id: 'sprd-15', presetId: 'sp-5', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ngôn ngữ khô khan, lạnh lùng' },
+  // psych.betrayal
+  { id: 'sprd-16', presetId: 'sp-6', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép đối tôi đã tin – hoá ra & điệp khoảng lặng' },
+  { id: 'sprd-17', presetId: 'sp-6', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Câu chấm lửng nghẹn lại' },
+  { id: 'sprd-18', presetId: 'sp-6', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ngôn ngữ bình thản' },
+  // slice of life
+  { id: 'sprd-19', presetId: 'sp-7', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Liệt kê thói quen lặp lại & điệp nhịp êm đềm' },
+  { id: 'sprd-20', presetId: 'sp-7', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Phép đối tương phản hài hước' },
+  { id: 'sprd-21', presetId: 'sp-7', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Câu giật gân' },
+  // political
+  { id: 'sprd-22', presetId: 'sp-8', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép đối hai phe & lặp điều kiện để nhấn' },
+  { id: 'sprd-23', presetId: 'sp-8', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Câu hỏi tu từ thăm dò' },
+  { id: 'sprd-24', presetId: 'sp-8', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ngôn ngữ cảm xúc' },
+  // exploration
+  { id: 'sprd-25', presetId: 'sp-9', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép so sánh lạ – quen & ẩn dụ khám phá' },
+  { id: 'sprd-26', presetId: 'sp-9', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Liệt kê chi tiết kỳ lạ' },
+  { id: 'sprd-27', presetId: 'sp-9', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Ngôn ngữ quá đỗi thường' },
+  // transition
+  { id: 'sprd-28', presetId: 'sp-10', rhetoricalDeviceId: 'rd-1', usageType: 'primary', customInstruction: 'Phép liệt kê mùa / tháng & phép đối trước – sau' },
+  { id: 'sprd-29', presetId: 'sp-10', rhetoricalDeviceId: 'rd-2', usageType: 'secondary', customInstruction: 'Ẩn dụ dòng sông thời gian' },
+  { id: 'sprd-30', presetId: 'sp-10', rhetoricalDeviceId: 'rd-3', usageType: 'avoid', customInstruction: 'Miêu tả chi tiết từng ngày' },
 ];
 
 export const stylePresetVocabItems: StylePresetVocabItem[] = [
-  { id: 'spv-1', presetId: 'sp-1', content: 'sepia' },
-  { id: 'spv-2', presetId: 'sp-1', content: 'ashen' },
-  { id: 'spv-3', presetId: 'sp-1', content: 'drift' },
-  { id: 'spv-4', presetId: 'sp-2', content: 'roar' },
-  { id: 'spv-5', presetId: 'sp-2', content: 'triumphant' },
+  { id: 'spv-1', presetId: 'sp-1', content: 'động từ mạnh' },
+  { id: 'spv-2', presetId: 'sp-1', content: 'từ tượng thanh' },
+  { id: 'spv-3', presetId: 'sp-2', content: 'động từ tĩnh' },
+  { id: 'spv-4', presetId: 'sp-2', content: 'từ ám chỉ' },
+  { id: 'spv-5', presetId: 'sp-3', content: 'từ lập luận (do đó, như vậy)' },
+  { id: 'spv-6', presetId: 'sp-3', content: 'thuật ngữ logic' },
+  { id: 'spv-7', presetId: 'sp-4', content: 'từ ngữ mạnh, dứt khoát' },
+  { id: 'spv-8', presetId: 'sp-4', content: 'sự tương phản (hoá ra, thì ra)' },
+  { id: 'spv-9', presetId: 'sp-5', content: 'từ ngữ ẩn dụ tình cảm' },
+  { id: 'spv-10', presetId: 'sp-5', content: 'động từ bộc lộ cảm xúc' },
+  { id: 'spv-11', presetId: 'sp-6', content: 'từ ngữ đối lập (tôi đã tin – hóa ra)' },
+  { id: 'spv-12', presetId: 'sp-6', content: 'động từ mạnh chỉ sự đâm thủng' },
+  { id: 'spv-13', presetId: 'sp-7', content: 'động từ chỉ hành động quen thuộc' },
+  { id: 'spv-14', presetId: 'sp-7', content: 'tính từ đời thường' },
+  { id: 'spv-15', presetId: 'sp-8', content: 'thuật ngữ đàm phán' },
+  { id: 'spv-16', presetId: 'sp-8', content: 'từ ngữ lập luận, nhượng bộ' },
+  { id: 'spv-17', presetId: 'sp-9', content: 'từ miêu tả sự kỳ lạ' },
+  { id: 'spv-18', presetId: 'sp-9', content: 'ẩn dụ so sánh với điều quen thuộc' },
+  { id: 'spv-19', presetId: 'sp-10', content: 'từ chỉ sự trôi chảy thời gian' },
+  { id: 'spv-20', presetId: 'sp-10', content: 'ẩn dụ quá khứ – hiện tại' },
 ];
 
 export const stylePresetFocusItems: StylePresetFocusItem[] = [
-  { id: 'spf-1', presetId: 'sp-1', content: 'Stillness, negative space, restraint of gesture' },
-  { id: 'spf-2', presetId: 'sp-2', content: 'Motion, impact, velocity of action' },
+  { id: 'spf-1', presetId: 'sp-1', content: 'chuyển động' },
+  { id: 'spf-2', presetId: 'sp-1', content: 'va chạm' },
+  { id: 'spf-3', presetId: 'sp-2', content: 'thời điểm' },
+  { id: 'spf-4', presetId: 'sp-2', content: 'góc nhìn' },
+  { id: 'spf-5', presetId: 'sp-3', content: 'mối quan hệ nhân quả' },
+  { id: 'spf-6', presetId: 'sp-3', content: 'chứng cứ đối lập' },
+  { id: 'spf-7', presetId: 'sp-4', content: 'sự thật bị che giấu' },
+  { id: 'spf-8', presetId: 'sp-4', content: 'lời thú nhận' },
+  { id: 'spf-9', presetId: 'sp-5', content: 'lời nói trực tiếp' },
+  { id: 'spf-10', presetId: 'sp-5', content: 'phản ứng không lời' },
+  { id: 'spf-11', presetId: 'sp-6', content: 'sự thay đổi nhận thức' },
+  { id: 'spf-12', presetId: 'sp-6', content: 'lời nói kẻ phản bội' },
+  { id: 'spf-13', presetId: 'sp-7', content: 'sự lặp lại êm đềm' },
+  { id: 'spf-14', presetId: 'sp-7', content: 'những điều nhỏ nhặt' },
+  { id: 'spf-15', presetId: 'sp-8', content: 'điểm mấu chốt' },
+  { id: 'spf-16', presetId: 'sp-8', content: 'sự nhượng bộ' },
+  { id: 'spf-17', presetId: 'sp-9', content: 'sự khác biệt' },
+  { id: 'spf-18', presetId: 'sp-9', content: 'phản ứng nhân vật' },
+  { id: 'spf-19', presetId: 'sp-10', content: 'sự thay đổi' },
+  { id: 'spf-20', presetId: 'sp-10', content: 'điều giữ nguyên' },
 ];
 
 // NARRATOR CONFIGS
