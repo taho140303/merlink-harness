@@ -278,7 +278,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                     )}
                   </>
                 ) : (
-                  <p className="text-sm leading-relaxed">{block.text}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{block.text}</p>
                 )}
               </div>
             ))}
