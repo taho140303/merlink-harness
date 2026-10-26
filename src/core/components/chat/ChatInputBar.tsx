@@ -46,7 +46,7 @@ export function ChatInputBar({
           <button
             type="button"
             onClick={onClearFeedback}
-            className="rounded-md p-1 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="h-3.5 w-3.5" />
           </button>
