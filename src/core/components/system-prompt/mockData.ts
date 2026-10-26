@@ -242,111 +242,315 @@ export const stylePresetFocusItems: StylePresetFocusItem[] = [
 
 // NARRATOR CONFIGS
 export const narratorConfigs: NarratorConfig[] = [
-  // ── FIRST PERSON ─────────────────────────────────────────
+  // ── FIRST PERSON · PROTAGONIST ────────────────────────────
   {
     id: 'nc-1',
     code: 'first-person-protagonist',
-    name: 'First Person · Protagonist',
+    name: 'First · Protagonist',
     person: 'FIRST_PERSON',
     personSubtype: 'PROTAGONIST',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'The protagonist narrates their own experience in first person. Immediate, confessional, intimate — every event filtered through their memory.',
+      'Classic intimate narrator. Protagonist recounts events from memory in first person; all knowledge filtered through their perspective.',
   },
   {
     id: 'nc-2',
-    code: 'first-person-unreliable',
-    name: 'First Person · Unreliable',
+    code: 'first-person-protagonist-multiple',
+    name: 'First · Protagonist (Multi)',
     person: 'FIRST_PERSON',
-    personSubtype: 'UNRELIABLE_FIRST',
-    povScope: 'SINGLE_POV',
-    isReliable: false,
+    personSubtype: 'PROTAGONIST',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
     breaksFourthWall: false,
     description:
-      'First-person narrator who withholds, misremembers, or misrepresents. Readers must infer truth from contradictions and gaps.',
+      'Rotating first-person — several protagonists each narrate their own chapters. Same intimacy, wider cast.',
   },
   {
     id: 'nc-3',
+    code: 'first-person-protagonist-meta',
+    name: 'First · Protagonist (Meta)',
+    person: 'FIRST_PERSON',
+    personSubtype: 'PROTAGONIST',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'First-person protagonist who acknowledges the reader. Confessional and self-aware; uses asides and direct address within the narration.',
+  },
+
+  // ── FIRST PERSON · WITNESS ────────────────────────────────
+  {
+    id: 'nc-4',
     code: 'first-person-witness',
-    name: 'First Person · Witness',
+    name: 'First · Witness',
     person: 'FIRST_PERSON',
     personSubtype: 'WITNESS_PERIPHERAL',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'A peripheral character recounts the story of someone else. The protagonist is seen from the outside; the narrator is a close observer, not the centre.',
+      'Peripheral character recounts the story of another. Protagonist seen from outside; narrator observes more than they understand.',
+  },
+  {
+    id: 'nc-5',
+    code: 'first-person-witness-multiple',
+    name: 'First · Witness (Multi)',
+    person: 'FIRST_PERSON',
+    personSubtype: 'WITNESS_PERIPHERAL',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Multiple peripheral witnesses narrate different chapters. The hero is constructed from the outside, from clashing testimonies.',
+  },
+  {
+    id: 'nc-6',
+    code: 'first-person-witness-meta',
+    name: 'First · Witness (Meta)',
+    person: 'FIRST_PERSON',
+    personSubtype: 'WITNESS_PERIPHERAL',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'Witness narrator who speaks to the reader — framing the tale as a testimony being handed over.',
   },
 
-  // ── SECOND PERSON ────────────────────────────────────────
+  // ── FIRST PERSON · UNRELIABLE ─────────────────────────────
   {
-    id: 'nc-4',
+    id: 'nc-7',
+    code: 'first-person-unreliable',
+    name: 'First · Unreliable',
+    person: 'FIRST_PERSON',
+    personSubtype: 'UNRELIABLE_FIRST',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: false,
+    description:
+      'Narrator withholds, misremembers, or reframes. Reader must infer truth from inconsistencies and gaps. Used for psychological tension.',
+  },
+  {
+    id: 'nc-8',
+    code: 'first-person-unreliable-meta',
+    name: 'First · Unreliable (Meta)',
+    person: 'FIRST_PERSON',
+    personSubtype: 'UNRELIABLE_FIRST',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: true,
+    description:
+      'Unreliable narrator aware of the reader — acknowledges the act of narration, deepens doubt about what is being omitted.',
+  },
+  {
+    id: 'nc-9',
+    code: 'first-person-unreliable-multiple',
+    name: 'First · Unreliable (Multi)',
+    person: 'FIRST_PERSON',
+    personSubtype: 'UNRELIABLE_FIRST',
+    povScope: 'MULTIPLE_POV',
+    isReliable: false,
+    breaksFourthWall: false,
+    description:
+      'Multiple unreliable first-person narrators — accounts clash and contradict, and no single voice can be trusted.',
+  },
+
+  // ── SECOND PERSON · DIRECT ADDRESS ────────────────────────
+  {
+    id: 'nc-10',
     code: 'second-person-direct',
-    name: 'Second Person · Direct Address',
+    name: 'Second · Direct',
     person: 'SECOND_PERSON',
     personSubtype: 'DIRECT_ADDRESS',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'The narrator speaks to the reader as "you". Immersive and disorienting — actions are phrased as commands or invitations.',
+      'Narrator speaks to the reader as "you". Immersive, disorienting — actions phrased as commands or invitations.',
   },
   {
-    id: 'nc-5',
+    id: 'nc-11',
+    code: 'second-person-direct-meta',
+    name: 'Second · Direct (Meta)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'DIRECT_ADDRESS',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'Direct address that foregrounds the reader’s role — the narration remarks on being read, inviting complicity.',
+  },
+  {
+    id: 'nc-12',
+    code: 'second-person-direct-unreliable',
+    name: 'Second · Direct (Unreliable)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'DIRECT_ADDRESS',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: false,
+    description:
+      'The "you" being addressed is unreliable — memory, motive, or identity cannot be trusted. Reader must reconstruct the truth.',
+  },
+
+  // ── SECOND PERSON · SELF-REFLECTION ───────────────────────
+  {
+    id: 'nc-13',
     code: 'second-person-self-reflection',
-    name: 'Second Person · Self-Reflection',
+    name: 'Second · Self-Reflection',
     person: 'SECOND_PERSON',
     personSubtype: 'SELF_REFLECTION',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: true,
     description:
-      'The narrator addresses their own past or shadow-self as "you". Introspective; blurs the line between narrator and subject.',
+      'Narrator addresses their own past or shadow-self as "you". Introspective; blurs the line between narrator and subject.',
   },
   {
-    id: 'nc-6',
+    id: 'nc-14',
+    code: 'second-person-self-reflection-no-meta',
+    name: 'Second · Self-Reflection (No Meta)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'SELF_REFLECTION',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Internal self-address kept fully diegetic — the "you" is the narrator’s younger self, not the reader.',
+  },
+  {
+    id: 'nc-15',
+    code: 'second-person-self-reflection-multiple',
+    name: 'Second · Self-Reflection (Multi)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'SELF_REFLECTION',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'Multiple voices each address their own past — interlocking self-reflections across chapters.',
+  },
+
+  // ── SECOND PERSON · INTERACTIVE ───────────────────────────
+  {
+    id: 'nc-16',
     code: 'second-person-interactive',
-    name: 'Second Person · Interactive',
+    name: 'Second · Interactive',
     person: 'SECOND_PERSON',
     personSubtype: 'INTERACTIVE',
     povScope: 'SINGLE_POV',
     isReliable: true,
     breaksFourthWall: true,
     description:
-      'The reader inhabits the role of the protagonist; agency is explicitly granted or revoked. Used in branching or experimental narratives.',
+      'Reader inhabits the protagonist; agency is explicitly granted or revoked. Used in branching or experimental narratives.',
+  },
+  {
+    id: 'nc-17',
+    code: 'second-person-interactive-unreliable',
+    name: 'Second · Interactive (Unreliable)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'INTERACTIVE',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: true,
+    description:
+      'Interactive narration that misreports the reader’s choices — the game lies, or the character’s perception does.',
+  },
+  {
+    id: 'nc-18',
+    code: 'second-person-interactive-multiple',
+    name: 'Second · Interactive (Multi)',
+    person: 'SECOND_PERSON',
+    personSubtype: 'INTERACTIVE',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: true,
+    description:
+      'Branching interactive narration across multiple viewpoint chapters — the reader holds several "yous".',
   },
 
-  // ── THIRD PERSON ─────────────────────────────────────────
+  // ── THIRD PERSON · OMNISCIENT ─────────────────────────────
   {
-    id: 'nc-7',
-    code: 'third-person-omniscient',
-    name: 'Third Person · Omniscient',
+    id: 'nc-19',
+    code: 'third-person-omniscient-shifting',
+    name: 'Third · Omniscient (Shifting)',
     person: 'THIRD_PERSON',
     personSubtype: 'OMNISCIENT',
     povScope: 'SHIFTING_OMNISCIENT',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'An all-knowing narrator moves freely between minds, times, and places. God’s-eye view; knowledge is not filtered through any single character.',
+      'All-knowing narrator moves freely between minds, times, and places. God’s-eye view; knowledge is not filtered through any single character.',
   },
   {
-    id: 'nc-8',
-    code: 'third-person-limited',
-    name: 'Third Person · Limited',
+    id: 'nc-20',
+    code: 'third-person-omniscient-multiple',
+    name: 'Third · Omniscient (Multi)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OMNISCIENT',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Omniscient narrator who nevertheless alternates primary anchors chapter by chapter — omniscient knowledge, but with privileged focuses.',
+  },
+  {
+    id: 'nc-21',
+    code: 'third-person-omniscient-single',
+    name: 'Third · Omniscient (Single)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OMNISCIENT',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Omniscient knowledge, single focus — the narrator could see all but chooses one character as the through-line.',
+  },
+
+  // ── THIRD PERSON · LIMITED ────────────────────────────────
+  {
+    id: 'nc-22',
+    code: 'third-person-limited-single',
+    name: 'Third · Limited (Single)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'LIMITED',
+    povScope: 'SINGLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Deeply anchored to one viewpoint throughout. Interiority is close, and only what the viewpoint perceives can be narrated.',
+  },
+  {
+    id: 'nc-23',
+    code: 'third-person-limited-multiple',
+    name: 'Third · Limited (Multi)',
     person: 'THIRD_PERSON',
     personSubtype: 'LIMITED',
     povScope: 'MULTIPLE_POV',
     isReliable: true,
     breaksFourthWall: false,
     description:
-      'Deeply anchored to one viewpoint at a time; viewpoints rotate across chapters. Keeps interiority close while covering a wider cast.',
+      'Viewpoints rotate between characters across chapters. Close interiority per chapter; whole picture assembled by the reader.',
   },
   {
-    id: 'nc-9',
-    code: 'third-person-objective',
-    name: 'Third Person · Objective',
+    id: 'nc-24',
+    code: 'third-person-limited-unreliable',
+    name: 'Third · Limited (Unreliable)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'LIMITED',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: false,
+    description:
+      'Limited perspective on a narrator whose perception is compromised — deep interiority, but the truth leaks around it.',
+  },
+
+  // ── THIRD PERSON · OBJECTIVE ──────────────────────────────
+  {
+    id: 'nc-25',
+    code: 'third-person-objective-single',
+    name: 'Third · Objective (Single)',
     person: 'THIRD_PERSON',
     personSubtype: 'OBJECTIVE',
     povScope: 'SINGLE_POV',
@@ -354,6 +558,30 @@ export const narratorConfigs: NarratorConfig[] = [
     breaksFourthWall: false,
     description:
       'Camera-eye narration. Records only what can be seen or heard — actions, dialogue, events. No interiority is disclosed.',
+  },
+  {
+    id: 'nc-26',
+    code: 'third-person-objective-multiple',
+    name: 'Third · Objective (Multi)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OBJECTIVE',
+    povScope: 'MULTIPLE_POV',
+    isReliable: true,
+    breaksFourthWall: false,
+    description:
+      'Camera-eye narration that observes several characters without entering any interior. Events only; interpretation left to the reader.',
+  },
+  {
+    id: 'nc-27',
+    code: 'third-person-objective-unreliable',
+    name: 'Third · Objective (Unreliable)',
+    person: 'THIRD_PERSON',
+    personSubtype: 'OBJECTIVE',
+    povScope: 'SINGLE_POV',
+    isReliable: false,
+    breaksFourthWall: false,
+    description:
+      'Camera-eye narration with a compromised lens — observations may be incomplete, framing may mislead, but no interior is ever stated.',
   },
 ];
 
