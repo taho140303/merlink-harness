@@ -19,12 +19,20 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
 
   return (
     <div
-      className="absolute right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end group"
+      className="absolute right-4 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Trigger Indicator (Các dấu gạch ngang nhỏ) */}
-      <div className="flex flex-col gap-1.5 py-4 px-2 cursor-pointer">
+      {/* Vùng Trigger (Bắt sự kiện hover) */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-3/4 cursor-pointer z-0" />
+
+      {/* Trigger Indicator (Các dấu gạch ngang) - Mờ đi khi hover */}
+      <div 
+        className={cn(
+          "flex flex-col items-end gap-1.5 py-4 transition-opacity duration-200 z-10 pointer-events-none",
+          isHovered ? "opacity-0" : "opacity-100"
+        )}
+      >
         {items.map((item) => (
           <div
             key={`indicator-${item.id}`}
@@ -39,27 +47,30 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
       </div>
 
       {/* Popup List khi Hover */}
-      {isHovered && (
-        <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-64 max-h-96 overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex flex-col gap-0.5">
-            {items.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onItemClick(item.id)}
-                className={cn(
-                  "w-full text-left px-3 py-2 text-xs rounded-lg transition-colors truncate",
-                  activeId === item.id
-                    ? "bg-blue-50 text-blue-700 font-medium dark:bg-blue-950/60 dark:text-blue-300"
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                )}
-                title={item.title}
-              >
-                {item.title.length > 20 ? `${item.title.substring(0, 20)}...` : item.title}
-              </button>
-            ))}
-          </div>
+      <div 
+        className={cn(
+          "absolute right-0 top-1/2 -translate-y-1/2 w-64 max-h-[70vh] overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 z-20 transition-all duration-200",
+          isHovered ? "opacity-100 visible scale-100" : "opacity-0 invisible scale-95 pointer-events-none"
+        )}
+      >
+        <div className="flex flex-col gap-0.5">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onItemClick(item.id)}
+              className={cn(
+                "w-full text-left px-3 py-2 text-xs rounded-lg transition-colors truncate",
+                activeId === item.id
+                  ? "bg-blue-50 text-blue-700 font-medium dark:bg-blue-950/60 dark:text-blue-300"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              )}
+              title={item.title}
+            >
+              {item.title.length > 20 ? `${item.title.substring(0, 20)}...` : item.title}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

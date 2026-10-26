@@ -11,12 +11,12 @@ export function ChatWelcome() {
         
         <div className="flex flex-col items-center space-y-3">
           {/* Dòng chào mừng */}
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400">
             {t("chat.welcomeGreeting")}
           </span>
           
           {/* Tiêu đề chính */}
-          <h1 className="max-w-md text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 sm:text-2xl">
+          <h1 className="max-w-md text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 sm:text-3xl">
             {t("chat.welcomeTitle")}
           </h1>
         </div>
