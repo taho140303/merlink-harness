@@ -2,12 +2,7 @@ import { useState } from 'react';
 import { DraftHeader } from './DraftHeader';
 import { OverviewStep } from './steps/OverviewStep';
 import { ArcsStep } from './steps/ArcsStep';
-import { ChapterStep } from './steps/ChapterStep';
-import { SceneStep } from './steps/SceneStep';
-import { ConfigStep } from './steps/ConfigStep';
-import { WorldStep } from './steps/WorldStep';
-import { CharacterStep } from './steps/CharacterStep';
-import { CharacterDetailStep } from './steps/CharacterDetailStep';
+import { CumulativeMasterLayout } from './CumulativeMasterLayout';
 import { toast } from '../../../shared/components/ui/toast';
 import type { DraftStep, FeedbackContext } from './types';
 
@@ -24,6 +19,23 @@ export function DraftWorkspace({ onClose, onFeedback }: DraftWorkspaceProps) {
     onClose();
   };
 
+  // Các phase liên tiếp cho Cumulative Layout
+  const cumulativePhases: DraftStep[] = ['chapter', 'scene', 'config', 'world', 'character', 'characterDetail'];
+  const isCumulative = cumulativePhases.includes(currentStep);
+
+  const getNextStep = (current: DraftStep): DraftStep => {
+    const idx = cumulativePhases.indexOf(current);
+    if (idx >= 0 && idx < cumulativePhases.length - 1) return cumulativePhases[idx + 1];
+    return current;
+  };
+
+  const getPrevStep = (current: DraftStep): DraftStep => {
+    const idx = cumulativePhases.indexOf(current);
+    if (idx > 0) return cumulativePhases[idx - 1];
+    if (idx === 0) return 'arcs';
+    return current;
+  };
+
   return (
     <aside className="flex h-full w-full flex-col border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 overflow-hidden">
       <DraftHeader
@@ -36,26 +48,19 @@ export function DraftWorkspace({ onClose, onFeedback }: DraftWorkspaceProps) {
         {currentStep === 'overview' && (
           <OverviewStep onFeedback={onFeedback} onNext={() => setCurrentStep('arcs')} />
         )}
+        
         {currentStep === 'arcs' && (
           <ArcsStep onFeedback={onFeedback} onNext={() => setCurrentStep('chapter')} onBack={() => setCurrentStep('overview')} />
         )}
-        {currentStep === 'chapter' && (
-          <ChapterStep onFeedback={onFeedback} onNext={() => setCurrentStep('scene')} onBack={() => setCurrentStep('arcs')} />
-        )}
-        {currentStep === 'scene' && (
-          <SceneStep onFeedback={onFeedback} onNext={() => setCurrentStep('config')} onBack={() => setCurrentStep('chapter')} />
-        )}
-        {currentStep === 'config' && (
-          <ConfigStep onFeedback={onFeedback} onNext={() => setCurrentStep('world')} onBack={() => setCurrentStep('scene')} />
-        )}
-        {currentStep === 'world' && (
-          <WorldStep onFeedback={onFeedback} onNext={() => setCurrentStep('character')} onBack={() => setCurrentStep('config')} />
-        )}
-        {currentStep === 'character' && (
-          <CharacterStep onFeedback={onFeedback} onNext={() => setCurrentStep('characterDetail')} onBack={() => setCurrentStep('world')} />
-        )}
-        {currentStep === 'characterDetail' && (
-          <CharacterDetailStep onFeedback={onFeedback} onStart={handleStart} onBack={() => setCurrentStep('character')} />
+
+        {isCumulative && (
+          <CumulativeMasterLayout
+            phase={currentStep}
+            onFeedback={onFeedback}
+            onNext={currentStep !== 'characterDetail' ? () => setCurrentStep(getNextStep(currentStep)) : undefined}
+            onBack={() => setCurrentStep(getPrevStep(currentStep))}
+            onStart={currentStep === 'characterDetail' ? handleStart : undefined}
+          />
         )}
       </div>
     </aside>
