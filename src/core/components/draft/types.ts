@@ -15,16 +15,31 @@ export interface FeedbackContext {
   content?: string;
 }
 
-
-// --- Motif System ---
+// --- Motif System (Self-contained) ---
 export type MotifCategory = 'character_arc' | 'relationship' | 'symbolic' | 'plot';
 export type MotifScope = 'project' | 'arc' | 'chapter';
+
+export interface MotifTransition {
+  id: string;
+  name: string;
+  targetEventCode: string;
+  priority: number;
+}
 
 export interface MotifEventBlock {
   id: string;
   code: string;
-  component: string;
-  state: string;
+  component: string; // Trigger component
+  state: string;     // Resulting state
+  emotionalRanges: string[];
+  transitions: MotifTransition[];
+  downByRules?: { ruleName: string; isAllowed: boolean }[]; // From state_down_by_rules
+}
+
+export interface MotifConstraint {
+  code: string;
+  require: string;
+  reason: string;
 }
 
 export interface DraftMotif {
@@ -33,15 +48,20 @@ export interface DraftMotif {
   name: string;
   category: MotifCategory;
   scope: MotifScope;
+  from: string;
   version: string;
   isSystem: boolean;
   description: string;
   minChapter?: number;
   maxChapter?: number;
-  from: string; // vd: project.code | project.code.arc.code
-  eventBlocks?: MotifEventBlock[];
+  
+  genres: string[];        // motif_applicable_genres
+  symbolics: string[];     // symbolic_motifs
+  constraints: MotifConstraint[]; // motif_constraints
+  eventBlocks: MotifEventBlock[];
 }
 
+// --- General Project ---
 export interface DraftOverview {
   title: string;
   author: string;
@@ -51,7 +71,6 @@ export interface DraftOverview {
   motifs: DraftMotif[];
 }
 
-// --- Theme System ---
 export type ThemeScope = 'PROJECT' | 'ARC';
 export type ThemeResolutionType = 'RESOLVED' | 'OPEN' | 'AMBIGUOUS';
 export type ThemeArgumentRole = 'PRIMARY' | 'ANTITHESIS' | 'CAUTIONARY' | 'WITNESS';
@@ -73,10 +92,9 @@ export interface DraftTheme {
   resolutionType: ThemeResolutionType;
   resolution: string;
   message?: string;
-  arguments: DraftThemeArgument[]; // Có thể rỗng ở bước draft
+  arguments: DraftThemeArgument[];
 }
 
-// --- Arc System ---
 export interface DraftArc {
   id: string;
   name: string;

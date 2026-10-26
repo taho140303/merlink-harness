@@ -3,34 +3,72 @@ import type {
   DraftConfig, DraftWorld, DraftCharacter, DraftCharacterDetail, DraftMotif
 } from './types';
 
-// Mẫu Motif (Dùng chung)
-const motifSample1: DraftMotif = {
+// 1. PROJECT-LEVEL MOTIF: Redemption Arc
+const motifRedemption: DraftMotif = {
   id: 'mo-1', code: 'mc-redemption-arc', name: 'Redemption Arc', category: 'character_arc', scope: 'project',
-  version: '1.0.0', isSystem: true, description: 'Character wrestles with past wrongdoing, seeks atonement through costly action.',
-  from: 'aethelgard', 
+  from: 'aethelgard', version: '1.0.0', isSystem: true,
+  description: 'Character wrestles with past wrongdoing, seeks atonement through costly action. Arc resolves only when the character accepts responsibility without external validation.',
+  genres: ['Fantasy', 'Dark Fantasy'],
+  symbolics: ['Crystal Light', 'Shattered Mirror'],
+  constraints: [
+    { code: 'req-motive', require: 'Character must have a stated motive for change', reason: 'Without a motive the arc feels externally imposed.' }
+  ],
   eventBlocks: [
-    { id: 'eb-1', code: 'eb-loyal-choice', component: 'Choice', state: 'Loyal' },
-    { id: 'eb-2', code: 'eb-conflicted-revelation', component: 'Revelation', state: 'Conflicted' },
-    { id: 'eb-3', code: 'eb-resolved-choice', component: 'Choice', state: 'Resolved' }
+    { 
+      id: 'eb-1', code: 'eb-loyal-choice', component: 'Choice', state: 'Loyal', emotionalRanges: ['Calm', 'Tense'],
+      transitions: [{ id: 'tr-1', name: 'Revelation Shift', targetEventCode: 'eb-conflicted-revelation', priority: 1 }],
+      downByRules: [{ ruleName: 'Breaking a Trust', isAllowed: true }]
+    },
+    { 
+      id: 'eb-2', code: 'eb-conflicted-revelation', component: 'Revelation', state: 'Conflicted', emotionalRanges: ['Tense', 'Grief'],
+      transitions: [{ id: 'tr-2', name: 'Resolution Path', targetEventCode: 'eb-resolved-choice', priority: 2 }],
+      downByRules: []
+    },
+    { 
+      id: 'eb-3', code: 'eb-resolved-choice', component: 'Choice', state: 'Resolved', emotionalRanges: ['Euphoric'],
+      transitions: [],
+      downByRules: []
+    }
   ]
 };
 
-const motifSample2: DraftMotif = {
-  id: 'mo-2', code: 'mc-crystal-light', name: 'Crystal Light', category: 'symbolic', scope: 'arc',
-  version: '1.0.0', isSystem: false, description: 'Light refracted through crystal represents clarity won through pain.',
-  from: 'aethelgard.sundering',
+// 2. ARC-LEVEL MOTIF: Rising Tension
+const motifRisingTension: DraftMotif = {
+  id: 'mo-2', code: 'mc-rising-tension', name: 'Rising Tension', category: 'plot', scope: 'arc',
+  from: 'aethelgard.sundering', version: '1.0.0', isSystem: true,
+  description: 'Escalating stakes and shrinking windows of resolution. Each success narrows the path to the next confrontation.',
+  minChapter: 1, maxChapter: 3,
+  genres: ['Thriller', 'Action'],
+  symbolics: ['Ticking Clock', 'Shrinking Room'],
+  constraints: [],
   eventBlocks: [
-    { id: 'eb-4', code: 'eb-shatter', component: 'Confrontation', state: 'Betrayed' }
+    {
+      id: 'eb-4', code: 'eb-tension-escalates', component: 'Confrontation', state: 'Conflicted', emotionalRanges: ['Anxious'],
+      transitions: [{ id: 'tr-3', name: 'Pressure Breaks', targetEventCode: 'eb-pressure-breaks', priority: 1 }]
+    },
+    {
+      id: 'eb-5', code: 'eb-pressure-breaks', component: 'Revelation', state: 'Betrayed', emotionalRanges: ['Despair'],
+      transitions: []
+    }
   ]
 };
 
-const motifSample3: DraftMotif = {
-  id: 'mo-3', code: 'mc-rising-tension', name: 'Rising Tension', category: 'plot', scope: 'chapter',
-  version: '1.0.0', isSystem: true, description: 'Escalating stakes and shrinking windows of resolution. Each success narrows the path.',
-  minChapter: 1, maxChapter: 2, from: 'aethelgard.sundering.khe-uoc',
+// 3. CHAPTER-LEVEL MOTIF: Mystery Clue
+const motifMysteryClue: DraftMotif = {
+  id: 'mo-3', code: 'mc-mystery-clue', name: 'Mystery Clue', category: 'plot', scope: 'chapter',
+  from: 'aethelgard.sundering.khe-uoc', version: '1.0.0', isSystem: true,
+  description: 'A hidden clue surfaces, requiring careful deduction.',
+  minChapter: 1, maxChapter: 1,
+  genres: ['Mystery'],
+  symbolics: ['Magnifying Glass'],
+  constraints: [
+    { code: 'no-magic', require: 'Cannot use magic to solve the clue', reason: 'The mystery must be solved by human intellect.' }
+  ],
   eventBlocks: [
-    { id: 'eb-5', code: 'eb-tension-1', component: 'Revelation', state: 'Conflicted' },
-    { id: 'eb-6', code: 'eb-tension-2', component: 'Confrontation', state: 'Betrayed' }
+    {
+      id: 'eb-6', code: 'eb-find-clue', component: 'Discovery', state: 'Curious', emotionalRanges: ['Surprised'],
+      transitions: []
+    }
   ]
 };
 
@@ -40,28 +78,18 @@ export const mockOverview: DraftOverview = {
   language: 'VI',
   summarize: 'Một lục địa trôi dạt giữa các đứt gãy không gian ma thuật...',
   targetWords: '1,500 words',
-  motifs: [motifSample1]
+  motifs: [motifRedemption]
 };
 
 export const mockArcs: DraftArc[] = [
   {
     id: 'a1', name: 'Arc I: The Sundering',
     summarize: 'Kaelen phát hiện di tích ngầm bị kích hoạt trái phép...',
-    motifs: [motifSample2],
+    motifs: [motifRisingTension],
     themes: [{
       id: 'th1', code: 'th-power-corruption', scope: 'ARC', question: 'Sức mạnh có tha hoá con người?',
       resolutionType: 'OPEN', resolution: 'Để ngỏ...', message: 'Sức mạnh chỉ là công cụ...',
       arguments: [{ id: 'arg1', characterName: 'Kaelen Vance', role: 'PRIMARY', answerMode: 'ACTION', note: 'Sẵn sàng dùng ma pháp cấm...' }]
-    }]
-  },
-  {
-    id: 'a2', name: 'Arc II: Echoes of Void',
-    summarize: 'Hành trình lặn sâu vào vùng cấm...',
-    motifs: [],
-    themes: [{
-      id: 'th2', code: 'th-identity-loss', scope: 'ARC', question: 'Ký ức định hình bản ngã như thế nào?',
-      resolutionType: 'AMBIGUOUS', resolution: 'Kaelen lấy lại ký ức...', message: 'Chúng ta là những gì chúng ta chọn nhớ.',
-      arguments: []
     }]
   }
 ];
@@ -70,10 +98,8 @@ export const mockChapters: DraftChapter[] = [
   { 
     id: 'c1', arcId: 'a1', name: 'Chapter 1: Khế ước quỷ dữ', 
     description: 'Kaelen ký kết một khế ước nguy hiểm...',
-    motifs: [motifSample3] // Chapter-level motif
-  },
-  { id: 'c2', arcId: 'a1', name: 'Chapter 2: Cuộc sống bị đảo lộn', description: 'Những hệ quả của khế ước bắt đầu bộc lộ...', motifs: [] },
-  { id: 'c3', arcId: 'a2', name: 'Chapter 3: Bóng tối dưới lòng đất', description: 'Bước chân vào di tích bị lãng quên...', motifs: [] }
+    motifs: [motifMysteryClue]
+  }
 ];
 
 export const mockScenes: DraftScene[] = [
@@ -81,21 +107,13 @@ export const mockScenes: DraftScene[] = [
     id: 's1', chapterId: 'c1', name: 'Scene 1.1: The Contract',
     summarize: 'Kaelen thực hiện nghi thức triệu hồi trong bóng tối.',
     stylePreset: 'psychological_drama.inner_monologue', narratorConfig: 'first_person_unreliable',
-    characters: [{ name: 'Kaelen Vance', isPov: true }, { name: 'The Voice', isPov: false }],
-    forbidden: ['Ánh sáng mặt trời'], allowed: ['Ma pháp hệ Bóng tối']
-  },
-  {
-    id: 's2', chapterId: 'c1', name: 'Scene 1.2: Awakening',
-    summarize: 'Kaelen tỉnh dậy với vết ấn chú trên tay...',
-    stylePreset: 'mystery.clue_hunting', narratorConfig: 'third_person_limited',
     characters: [{ name: 'Kaelen Vance', isPov: true }],
-    forbidden: ['Sự xuất hiện của Lyra'], allowed: ['Hồi tưởng mờ nhạt']
+    forbidden: ['Ánh sáng mặt trời'], allowed: ['Ma pháp hệ Bóng tối']
   }
 ];
 
 export const mockConfigs: DraftConfig[] = [
-  { id: 'cfg1', targetScope: 'Arc I: The Sundering', theme: 'Sức mạnh có tha hoá con người?' },
-  { id: 'cfg2', targetScope: 'Chapter 1: Khế ước quỷ dữ', theme: 'Sự đánh đổi của ký ức và bản ngã' }
+  { id: 'cfg1', targetScope: 'Arc I: The Sundering', theme: 'Sức mạnh có tha hoá con người?' }
 ];
 
 export const mockWorlds: DraftWorld[] = [
@@ -103,7 +121,7 @@ export const mockWorlds: DraftWorld[] = [
 ];
 
 export const mockCharacters: DraftCharacter[] = [
-  { id: 'ch1', name: 'Kaelen Vance', role: 'Protagonist', appearances: ['Ch 1 - Scene 1.1', 'Ch 1 - Scene 1.2'] }
+  { id: 'ch1', name: 'Kaelen Vance', role: 'Protagonist', appearances: ['Ch 1 - Scene 1.1'] }
 ];
 
 export const mockCharacterDetails: DraftCharacterDetail[] = [
