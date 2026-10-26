@@ -125,7 +125,7 @@ export default function ChatView() {
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full overflow-hidden",
+        "flex h-full w-full overflow-hidden rounded-[2rem] bg-transparent",
         isDragging && "cursor-col-resize select-none"
       )}
     >
@@ -141,7 +141,7 @@ export default function ChatView() {
           onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
         />
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="no-scrollbar flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {messages.length === 0 ? (
             <ChatWelcome />
           ) : (

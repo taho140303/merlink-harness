@@ -16,7 +16,7 @@ export default function Sidebar() {
     <>
       <aside
         className={cn(
-          "relative flex h-full flex-col rounded-3xl neu-flat transition-all duration-300 ease-in-out select-none",
+          "relative flex h-full flex-col rounded-[2rem] neu-flat transition-all duration-300 ease-in-out select-none",
           collapsed ? "w-[76px] px-2 py-4" : "w-64 px-3 py-4"
         )}
       >
@@ -25,7 +25,7 @@ export default function Sidebar() {
           onToggle={() => setCollapsed(!collapsed)}
         />
 
-        <nav className="mt-4 flex-1 space-y-1 overflow-y-auto pr-0.5">
+        <nav className="no-scrollbar mt-4 flex-1 space-y-1 overflow-y-auto pr-0.5">
           <SidebarNav collapsed={collapsed} />
           <SidebarHistory
             collapsed={collapsed}

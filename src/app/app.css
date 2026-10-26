@@ -99,3 +99,12 @@ html.dark .neu-pressed {
 .animate-orb-float { animation: orb-float 14s ease-in-out infinite; }
 .animate-orb-glow { animation: orb-glow 7s ease-in-out infinite; }
 @keyframes dash-flow { to { stroke-dashoffset: -14; } }
+
+/* Utility: Ẩn scrollbar nhưng vẫn cho phép cuộn */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
