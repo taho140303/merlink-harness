@@ -349,6 +349,15 @@ const en = {
   'recycleBin.deletedAt': 'Deleted',
   'recycleBin.confirmDeleteTitle': 'Permanently delete?',
   'recycleBin.confirmDeleteDesc': 'This action cannot be undone.',
+  'sidebar.newChat': 'New chat',
+  'sidebar.project': 'Project',
+  'sidebar.character': 'Character',
+  'sidebar.worldbuilding': 'Worldbuilding',
+  'sidebar.lore': 'Lore',
+  'sidebar.worldSettings': 'Settings',
+  'sidebar.systemPrompt': 'System Prompt',
+  'sidebar.history': 'History',
+  'sidebar.settings': 'Settings',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -697,6 +706,15 @@ const vi: Record<keyof typeof en, string> = {
   'recycleBin.deletedAt': 'Đã xóa lúc',
   'recycleBin.confirmDeleteTitle': 'Xóa vĩnh viễn?',
   'recycleBin.confirmDeleteDesc': 'Hành động này không thể hoàn tác.',
+  'sidebar.newChat': 'Trò chuyện mới',
+  'sidebar.project': 'Dự án',
+  'sidebar.character': 'Nhân vật',
+  'sidebar.worldbuilding': 'Xây dựng thế giới',
+  'sidebar.lore': 'Truyền thuyết',
+  'sidebar.worldSettings': 'Thiết lập',
+  'sidebar.systemPrompt': 'System Prompt',
+  'sidebar.history': 'Lịch sử',
+  'sidebar.settings': 'Cài đặt',
 };
 
 export const dict = { en, vi };

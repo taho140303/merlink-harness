@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router";
 import { History as HistoryIcon, Folder, ChevronDown } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
+import { useT } from "../../../shared/i18n/useT";
 import type { ChatItem } from "./types";
 
 const MOCK_HISTORY: ChatItem[] = [
@@ -23,6 +24,7 @@ interface SidebarHistoryProps {
 }
 
 export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
+  const t = useT();
   const [groupByProject, setGroupByProject] = useState(false);
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({
     "Merlink Core": true,
@@ -46,7 +48,7 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
         <button
           onClick={onExpand}
           className="flex w-full justify-center rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
-          title="History"
+          title={t("sidebar.history")}
         >
           <HistoryIcon className="h-5 w-5" />
         </button>
@@ -58,7 +60,7 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
     <div className="pt-3">
       <div className="flex items-center justify-between px-2.5 py-1.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          History
+          {t('sidebar.history')}
         </span>
         <button
           type="button"

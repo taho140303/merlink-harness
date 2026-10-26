@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Settings } from "lucide-react";
 import { cn } from "../../shared/utils/cn";
+import { useT } from "../../shared/i18n/useT";
 import { SidebarHeader } from "./sidebar/SidebarHeader";
 import { SidebarNav } from "./sidebar/SidebarNav";
 import { SidebarHistory } from "./sidebar/SidebarHistory";
 import { SettingsDialog } from "./sidebar/SettingsDialog";
 
 export default function Sidebar() {
+  const t = useT();
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -38,10 +40,10 @@ export default function Sidebar() {
               "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
               collapsed && "justify-center px-0"
             )}
-            title="Settings"
+            title={t("sidebar.settings")}
           >
             <Settings className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Settings</span>}
+            {!collapsed && <span>{t('sidebar.settings')}</span>}
           </button>
         </div>
       </aside>

@@ -11,12 +11,14 @@ import {
   Sliders,
 } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
+import { useT } from "../../../shared/i18n/useT";
 
 interface SidebarNavProps {
   collapsed: boolean;
 }
 
 export function SidebarNav({ collapsed }: SidebarNavProps) {
+  const t = useT();
   const [worldbuildingOpen, setWorldbuildingOpen] = useState(true);
   const location = useLocation();
   const isWorldbuildingActive = location.pathname.startsWith("/worldbuilding");
@@ -35,10 +37,10 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
             collapsed && "justify-center px-0"
           )
         }
-        title={collapsed ? "New chat" : undefined}
+        title={collapsed ? t("sidebar.newChat") : undefined}
       >
         <MessageSquarePlus className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>New chat</span>}
+        {!collapsed && <span>{t('sidebar.newChat')}</span>}
       </NavLink>
 
       <NavLink
@@ -52,10 +54,10 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
             collapsed && "justify-center px-0"
           )
         }
-        title={collapsed ? "Project" : undefined}
+        title={collapsed ? t("sidebar.project") : undefined}
       >
         <FolderGit2 className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>Project</span>}
+        {!collapsed && <span>{t('sidebar.project')}</span>}
       </NavLink>
 
       <NavLink
@@ -69,10 +71,10 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
             collapsed && "justify-center px-0"
           )
         }
-        title={collapsed ? "Character" : undefined}
+        title={collapsed ? t("sidebar.character") : undefined}
       >
         <Users className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>Character</span>}
+        {!collapsed && <span>{t('sidebar.character')}</span>}
       </NavLink>
 
       {/* Worldbuilding Accordion */}
@@ -87,11 +89,11 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
             collapsed && "justify-center px-0"
           )}
-          title={collapsed ? "Worldbuilding" : undefined}
+          title={collapsed ? t("sidebar.worldbuilding") : undefined}
         >
           <div className="flex items-center gap-3">
             <Globe className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Worldbuilding</span>}
+            {!collapsed && <span>{t('sidebar.worldbuilding')}</span>}
           </div>
           {!collapsed && (
             <ChevronDown
@@ -117,7 +119,7 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
               }
             >
               <BookOpen className="h-4 w-4" />
-              <span>Lore</span>
+              <span>{t('sidebar.lore')}</span>
             </NavLink>
             <NavLink
               to="/worldbuilding/settings"
@@ -131,7 +133,7 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
               }
             >
               <Sliders className="h-4 w-4" />
-              <span>Settings</span>
+              <span>{t('sidebar.worldSettings')}</span>
             </NavLink>
           </div>
         )}
@@ -148,10 +150,10 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
             collapsed && "justify-center px-0"
           )
         }
-        title={collapsed ? "System Prompt" : undefined}
+        title={collapsed ? t("sidebar.systemPrompt") : undefined}
       >
         <Braces className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>System Prompt</span>}
+        {!collapsed && <span>{t('sidebar.systemPrompt')}</span>}
       </NavLink>
 
     </div>
