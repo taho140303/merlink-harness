@@ -8,7 +8,7 @@ import type { DraftConfig, DraftScene, DraftWorld, DraftCharacter, DraftCharacte
 // --- Config Block ---
 export function ConfigBlock({ config, isStreaming, onFeedback }: { config: DraftConfig, isStreaming: boolean, onFeedback: (f: FeedbackContext) => void }) {
   return (
-    <DraftStreamableBlock isLoaded={!isStreaming} loadingTitle="Mapping themes and motifs..." tag="Config">
+    <DraftStreamableBlock isLoaded={!isStreaming} loadingTitle="Mapping themes..." tag="Config">
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -20,11 +20,6 @@ export function ConfigBlock({ config, isStreaming, onFeedback }: { config: Draft
         <div className="rounded-lg bg-slate-50 p-2 text-[11px] dark:bg-slate-800/50">
           <span className="text-slate-400 block mb-0.5">Theme</span>
           <span className="font-serif italic text-slate-800 dark:text-slate-200">"{config.theme}"</span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {config.motifs.map(m => (
-            <span key={m} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">{m}</span>
-          ))}
         </div>
       </div>
     </DraftStreamableBlock>
