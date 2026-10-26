@@ -17,23 +17,26 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
 
   if (items.length === 0) return null;
 
+  // Chỉ lấy tối đa 10 items gần nhất
+  const displayItems = items.slice(-10);
+
   return (
     <div
-      className="absolute right-4 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end group"
+      className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Vùng Trigger (Bắt sự kiện hover) */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-3/4 cursor-pointer z-0" />
 
-      {/* Trigger Indicator (Các dấu gạch ngang) */}
+      {/* Trigger Indicator (Các dấu gạch ngang) - Tăng gap-4 để giãn cách */}
       <div 
         className={cn(
-          "flex flex-col items-end gap-2 py-8 max-h-[50vh] overflow-y-auto no-scrollbar transition-opacity duration-200 z-10 pointer-events-none",
+          "flex flex-col items-end gap-4 py-8 max-h-[50vh] transition-opacity duration-200 z-10 pointer-events-none",
           isHovered ? "opacity-0" : "opacity-100"
         )}
       >
-        {items.map((item) => (
+        {displayItems.map((item) => (
           <div
             key={`indicator-${item.id}`}
             className={cn(
@@ -54,7 +57,7 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
         )}
       >
         <div className="flex flex-col gap-0.5">
-          {items.map((item) => (
+          {displayItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onItemClick(item.id)}

@@ -156,23 +156,25 @@ export default function ChatView() {
           onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
         />
 
-        <div className="no-scrollbar flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {messages.length === 0 ? (
-            <ChatWelcome />
-          ) : (
-            messages.map((m) => <ChatMessageItem key={m.id} message={m} />)
+        <div className="relative flex-1 overflow-hidden">
+          <div className="no-scrollbar h-full overflow-y-auto px-6 py-4 space-y-4">
+            {messages.length === 0 ? (
+              <ChatWelcome />
+            ) : (
+              messages.map((m) => <ChatMessageItem key={m.id} message={m} />)
+            )}
+            <div ref={scrollBottomRef} />
+          </div>
+          
+          {/* Thanh Outline (Minimap) - Nằm cố định bên trong khung chứa tin nhắn */}
+          {messages.length > 0 && (
+            <FloatingOutline 
+              items={outlineItems} 
+              activeId={activeOutlineId}
+              onItemClick={scrollToMessage} 
+            />
           )}
-          <div ref={scrollBottomRef} />
         </div>
-
-        {/* Thanh Outline (Minimap) */}
-        {messages.length > 0 && (
-          <FloatingOutline 
-            items={outlineItems} 
-            activeId={activeOutlineId}
-            onItemClick={scrollToMessage} 
-          />
-        )}
 
         <div className="shrink-0 p-6">
           <ChatInputBar
