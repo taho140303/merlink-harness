@@ -30,7 +30,7 @@ export function ArcsStep({ onFeedback, onNext, onBack }: { onFeedback: (f: Feedb
             <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{arc.summarize}</p>
 
             {/* Gọi Component hiển thị Theme */}
-            <ThemeDisplay themes={arc.themes} />
+            <ThemeDisplay themes={arc.themes} defaultOpen={true} />
           </div>
         </DraftStreamableBlock>
       ))}

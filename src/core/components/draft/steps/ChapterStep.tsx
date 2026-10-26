@@ -38,7 +38,7 @@ export function ChapterStep({ onFeedback, onNext, onBack }: { onFeedback: (f: Fe
               </div>
               
               {/* Hiển thị Theme cộng dồn */}
-              <ThemeDisplay themes={arc.themes} />
+              <ThemeDisplay themes={arc.themes} defaultOpen={false} />
             </div>
 
             {/* Danh sách Chapter (Layout Project View: Không Assets) */}
