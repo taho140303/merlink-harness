@@ -58,6 +58,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
   const [editSnapshot, setEditSnapshot] = useState<ChapterBlock[] | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeOutlineId, setActiveOutlineId] = useState<string | undefined>();
   const [blocks, setBlocks] = useState<ChapterBlock[]>(
     chapter.blocks || [
       { id: "b1", text: "Nội dung chương đang được soạn thảo...", locked: false },
@@ -99,8 +100,9 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
   const fullChapterTitle = `Chương ${chapterIndex}: ${chapter.title}`;
 
   const scrollToBlock = (id: string) => {
+    setActiveOutlineId(id);
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const outlineItems = blocks.map((b, idx) => ({
@@ -230,7 +232,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 key={block.id}
                 id={block.id}
                 className={cn(
-                  "group relative rounded-2xl transition-all duration-200 scroll-mt-6",
+                  "group relative rounded-2xl transition-all duration-200 scroll-mt-24",
                   isEditing
                     ? "border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                     : "text-sm leading-relaxed text-slate-700 dark:text-slate-300",
@@ -288,6 +290,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
       {blocks.length > 0 && (
         <FloatingOutline 
           items={outlineItems} 
+          activeId={activeOutlineId}
           onItemClick={scrollToBlock} 
         />
       )}

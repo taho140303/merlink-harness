@@ -16,6 +16,7 @@ export default function ChatView() {
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeOutlineId, setActiveOutlineId] = useState<string | undefined>();
   const scrollBottomRef = useRef<HTMLDivElement>(null);
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
@@ -123,8 +124,9 @@ export default function ChatView() {
   };
 
   const scrollToMessage = (id: string) => {
+    setActiveOutlineId(id);
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const outlineItems = messages
@@ -167,6 +169,7 @@ export default function ChatView() {
         {messages.length > 0 && (
           <FloatingOutline 
             items={outlineItems} 
+            activeId={activeOutlineId}
             onItemClick={scrollToMessage} 
           />
         )}
