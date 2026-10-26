@@ -8,6 +8,14 @@ interface ThemeState {
   setTheme: (theme: Theme) => void;
 }
 
+// Hàm lấy theme ban đầu từ localStorage
+const getInitialTheme = (): Theme => {
+  if (typeof window === 'undefined') return 'system';
+  const saved = window.localStorage.getItem('theme') as Theme | null;
+  if (saved === 'light' || saved === 'dark') return saved;
+  return 'system';
+};
+
 // Hàm thực thi thay đổi class trên thẻ html
 export function applyTheme(theme: Theme) {
   if (typeof window === 'undefined') return;
@@ -22,7 +30,7 @@ export function applyTheme(theme: Theme) {
 }
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: 'system',
+  theme: getInitialTheme(), // Khởi tạo đúng giá trị từ localStorage
   setTheme: (theme) => {
     localStorage.setItem('theme', theme);
     set({ theme });
