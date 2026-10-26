@@ -334,6 +334,8 @@ const en = {
   'sp.narrator.filter.SECOND_PERSON': 'Second',
   'sp.narrator.filter.THIRD_PERSON': 'Third',
   'sp.narrator.empty': 'No narrator configs match this filter.',
+  'sp.canvas.openDetail': 'View event block details',
+  'sp.canvas.detail.title': 'Event Block',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -667,6 +669,8 @@ const vi: Record<keyof typeof en, string> = {
   'sp.narrator.filter.SECOND_PERSON': 'Ngôi 2',
   'sp.narrator.filter.THIRD_PERSON': 'Ngôi 3',
   'sp.narrator.empty': 'Không có narrator config nào khớp bộ lọc.',
+  'sp.canvas.openDetail': 'Xem chi tiết event block',
+  'sp.canvas.detail.title': 'Event Block',
 };
 
 export const dict = { en, vi };

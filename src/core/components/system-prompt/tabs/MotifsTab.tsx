@@ -19,6 +19,7 @@ import {
   states,
 } from '../mockData';
 import type { Motif, MotifCategory } from '../types';
+import { MotifCanvas } from '../canvas/MotifCanvas';
 
 const CATEGORY_COLOR: Record<MotifCategory, string> = {
   character_arc: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
@@ -269,15 +270,21 @@ function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }
       </div>
 
       {viewMode === 'canvas' ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center dark:border-slate-700 dark:bg-slate-900/40">
-          <Network className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
-          <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-            {t('sp.motifs.canvasPlaceholder')}
-          </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {t('sp.motifs.canvasHint')}
-          </p>
-        </div>
+        <MotifCanvas
+          motif={motif}
+          eventBlocks={motifEventBlocks}
+          eventTransitions={eventTransitions.filter((et) =>
+            motifEventBlocks.some((eb) => eb.id === et.fromEventBlockId),
+          )}
+          componentById={componentById}
+          stateById={stateById}
+          emotionsForEventBlock={(ebId) =>
+            eventBlockEmotionals
+              .filter((ebe) => ebe.eventBlockId === ebId)
+              .map((ebe) => emotionalById.get(ebe.emotionalRangeId))
+              .filter((e): e is (typeof emotionalRanges)[number] => Boolean(e))
+          }
+        />
       ) : (
         <>
           {/* Motif Constraints */}

@@ -29,3 +29,9 @@
 .animate-orb-glow {
   animation: orb-glow 7s ease-in-out infinite;
 }
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
