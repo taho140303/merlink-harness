@@ -23,10 +23,37 @@ export interface DraftOverview {
   targetWords: string;
 }
 
+// --- Theme System ---
+export type ThemeScope = 'PROJECT' | 'ARC';
+export type ThemeResolutionType = 'RESOLVED' | 'OPEN' | 'AMBIGUOUS';
+export type ThemeArgumentRole = 'PRIMARY' | 'ANTITHESIS' | 'CAUTIONARY' | 'WITNESS';
+export type ThemeAnswerMode = 'VERBAL' | 'ACTION' | 'OUTCOME' | 'IMPLICIT';
+
+export interface DraftThemeArgument {
+  id: string;
+  characterName: string;
+  role: ThemeArgumentRole;
+  answerMode: ThemeAnswerMode;
+  note: string;
+}
+
+export interface DraftTheme {
+  id: string;
+  code: string;
+  scope: ThemeScope;
+  question: string;
+  resolutionType: ThemeResolutionType;
+  resolution: string;
+  message?: string;
+  arguments: DraftThemeArgument[]; // Có thể rỗng ở bước draft
+}
+
+// --- Arc System ---
 export interface DraftArc {
   id: string;
   name: string;
   summarize: string;
+  themes: DraftTheme[];
 }
 
 export interface DraftChapter {
@@ -42,7 +69,7 @@ export interface DraftScene {
   name: string;
   summarize: string;
   stylePreset: string;
-  narratorConfig: string; // POV
+  narratorConfig: string;
   characters: string[];
   forbidden: string[];
   allowed: string[];
@@ -50,7 +77,7 @@ export interface DraftScene {
 
 export interface DraftConfig {
   id: string;
-  targetScope: string; // e.g. "Arc 1" or "Chapter 1"
+  targetScope: string;
   theme: string;
   motifs: string[];
 }
@@ -67,7 +94,7 @@ export interface DraftCharacter {
   id: string;
   name: string;
   role: string;
-  appearances: string[]; // "Chapter 1 - Scene 2"
+  appearances: string[];
 }
 
 export interface DraftCharacterDetail {

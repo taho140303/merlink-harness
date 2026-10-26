@@ -12,8 +12,55 @@ export const mockOverview: DraftOverview = {
 };
 
 export const mockArcs: DraftArc[] = [
-  { id: 'a1', name: 'Arc I: The Sundering', summarize: 'Kaelen phát hiện di tích ngầm bị kích hoạt trái phép, dẫn đến cuộc chạm trán đầu tiên với Lyra và sự sụp đổ của một phần thành phố.' },
-  { id: 'a2', name: 'Arc II: Echoes of Void', summarize: 'Hành trình lặn sâu vào vùng cấm để tìm kiếm mảnh ghép ký ức, đối mặt với các thế lực đen tối đang trỗi dậy.' }
+  {
+    id: 'a1',
+    name: 'Arc I: The Sundering',
+    summarize: 'Kaelen phát hiện di tích ngầm bị kích hoạt trái phép, dẫn đến cuộc chạm trán đầu tiên với Lyra và sự sụp đổ của một phần thành phố.',
+    themes: [
+      {
+        id: 'th1',
+        code: 'th-power-corruption',
+        scope: 'ARC',
+        question: 'Sức mạnh có tha hoá con người?',
+        resolutionType: 'OPEN',
+        resolution: 'Để ngỏ cho người đọc tự đánh giá qua hành động của Kaelen.',
+        message: 'Sức mạnh chỉ là công cụ, bản chất con người mới là thứ quyết định.',
+        arguments: [
+          {
+            id: 'arg1',
+            characterName: 'Kaelen Vance',
+            role: 'PRIMARY',
+            answerMode: 'ACTION',
+            note: 'Sẵn sàng dùng ma pháp cấm để cứu người, bất chấp cái giá phải trả.'
+          },
+          {
+            id: 'arg2',
+            characterName: 'Lyra Dawnseeker',
+            role: 'ANTITHESIS',
+            answerMode: 'VERBAL',
+            note: 'Tin rằng mọi sức mạnh phi tự nhiên đều dẫn đến diệt vong.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'a2',
+    name: 'Arc II: Echoes of Void',
+    summarize: 'Hành trình lặn sâu vào vùng cấm để tìm kiếm mảnh ghép ký ức, đối mặt với các thế lực đen tối đang trỗi dậy.',
+    themes: [
+      {
+        id: 'th2',
+        code: 'th-identity-loss',
+        scope: 'ARC',
+        question: 'Ký ức định hình bản ngã như thế nào?',
+        resolutionType: 'AMBIGUOUS',
+        resolution: 'Kaelen lấy lại ký ức nhưng nhận ra mình đã trở thành một người khác.',
+        message: 'Chúng ta là những gì chúng ta chọn nhớ.',
+        arguments: [] // Mock trường hợp chưa có nhân vật nào trả lời theme
+      }
+    ]
+  }
 ];
 
 export const mockChapters: DraftChapter[] = [
