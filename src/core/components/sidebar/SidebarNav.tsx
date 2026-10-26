@@ -5,7 +5,7 @@ import {
   FolderGit2,
   Users,
   Globe,
-  Wrench,
+  Braces,
   ChevronDown,
   BookOpen,
   Sliders,
@@ -149,10 +149,10 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
             collapsed && "justify-center px-0"
           )
         }
-        title={collapsed ? "Config" : undefined}
+        title={collapsed ? "System Prompt" : undefined}
       >
-        <Wrench className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>Config</span>}
+        <Braces className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>System Prompt</span>}
       </NavLink>
 
       <NavLink
