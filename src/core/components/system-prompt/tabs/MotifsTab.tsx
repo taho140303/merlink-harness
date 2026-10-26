@@ -16,6 +16,8 @@ import {
   motifApplicableGenres,
   motifConstraints,
   motifs,
+  stateDownByRules,
+  stateRules,
   states,
 } from '../mockData';
 import type { Motif, MotifCategory } from '../types';
