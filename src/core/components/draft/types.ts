@@ -22,9 +22,8 @@ export interface DraftGenre {
 
 export interface DraftSegment {
   id: string;
-  chapterBadge: string;
+  chapterRange: string;
   phaseNumber: number;
-  chapterNumber: number;
   summary: string;
 }
 

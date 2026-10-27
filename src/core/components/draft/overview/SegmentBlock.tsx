@@ -52,9 +52,10 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
               <div className="absolute -left-[21px] top-2 h-2.5 w-2.5 rounded-full border-2 border-white bg-indigo-500 dark:border-slate-900" />
               <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{seg.chapterBadge}</span>
-                  <span className="text-[10px] text-slate-400">Giai đoạn {seg.phaseNumber}</span>
-                  <span className="text-[10px] text-slate-400">· Chương {seg.chapterNumber}</span>
+                  <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+                    {seg.chapterRange}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Giai đoạn {seg.phaseNumber}</span>
                 </div>
                 <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
               </div>
@@ -66,8 +67,10 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
           {displaySegments.map(seg => (
             <div key={seg.id} className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-2 mb-1">
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{seg.chapterBadge}</span>
-                <span className="text-[10px] text-slate-400">Giai đoạn {seg.phaseNumber}</span>
+                <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  {seg.chapterRange}
+                </span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Giai đoạn {seg.phaseNumber}</span>
               </div>
               <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
             </div>

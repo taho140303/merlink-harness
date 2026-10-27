@@ -44,7 +44,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
   const filteredArcs = arcFilter === 'all' ? overview.arcs : overview.arcs.filter(a => a.number === arcFilter);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto bg-slate-50/40 dark:bg-slate-950/40">
+    <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-auto bg-slate-50/40 dark:bg-slate-950/40">
       {/* Background Orbs */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-indigo-300/30 blur-[100px] dark:bg-indigo-900/20" />

@@ -57,10 +57,10 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         ],
       },
       segments: [
-        { id: 's-1', chapterBadge: 'Chương 1', phaseNumber: 1, chapterNumber: 1, summary: 'Phù Thanh Cơ được chọn làm vật tế.' },
-        { id: 's-2', chapterBadge: 'Chương 2', phaseNumber: 2, chapterNumber: 2, summary: 'Đêm tế lễ, dị biến xảy ra.' },
-        { id: 's-3', chapterBadge: 'Chương 3', phaseNumber: 3, chapterNumber: 3, summary: 'Trưởng lão Hạc xuất hiện, ngăn cản cuộc tẩu thoát.' },
-        { id: 's-4', chapterBadge: 'Chương 4', phaseNumber: 4, chapterNumber: 4, summary: 'Phá hủy tế đàn, bắt đầu cuộc sống lưu vong.' },
+        { id: 's-1', chapterRange: 'Chương 1 - 3', phaseNumber: 1, summary: 'Buổi hiến tế cát bụi, mùi máu tươi và sự hoài nghi trước lời phán của tế ti.' },
+        { id: 's-2', chapterRange: 'Chương 4 - 6', phaseNumber: 2, summary: 'Đêm tế lễ, dị biến xảy ra, Phù Thanh Cơ thức tỉnh huyết mạch.' },
+        { id: 's-3', chapterRange: 'Chương 7 - 9', phaseNumber: 3, summary: 'Trưởng lão Hạc xuất hiện, ngăn cản cuộc tẩu thoát của Thanh Cơ.' },
+        { id: 's-4', chapterRange: 'Chương 10 - 12', phaseNumber: 4, summary: 'Phá hủy tế đàn, bắt đầu cuộc sống lưu vong đầy rẫy hiểm nguy.' },
       ],
     },
     {
@@ -86,9 +86,9 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         ],
       },
       segments: [
-        { id: 's-5', chapterBadge: 'Chương 5', phaseNumber: 1, chapterNumber: 5, summary: 'Gia nhập quân đội nổi loạn.' },
-        { id: 's-6', chapterBadge: 'Chương 6', phaseNumber: 2, chapterNumber: 6, summary: 'Trận chiến đầu tiên, Thanh Cơ thể hiện sức mạnh.' },
-        { id: 's-7', chapterBadge: 'Chương 7', phaseNumber: 3, chapterNumber: 7, summary: 'Bí mật về huyết mạch hoàng thất được hé lộ.' },
+        { id: 's-5', chapterRange: 'Chương 13 - 15', phaseNumber: 1, summary: 'Gia nhập quân đội nổi loạn dưới vỏ bọc một y sư.' },
+        { id: 's-6', chapterRange: 'Chương 16 - 18', phaseNumber: 2, summary: 'Trận chiến đầu tiên, Thanh Cơ thể hiện sức mạnh kinh người.' },
+        { id: 's-7', chapterRange: 'Chương 19 - 21', phaseNumber: 3, summary: 'Bí mật về huyết mạch hoàng thất và nguồn gốc Ngưu Nhân được hé lộ.' },
       ],
     },
   ],
