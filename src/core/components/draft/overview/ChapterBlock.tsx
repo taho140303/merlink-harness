@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Book, ChevronDown, ChevronUp, Layers, Play } from 'lucide-react';
-import { cn } from '../../../../shared/utils/cn';
+import { ChevronDown, ChevronUp, Layers, Play } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftChapter } from '../types';
 
