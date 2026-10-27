@@ -68,6 +68,26 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         { id: 's-3', chapterRange: 'Chương 7 - 9', phaseNumber: 3, summary: 'Trưởng lão Hạc xuất hiện, ngăn cản cuộc tẩu thoát của Thanh Cơ.' },
         { id: 's-4', chapterRange: 'Chương 10 - 12', phaseNumber: 4, summary: 'Phá hủy tế đàn, bắt đầu cuộc sống lưu vong đầy rẫy hiểm nguy.' },
       ],
+      chapters: [
+        {
+          displayName: 'Khởi nguyên đứt gãy',
+          position: 1,
+          summary: 'Phù Thanh Cơ phát hiện ra sự thật về huyết mạch của mình.',
+          scenes: [
+            { code: 'sc-1', displayName: 'Thức tỉnh', position: 1, summary: 'Thanh Cơ tỉnh dậy trong tế đàn, xung quanh là máu.' },
+            { code: 'sc-2', displayName: 'Tiếng gọi', position: 2, summary: 'Nghe thấy tiếng gọi từ sâu trong huyết mạch.' }
+          ]
+        },
+        {
+          displayName: 'Bóng tối bao trùm',
+          position: 2,
+          summary: 'Trưởng lão Hạc xuất hiện, buộc tội Thanh Cơ phản bội.',
+          scenes: [
+            { code: 'sc-3', displayName: 'Đối chất', position: 1, summary: 'Cuộc tranh cãi nảy lửa tại đại điện.' },
+            { code: 'sc-4', displayName: 'Trốn chạy', position: 2, summary: 'Thanh Cơ chạy trốn khỏi sự truy sát.' }
+          ]
+        }
+      ],
     },
     {
       id: 'arc-2',
@@ -101,6 +121,16 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         { id: 's-5', chapterRange: 'Chương 13 - 15', phaseNumber: 1, summary: 'Gia nhập quân đội nổi loạn dưới vỏ bọc một y sư.' },
         { id: 's-6', chapterRange: 'Chương 16 - 18', phaseNumber: 2, summary: 'Trận chiến đầu tiên, Thanh Cơ thể hiện sức mạnh kinh người.' },
         { id: 's-7', chapterRange: 'Chương 19 - 21', phaseNumber: 3, summary: 'Bí mật về huyết mạch hoàng thất và nguồn gốc Ngưu Nhân được hé lộ.' },
+      ],
+      chapters: [
+        {
+          displayName: 'Bước chân lưu vong',
+          position: 1,
+          summary: 'Thanh Cơ tìm cách gia nhập quân nổi loạn.',
+          scenes: [
+            { code: 'sc-5', displayName: 'Gặp gỡ', position: 1, summary: 'Thanh Cơ gặp Hạc Minh tại doanh trại.' }
+          ]
+        }
       ],
     },
   ],

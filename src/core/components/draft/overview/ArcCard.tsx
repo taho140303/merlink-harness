@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Tags } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import { ThemeBlock } from './ThemeBlock';
 import { SegmentBlock } from './SegmentBlock';
+import { ChapterBlock } from './ChapterBlock';
 import type { DraftArc } from '../types';
 
 interface ArcCardProps {
@@ -57,6 +58,10 @@ export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
           <ThemeBlock theme={arc.theme} />
           
           <SegmentBlock segments={arc.segments} />
+          
+          {arc.chapters && arc.chapters.length > 0 && (
+            <ChapterBlock chapters={arc.chapters} />
+          )}
         </div>
       )}
     </div>

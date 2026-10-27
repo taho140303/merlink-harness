@@ -44,6 +44,20 @@ export interface DraftTheme {
   arguments: DraftThemeArgument[];
 }
 
+export interface DraftScene {
+  code: string;
+  displayName: string;
+  position: number;
+  summary: string;
+}
+
+export interface DraftChapter {
+  displayName: string;
+  position: number;
+  summary: string;
+  scenes: DraftScene[];
+}
+
 export interface DraftArc {
   id: string;
   number: number;
@@ -59,6 +73,7 @@ export interface DraftArc {
   };
   theme: DraftTheme;
   segments: DraftSegment[];
+  chapters?: DraftChapter[];
 }
 
 export interface DraftCharacter {

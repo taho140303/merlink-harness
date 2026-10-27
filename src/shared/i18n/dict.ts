@@ -419,6 +419,9 @@ const en = {
   'draft.nav.next': 'Next Step',
   'draft.nav.start': 'Start Generation',
   'draft.toast.started': 'Started generating story content...',
+  'draft.chapter.title': 'Chapters & Scenes',
+  'draft.chapter.subtitle': 'Detailed chapter breakdown',
+  'draft.chapter.count': '{count} chapters',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -837,6 +840,9 @@ const vi: Record<keyof typeof en, string> = {
   'draft.nav.next': 'Bước tiếp theo',
   'draft.nav.start': 'Bắt đầu sinh',
   'draft.toast.started': 'Bắt đầu sinh nội dung truyện...',
+  'draft.chapter.title': 'Chương & Phân cảnh',
+  'draft.chapter.subtitle': 'Chi tiết dàn ý chương',
+  'draft.chapter.count': '{count} chương',
 };
 
 export const dict = { en, vi };

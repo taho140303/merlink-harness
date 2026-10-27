@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DraftHeader } from './DraftHeader';
 import { DraftOverviewBlock } from './DraftOverviewBlock';
 import { DraftStepNav } from './DraftStepNav';
@@ -57,6 +57,20 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
   const currentStepNumber = STEP_ORDER.indexOf(currentStep) + 1;
 
+  // Logic "phình to ra": Ở phase overview thì không có chapters, từ phase chapter trở đi mới có
+  const phaseOverview = useMemo(() => {
+    if (currentStep === 'overview') {
+      return {
+        ...overview,
+        arcs: overview.arcs.map(arc => ({
+          ...arc,
+          chapters: undefined, // Ẩn chapters ở phase 1
+        })),
+      };
+    }
+    return overview;
+  }, [overview, currentStep]);
+
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40">
       <DraftHeader
@@ -72,7 +86,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
       <div className="relative flex-1 overflow-hidden">
         <DraftOverviewBlock
-          overview={overview}
+          overview={phaseOverview}
           onFeedback={onFeedback}
         />
         
