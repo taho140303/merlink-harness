@@ -42,25 +42,27 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     return () => clearInterval(interval);
   }, [transitionPhase, loadingMessages.length]);
 
-  const triggerTransition = (action: () => void) => {
+  const triggerTransition = (action: () => void, skipLoading = false) => {
     if (transitionPhase !== 'idle') return;
     setTransitionPhase('fade-out');
     
     // Fade out 0.6s
     setTimeout(() => {
       action();
-      setLoadingIdx(0); // Reset index before entering loading phase
-      setTransitionPhase('loading');
       
-      // Loading 2s (4 messages x 500ms)
-      setTimeout(() => {
+      if (skipLoading) {
+        // Nếu là Back: Bỏ qua loading, chuyển thẳng sang fade-in
         setTransitionPhase('fade-in');
-        
-        // Fade in 0.6s
+        setTimeout(() => setTransitionPhase('idle'), 600);
+      } else {
+        // Nếu là Next: Hiện loading 2s
+        setLoadingIdx(0); 
+        setTransitionPhase('loading');
         setTimeout(() => {
-          setTransitionPhase('idle');
-        }, 600);
-      }, 2000);
+          setTransitionPhase('fade-in');
+          setTimeout(() => setTransitionPhase('idle'), 600);
+        }, 2000);
+      }
     }, 600);
   };
 
@@ -100,7 +102,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
       const currentIdx = STEP_ORDER.indexOf(currentStep);
       if (currentIdx > 0) setCurrentStep(STEP_ORDER[currentIdx - 1]);
-    });
+    }, true);
   };
 
   const currentStepNumber = STEP_ORDER.indexOf(currentStep) + 1;
@@ -160,7 +162,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
         {/* Navigation Buttons */}
         <div className={cn(
-          "absolute bottom-6 right-6 z-20 transition-opacity duration-600",
+          "absolute bottom-6 right-6 z-20 w-max transition-opacity duration-600",
           isFading ? "opacity-0 pointer-events-none" : "opacity-100"
         )}>
           <DraftStepNav
