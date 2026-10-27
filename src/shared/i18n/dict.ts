@@ -862,9 +862,9 @@ const vi: Record<keyof typeof en, string> = {
   'draft.world.desc': 'Mô tả',
   'draft.world.access': 'Quyền truy cập',
   'draft.world.lore': 'Truyền thuyết / Lore',
-  'draft.overview.targetArc': 'arc',
-  'draft.overview.targetChapter': 'chapter',
-  'draft.overview.targetWord': 'word/chap',
+  'draft.overview.targetArc': 'hồi',
+  'draft.overview.targetChapter': 'chương',
+  'draft.overview.targetWord': 'chữ/chương',
 };
 
 export const dict = { en, vi };
