@@ -9,7 +9,7 @@ interface ThemeBlockProps {
 
 export function ThemeBlock({ theme }: ThemeBlockProps) {
   const t = useT();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden">

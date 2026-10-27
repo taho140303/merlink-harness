@@ -5,13 +5,13 @@ import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/u
 import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
-import type { DraftOverview } from './types';
+import type { DraftOverview, FeedbackContext } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
 
 interface DraftOverviewBlockProps {
   overview: DraftOverview;
-  onFeedback?: () => void;
+  onFeedback?: (feedback: FeedbackContext) => void;
 }
 
 export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockProps) {
@@ -20,7 +20,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
   
   const [activeTab, setActiveTab] = useState<'arcs' | 'characters'>('arcs');
   const [arcFilter, setArcFilter] = useState<'all' | number>('all');
-  const [expandedArcs, setExpandedArcs] = useState<Set<string>>(new Set(overview.arcs.map(a => a.id)));
+  const [expandedArcs, setExpandedArcs] = useState<Set<string>>(new Set());
 
   const visibleGenres = overview.genres.slice(0, MAX_VISIBLE_GENRES);
   const remainingGenres = overview.genres.length - MAX_VISIBLE_GENRES;
@@ -44,6 +44,12 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
   const collapseAll = () => setExpandedArcs(new Set());
 
   const filteredArcs = arcFilter === 'all' ? overview.arcs : overview.arcs.filter(a => a.number === arcFilter);
+
+  const handleFeedbackClick = (tag: string, title: string, id: string = 'temp') => {
+    if (onFeedback) {
+      onFeedback({ id, tag, title });
+    }
+  };
 
   return (
     <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-auto bg-slate-50/40 dark:bg-slate-950/40">
@@ -71,7 +77,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
               <div className="flex items-center gap-2 self-start md:self-auto">
                 <button
                   type="button"
-                  onClick={onFeedback}
+                  onClick={() => handleFeedbackClick('overview', t('draft.step.overview'))}
                   className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
                 >
                   <MessageSquareQuote className="h-3.5 w-3.5 text-indigo-500" />
@@ -169,6 +175,17 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
                   </option>
                 ))}
               </select>
+              
+              {onFeedback && (
+                <button
+                  type="button"
+                  onClick={() => handleFeedbackClick('arc-filter', t('draft.overview.filterArc'), arcFilter.toString())}
+                  className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-indigo-400"
+                  title={t('draft.overview.feedback')}
+                >
+                  <MessageSquareQuote className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -198,7 +215,11 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.charDesc')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {overview.characters.map(char => (
-                <CharacterCard key={char.id} character={char} />
+                <CharacterCard 
+                  key={char.id} 
+                  character={char} 
+                  onFeedback={onFeedback ? () => handleFeedbackClick('character', char.name, char.id) : undefined} 
+                />
               ))}
             </div>
           </div>
