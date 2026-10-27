@@ -20,7 +20,50 @@ export interface DraftGenre {
   isPrimary: boolean;
 }
 
-/** Dữ liệu của khối "Tổng quan dự án" — dùng chung cho mọi phase. */
+export interface DraftSegment {
+  id: string;
+  chapterBadge: string;
+  phaseNumber: number;
+  chapterNumber: number;
+  summary: string;
+}
+
+export interface DraftThemeArgument {
+  id: string;
+  characterName: string;
+  role: string;
+  reactionType: string;
+  note?: string;
+  requiredKnowledge?: string;
+  requiredCompetence?: string;
+}
+
+export interface DraftTheme {
+  question: string;
+  message: string;
+  resolution: string;
+  arguments: DraftThemeArgument[];
+}
+
+export interface DraftArc {
+  id: string;
+  number: number;
+  title: string;
+  subnote: string;
+  segmentsCount: number;
+  summary: string;
+  theme: DraftTheme;
+  segments: DraftSegment[];
+}
+
+export interface DraftCharacter {
+  id: string;
+  name: string;
+  gender: string;
+  genderBadge: string;
+  archetype: string;
+}
+
 export interface DraftOverview {
   displayName: string;
   language: string;
@@ -31,4 +74,6 @@ export interface DraftOverview {
     wordPerChapter: number;
   };
   genres: DraftGenre[];
+  arcs: DraftArc[];
+  characters: DraftCharacter[];
 }

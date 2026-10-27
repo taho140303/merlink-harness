@@ -25,7 +25,6 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     onClose();
   };
 
-  // Logic chuyển bước tự động (hỗ trợ đi qua sub-step)
   const handleNext = () => {
     if (currentStep === 'overview') setCurrentStep('chapter');
     else if (currentStep === 'chapter') setCurrentStep('world');
@@ -71,15 +70,14 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         onClose={onClose}
       />
 
-      <div className="flex-1 overflow-y-auto p-6 pb-24">
-        {/* Khối tổng quan dự án: giữ nguyên toàn bộ layout và hiện ở mọi phase */}
+      <div className="relative flex-1 overflow-hidden">
         <DraftOverviewBlock
           overview={overview}
           onFeedback={() =>
             onFeedback({ id: 'temp', tag: 'overview', title: t('draft.step.overview') })
           }
         />
-
+        
         <DraftStepNav
           onBack={currentStepNumber > 1 ? handleBack : undefined}
           onNext={currentStep !== 'relationship' ? handleNext : undefined}
