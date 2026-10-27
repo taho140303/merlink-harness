@@ -430,6 +430,9 @@ const en = {
   'draft.world.desc': 'Description',
   'draft.world.access': 'Access',
   'draft.world.lore': 'Lore Entries',
+  'draft.overview.targetArc': 'arc',
+  'draft.overview.targetChapter': 'chapter',
+  'draft.overview.targetWord': 'word/chap',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -859,6 +862,9 @@ const vi: Record<keyof typeof en, string> = {
   'draft.world.desc': 'Mô tả',
   'draft.world.access': 'Quyền truy cập',
   'draft.world.lore': 'Truyền thuyết / Lore',
+  'draft.overview.targetArc': 'arc',
+  'draft.overview.targetChapter': 'chapter',
+  'draft.overview.targetWord': 'word/chap',
 };
 
 export const dict = { en, vi };

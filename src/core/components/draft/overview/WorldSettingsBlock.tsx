@@ -1,31 +1,43 @@
-import { Globe2, MapPin, Shield, BookOpen } from 'lucide-react';
+import { Globe2, Shield, BookOpen, MessageSquareQuote } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftWorldSettings } from '../types';
 import { cn } from '../../../../shared/utils/cn';
 
 interface WorldSettingsBlockProps {
   settings: DraftWorldSettings;
+  onFeedback?: () => void;
 }
 
-export function WorldSettingsBlock({ settings }: WorldSettingsBlockProps) {
+export function WorldSettingsBlock({ settings, onFeedback }: WorldSettingsBlockProps) {
   const t = useT();
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-            <Globe2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              {settings.displayName}
-            </h3>
-            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{settings.type}</span>
-              {settings.parentCode && <span>Parent: {settings.parentCode}</span>}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+              <Globe2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                {settings.displayName}
+              </h3>
+              <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{settings.type}</span>
+                {settings.parentCode && <span>Parent: {settings.parentCode}</span>}
+              </div>
             </div>
           </div>
+          {onFeedback && (
+            <button
+              onClick={onFeedback}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-colors"
+              title={t('draft.overview.feedback')}
+            >
+              <MessageSquareQuote className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">

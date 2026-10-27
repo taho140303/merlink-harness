@@ -9,9 +9,10 @@ interface ArcCardProps {
   arc: DraftArc;
   isExpanded: boolean;
   onToggle: () => void;
+  onFeedback?: () => void;
 }
 
-export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
+export function ArcCard({ arc, isExpanded, onToggle, onFeedback }: ArcCardProps) {
   const t = useT();
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
@@ -60,7 +61,7 @@ export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
           <SegmentBlock segments={arc.segments} />
           
           {arc.chapters && arc.chapters.length > 0 && (
-            <ChapterBlock chapters={arc.chapters} />
+            <ChapterBlock chapters={arc.chapters} onFeedback={onFeedback} />
           )}
         </div>
       )}

@@ -176,8 +176,8 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
 
         {/* Panels */}
         {activeTab === 'arcs' && (
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="w-full space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.overview.filterArc')}</span>
                 <select
@@ -215,6 +215,7 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
                 arc={arc}
                 isExpanded={expandedArcs.has(arc.id)}
                 onToggle={() => toggleArc(arc.id)}
+                onFeedback={onFeedback ? () => handleFeedbackClick('arc', arc.title, arc.id) : undefined}
               />
             ))}
           </div>
@@ -238,7 +239,10 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
         {activeTab === 'world' && overview.worldSettings && (
           <div className="space-y-3 animate-in fade-in duration-300">
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
-            <WorldSettingsBlock settings={overview.worldSettings} />
+            <WorldSettingsBlock 
+              settings={overview.worldSettings} 
+              onFeedback={onFeedback ? () => handleFeedbackClick('world', t('draft.overview.tabWorld'), overview.worldSettings?.code) : undefined} 
+            />
           </div>
         )}
       </div>
