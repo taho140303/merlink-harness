@@ -1,7 +1,6 @@
-import type { Route } from "./+types/config";
 import { SystemPromptLayout } from "../../core/components/system-prompt/SystemPromptLayout";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [{ title: "Merlink Harness - System Prompt" }];
 }
 

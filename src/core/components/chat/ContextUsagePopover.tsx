@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { cn } from "../../../shared/utils/cn";
 
 export function ContextUsagePopover() {
   const [open, setOpen] = useState(false);

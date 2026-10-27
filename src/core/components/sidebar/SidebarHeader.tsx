@@ -1,5 +1,4 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { cn } from "../../../shared/utils/cn";
 
 interface SidebarHeaderProps {
   collapsed: boolean;
@@ -16,7 +15,7 @@ export function SidebarHeader({ collapsed, onToggle }: SidebarHeaderProps) {
           title="Mở sidebar"
         >
           <div className="flex items-center justify-center transition-opacity duration-200 group-hover:opacity-0">
-            <span className="text-base font-bold">M</span>
+            <img src="/logo.svg" alt="Merlink Logo" className="h-6 w-6 object-contain" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             <PanelLeftOpen className="h-5 w-5" />
@@ -29,8 +28,8 @@ export function SidebarHeader({ collapsed, onToggle }: SidebarHeaderProps) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between px-1">
       <div className="flex items-center gap-2.5 overflow-hidden">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl neu-pressed text-pink-600 shadow-inner dark:text-pink-400">
-          <span className="text-sm font-black">M</span>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl neu-pressed shadow-inner">
+          <img src="/logo.svg" alt="Merlink Logo" className="h-6 w-6 object-contain" />
         </div>
         <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
           merlink-harness

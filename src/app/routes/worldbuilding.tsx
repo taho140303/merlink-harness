@@ -1,7 +1,6 @@
 import { useParams } from "react-router";
-import type { Route } from "./+types/worldbuilding";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [{ title: "Merlink Harness - Worldbuilding" }];
 }
 

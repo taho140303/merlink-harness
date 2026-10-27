@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Paperclip, ArrowUp, BookOpen, X } from "lucide-react";
+import { Sparkles, ArrowUp, BookOpen, X } from "lucide-react";
 import { ModelSelectorPopover } from "../chat/ModelSelectorPopover";
 import { ContextUsagePopover } from "../chat/ContextUsagePopover";
 

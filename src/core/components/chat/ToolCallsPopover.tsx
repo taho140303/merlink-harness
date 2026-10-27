@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Wrench, CheckCircle2, ChevronRight, Terminal } from "lucide-react";
+import { Wrench, CheckCircle2, Terminal } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import type { ToolCallItem } from "./types";
 

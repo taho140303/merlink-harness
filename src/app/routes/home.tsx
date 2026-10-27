@@ -1,7 +1,6 @@
-import type { Route } from "./+types/home";
 import ChatView from "../../core/components/chat/ChatView";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Merlink Harness - Chat" },
     { name: "description", content: "Merlink Harness UI Workspace" },

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { cn } from "../../../shared/utils/cn";
 import { ProviderForm } from "./ProviderForm";
 import { DeleteConfirmDialog } from "../../../shared/components/ui/delete-confirm-dialog";
 import { toast } from "../../../shared/components/ui/toast";

@@ -38,7 +38,7 @@ export function MotifsTab({ activeChild, onSelectChild }: MotifsTabProps) {
   if (activeChild) {
     const motif = motifs.find((m) => m.id === activeChild.id);
     if (motif) {
-      return <MotifDetailView motif={motif} onBack={() => onSelectChild(null)} />;
+      return <MotifDetailView motif={motif} />;
     }
   }
 
@@ -131,7 +131,7 @@ function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
  * DETAIL VIEW
  * ============================================================ */
 
-function MotifDetailView({ motif, onBack }: { motif: Motif; onBack: () => void }) {
+function MotifDetailView({ motif }: { motif: Motif }) {
   const t = useT();
   const [viewMode, setViewMode] = useState<'default' | 'canvas'>('default');
 

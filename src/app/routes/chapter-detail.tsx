@@ -1,9 +1,8 @@
 import { useParams, Link } from "react-router";
-import type { Route } from "./+types/chapter-detail";
 import { MOCK_PROJECTS } from "../../core/components/project/mockProjects";
 import { ChapterDetailView } from "../../core/components/project/ChapterDetailView";
 
-export function meta({ params }: Route.MetaArgs) {
+export function meta() {
   return [{ title: "Merlink Chapter Detail" }];
 }
 
