@@ -36,7 +36,6 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   // Xử lý đổi text mỗi 500ms khi loading
   useEffect(() => {
     if (transitionPhase !== 'loading') return;
-    setLoadingIdx(0);
     const interval = setInterval(() => {
       setLoadingIdx(prev => (prev + 1) % loadingMessages.length);
     }, 500);
@@ -50,6 +49,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     // Fade out 0.6s
     setTimeout(() => {
       action();
+      setLoadingIdx(0); // Reset index before entering loading phase
       setTransitionPhase('loading');
       
       // Loading 2s (4 messages x 500ms)
