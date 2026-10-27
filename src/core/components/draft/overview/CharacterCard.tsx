@@ -1,5 +1,6 @@
 import { User } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
+import { useT } from '../../../../shared/i18n/useT';
 import type { DraftCharacter } from '../types';
 
 interface CharacterCardProps {
@@ -7,6 +8,7 @@ interface CharacterCardProps {
 }
 
 export function CharacterCard({ character }: CharacterCardProps) {
+  const t = useT();
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-2">
@@ -29,7 +31,7 @@ export function CharacterCard({ character }: CharacterCardProps) {
         </span>
       </div>
       <div className="mt-3 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mô tả hình mẫu</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.character.archetype')}</span>
         <p className="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{character.archetype}</p>
       </div>
     </div>

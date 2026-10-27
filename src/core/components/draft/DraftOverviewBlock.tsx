@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bookmark, MessageSquareQuote, Tags, BookOpen, Users } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/ui/dialog';
+import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
 import type { DraftOverview } from './types';
@@ -14,6 +15,7 @@ interface DraftOverviewBlockProps {
 }
 
 export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockProps) {
+  const t = useT();
   const [allGenresOpen, setAllGenresOpen] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'arcs' | 'characters'>('arcs');
@@ -24,9 +26,9 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
   const remainingGenres = overview.genres.length - MAX_VISIBLE_GENRES;
 
   const targets = [
-    { key: 'arcs', label: 'arc', value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
-    { key: 'chapters', label: 'chapter', value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
-    { key: 'words', label: 'word/chap', value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
+    { key: 'arcs', label: t('draft.overview.arcWord'), value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
+    { key: 'chapters', label: t('draft.overview.chapterWord'), value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
+    { key: 'words', label: t('draft.overview.wordPerChapWord'), value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
   ];
 
   const toggleArc = (id: string) => {
@@ -73,7 +75,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
                   className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
                 >
                   <MessageSquareQuote className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Feedback</span>
+                  <span>{t('draft.overview.feedback')}</span>
                 </button>
               </div>
             )}
@@ -138,7 +140,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
                 activeTab === 'arcs' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
               )}
             >
-              <BookOpen className="h-3.5 w-3.5" /> Hồi truyện
+              <BookOpen className="h-3.5 w-3.5" /> {t('draft.overview.tabArcs')}
             </button>
             <button
               onClick={() => setActiveTab('characters')}
@@ -147,35 +149,26 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
                 activeTab === 'characters' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
               )}
             >
-              <Users className="h-3.5 w-3.5" /> Nhân vật
+              <Users className="h-3.5 w-3.5" /> {t('draft.overview.tabCharacters')}
               <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600 dark:bg-slate-600 dark:text-slate-200">{overview.characters.length}</span>
             </button>
           </div>
 
           {activeTab === 'arcs' && (
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Lọc Hồi:</span>
-              <button
-                onClick={() => setArcFilter('all')}
-                className={cn(
-                  "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                  arcFilter === 'all' ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                )}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.overview.filterArc')}</span>
+              <select
+                value={arcFilter}
+                onChange={(e) => setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
               >
-                Tất cả
-              </button>
-              {overview.arcs.map(arc => (
-                <button
-                  key={arc.id}
-                  onClick={() => setArcFilter(arc.number)}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap",
-                    arcFilter === arc.number ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                  )}
-                >
-                  {arc.number}
-                </button>
-              ))}
+                <option value="all">{t('draft.overview.filterAll')}</option>
+                {overview.arcs.map(arc => (
+                  <option key={arc.id} value={arc.number}>
+                    {t('draft.overview.arcNum', { num: arc.number })}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
@@ -184,11 +177,11 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
         {activeTab === 'arcs' ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Danh sách hồi truyện và phân đoạn sự kiện.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.arcDesc')}</p>
               <div className="flex items-center gap-2">
-                <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">Mở rộng tất cả</button>
+                <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
                 <span className="text-slate-300 dark:text-slate-600">|</span>
-                <button onClick={collapseAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">Thu gọn tất cả</button>
+                <button onClick={collapseAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.collapseAll')}</button>
               </div>
             </div>
             {filteredArcs.map(arc => (
@@ -202,7 +195,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Hồ sơ nhân vật và hình mẫu.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.charDesc')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {overview.characters.map(char => (
                 <CharacterCard key={char.id} character={char} />
@@ -218,7 +211,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
             <Tags className="h-4 w-4 text-indigo-500" />
             <DialogTitle className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Toàn bộ thể loại tác phẩm
+              {t('draft.overview.allGenres')}
             </DialogTitle>
           </div>
           <div className="flex max-h-[50vh] flex-wrap gap-2 overflow-y-auto py-4">
@@ -243,7 +236,7 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
               onClick={() => setAllGenresOpen(false)}
               className="rounded-xl px-4 py-1.5 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
             >
-              Đóng
+              {t('common.close')}
             </button>
           </div>
         </DialogContent>

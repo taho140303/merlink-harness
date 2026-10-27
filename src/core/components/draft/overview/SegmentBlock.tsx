@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { List, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
+import { useT } from '../../../../shared/i18n/useT';
 import type { DraftSegment } from '../types';
 
 interface SegmentBlockProps {
@@ -8,6 +9,7 @@ interface SegmentBlockProps {
 }
 
 export function SegmentBlock({ segments }: SegmentBlockProps) {
+  const t = useT();
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
   const [showAll, setShowAll] = useState(false);
 
@@ -18,9 +20,9 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
     <div className="mt-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Phân đoạn sự kiện</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.segment.title')}</span>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            {segments.length} giai đoạn
+            {t('draft.segment.count', { count: segments.length })}
           </span>
         </div>
         <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800 w-fit">
@@ -31,7 +33,7 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
               viewMode === 'timeline' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
-            <List className="h-3 w-3" /> Tiến trình
+            <List className="h-3 w-3" /> {t('draft.segment.viewTimeline')}
           </button>
           <button
             onClick={() => setViewMode('grid')}
@@ -40,7 +42,7 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
               viewMode === 'grid' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
-            <LayoutGrid className="h-3 w-3" /> Dạng lưới
+            <LayoutGrid className="h-3 w-3" /> {t('draft.segment.viewGrid')}
           </button>
         </div>
       </div>
@@ -55,7 +57,7 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
                   <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
                     {seg.chapterRange}
                   </span>
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Giai đoạn {seg.phaseNumber}</span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
                 </div>
                 <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
               </div>
@@ -70,7 +72,7 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
                 <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
                   {seg.chapterRange}
                 </span>
-                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Giai đoạn {seg.phaseNumber}</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
               </div>
               <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
             </div>
@@ -84,7 +86,7 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
             onClick={() => setShowAll(!showAll)}
             className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           >
-            {showAll ? <><ChevronUp className="h-3 w-3" /> Thu gọn phân đoạn</> : <><ChevronDown className="h-3 w-3" /> Xem thêm {segments.length - 3} phân đoạn</>}
+            {showAll ? <><ChevronUp className="h-3 w-3" /> {t('draft.segment.collapse')}</> : <><ChevronDown className="h-3 w-3" /> {t('draft.segment.showMore', { count: segments.length - 3 })}</>}
           </button>
         </div>
       )}

@@ -21,7 +21,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
 
   const handleStart = () => {
-    toast({ title: 'Bắt đầu sinh nội dung truyện...', variant: 'success' });
+    toast({ title: t('draft.toast.started'), variant: 'success' });
     onClose();
   };
 

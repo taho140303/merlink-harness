@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useT } from '../../../../shared/i18n/useT';
 import { ThemeBlock } from './ThemeBlock';
 import { SegmentBlock } from './SegmentBlock';
 import type { DraftArc } from '../types';
@@ -10,6 +11,7 @@ interface ArcCardProps {
 }
 
 export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
       <button
@@ -28,7 +30,7 @@ export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            {arc.segmentsCount} phân đoạn
+            {t('draft.arc.segmentsCount', { count: arc.segmentsCount })}
           </span>
           {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
         </div>
