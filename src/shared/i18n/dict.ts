@@ -364,6 +364,15 @@ const en = {
   'project.unlockAll': 'Unlock All',
   'chat.attach': 'Attach',
   'chat.selectSource': 'Select Source',
+  'draft.step.overview': 'Overview',
+  'draft.step.chapter': 'Chapter',
+  'draft.step.world': 'World building',
+  'draft.step.scene': 'Scene config',
+  'draft.step.character': 'Character',
+  'draft.step.relationship': 'Relationship',
+  'draft.subStep.appearance': 'Appearance',
+  'draft.subStep.psychological': 'Psychological',
+  'draft.subStep.lifeExperience': 'Life experience',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -727,6 +736,15 @@ const vi: Record<keyof typeof en, string> = {
   'project.unlockAll': 'Mở khóa tất cả',
   'chat.attach': 'Đính kèm',
   'chat.selectSource': 'Chọn nguồn',
+  'draft.step.overview': 'Tổng quan',
+  'draft.step.chapter': 'Chương',
+  'draft.step.world': 'Xây dựng thế giới',
+  'draft.step.scene': 'Cấu hình cảnh',
+  'draft.step.character': 'Nhân vật',
+  'draft.step.relationship': 'Mối quan hệ',
+  'draft.subStep.appearance': 'Ngoại hình',
+  'draft.subStep.psychological': 'Tâm lý',
+  'draft.subStep.lifeExperience': 'Trải nghiệm',
 };
 
 export const dict = { en, vi };
