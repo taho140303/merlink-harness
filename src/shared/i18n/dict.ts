@@ -422,6 +422,14 @@ const en = {
   'draft.chapter.title': 'Chapters & Scenes',
   'draft.chapter.subtitle': 'Detailed chapter breakdown',
   'draft.chapter.count': '{count} chapters',
+  'draft.overview.arcs': 'arc',
+  'draft.overview.chapters': 'chapter',
+  'draft.overview.wordsPerChapter': 'word/chap',
+  'draft.overview.tabWorld': 'World Settings',
+  'draft.overview.worldDesc': 'World context, environment settings, and lore.',
+  'draft.world.desc': 'Description',
+  'draft.world.access': 'Access',
+  'draft.world.lore': 'Lore Entries',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -843,6 +851,14 @@ const vi: Record<keyof typeof en, string> = {
   'draft.chapter.title': 'Chương & Phân cảnh',
   'draft.chapter.subtitle': 'Chi tiết dàn ý chương',
   'draft.chapter.count': '{count} chương',
+  'draft.overview.arcs': 'arc',
+  'draft.overview.chapters': 'chapter',
+  'draft.overview.wordsPerChapter': 'word/chap',
+  'draft.overview.tabWorld': 'Bối cảnh',
+  'draft.overview.worldDesc': 'Bối cảnh thế giới, thiết lập môi trường và các truyền thuyết.',
+  'draft.world.desc': 'Mô tả',
+  'draft.world.access': 'Quyền truy cập',
+  'draft.world.lore': 'Truyền thuyết / Lore',
 };
 
 export const dict = { en, vi };

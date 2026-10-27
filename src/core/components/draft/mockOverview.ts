@@ -139,4 +139,28 @@ export const DRAFT_OVERVIEW: DraftOverview = {
     { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' } },
     { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' } },
   ],
+  worldSettings: {
+    code: 'ws-1',
+    displayName: 'Hạ Nam Vương Quốc',
+    type: 'REALM',
+    parentCode: '',
+    description: 'Một vương quốc cổ đại nơi con người và các chủng tộc khác sinh sống. Nơi đây tồn tại những tàn tích ma pháp từ thời kỳ hỗn mang.',
+    access: 'Tự do đi lại (ngoại trừ khu vực Tế Đàn bị phong tỏa)',
+    loreEntries: [
+      {
+        code: 'lore-1',
+        displayName: 'Thánh tích Ngưu Nhân',
+        type: 'ITEM',
+        description: 'Một mảnh vỡ pha lê chứa đựng linh hồn của tộc trưởng đời đầu.',
+        data: 'Có thể phát sáng khi đến gần khu vực tế đàn.'
+      },
+      {
+        code: 'lore-2',
+        displayName: 'Sự kiện Đêm Đen',
+        type: 'HISTORY',
+        description: 'Sự kiện tàn sát toàn bộ tộc Ngưu Nhân trong quá khứ.',
+        data: 'Ghi chép bị thất lạc, chỉ còn tồn tại trong truyền miệng.'
+      }
+    ]
+  }
 };

@@ -87,6 +87,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       <div className="relative flex-1 overflow-hidden">
         <DraftOverviewBlock
           overview={phaseOverview}
+          currentStep={currentStep}
           onFeedback={onFeedback}
         />
         

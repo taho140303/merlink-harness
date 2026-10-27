@@ -86,6 +86,24 @@ export interface DraftCharacter {
   };
 }
 
+export interface DraftLoreEntry {
+  code: string;
+  displayName: string;
+  type: 'ITEM' | 'HISTORY' | 'FACTION' | 'CULTURE';
+  description: string;
+  data: string;
+}
+
+export interface DraftWorldSettings {
+  code: string;
+  displayName: string;
+  type: string;
+  parentCode?: string;
+  description: string;
+  access: string;
+  loreEntries: DraftLoreEntry[];
+}
+
 export interface DraftOverview {
   displayName: string;
   language: string;
@@ -98,4 +116,5 @@ export interface DraftOverview {
   genres: DraftGenre[];
   arcs: DraftArc[];
   characters: DraftCharacter[];
+  worldSettings?: DraftWorldSettings;
 }

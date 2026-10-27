@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { Bookmark, MessageSquareQuote, Tags, BookOpen, Users } from 'lucide-react';
+import { Bookmark, MessageSquareQuote, Tags, BookOpen, Users, Globe2 } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/ui/dialog';
 import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
-import type { DraftOverview, FeedbackContext } from './types';
+import { WorldSettingsBlock } from './overview/WorldSettingsBlock';
+import type { DraftOverview, FeedbackContext, DraftStep } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
 
 interface DraftOverviewBlockProps {
   overview: DraftOverview;
+  currentStep: DraftStep;
   onFeedback?: (feedback: FeedbackContext) => void;
 }
 
-export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockProps) {
+export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftOverviewBlockProps) {
   const t = useT();
   const [allGenresOpen, setAllGenresOpen] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'arcs' | 'characters'>('arcs');
+  const [activeTab, setActiveTab] = useState<'arcs' | 'characters' | 'world'>('arcs');
   const [arcFilter, setArcFilter] = useState<'all' | number>('all');
   const [expandedArcs, setExpandedArcs] = useState<Set<string>>(new Set());
 
@@ -26,9 +28,9 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
   const remainingGenres = overview.genres.length - MAX_VISIBLE_GENRES;
 
   const targets = [
-    { key: 'arcs', label: t('draft.overview.arcWord'), value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
-    { key: 'chapters', label: t('draft.overview.chapterWord'), value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
-    { key: 'words', label: t('draft.overview.wordPerChapWord'), value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
+    { key: 'arcs', label: t('draft.overview.arcs'), value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
+    { key: 'chapters', label: t('draft.overview.chapters'), value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
+    { key: 'words', label: t('draft.overview.wordsPerChapter'), value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
   ];
 
   const toggleArc = (id: string) => {
@@ -50,6 +52,8 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
       onFeedback({ id, tag, title });
     }
   };
+
+  const showWorldTab = ['world', 'scene', 'character', 'relationship'].includes(currentStep);
 
   return (
     <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-auto bg-slate-50/40 dark:bg-slate-950/40">
@@ -137,64 +141,68 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
         </header>
 
         {/* Nav Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 w-fit">
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 w-fit">
+          <button
+            onClick={() => setActiveTab('arcs')}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+              activeTab === 'arcs' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+            )}
+          >
+            <BookOpen className="h-3.5 w-3.5" /> {t('draft.overview.tabArcs')}
+          </button>
+          <button
+            onClick={() => setActiveTab('characters')}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+              activeTab === 'characters' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+            )}
+          >
+            <Users className="h-3.5 w-3.5" /> {t('draft.overview.tabCharacters')}
+            <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600 dark:bg-slate-600 dark:text-slate-200">{overview.characters.length}</span>
+          </button>
+          {showWorldTab && (
             <button
-              onClick={() => setActiveTab('arcs')}
+              onClick={() => setActiveTab('world')}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                activeTab === 'arcs' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                activeTab === 'world' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
               )}
             >
-              <BookOpen className="h-3.5 w-3.5" /> {t('draft.overview.tabArcs')}
+              <Globe2 className="h-3.5 w-3.5" /> {t('draft.overview.tabWorld')}
             </button>
-            <button
-              onClick={() => setActiveTab('characters')}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                activeTab === 'characters' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
-              )}
-            >
-              <Users className="h-3.5 w-3.5" /> {t('draft.overview.tabCharacters')}
-              <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600 dark:bg-slate-600 dark:text-slate-200">{overview.characters.length}</span>
-            </button>
-          </div>
-
-          {activeTab === 'arcs' && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.overview.filterArc')}</span>
-              <select
-                value={arcFilter}
-                onChange={(e) => setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <option value="all">{t('draft.overview.filterAll')}</option>
-                {overview.arcs.map(arc => (
-                  <option key={arc.id} value={arc.number}>
-                    {t('draft.overview.arcNum', { num: arc.number })}
-                  </option>
-                ))}
-              </select>
-              
-              {onFeedback && (
-                <button
-                  type="button"
-                  onClick={() => handleFeedbackClick('arc-filter', t('draft.overview.filterArc'), arcFilter.toString())}
-                  className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-indigo-400"
-                  title={t('draft.overview.feedback')}
-                >
-                  <MessageSquareQuote className="h-4 w-4" />
-                </button>
-              )}
-            </div>
           )}
         </div>
 
         {/* Panels */}
-        {activeTab === 'arcs' ? (
+        {activeTab === 'arcs' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.arcDesc')}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.overview.filterArc')}</span>
+                <select
+                  value={arcFilter}
+                  onChange={(e) => setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <option value="all">{t('draft.overview.filterAll')}</option>
+                  {overview.arcs.map(arc => (
+                    <option key={arc.id} value={arc.number}>
+                      {t('draft.overview.arcNum', { num: arc.number })}
+                    </option>
+                  ))}
+                </select>
+                {onFeedback && (
+                  <button
+                    type="button"
+                    onClick={() => handleFeedbackClick('arc-filter', t('draft.overview.filterArc'), arcFilter.toString())}
+                    className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-indigo-400"
+                    title={t('draft.overview.feedback')}
+                  >
+                    <MessageSquareQuote className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
                 <span className="text-slate-300 dark:text-slate-600">|</span>
@@ -210,7 +218,9 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
               />
             ))}
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'characters' && (
           <div className="space-y-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.charDesc')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -222,6 +232,13 @@ export function DraftOverviewBlock({ overview, onFeedback }: DraftOverviewBlockP
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'world' && overview.worldSettings && (
+          <div className="space-y-3 animate-in fade-in duration-300">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
+            <WorldSettingsBlock settings={overview.worldSettings} />
           </div>
         )}
       </div>
