@@ -10,7 +10,7 @@ interface DraftStepNavProps {
 export function DraftStepNav({ onBack, onNext, onStart }: DraftStepNavProps) {
   const t = useT();
   return (
-    <div className="fixed bottom-6 right-6 z-20 flex items-center gap-2.5">
+    <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2.5">
       {onBack && (
         <button
           type="button"
