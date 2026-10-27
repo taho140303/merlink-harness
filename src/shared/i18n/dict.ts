@@ -373,6 +373,12 @@ const en = {
   'draft.subStep.appearance': 'Appearance',
   'draft.subStep.psychological': 'Psychological',
   'draft.subStep.lifeExperience': 'Life experience',
+  'draft.overview.feedback': 'Feedback',
+  'draft.overview.arcs': 'arc',
+  'draft.overview.chapters': 'chapter',
+  'draft.overview.wordsPerChapter': 'word/chap',
+  'draft.overview.allGenres': 'All genres of the work',
+  'draft.overview.moreGenres': 'Show more genres',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -745,6 +751,12 @@ const vi: Record<keyof typeof en, string> = {
   'draft.subStep.appearance': 'Ngoại hình',
   'draft.subStep.psychological': 'Tâm lý',
   'draft.subStep.lifeExperience': 'Trải nghiệm',
+  'draft.overview.feedback': 'Góp ý',
+  'draft.overview.arcs': 'arc',
+  'draft.overview.chapters': 'chapter',
+  'draft.overview.wordsPerChapter': 'word/chap',
+  'draft.overview.allGenres': 'Toàn bộ thể loại tác phẩm',
+  'draft.overview.moreGenres': 'Xem thêm thể loại khác',
 };
 
 export const dict = { en, vi };
