@@ -17,7 +17,6 @@ function SectionTitle({ title, description }: { title: string; description: stri
 export function GenresTab() {
   const t = useT();
 
-  const motifById = new Map(motifs.map((m) => [m.id, m]));
 
   return (
     <div className="space-y-8">
@@ -67,7 +66,6 @@ export function GenresTab() {
                 .filter((mg) => mg.motifId === mo.id)
                 .map((mg) => genres.find((g) => g.id === mg.genreId))
                 .filter((g): g is (typeof genres)[number] => Boolean(g));
-              const _ = motifById.get(mo.id);
               return (
                 <li key={mo.id} className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2.5">
                   <div>

@@ -30,7 +30,6 @@ interface MotifCanvasProps {
 }
 
 export function MotifCanvas({
-  motif,
   eventBlocks,
   eventTransitions,
   componentById,
