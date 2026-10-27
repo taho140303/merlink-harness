@@ -1,7 +1,6 @@
 import { Globe2, Shield, BookOpen, MessageSquareQuote } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftWorldSettings } from '../types';
-import { cn } from '../../../../shared/utils/cn';
 
 interface WorldSettingsBlockProps {
   settings: DraftWorldSettings;
