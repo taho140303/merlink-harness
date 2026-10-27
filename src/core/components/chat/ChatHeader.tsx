@@ -1,32 +1,22 @@
 import { useState } from "react";
-import { MessageSquare, Sliders, Info, Pencil } from "lucide-react";
+import { Info, Pencil } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { ProcessDetailDialog } from "./ProcessDetailDialog";
-import { toast } from "../../../shared/components/ui/toast";
 import { useT } from "../../../shared/i18n/useT";
-import type { ChatMode } from "./types";
 
 interface ChatHeaderProps {
-  mode: ChatMode;
-  onModeChange: (mode: ChatMode) => void;
   onToggleDraft: () => void;
   isDraftOpen: boolean;
   progressPercent?: number;
 }
 
 export function ChatHeader({
-  mode,
-  onModeChange,
   onToggleDraft,
   isDraftOpen,
   progressPercent = 65,
 }: ChatHeaderProps) {
   const [infoOpen, setInfoOpen] = useState(false);
   const t = useT();
-
-  const handleManualClick = () => {
-    toast({ title: t("toast.featureInProgress") });
-  };
 
   return (
     <>
@@ -41,30 +31,6 @@ export function ChatHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
-            <button
-              type="button"
-              onClick={() => onModeChange("chat")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-all",
-                mode === "chat"
-                  ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200",
-              )}
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span>{t("chat.mode.chat")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleManualClick}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium text-slate-600 transition-all hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
-            >
-              <Sliders className="h-3.5 w-3.5" />
-              <span>{t("chat.mode.manual")}</span>
-            </button>
-          </div>
-
           <div className="flex items-center gap-2">
             <div className="h-2 w-28 overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-slate-700/80 dark:bg-slate-900">
               <div

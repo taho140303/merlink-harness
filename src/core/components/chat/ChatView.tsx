@@ -8,11 +8,10 @@ import { ChatInputBar } from "./ChatInputBar";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { DraftWorkspace } from "../draft/DraftWorkspace";
 import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
-import type { ChatMode, ChatMessage } from "./types";
+import type { ChatMessage } from "./types";
 import type { FeedbackContext } from "../draft/types";
 
 export default function ChatView() {
-  const [mode, setMode] = useState<ChatMode>("chat");
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -150,8 +149,6 @@ export default function ChatView() {
         className="flex flex-col overflow-hidden "
       >
         <ChatHeader
-          mode={mode}
-          onModeChange={setMode}
           isDraftOpen={isDraftOpen}
           onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
         />
