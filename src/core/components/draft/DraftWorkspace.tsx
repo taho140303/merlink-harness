@@ -73,9 +73,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       <div className="relative flex-1 overflow-hidden">
         <DraftOverviewBlock
           overview={overview}
-          onFeedback={() =>
-            onFeedback({ id: 'temp', tag: 'overview', title: t('draft.step.overview') })
-          }
+          onFeedback={onFeedback}
         />
         
         <DraftStepNav

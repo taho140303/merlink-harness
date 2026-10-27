@@ -32,6 +32,12 @@ export const DRAFT_OVERVIEW: DraftOverview = {
       subnote: 'Khởi đầu tại Hạ Nam, nơi Phù Thanh Cơ bị triệu hồi.',
       segmentsCount: 4,
       summary: 'Phù Thanh Cơ bị đưa lên tế đàn, chứng kiến cái chết của trưởng lão và bắt đầu hành trình chạy trốn.',
+      motif: {
+        code: 'sacrifice-and-rebirth',
+        displayName: 'Hiến tế & Tái sinh',
+        category: 'PLOT',
+        note: 'Bắt đầu chuỗi sự kiện phản nghịch.'
+      },
       theme: {
         question: 'Sự trung thành mù quáng với thần quyền có đáng để đánh đổi sinh mạng của cả tộc?',
         message: 'Thần linh không phù hộ kẻ yếu, chỉ kẻ mạnh mới tự cứu lấy mình.',
@@ -70,6 +76,12 @@ export const DRAFT_OVERVIEW: DraftOverview = {
       subnote: 'Hành trình đến kinh đô Hạ Nam.',
       segmentsCount: 3,
       summary: 'Phù Thanh Cơ gia nhập quân đội nổi loạn, tìm cách tiếp cận hoàng thất.',
+      motif: {
+        code: 'shadow-ascension',
+        displayName: 'Thăng trầm bóng tối',
+        category: 'PLOT',
+        note: 'Phát triển kỹ năng lãnh đạo và mưu lược.'
+      },
       theme: {
         question: 'Liệu quyền lực có thể được sử dụng để thay đổi số phận?',
         message: 'Quyền lực chỉ là công cụ, kẻ nắm giữ mới quyết định nó là ánh sáng hay bóng tối.',
@@ -93,8 +105,8 @@ export const DRAFT_OVERVIEW: DraftOverview = {
     },
   ],
   characters: [
-    { id: 'c-1', name: 'Phù Thanh Cơ', gender: 'Nữ', genderBadge: 'female', archetype: 'Nữ tế bị phản bội, mang trong mình dòng máu Ngưu Nhân cổ đại.' },
-    { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', archetype: 'Chỉ huy quân nổi loạn, sử dụng song đao và tinh thông mưu lược.' },
-    { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', archetype: 'Người bảo vệ tế đàn, tin vào sự hy sinh tuyệt đối.' },
+    { id: 'c-1', name: 'Phù Thanh Cơ', gender: 'Nữ', genderBadge: 'female', motif: { description: 'strong girl' } },
+    { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' } },
+    { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' } },
   ],
 };

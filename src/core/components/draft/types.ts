@@ -51,6 +51,12 @@ export interface DraftArc {
   subnote: string;
   segmentsCount: number;
   summary: string;
+  motif: {
+    code: string;
+    displayName: string;
+    category: string;
+    note?: string;
+  };
   theme: DraftTheme;
   segments: DraftSegment[];
 }
@@ -60,7 +66,9 @@ export interface DraftCharacter {
   name: string;
   gender: string;
   genderBadge: string;
-  archetype: string;
+  motif: {
+    description: string;
+  };
 }
 
 export interface DraftOverview {
