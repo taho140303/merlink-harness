@@ -81,20 +81,20 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
           <ThemeBlock 
             theme={arc.theme} 
             isFeedbackMode={isFeedbackMode} 
-            onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'theme', arc.title) : undefined} 
+            onAttachFeedback={onAttachFeedback ? () => onAttachFeedback(arc.id, 'theme', arc.title) : undefined} 
           />
           
           <SegmentBlock 
             segments={arc.segments} 
             isFeedbackMode={isFeedbackMode} 
-            onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'segment', arc.title) : undefined} 
+            onAttachFeedback={onAttachFeedback ? () => onAttachFeedback(arc.id, 'segment', arc.title) : undefined} 
           />
           
           {arc.chapters && arc.chapters.length > 0 && (
             <ChapterBlock 
               chapters={arc.chapters} 
               isFeedbackMode={isFeedbackMode} 
-              onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'chapter', arc.title) : undefined} 
+              onAttachFeedback={onAttachFeedback ? () => onAttachFeedback(arc.id, 'chapter', arc.title) : undefined} 
             />
           )}
         </div>
