@@ -1,4 +1,3 @@
-import { Sparkles } from 'lucide-react';
 import { useT } from '../../../shared/i18n/useT';
 
 interface DraftLoadingProps {
@@ -13,7 +12,8 @@ export function DraftLoading({ message }: DraftLoadingProps) {
       <div className="relative mb-6 flex h-16 w-16 items-center justify-center">
         <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/50" />
         <div className="absolute inset-0 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent dark:border-indigo-400 dark:border-t-transparent" />
-        <Sparkles className="h-6 w-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+        {/* Thay thế icon Sparkles bằng logo.svg với animation lơ lửng */}
+        <img src="/logo.svg" alt="Loading" className="h-8 w-8 object-contain animate-logo-float" />
       </div>
       <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-slate-100">
         {t('draft.loading.title')}

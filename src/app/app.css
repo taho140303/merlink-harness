@@ -106,3 +106,11 @@ html.dark .neu-pressed {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.05); }
+}
+.animate-logo-float {
+  animation: logo-float 3s ease-in-out infinite;
+}
