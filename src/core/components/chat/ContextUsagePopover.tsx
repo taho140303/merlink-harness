@@ -1,6 +1,8 @@
 import { Popover } from "../../../shared/components/ui/popover";
+import { useT } from "../../../shared/i18n/useT";
 
 export function ContextUsagePopover() {
+  const t = useT();
   const percent = 7;
   const radius = 6;
   const circumference = 2 * Math.PI * radius;
@@ -8,7 +10,7 @@ export function ContextUsagePopover() {
 
   return (
     <Popover
-      label="Context usage"
+      label={t("chat.contextUsage")}
       align="end"
       side="top"
       trigger={
@@ -24,7 +26,7 @@ export function ContextUsagePopover() {
       <div className="w-72 p-1.5">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-fg">
-            {percent}% <span className="font-normal text-fg-muted">of context used</span>
+            {percent}% <span className="font-normal text-fg-muted">{t("chat.contextUsed")}</span>
           </span>
           <span className="text-xs text-fg-subtle">~67.7K / 1M</span>
         </div>
@@ -37,15 +39,15 @@ export function ContextUsagePopover() {
 
         <div className="mt-3.5 space-y-2 text-xs">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-fg-subtle" /><span className="text-fg-muted">System prompt</span></div>
+            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-fg-subtle" /><span className="text-fg-muted">{t("chat.context.systemPrompt")}</span></div>
             <span className="text-fg-subtle">~2.3K</span>
           </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-purple-500" /><span className="text-fg-muted">Tool definitions</span></div>
+            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-purple-500" /><span className="text-fg-muted">{t("chat.context.toolDefinitions")}</span></div>
             <span className="text-fg-subtle">~11.7K</span>
           </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-blue-500" /><span className="text-fg-muted">Messages</span></div>
+            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-xs bg-blue-500" /><span className="text-fg-muted">{t("chat.context.messages")}</span></div>
             <span className="text-fg-subtle">~133K</span>
           </div>
         </div>

@@ -61,7 +61,7 @@ export function CharacterCard({ character, onView, isFeedbackMode, onAttachFeedb
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-surface-card py-1.5 text-xs font-medium text-indigo-600  hover:bg-surface-muted  dark:text-indigo-400  transition-colors"
           >
             <Eye className="h-3.5 w-3.5" />
-            {t('draft.char.viewDetails') || 'Xem chi tiết'}
+            {t('draft.char.viewDetails')}
           </button>
         )}
       </div>

@@ -65,7 +65,7 @@ export function DraftToolbar({
         {versionOpen && (
           <div className="absolute bottom-full left-0 mb-3 w-56 overflow-hidden rounded-2xl border border-line bg-surface-card    z-50   -from-bottom-2">
             <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-fg-subtle">
-              Select Version
+              {t('draft.toolbar.selectVersion')}
             </div>
             {versionHistory.map((v) => (
               <button
@@ -102,7 +102,7 @@ export function DraftToolbar({
         {actions.map((action) => {
           const Icon = action.icon;
           const isHovered = hoveredItem === action.id;
-          // Nếu là Feedback và đang bật, giữ trạng thái expand
+          // Keep the feedback action expanded while feedback mode is active.
           const isExpanded = isHovered || (action.id === 'feedback' && action.active);
 
           return (

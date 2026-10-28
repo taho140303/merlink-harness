@@ -31,7 +31,7 @@ export function ChatHeader({
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label="Progress" className="h-2 w-28 overflow-hidden rounded-full border border-line bg-surface-muted">
+            <div role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label={t("chat.progress")} className="h-2 w-28 overflow-hidden rounded-full border border-line bg-surface-muted">
               <div
                 className="h-full rounded-full bg-accent transition-colors duration-300"
                 style={{ width: `${progressPercent}%` }}
@@ -40,9 +40,9 @@ export function ChatHeader({
             <button
               type="button"
               onClick={() => setInfoOpen(true)}
-              aria-label="View progress detail"
+              aria-label={t("chat.viewProgressDetail")}
               className="focus-ring rounded-lg p-1 text-fg-subtle hover:bg-surface-muted hover:text-fg"
-              title="View progress detail"
+              title={t("chat.viewProgressDetail")}
             >
               <Info aria-hidden="true" className="h-4 w-4" />
             </button>

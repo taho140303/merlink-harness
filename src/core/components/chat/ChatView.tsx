@@ -10,8 +10,10 @@ import { DraftWorkspace } from "../draft/DraftWorkspace";
 import { FloatingOutline } from "../../../shared/components/ui/floating-outline";
 import type { ChatMessage } from "./types";
 import type { FeedbackContext } from "../draft/types";
+import { useT } from "../../../shared/i18n/useT";
 
 export default function ChatView() {
+  const t = useT();
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -190,7 +192,7 @@ export default function ChatView() {
         <div
           role="separator"
           tabIndex={0}
-          aria-label="Resize chat and draft panels"
+          aria-label={t("chat.resizePanels")}
           aria-orientation="vertical"
           aria-valuenow={Math.round(splitRatio)}
           aria-valuemin={10}

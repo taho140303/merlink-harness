@@ -139,7 +139,7 @@ export function CharacterChatPane({
               <ContextUsagePopover />
               <button
                 type="button"
-                aria-label="Send message"
+                aria-label={t("character.chat.send")}
                 onClick={handleSend}
                 className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-white transition-colors hover:opacity-90"
               >

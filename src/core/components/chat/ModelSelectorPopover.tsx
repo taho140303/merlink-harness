@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { Popover } from "../../../shared/components/ui/popover";
+import { useT } from "../../../shared/i18n/useT";
 
 interface ModelOption {
   id: string;
@@ -26,13 +27,14 @@ const AVAILABLE_MODELS: Record<string, ModelOption[]> = {
 };
 
 export function ModelSelectorPopover() {
+  const t = useT();
   const [selectedModel, setSelectedModel] = useState<ModelOption>(
     AVAILABLE_MODELS.Anthropic[0]
   );
 
   return (
     <Popover
-      label="Select model"
+      label={t("chat.selectModel")}
       align="end"
       trigger={
         <span className="flex items-center gap-1.5 rounded-xl tier-input px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-surface-muted transition-colors">

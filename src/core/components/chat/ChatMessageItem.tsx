@@ -5,12 +5,14 @@ import { Copy, Check, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { ToolCallsPopover } from "./ToolCallsPopover";
 import type { ChatMessage } from "./types";
+import { useT } from "../../../shared/i18n/useT";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
 }
 
 export function ChatMessageItem({ message }: ChatMessageItemProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
 
@@ -29,7 +31,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
         <div className="space-y-2   duration-200">
           <div className="flex items-center gap-2 text-xs font-medium text-fg-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
-            <span>Đang suy nghĩ ({message.thinkingSeconds ?? 1}s)...</span>
+            <span>{t("chat.thinking", { seconds: message.thinkingSeconds ?? 1 })}</span>
           </div>
 
           {/* Khối log suy nghĩ streaming trực tiếp */}
@@ -50,7 +52,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
             onClick={() => setThinkingExpanded(!thinkingExpanded)}
             className="flex items-center gap-1.5 text-xs font-medium text-fg-subtle hover:text-fg-muted   transition-colors w-fit"
           >
-            <span>Đã suy nghĩ {message.thinkingSeconds} giây</span>
+            <span>{t("chat.thoughtForSeconds", { seconds: message.thinkingSeconds })}</span>
             {message.thinkingDetails && (
               thinkingExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
             )}
@@ -116,8 +118,8 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
             type="button"
             onClick={handleCopy}
             className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg tier-card text-fg-muted transition-colors"
-            aria-label="Sao chép nội dung"
-            title="Sao chép nội dung"
+            aria-label={t("chat.copyContent")}
+            title={t("chat.copyContent")}
           >
             {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5 text-emerald-500" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
           </button>

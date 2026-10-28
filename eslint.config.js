@@ -24,4 +24,50 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['src/**/*.tsx'],
+    ignores: [
+      // Intentional design-system exclusions: mock routes, decoration, or color data.
+      'src/app/routes/config.tsx',
+      'src/app/routes/worldbuilding.tsx',
+      'src/shared/components/background/AuroraBackground.tsx',
+      'src/core/components/chat/OrbSphere.tsx',
+      'src/core/components/character/CreateCharacterDialog.tsx',
+      // The white switch knob is an intentional exception; leave baseline lint enabled.
+      'src/core/components/sidebar/SidebarHistory.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/text-\\[\\d+px\\]/]',
+          message: 'Use an approved typography token; arbitrary pixel font sizes are forbidden.',
+        },
+        {
+          selector: 'Literal[value=/rounded-\\[/]',
+          message: 'Use an approved radius token; arbitrary rounded values are forbidden.',
+        },
+        {
+          selector: 'Literal[value=/\\bshadow-(2xs|xs|sm|md|lg|xl|2xl|inner)\\b/]',
+          message: 'Use the tier-overlay shadow token instead of a standalone shadow utility.',
+        },
+        {
+          selector: 'Literal[value=/\\bbg-white\\b/]',
+          message: 'Use a surface token instead of opaque white.',
+        },
+        {
+          selector: 'Literal[value=/focus:outline-(hidden|none)/]',
+          message: 'Use the focus-ring utility; do not remove the focus outline.',
+        },
+        {
+          selector: 'Literal[value=/#[0-9a-fA-F]{3,8}/]',
+          message: 'Use design-system color tokens instead of hex colors in TSX.',
+        },
+        {
+          selector: 'Literal[value=/dark:[a-z:]*-(fg|surface|line|accent)/]',
+          message: 'Design tokens adapt to the active theme; remove this dark: color override.',
+        },
+      ],
+    },
+  },
 )

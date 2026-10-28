@@ -105,7 +105,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
     );
   };
 
-  const fullChapterTitle = `Chương ${chapterIndex}: ${chapter.title}`;
+  const fullChapterTitle = t("chapter.title", { index: chapterIndex, title: chapter.title });
 
   const scrollToBlock = (id: string) => {
     const el = document.getElementById(id);
@@ -114,7 +114,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
 
   const outlineItems = blocks.map((b, idx) => ({
     id: b.id,
-    title: b.text || `Block ${idx + 1}`
+    title: b.text || t("project.chapter.blockTitle", { index: idx + 1 })
   }));
 
   return (
@@ -160,7 +160,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pb-4 ">
           <div className="flex items-center gap-2 truncate text-xs font-semibold text-fg-muted">
             <Link to="/project" className="shrink-0 hover:text-fg ">
-              Project
+              {t("project.title")}
             </Link>
             <span>›</span>
             <Link
@@ -254,7 +254,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
             <h1 className="text-xl font-bold tracking-tight text-fg sm:text-2xl">
               {fullChapterTitle}
             </h1>
-            <p className="mt-1 text-xs text-fg-subtle">Đăng ngày: {chapter.date}</p>
+            <p className="mt-1 text-xs text-fg-subtle">{t("project.chapter.postedAt", { date: chapter.date })}</p>
           </div>
 
           <div className="space-y-4">
@@ -304,7 +304,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                     {block.locked && (
                       <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-rose-500">
                         <Lock className="h-3 w-3" />
-                        <span>Khối nội dung đã bị khóa</span>
+                        <span>{t("project.chapter.locked")}</span>
                       </span>
                     )}
                   </>
@@ -317,7 +317,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
         </div>
       </div>
 
-      {/* Thanh Outline (Minimap) - Nằm cố định bên ngoài khung cuộn */}
+      {/* Chapter outline minimap */}
       {blocks.length > 0 && (
         <FloatingOutline 
           items={outlineItems} 

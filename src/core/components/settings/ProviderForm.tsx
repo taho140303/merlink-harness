@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown, Trash2, Plus, HelpCircle } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
+import { Input } from "../../../shared/components/ui/input";
+import { Select } from "../../../shared/components/ui/select";
+import { Button } from "../../../shared/components/ui/button";
+import { useT } from "../../../shared/i18n/useT";
 import type { AIProviderItem, ModelConfig } from "./types";
 
 interface ProviderFormProps {
@@ -10,6 +14,7 @@ interface ProviderFormProps {
 }
 
 export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProps) {
+  const t = useT();
   const [providerMode, setProviderMode] = useState<"third-party" | "custom">(
     initialData?.isCustom ? "custom" : "third-party"
   );
@@ -83,7 +88,7 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
               : "text-fg-muted hover:text-fg"
           )}
         >
-          Third-party model provider
+          {t("settings.provider.thirdParty")}
         </button>
         <button
           type="button"
@@ -95,60 +100,61 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
               : "text-fg-muted hover:text-fg"
           )}
         >
-          Custom model API
+          {t("settings.provider.customApi")}
         </button>
       </div>
 
       <p className="text-xs text-fg-muted">
-        Pick OpenAI, Anthropic, Kimi, or another provider from the built-in catalog and enter its API key.
+        {t("settings.provider.description")}
       </p>
 
       {/* Provider selection (Chỉ hiện ở third-party) */}
       {providerMode === "third-party" && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg ">Provider</label>
-          <select
+          <Select
+            label={t("settings.provider.label")}
             value={providerType}
             onChange={(e) => setProviderType(e.target.value)}
-            className="tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
           >
             <option value="anthropic">anthropic</option>
             <option value="openai">openai</option>
             <option value="deepseek">deepseek</option>
             <option value="google">google gemini</option>
             <option value="kimi">kimi</option>
-          </select>
+          </Select>
         </div>
       )}
 
       {/* API Key */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-fg ">API key</label>
+          <label className="text-xs font-medium text-fg " htmlFor="api-key-field">{t("settings.provider.apiKey")}</label>
           <HelpCircle className="h-3.5 w-3.5 text-fg-subtle" />
         </div>
-        <input
+        <Input
+          id="api-key-field"
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder={`Leave blank to use env as auth (${providerType.toUpperCase()}_AUTH_TOKEN)`}
-          className="w-full rounded-xl tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
+          placeholder={t("settings.provider.apiKeyPlaceholder", { token: `${providerType.toUpperCase()}_AUTH_TOKEN` })}
+          className="w-full text-xs"
         />
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          Env var not detected. Enter an API key, or configure {providerType.toUpperCase()}_AUTH_TOKEN in your env.
+          {t("settings.provider.envNotDetected", { token: `${providerType.toUpperCase()}_AUTH_TOKEN` })}
         </p>
       </div>
 
       {/* Base URL ra ngoài (Chỉ hiện ở custom) */}
       {providerMode === "custom" && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-fg ">Base URL</label>
-          <input
+          <label className="text-xs font-medium text-fg " htmlFor="custom-base-url">{t("settings.provider.baseUrl")}</label>
+          <Input
+            id="custom-base-url"
             type="text"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="http://127.0.0.1:2455/v1"
-            className="w-full rounded-xl tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
+            className="w-full text-xs"
           />
         </div>
       )}
@@ -161,64 +167,65 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
           className="flex items-center gap-1.5 text-xs font-medium text-fg hover:text-fg  "
         >
           {customizedOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <span>Customized settings</span>
+          <span>{t("settings.provider.customizedSettings")}</span>
         </button>
 
         {customizedOpen && (
           <div className="mt-3 space-y-4 rounded-xl border border-line bg-surface-muted/50 p-3.5  ">
             {/* Display Name */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-fg ">Display name</label>
-              <input
+              <label className="text-xs font-medium text-fg " htmlFor="provider-display-name">{t("settings.provider.displayName")}</label>
+              <Input
+                id="provider-display-name"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="codex-lb"
-                className="w-full rounded-xl tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
+                className="w-full text-xs"
               />
             </div>
 
             {/* Base URL (Chỉ hiện ở third-party trong Customized settings) */}
             {providerMode === "third-party" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-fg ">Base URL</label>
-                <input
+                <label className="text-xs font-medium text-fg " htmlFor="provider-base-url">{t("settings.provider.baseUrl")}</label>
+                <Input
+                  id="provider-base-url"
                   type="text"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                   placeholder="http://127.0.0.1:2455/v1"
-                  className="w-full rounded-xl tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
+                  className="w-full text-xs"
                 />
               </div>
             )}
 
             {/* API Protocol */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-fg ">API protocol</label>
-              <select
+              <Select
+                label={t("settings.provider.apiProtocol")}
                 value={apiProtocol}
                 onChange={(e) => setApiProtocol(e.target.value)}
-                className="tier-input focus-ring w-full rounded-xl px-3 py-2 text-xs text-fg"
               >
                 <option value="OpenAI Chat Completions">OpenAI Chat Completions</option>
                 <option value="Anthropic Messages">Anthropic Messages</option>
-              </select>
+              </Select>
             </div>
 
             {/* Models catalog */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-semibold text-fg">Models</h4>
-                  <p className="text-xs text-fg-muted">Customized model catalog</p>
+                  <h4 className="text-xs font-semibold text-fg">{t("settings.provider.models")}</h4>
+                  <p className="text-xs text-fg-muted">{t("settings.provider.modelCatalog")}</p>
                 </div>
                 <div className="flex gap-2 text-xs">
                   <button type="button" className="text-fg-muted hover:text-fg ">
-                    Restore defaults
+                    {t("settings.provider.restoreDefaults")}
                   </button>
                   <span className="text-fg-subtle ">•</span>
                   <button type="button" className="text-fg-muted hover:text-fg ">
-                    Fetch available models
+                    {t("settings.provider.fetchModels")}
                   </button>
                 </div>
               </div>
@@ -231,67 +238,74 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                     className="space-y-2 rounded-xl border border-line bg-surface-card p-3  "
                   >
                     <div className="flex items-center gap-2">
-                      <input
+                      <Input
                         type="text"
+                        aria-label={t("settings.provider.models")}
                         value={model.id}
                         onChange={(e) => {
                           const updated = [...models];
                           updated[idx].id = e.target.value;
                           setModels(updated);
                         }}
-                        className="flex-1 rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs text-fg   "
+                        className="flex-1 text-xs"
                       />
-                      <input
+                      <Input
                         type="text"
+                        aria-label={t("settings.provider.displayName")}
                         value={model.name}
                         onChange={(e) => {
                           const updated = [...models];
                           updated[idx].name = e.target.value;
                           setModels(updated);
                         }}
-                        className="flex-1 rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs text-fg   "
+                        className="flex-1 text-xs"
                       />
-                      <button
+                      <Button
                         type="button"
+                        aria-label={t("common.remove")}
+                        variant="ghost"
+                        size="icon"
                         onClick={() => removeModel(idx)}
-                        className="rounded-lg p-1.5 text-fg-subtle hover:bg-surface-muted hover:text-rose-500 "
+                        className="text-fg-subtle hover:text-rose-500"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-fg-muted">Context window</label>
-                        <input
+                        <label className="text-xs text-fg-muted">{t("settings.provider.contextWindow")}</label>
+                        <Input
                           type="text"
+                          aria-label={t("settings.provider.contextWindow")}
                           value={model.contextWindow}
                           onChange={(e) => {
                             const updated = [...models];
                             updated[idx].contextWindow = e.target.value;
                             setModels(updated);
                           }}
-                          className="w-full rounded-lg border border-line bg-surface-muted px-2 py-1 text-xs text-fg   "
+                          className="w-full text-xs"
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-fg-muted">Max output tokens</label>
-                        <input
+                        <label className="text-xs text-fg-muted">{t("settings.provider.maxOutputTokens")}</label>
+                        <Input
                           type="text"
+                          aria-label={t("settings.provider.maxOutputTokens")}
                           value={model.maxOutputTokens}
                           onChange={(e) => {
                             const updated = [...models];
                             updated[idx].maxOutputTokens = e.target.value;
                             setModels(updated);
                           }}
-                          className="w-full rounded-lg border border-line bg-surface-muted px-2 py-1 text-xs text-fg   "
+                          className="w-full text-xs"
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-3 text-xs text-fg-muted">
-                        <span className="text-xs text-fg-muted">Input types:</span>
+                        <span className="text-xs text-fg-muted">{t("settings.provider.inputTypes")}</span>
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
                             type="checkbox"
@@ -303,7 +317,7 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                             }}
                             className="rounded border-line-strong"
                           />
-                          <span>Text</span>
+                          <span>{t("settings.provider.text")}</span>
                         </label>
                         <label className="flex items-center gap-1 cursor-pointer">
                           <input
@@ -316,14 +330,17 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                             }}
                             className="rounded border-line-strong"
                           />
-                          <span>Image</span>
+                          <span>{t("settings.provider.image")}</span>
                         </label>
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-fg-muted">Reasoning</span>
+                        <span className="text-xs text-fg-muted">{t("settings.provider.reasoning")}</span>
                         <button
                           type="button"
+                          role="switch"
+                          aria-checked={model.reasoning}
+                          aria-label={t("settings.provider.reasoning")}
                           onClick={() => {
                             const updated = [...models];
                             updated[idx].reasoning = !updated[idx].reasoning;
@@ -346,14 +363,10 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                   </div>
                 ))}
 
-                <button
-                  type="button"
-                  onClick={addModel}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong py-2 text-xs font-medium text-fg-muted hover:border-line-strong hover:text-fg   "
-                >
+                <Button type="button" variant="secondary" size="sm" onClick={addModel} className="w-full border-dashed">
                   <Plus className="h-3.5 w-3.5" />
-                  <span>Add model</span>
-                </button>
+                  <span>{t("settings.provider.addModel")}</span>
+                </Button>
               </div>
             </div>
           </div>
@@ -362,19 +375,12 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
 
       {/* Form Action Buttons */}
       <div className="flex items-center justify-end gap-2 pt-3 border-t border-line ">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-xl border border-line px-4 py-2 text-xs font-medium text-fg hover:bg-surface-muted   "
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="rounded-xl bg-accent px-4 py-2 text-xs font-medium text-white  hover:opacity-90   "
-        >
-          Apply
-        </button>
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          {t("settings.provider.cancel")}
+        </Button>
+        <Button type="submit" variant="primary" size="sm">
+          {t("common.save")}
+        </Button>
       </div>
     </form>
   );

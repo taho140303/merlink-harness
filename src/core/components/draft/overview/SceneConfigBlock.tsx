@@ -11,6 +11,7 @@ interface SceneConfigBlockProps {
 }
 
 export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: SceneConfigBlockProps) {
+  const t = useT();
   const [expandedArcs, setExpandedArcs] = useState<Set<number>>(new Set([0]));
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
 
@@ -61,7 +62,7 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
                 </span>
                 <div className="text-left">
                   <h3 className="text-base font-bold text-fg">{arc.displayName}</h3>
-                  <p className="text-sm text-fg-muted">{arc.chapters.length} chương</p>
+                  <p className="text-sm text-fg-muted">{t('draft.scene.chapterCount', { count: arc.chapters.length })}</p>
                 </div>
               </div>
               {isArcExpanded ? <ChevronUp className="h-5 w-5 text-fg-subtle" /> : <ChevronDown className="h-5 w-5 text-fg-subtle" />}
@@ -87,7 +88,7 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
                             {chap.position}
                           </span>
                           <span className="text-sm font-semibold text-fg">{chap.displayName}</span>
-                          <span className="text-xs text-fg-muted">({chap.scenes.length} cảnh)</span>
+                          <span className="text-xs text-fg-muted">({t('draft.scene.sceneCount', { count: chap.scenes.length })})</span>
                         </div>
                         {isChapExpanded ? <ChevronUp className="h-4 w-4 text-fg-subtle" /> : <ChevronDown className="h-4 w-4 text-fg-subtle" />}
                       </button>
@@ -118,7 +119,6 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
 
 function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneConfig; isFeedbackMode?: boolean; onAttachFeedback?: (id: string, tag: string, title: string) => void }) {
   const t = useT();
-  
   const handleAttach = (e: React.MouseEvent) => {
     if (isFeedbackMode && onAttachFeedback) {
       e.stopPropagation();
@@ -137,12 +137,12 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
       <div className="flex items-center gap-2 mb-2">
         <Film className="h-4 w-4 text-blue-500" />
         <span className="text-sm font-bold text-fg">
-          Cảnh {scene.position}: {scene.displayName}
+          {t('draft.scene.sceneTitle', { position: scene.position, displayName: scene.displayName })}
         </span>
-        <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-mono text-fg-subtle  -subtle">{scene.code}</span>
+        <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-mono text-fg-subtle">{scene.code}</span>
       </div>
 
-      <p className="text-sm text-fg-muted -subtle mb-4 leading-relaxed">
+      <p className="text-sm text-fg-muted mb-4 leading-relaxed">
         {scene.summary}
       </p>
 

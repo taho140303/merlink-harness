@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router";
 import { MOCK_PROJECTS } from "../../core/components/project/mockProjects";
 import { ChapterDetailView } from "../../core/components/project/ChapterDetailView";
+import { useT } from "../../shared/i18n/useT";
 
 export function meta() {
   return [{ title: "Merlink Chapter Detail" }];
@@ -8,6 +9,7 @@ export function meta() {
 
 export default function ChapterDetailRoute() {
   const { projectId, chapterId } = useParams();
+  const t = useT();
   const project = MOCK_PROJECTS.find((p) => p.id === projectId);
 
   let targetChapter = null;
@@ -31,9 +33,9 @@ export default function ChapterDetailRoute() {
   if (!project || !targetChapter) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <p className="text-sm text-fg-muted">Không tìm thấy chương này.</p>
+        <p className="text-sm text-fg-muted">{t("chapter.notFound")}</p>
         <Link to="/project" className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
-          Quay lại danh sách Project
+          {t("project.backToList")}
         </Link>
       </div>
     );

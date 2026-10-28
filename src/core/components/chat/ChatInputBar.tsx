@@ -48,7 +48,7 @@ export function ChatInputBar({
           <button
             type="button"
             onClick={onClearFeedback}
-            aria-label="Clear feedback context"
+            aria-label={t("chat.clearFeedbackContext")}
             className="focus-ring rounded-md p-1 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
@@ -60,7 +60,7 @@ export function ChatInputBar({
         <Sparkles className="h-4 w-4" />
         <input
           ref={inputRef}
-          aria-label="Message"
+          aria-label={t("chat.message")}
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -72,8 +72,8 @@ export function ChatInputBar({
           }}
           placeholder={
             feedbackContext
-              ? `Nhập nội dung chỉnh sửa hoặc góp ý cho [${feedbackContext.title}]...`
-              : "Ask me anything..."
+              ? t("chat.feedbackPlaceholder", { title: feedbackContext.title })
+              : t("chat.messagePlaceholder")
           }
           className="tier-input focus-ring w-full rounded-xl bg-transparent px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
         />
@@ -102,7 +102,7 @@ export function ChatInputBar({
         <div className="flex items-center gap-2">
           <ModelSelectorPopover />
           <ContextUsagePopover />
-          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={!prompt.trim()} aria-label="Send" title="Send">
+          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={!prompt.trim()} aria-label={t("chat.send")} title={t("chat.send")}>
             <ArrowUp aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>

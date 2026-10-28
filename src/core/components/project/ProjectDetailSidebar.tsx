@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import { PanelRightClose, BookOpen, Layers, Users, Calendar, Clock, ExternalLink } from "lucide-react";
 import type { ProjectItem } from "./types";
+import { useT } from "../../../shared/i18n/useT";
 
 interface ProjectDetailSidebarProps {
   project: ProjectItem | null;
@@ -35,6 +36,7 @@ function getPyramidRows(genres: string[]): string[][] {
 
 export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarProps) {
   const navigate = useNavigate();
+  const t = useT();
 
   if (!project) return null;
 
@@ -46,17 +48,17 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
   };
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l border-line bg-surface-card  transition-colors duration-300   sm:max-w-md">
+    <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l border-line bg-surface-card transition-colors duration-300 sm:max-w-md">
       {/* Header bar */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5 ">
-        <span className="text-xs font-semibold uppercase tracking-wider text-fg-subtle -subtle">
-          Project Overview
+        <span className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+          {t("project.overview")}
         </span>
         <button
           type="button"
           onClick={onClose}
           className="rounded-lg p-1.5 text-fg-subtle hover:bg-surface-muted hover:text-fg-muted   transition-colors"
-          title="Đóng sidebar"
+          title={t("project.sidebar.close")} aria-label={t("project.sidebar.close")}
         >
           <PanelRightClose className="h-4 w-4" />
         </button>
@@ -84,7 +86,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
           </div>
         </div>
 
-        {/* Tag genres hình tháp 3 2 1 */}
+        {/* Pyramid-shaped genre tags */}
         <div className="flex flex-col items-center gap-1.5 w-full">
           {pyramidRows.map((row, rIdx) => (
             <div key={rIdx} className="flex flex-wrap items-center justify-center gap-1.5">
@@ -103,7 +105,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
         {/* Description */}
         <div className="space-y-1.5">
           <h4 className="text-xs font-semibold text-fg">
-            Description
+            {t("project.detail.description")}
           </h4>
           <p className="text-xs leading-relaxed text-fg-muted">
             {project.description}
@@ -113,14 +115,14 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
         {/* Details section */}
         <div className="border-t border-line pt-5  space-y-3">
           <h4 className="text-xs font-semibold text-fg">
-            Details
+            {t("project.detail.details")}
           </h4>
 
           <div className="grid grid-cols-2 gap-2.5 text-xs">
             <div className="rounded-xl border border-line bg-surface-muted/70 p-3  ">
               <div className="flex items-center gap-1.5 text-fg-subtle mb-1">
                 <BookOpen className="h-3.5 w-3.5" />
-                <span className="text-xs uppercase">Word Count</span>
+                <span className="text-xs uppercase">{t("project.words")}</span>
               </div>
               <span className="font-semibold text-fg ">
                 {project.details.wordCount}
@@ -130,7 +132,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
             <div className="rounded-xl border border-line bg-surface-muted/70 p-3  ">
               <div className="flex items-center gap-1.5 text-fg-subtle mb-1">
                 <Layers className="h-3.5 w-3.5" />
-                <span className="text-xs uppercase">Chapters</span>
+                <span className="text-xs uppercase">{t("project.chapters")}</span>
               </div>
               <span className="font-semibold text-fg ">
                 {project.details.chapters}
@@ -140,7 +142,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
             <div className="rounded-xl border border-line bg-surface-muted/70 p-3  ">
               <div className="flex items-center gap-1.5 text-fg-subtle mb-1">
                 <Users className="h-3.5 w-3.5" />
-                <span className="text-xs uppercase">Characters</span>
+                <span className="text-xs uppercase">{t("project.characters")}</span>
               </div>
               <span className="font-semibold text-fg ">
                 {project.details.characters}
@@ -150,7 +152,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
             <div className="rounded-xl border border-line bg-surface-muted/70 p-3  ">
               <div className="flex items-center gap-1.5 text-fg-subtle mb-1">
                 <Clock className="h-3.5 w-3.5" />
-                <span className="text-xs uppercase">World Lore</span>
+                <span className="text-xs uppercase">{t("project.worldLore")}</span>
               </div>
               <span className="font-semibold text-fg ">
                 {project.details.worldLore}
@@ -160,7 +162,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
             <div className="col-span-2 flex items-center justify-between rounded-xl border border-line bg-surface-muted/70 p-3  ">
               <div className="flex items-center gap-1.5 text-fg-subtle">
                 <Calendar className="h-3.5 w-3.5" />
-                <span className="text-xs uppercase">Last Modified</span>
+                <span className="text-xs uppercase">{t("project.modified")}</span>
               </div>
               <span className="font-medium text-fg-muted ">
                 {project.modifiedAt}
@@ -170,7 +172,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
         </div>
       </div>
 
-      {/* Nút Detail ở center bottom chuyển sang trang sâu */}
+      {/* Detail action navigates to the full page */}
       <div className="shrink-0 border-t border-line p-4 ">
         <button
           type="button"
@@ -178,7 +180,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-xs font-semibold text-white  hover:opacity-90    transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          <span>Detail</span>
+          <span>{t("project.detail")}</span>
         </button>
       </div>
     </aside>

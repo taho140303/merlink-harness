@@ -78,7 +78,7 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
                   </h3>
                   <Field label={t('draft.char.hair')} value={`${character.appearance.hair.color}, ${character.appearance.hair.length}, ${character.appearance.hair.style} (${character.appearance.hair.texture})`} />
                   <Field label={t('draft.char.skin')} value={`${character.appearance.skin.tone}, ${character.appearance.skin.texture}`} />
-                  <Field label={t('draft.char.eyes')} value={`Mắt ${character.appearance.eyes.iris.color}, tròng đen ${character.appearance.eyes.pupil.color}`} />
+                  <Field label={t('draft.char.eyes')} value={t('draft.char.eyeDescription', { iris: character.appearance.eyes.iris.color, pupil: character.appearance.eyes.pupil.color })} />
                 </div>
 
                 <div className="space-y-4 tier-card rounded-card p-4  ">
@@ -118,13 +118,13 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
                       <p className="text-sm text-fg-muted  mb-3">{comp.description}</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <span className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400">Capabilities</span>
+                          <span className="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400">{t('draft.char.capabilities')}</span>
                           <ul className="list-disc pl-4 mt-1 text-sm text-fg-muted ">
                             {comp.capabilities.map(c => <li key={c}>{c}</li>)}
                           </ul>
                         </div>
                         <div>
-                          <span className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400">Limitations</span>
+                          <span className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400">{t('draft.char.limitations')}</span>
                           <ul className="list-disc pl-4 mt-1 text-sm text-fg-muted ">
                             {comp.limitations.map(l => <li key={l}>{l}</li>)}
                           </ul>
@@ -151,7 +151,7 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
                         )}>
                           {mem.type}
                         </span>
-                        <span className="text-xs text-fg-subtle">Từ: {mem.sourceScene}</span>
+                        <span className="text-xs text-fg-subtle">{t('draft.char.source', { source: mem.sourceScene })}</span>
                       </div>
                       <p className="text-sm italic text-fg-muted  leading-relaxed">"{mem.content}"</p>
                     </div>
@@ -164,29 +164,29 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
           {activeTab === 'psych' && character.psychological && (
             <div className="space-y-6   -from-bottom-2">
               <div className="tier-card rounded-card p-5  ">
-                <h3 className="text-base font-bold text-fg mb-4">Core Trauma</h3>
+                <h3 className="text-base font-bold text-fg mb-4">{t('draft.char.coreTrauma')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Vết thương lòng" value={character.psychological.coreTrauma.wound} />
-                  <Field label="Lời dối trá" value={character.psychological.coreTrauma.lie} />
-                  <Field label="Nỗi sợ" value={character.psychological.coreTrauma.fear} />
+                  <Field label={t('draft.char.wound')} value={character.psychological.coreTrauma.wound} />
+                  <Field label={t('draft.char.lie')} value={character.psychological.coreTrauma.lie} />
+                  <Field label={t('draft.char.fear')} value={character.psychological.coreTrauma.fear} />
                 </div>
               </div>
 
               <div className="tier-card rounded-card p-5  ">
-                <h3 className="text-base font-bold text-fg mb-4">Moral Framework</h3>
+                <h3 className="text-base font-bold text-fg mb-4">{t('draft.char.moralFramework')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Đạo đức" value={character.psychological.moralFramework.alignment} />
-                  <Field label="Quy tắc" value={character.psychological.moralFramework.code} />
-                  <Field label="Điểm gãy" value={character.psychological.moralFramework.breakingPoint} />
+                  <Field label={t('draft.char.moralAlignment')} value={character.psychological.moralFramework.alignment} />
+                  <Field label={t('draft.char.moralCode')} value={character.psychological.moralFramework.code} />
+                  <Field label={t('draft.char.breakingPoint')} value={character.psychological.moralFramework.breakingPoint} />
                 </div>
               </div>
 
               <div className="tier-card rounded-card p-5  ">
-                <h3 className="text-base font-bold text-fg mb-4">Narrative Engine</h3>
+                <h3 className="text-base font-bold text-fg mb-4">{t('draft.char.narrativeEngine')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Mong muốn" value={character.psychological.narrativeEngine.want} />
-                  <Field label="Nhu cầu" value={character.psychological.narrativeEngine.need} />
-                  <Field label="Xung đột" value={character.psychological.narrativeEngine.conflict} />
+                  <Field label={t('draft.char.want')} value={character.psychological.narrativeEngine.want} />
+                  <Field label={t('draft.char.need')} value={character.psychological.narrativeEngine.need} />
+                  <Field label={t('draft.char.conflict')} value={character.psychological.narrativeEngine.conflict} />
                 </div>
               </div>
             </div>
