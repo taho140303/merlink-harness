@@ -103,21 +103,23 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
         Pick OpenAI, Anthropic, Kimi, or another provider from the built-in catalog and enter its API key.
       </p>
 
-      {/* Provider selection */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Provider</label>
-        <select
-          value={providerType}
-          onChange={(e) => setProviderType(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-        >
-          <option value="anthropic">anthropic</option>
-          <option value="openai">openai</option>
-          <option value="deepseek">deepseek</option>
-          <option value="google">google gemini</option>
-          <option value="kimi">kimi</option>
-        </select>
-      </div>
+      {/* Provider selection (Chỉ hiện ở third-party) */}
+      {providerMode === "third-party" && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Provider</label>
+          <select
+            value={providerType}
+            onChange={(e) => setProviderType(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <option value="anthropic">anthropic</option>
+            <option value="openai">openai</option>
+            <option value="deepseek">deepseek</option>
+            <option value="google">google gemini</option>
+            <option value="kimi">kimi</option>
+          </select>
+        </div>
+      )}
 
       {/* API Key */}
       <div className="space-y-1.5">
@@ -136,6 +138,20 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
           Env var not detected. Enter an API key, or configure {providerType.toUpperCase()}_AUTH_TOKEN in your env.
         </p>
       </div>
+
+      {/* Base URL ra ngoài (Chỉ hiện ở custom) */}
+      {providerMode === "custom" && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Base URL</label>
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="http://127.0.0.1:2455/v1"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+          />
+        </div>
+      )}
 
       {/* Collapsible: Customized settings */}
       <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80">
@@ -162,17 +178,19 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
               />
             </div>
 
-            {/* Base URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Base URL</label>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="http://127.0.0.1:2455/v1"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-              />
-            </div>
+            {/* Base URL (Chỉ hiện ở third-party trong Customized settings) */}
+            {providerMode === "third-party" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Base URL</label>
+                <input
+                  type="text"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="http://127.0.0.1:2455/v1"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+            )}
 
             {/* API Protocol */}
             <div className="space-y-1.5">
