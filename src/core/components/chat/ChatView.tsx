@@ -21,7 +21,7 @@ export default function ChatView() {
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 50,
     minPxLeft: 545,
-    minPxRight: 53,
+    minPxRight: 530,
   });
 
   // Tự động cuộn xuống đáy khi có message mới hoặc đang streaming
