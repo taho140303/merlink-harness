@@ -118,6 +118,7 @@ export interface SceneConfig {
   code: string;
   displayName: string;
   position: number;
+  summary: string;
   stylePresetCode: string;
   narratorConfigCode: string;
   loreEntriesCode: string;
@@ -149,6 +150,7 @@ export interface SceneConfig {
   code: string;
   displayName: string;
   position: number;
+  summary: string;
   stylePresetCode: string;
   narratorConfigCode: string;
   loreEntriesCode: string;

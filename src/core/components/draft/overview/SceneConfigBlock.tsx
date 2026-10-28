@@ -141,6 +141,10 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-500 dark:bg-slate-800 dark:text-slate-400">{scene.code}</span>
           </div>
 
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+            {scene.summary}
+          </p>
+
           <div className="flex flex-wrap gap-2 mt-2">
             <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
               <BookOpen className="h-3 w-3" /> {scene.stylePresetCode}
