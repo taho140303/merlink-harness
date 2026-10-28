@@ -4,6 +4,7 @@ import { Pencil, MessageSquare, GripVertical, X, Check } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { truncate } from '../../../shared/utils/string';
 import { useResizablePanel } from '../../../shared/hooks/useResizablePanel';
+import { useIsCompact } from '../../../shared/hooks/useMediaQuery';
 import { CharacterChatPane } from '../character/CharacterChatPane';
 import { ConfirmDialog } from '../../../shared/components/ui/confirm-dialog';
 import { toast } from '../../../shared/components/ui/toast';
@@ -43,7 +44,8 @@ export function CharacterDetailLayout() {
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
-  const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
+  const isCompact = useIsCompact();
+  const { leftRatio, setLeftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 45,
     minPx: 340,
   });
@@ -67,12 +69,15 @@ export function CharacterDetailLayout() {
     <div
       ref={containerRef}
       className={cn(
-        'flex h-full w-full overflow-hidden',
+        'relative flex h-full w-full overflow-hidden',
         isDragging && 'cursor-col-resize select-none',
       )}
     >
       {isChatOpen && (
-        <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
+        <div
+          style={isCompact ? undefined : { width: `${leftRatio}%` }}
+          className={cn('h-full overflow-hidden', isCompact && 'absolute inset-0 z-40 w-full bg-surface-panel')}
+        >
           <CharacterChatPane
             characterName={character.basicInfo.name}
             activeSection={tabLabel(activeTab)}
@@ -81,27 +86,40 @@ export function CharacterDetailLayout() {
         </div>
       )}
 
-      {isChatOpen && (
+      {isChatOpen && !isCompact && (
         <div
+          role="separator"
+          tabIndex={0}
+          aria-label={t('character.detail.resizePanels')}
+          aria-orientation="vertical"
+          aria-valuenow={Math.round(leftRatio)}
+          aria-valuemin={20}
+          aria-valuemax={80}
           onMouseDown={startDragging}
-          className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            const delta = event.key === 'ArrowLeft' ? -5 : 5;
+            setLeftRatio(Math.min(80, Math.max(20, leftRatio + delta)));
+          }}
+          className="focus-ring group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent-soft"
         >
-          <div className="h-full w-px bg-surface-muted transition-colors group-hover:bg-blue-500 " />
+          <div className="h-full w-px bg-line transition-colors group-hover:bg-accent" />
           <div
             className={cn(
-              'absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-line-strong bg-surface-card  transition-opacity  ',
+              'absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md tier-card transition-opacity',
               isDragging
-                ? 'opacity-100 ring-2 ring-blue-500'
+                ? 'opacity-100 ring-2 ring-accent'
                 : 'opacity-0 group-hover:opacity-100',
             )}
           >
-            <GripVertical className="h-3.5 w-3.5 text-fg-muted" />
+            <GripVertical aria-hidden="true" className="h-3.5 w-3.5 text-fg-muted" />
           </div>
         </div>
       )}
 
       <div
-        style={{ width: isChatOpen ? `${100 - leftRatio}%` : '100%' }}
+        style={{ width: isChatOpen && !isCompact ? `${100 - leftRatio}%` : '100%' }}
         className="flex h-full flex-col overflow-y-auto bg-surface-muted/50 p-6  sm:p-8"
       >
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pb-4 ">

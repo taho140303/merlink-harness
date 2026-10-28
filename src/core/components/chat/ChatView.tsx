@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { GripVertical } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { useResizablePanel } from "../../../shared/hooks/useResizablePanel";
+import { useIsCompact } from "../../../shared/hooks/useMediaQuery";
 import { ChatHeader } from "./ChatHeader";
 import { ChatWelcome } from "./ChatWelcome";
 import { ChatInputBar } from "./ChatInputBar";
@@ -14,6 +15,7 @@ import { useT } from "../../../shared/i18n/useT";
 
 export default function ChatView() {
   const t = useT();
+  const isCompact = useIsCompact();
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -144,13 +146,13 @@ export default function ChatView() {
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full overflow-hidden rounded-shell-sm bg-transparent",
+        "relative flex h-full w-full overflow-hidden rounded-shell-sm bg-transparent",
         isDragging && "cursor-col-resize select-none"
       )}
     >
       {/* Cột trái: Chat Area */}
       <div
-        style={{ width: isDraftOpen ? `${splitRatio}%` : "100%" }}
+        style={{ width: isDraftOpen && !isCompact ? `${splitRatio}%` : "100%" }}
         className="flex flex-col overflow-hidden "
       >
         <ChatHeader
@@ -188,7 +190,7 @@ export default function ChatView() {
       </div>
 
       {/* Ranh giới kéo thả */}
-      {isDraftOpen && (
+      {isDraftOpen && !isCompact && (
         <div
           role="separator"
           tabIndex={0}
@@ -225,8 +227,11 @@ export default function ChatView() {
       {/* Cột phải: Draft Building Workspace */}
       {isDraftOpen && (
         <div
-          style={{ width: `${100 - splitRatio}%` }}
-          className="flex flex-col overflow-hidden"
+          style={isCompact ? undefined : { width: `${100 - splitRatio}%` }}
+          className={cn(
+            "flex flex-col overflow-hidden",
+            isCompact && "absolute inset-0 z-40 bg-surface-panel",
+          )}
         >
           <DraftWorkspace
             onClose={() => setIsDraftOpen(false)}

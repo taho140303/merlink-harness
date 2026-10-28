@@ -43,7 +43,8 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
             setExpanded(!expanded);
           }
         }}
-        className="flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
+        aria-expanded={expanded}
+        className="focus-ring flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
       >
         <div className="flex items-center gap-2">
           <GitBranch className="h-4 w-4 text-emerald-500" />
@@ -56,7 +57,7 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
             {t('draft.segment.count', { count: segments.length })}
           </span>
-          {expanded ? <ChevronUp className="h-4 w-4 text-fg-subtle" /> : <ChevronDown className="h-4 w-4 text-fg-subtle" />}
+          {expanded ? <ChevronUp aria-hidden="true" className="h-4 w-4 text-fg-subtle" /> : <ChevronDown aria-hidden="true" className="h-4 w-4 text-fg-subtle" />}
         </div>
       </button>
 
@@ -66,7 +67,9 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
             <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5  w-fit">
               <button
                 onClick={() => setViewMode('timeline')}
+                aria-pressed={viewMode === 'timeline'}
                 className={cn(
+                  "focus-ring",
                   "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors",
                   viewMode === 'timeline' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
                 )}
@@ -75,7 +78,9 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
               </button>
               <button
                 onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
                 className={cn(
+                  "focus-ring",
                   "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors",
                   viewMode === 'grid' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
                 )}
@@ -122,7 +127,8 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
             <div className="mt-3 flex justify-center">
               <button
                 onClick={() => setShowAll(!showAll)}
-                className="flex items-center gap-1 text-sm font-medium text-fg-subtle hover:text-fg -subtle "
+                aria-expanded={showAll}
+                className="focus-ring flex items-center gap-1 text-sm font-medium text-fg-subtle hover:text-fg -subtle "
               >
                 {showAll ? <><ChevronUp className="h-3 w-3" /> {t('draft.segment.collapse')}</> : <><ChevronDown className="h-3 w-3" /> {t('draft.segment.showMore', { count: segments.length - 3 })}</>}
               </button>

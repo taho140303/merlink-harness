@@ -1,5 +1,5 @@
 import { Sun, Moon, Laptop, Languages } from "lucide-react";
-import { cn } from "../../../shared/utils/cn";
+import { Segmented } from "../../../shared/components/ui/segmented";
 import { useTheme } from "../../../shared/hooks/useTheme";
 import { useLocale } from "../../../shared/i18n/store";
 import { useT } from "../../../shared/i18n/useT";
@@ -24,81 +24,33 @@ export function GeneralTab() {
         <label className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
           {t("settings.appearance")}
         </label>
-        <div className="grid max-w-sm grid-cols-3 gap-2 rounded-xl bg-surface-muted p-1">
-          <button
-            type="button"
-            onClick={() => setTheme("light")}
-            className={cn(
-              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
-              theme === "light"
-                ? "bg-surface-card text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Sun className="h-4 w-4" />
-            <span>{t("settings.appearance.light")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("dark")}
-            className={cn(
-              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
-              theme === "dark"
-                ? "bg-surface-card text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Moon className="h-4 w-4" />
-            <span>{t("settings.appearance.dark")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("system")}
-            className={cn(
-              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
-              theme === "system"
-                ? "bg-surface-card text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Laptop className="h-4 w-4" />
-            <span>{t("settings.appearance.system")}</span>
-          </button>
-        </div>
+        <Segmented
+          className="grid max-w-sm grid-cols-3"
+          ariaLabel={t("settings.appearance")}
+          value={theme}
+          onChange={(value) => setTheme(value as typeof theme)}
+          items={[
+            { id: "light", icon: <Sun className="h-4 w-4" />, label: <span>{t("settings.appearance.light")}</span> },
+            { id: "dark", icon: <Moon className="h-4 w-4" />, label: <span>{t("settings.appearance.dark")}</span> },
+            { id: "system", icon: <Laptop className="h-4 w-4" />, label: <span>{t("settings.appearance.system")}</span> },
+          ]}
+        />
       </div>
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
           {t("settings.language")}
         </label>
-        <div className="grid max-w-sm grid-cols-2 gap-2 rounded-xl bg-surface-muted p-1">
-          <button
-            type="button"
-            onClick={() => setLocale("en")}
-            className={cn(
-              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
-              locale === "en"
-                ? "bg-surface-card text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Languages className="h-4 w-4" />
-            <span>{t("settings.language.en")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocale("vi")}
-            className={cn(
-              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
-              locale === "vi"
-                ? "bg-surface-card text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Languages className="h-4 w-4" />
-            <span>{t("settings.language.vi")}</span>
-          </button>
-        </div>
+        <Segmented
+          className="grid max-w-sm grid-cols-2"
+          ariaLabel={t("settings.language")}
+          value={locale}
+          onChange={(value) => setLocale(value as typeof locale)}
+          items={[
+            { id: "en", icon: <Languages className="h-4 w-4" />, label: <span>{t("settings.language.en")}</span> },
+            { id: "vi", icon: <Languages className="h-4 w-4" />, label: <span>{t("settings.language.vi")}</span> },
+          ]}
+        />
       </div>
     </div>
   );

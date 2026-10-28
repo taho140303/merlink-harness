@@ -53,6 +53,7 @@ export function ChatHeader({
           <button
             type="button"
             onClick={onToggleDraft}
+            aria-pressed={isDraftOpen}
             className={cn(
               "focus-ring flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors",
               isDraftOpen

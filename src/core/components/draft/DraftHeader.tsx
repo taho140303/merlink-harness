@@ -83,10 +83,11 @@ export function DraftHeader({
         <button
           type="button"
           onClick={onClose}
+          aria-label={t('draft.nav.collapse')}
           className="ml-2 shrink-0 rounded-lg p-1.5 text-fg-subtle hover:bg-surface-muted hover:text-fg-muted   transition-colors pointer-events-auto"
           title={t('draft.nav.collapse')}
         >
-          <PanelRightClose className="h-4 w-4" />
+          <PanelRightClose aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
 

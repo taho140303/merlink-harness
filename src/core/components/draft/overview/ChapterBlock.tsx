@@ -50,7 +50,8 @@ export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: Cha
             setExpanded(!expanded);
           }
         }}
-        className="flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
+        aria-expanded={expanded}
+        className="focus-ring flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
       >
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-amber-500" />
@@ -63,7 +64,7 @@ export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: Cha
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             {t('draft.chapter.count', { count: chapters.length })}
           </span>
-          {expanded ? <ChevronUp className="h-4 w-4 text-fg-subtle" /> : <ChevronDown className="h-4 w-4 text-fg-subtle" />}
+          {expanded ? <ChevronUp aria-hidden="true" className="h-4 w-4 text-fg-subtle" /> : <ChevronDown aria-hidden="true" className="h-4 w-4 text-fg-subtle" />}
         </div>
       </button>
 
@@ -82,7 +83,8 @@ export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: Cha
                       toggleChapter(chap.position);
                     }
                   }}
-                  className="flex w-full items-center justify-between p-2.5 hover:bg-surface-muted  transition-colors"
+                  aria-expanded={isChapExpanded}
+                  className="focus-ring flex w-full items-center justify-between p-2.5 hover:bg-surface-muted  transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <span className="flex h-5 w-5 items-center justify-center rounded bg-surface-card text-xs font-bold text-fg-muted   ">

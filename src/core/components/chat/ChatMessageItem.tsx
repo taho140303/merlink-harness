@@ -50,11 +50,12 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
           <button
             type="button"
             onClick={() => setThinkingExpanded(!thinkingExpanded)}
+            aria-expanded={thinkingExpanded}
             className="flex items-center gap-1.5 text-xs font-medium text-fg-subtle hover:text-fg-muted   transition-colors w-fit"
           >
             <span>{t("chat.thoughtForSeconds", { seconds: message.thinkingSeconds })}</span>
             {message.thinkingDetails && (
-              thinkingExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+              thinkingExpanded ? <ChevronUp aria-hidden="true" className="h-3 w-3" /> : <ChevronDown aria-hidden="true" className="h-3 w-3" />
             )}
           </button>
 

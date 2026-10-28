@@ -54,7 +54,8 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); toggleArc(arcIdx); }}
-              className="flex w-full items-center justify-between p-4 hover:bg-surface-muted  transition-colors"
+              aria-expanded={isArcExpanded}
+              className="focus-ring flex w-full items-center justify-between p-4 hover:bg-surface-muted  transition-colors"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 font-bold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
@@ -81,7 +82,8 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleChapter(chapKey); }}
-                        className="flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
+                        aria-expanded={isChapExpanded}
+                        className="focus-ring flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <span className="flex h-6 w-6 items-center justify-center rounded bg-surface-card text-xs font-bold text-fg-muted   ">

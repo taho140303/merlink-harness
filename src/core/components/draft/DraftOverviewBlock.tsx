@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bookmark, Tags, BookOpen, Users, Globe2, Film } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
-import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../../shared/components/ui/dialog';
 import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
@@ -120,7 +120,8 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); if (!isFeedbackMode) setAllGenresOpen(true); }}
-                  className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-black text-indigo-600 transition-colors hover:bg-surface-muted dark:text-indigo-400"
+                  aria-label={t('draft.overview.allGenres')}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-black text-indigo-600 transition-colors hover:bg-surface-muted dark:text-indigo-400"
                 >
                   <span>...</span>
                   <span className="rounded-lg px-1.5 py-0.5 font-mono text-xs font-bold text-fg-subtle bg-surface-muted ">
@@ -136,6 +137,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
         <div className="flex items-center gap-1 rounded-xl bg-surface-muted p-1  w-fit">
           <button
             onClick={(e) => { e.stopPropagation(); setActiveTab('arcs'); }}
+            aria-pressed={activeTab === 'arcs'}
             className={cn(
               "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
               activeTab === 'arcs' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
@@ -145,6 +147,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setActiveTab('characters'); }}
+            aria-pressed={activeTab === 'characters'}
             className={cn(
               "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
               activeTab === 'characters' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
@@ -156,6 +159,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           {showWorldTab && (
             <button
               onClick={(e) => { e.stopPropagation(); setActiveTab('world'); }}
+              aria-pressed={activeTab === 'world'}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors   -from-left-2",
                 activeTab === 'world' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
@@ -167,6 +171,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           {showSceneTab && (
             <button
               onClick={(e) => { e.stopPropagation(); setActiveTab('scene'); }}
+              aria-pressed={activeTab === 'scene'}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors   -from-left-2",
                 activeTab === 'scene' ? "bg-surface-card text-fg   " : "text-fg-subtle hover:text-fg -subtle "
@@ -264,6 +269,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
             <DialogTitle className="text-base font-bold text-fg">
               {t('draft.overview.allGenres')}
             </DialogTitle>
+            <DialogDescription className="sr-only">{t('draft.overview.allGenres')}</DialogDescription>
           </div>
           <div className="flex max-h-[50vh] flex-wrap gap-2 overflow-y-auto py-4">
             {overview.genres.map((genre) => (

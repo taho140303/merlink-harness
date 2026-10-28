@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "../../../shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
 import { useT } from "../../../shared/i18n/useT";
 import type { TKey } from "../../../shared/i18n/dict";
 import type { CharacterItem, Gender } from "./types";
@@ -73,10 +73,10 @@ export function CreateCharacterDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-6">
-        <h3 className="text-base font-bold text-fg">
+        <DialogTitle className="text-base font-bold text-fg">
           {t("character.create.title")}
-        </h3>
-        <p className="text-xs text-fg-muted">{t("character.create.subtitle")}</p>
+        </DialogTitle>
+        <DialogDescription className="text-xs text-fg-muted">{t("character.create.subtitle")}</DialogDescription>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>

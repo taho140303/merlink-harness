@@ -41,7 +41,8 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
             onToggle();
           }
         }}
-        className="flex w-full items-center justify-between p-4 hover:bg-surface-muted  transition-colors"
+        aria-expanded={isExpanded}
+        className="focus-ring flex w-full items-center justify-between p-4 hover:bg-surface-muted  transition-colors"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 font-bold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
@@ -56,7 +57,7 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
           <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
             {t('draft.arc.segmentsCount', { count: arc.segmentsCount })}
           </span>
-          {isExpanded ? <ChevronUp className="h-4 w-4 text-fg-subtle" /> : <ChevronDown className="h-4 w-4 text-fg-subtle" />}
+          {isExpanded ? <ChevronUp aria-hidden="true" className="h-4 w-4 text-fg-subtle" /> : <ChevronDown aria-hidden="true" className="h-4 w-4 text-fg-subtle" />}
         </div>
       </button>
 

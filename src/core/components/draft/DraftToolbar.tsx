@@ -55,7 +55,8 @@ export function DraftToolbar({
         <button
           type="button"
           onClick={() => setVersionOpen(!versionOpen)}
-          className="flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-2 text-sm font-semibold text-fg-muted transition-colors duration-200 hover:bg-surface-muted active:scale-95   "
+          aria-expanded={versionOpen}
+          className="focus-ring flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-2 text-sm font-semibold text-fg-muted transition-colors duration-200 hover:bg-surface-muted active:scale-95   "
         >
           <Layers className="h-3.5 w-3.5 text-fg-muted" />
           <span className="w-[30px] text-center font-mono">{currentVersion}</span>
@@ -113,13 +114,14 @@ export function DraftToolbar({
               onMouseLeave={() => setHoveredItem(null)}
               onClick={action.onClick}
               className={cn(
-                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-colors duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
+                "focus-ring group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-colors duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
                 isExpanded
                   ? "bg-accent text-white px-4   "
                   : "bg-transparent text-fg-muted hover:text-fg w-9 sm:w-10 px-0 -subtle ",
                 (action.id === 'next' || action.id === 'confirm') && !isExpanded && "bg-surface-muted "
               )}
               aria-label={action.label}
+              aria-pressed={action.id === 'feedback' ? action.active : undefined}
             >
               <Icon
                 className={cn(

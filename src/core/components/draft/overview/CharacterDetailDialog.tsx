@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '../../../../shared/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../../../shared/components/ui/dialog';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftCharacter } from '../types';
 import { User, Shield, Eye, Brain, Heart, BookOpen, AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -30,15 +30,15 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
               <DialogTitle className="text-xl font-bold text-fg">
                 {character.name}
               </DialogTitle>
-              <p className="text-sm text-fg-muted mt-0.5">
+              <DialogDescription className="text-sm text-fg-muted mt-0.5">
                 {character.motif.description}
-              </p>
+              </DialogDescription>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-line px-6 bg-surface-muted/50   shrink-0">
+        <div role="tablist" aria-label={t('character.detail.appearance')} className="flex border-b border-line px-6 bg-surface-muted/50   shrink-0">
           {[
             { id: 'appearance', label: t('character.detail.appearance'), icon: Eye },
             { id: 'life', label: t('character.detail.life'), icon: BookOpen },
@@ -46,6 +46,10 @@ export function CharacterDetailDialog({ open, onOpenChange, character }: Charact
           ].map((tab) => (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => setActiveTab(tab.id as any)}
               className={cn(
                 "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors",

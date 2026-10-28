@@ -20,6 +20,8 @@ export function IntensitySlider({ label, value, onChange }: IntensitySliderProps
       </div>
       <input
         type="range"
+        aria-label={label}
+        aria-valuetext={value}
         min={0}
         max={4}
         step={1}

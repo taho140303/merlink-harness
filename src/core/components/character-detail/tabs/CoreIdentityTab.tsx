@@ -24,10 +24,11 @@ function Section({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-5 py-3.5 text-left"
+        aria-expanded={open}
+        className="focus-ring flex w-full items-center justify-between px-5 py-3.5 text-left"
       >
         <span className="font-semibold text-fg">{title}</span>
-        <span className="text-sm text-fg-subtle">{open ? '−' : '+'}</span>
+        <span aria-hidden="true" className="text-sm text-fg-subtle">{open ? '−' : '+'}</span>
       </button>
       {open && <div className="px-5 pb-5">{children}</div>}
     </div>

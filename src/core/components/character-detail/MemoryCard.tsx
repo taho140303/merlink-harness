@@ -259,6 +259,8 @@ export function MemoryCard({ memory }: { memory: Memory }) {
                     />
                     <input
                       type="range"
+                      aria-label={t('detail.life.emotions')}
+                      aria-valuetext={`${e.intensity}%`}
                       min={0}
                       max={100}
                       value={e.intensity}

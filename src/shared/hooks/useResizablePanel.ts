@@ -59,6 +59,7 @@ export function useResizablePanel({
 
   return {
     leftRatio,
+    setLeftRatio,
     isDragging,
     containerRef,
     startDragging,

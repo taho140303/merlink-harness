@@ -117,9 +117,17 @@ Line-height: body `leading-relaxed`; label `leading-none`/`leading-tight`. Track
 | `Tooltip` | `content`, `side`; hover + focus, `aria-describedby` |
 | `Card` | `tier: panel \| card`, `padding: none \| sm \| md \| lg` |
 | `Badge` | `variant: neutral \| accent \| success \| warning \| danger` |
+| `Checkbox` | native input + label/hint, `aria-invalid` |
+| `Switch` | `role="switch"` + `aria-checked` |
+| `Segmented` | `role="radiogroup"` + keyboard ←/→ |
 | `Dialog` (có sẵn) | luôn kèm `DialogTitle`; `ConfirmDialog`/`DeleteConfirmDialog` đã bọc sẵn |
 
 Cấm tạo mới overlay/popover/dropdown/confirm ngoài các primitive này.
+
+## 7.1 Responsive
+
+- `< 1280px`: split-pane (chat/draft, character chat, project chat) chuyển sang **1 pane + overlay**; splitter ẩn. Hook: `useIsCompact()`.
+- `>= 1280px`: giữ 2 cột, min-width theo từng màn (chat 545/530, character/project 340+).
 
 ## 8. Loại trừ
 

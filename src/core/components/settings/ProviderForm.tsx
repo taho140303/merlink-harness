@@ -4,6 +4,8 @@ import { cn } from "../../../shared/utils/cn";
 import { Input } from "../../../shared/components/ui/input";
 import { Select } from "../../../shared/components/ui/select";
 import { Button } from "../../../shared/components/ui/button";
+import { Checkbox } from "../../../shared/components/ui/checkbox";
+import { Switch } from "../../../shared/components/ui/switch";
 import { useT } from "../../../shared/i18n/useT";
 import type { AIProviderItem, ModelConfig } from "./types";
 
@@ -306,58 +308,37 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                     <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-3 text-xs text-fg-muted">
                         <span className="text-xs text-fg-muted">{t("settings.provider.inputTypes")}</span>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={model.inputTypes.text}
-                            onChange={(e) => {
-                              const updated = [...models];
-                              updated[idx].inputTypes.text = e.target.checked;
-                              setModels(updated);
-                            }}
-                            className="rounded border-line-strong"
-                          />
-                          <span>{t("settings.provider.text")}</span>
-                        </label>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={model.inputTypes.image}
-                            onChange={(e) => {
-                              const updated = [...models];
-                              updated[idx].inputTypes.image = e.target.checked;
-                              setModels(updated);
-                            }}
-                            className="rounded border-line-strong"
-                          />
-                          <span>{t("settings.provider.image")}</span>
-                        </label>
+                        <Checkbox
+                          label={t("settings.provider.text")}
+                          checked={model.inputTypes.text}
+                          onChange={(e) => {
+                            const updated = [...models];
+                            updated[idx].inputTypes.text = e.target.checked;
+                            setModels(updated);
+                          }}
+                        />
+                        <Checkbox
+                          label={t("settings.provider.image")}
+                          checked={model.inputTypes.image}
+                          onChange={(e) => {
+                            const updated = [...models];
+                            updated[idx].inputTypes.image = e.target.checked;
+                            setModels(updated);
+                          }}
+                        />
                       </div>
 
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-fg-muted">{t("settings.provider.reasoning")}</span>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={model.reasoning}
-                          aria-label={t("settings.provider.reasoning")}
-                          onClick={() => {
+                        <Switch
+                          checked={model.reasoning}
+                          ariaLabel={t("settings.provider.reasoning")}
+                          onCheckedChange={(checked) => {
                             const updated = [...models];
-                            updated[idx].reasoning = !updated[idx].reasoning;
+                            updated[idx].reasoning = checked;
                             setModels(updated);
                           }}
-                          className={cn(
-                            "relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors",
-                            model.reasoning ? "bg-accent " : "bg-surface-muted "
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "inline-block h-3 w-3 transform rounded-full bg-surface-card  transition duration-200 ",
-                              model.reasoning ? "translate-x-3.5" : "translate-x-0.5"
-                            )}
-                          />
-                        </button>
+                        />
                       </div>
                     </div>
                   </div>
