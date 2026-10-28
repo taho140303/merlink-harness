@@ -9,11 +9,8 @@ export function DraftLoading({ message }: DraftLoadingProps) {
   
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative mb-6 flex h-16 w-16 items-center justify-center">
-        <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/50" />
-        <div className="absolute inset-0 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent dark:border-indigo-400 dark:border-t-transparent" />
-        {/* Thay thế icon Sparkles bằng logo.svg với animation lơ lửng */}
-        <img src="/logo.svg" alt="Loading" className="h-8 w-8 object-contain animate-logo-float" />
+      <div className="relative mb-6 flex items-center justify-center">
+        <img src="/logo.svg" alt="Loading" className="h-24 w-24 object-contain animate-logo-float" />
       </div>
       <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-slate-100">
         {t('draft.loading.title')}

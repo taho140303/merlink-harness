@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Layers, Play, MessageSquareQuote } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers, Play } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftChapter } from '../types';
 
 interface ChapterBlockProps {
   chapters: DraftChapter[];
-  onFeedback?: () => void;
+  
 }
 
-export function ChapterBlock({ chapters, onFeedback }: ChapterBlockProps) {
+export function ChapterBlock({ chapters }: ChapterBlockProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
@@ -42,15 +42,7 @@ export function ChapterBlock({ chapters, onFeedback }: ChapterBlockProps) {
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             {t('draft.chapter.count', { count: chapters.length })}
           </span>
-          {onFeedback && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onFeedback(); }}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-700 dark:hover:text-indigo-400 transition-colors"
-              title={t('draft.overview.feedback')}
-            >
-              <MessageSquareQuote className="h-3.5 w-3.5" />
-            </button>
-          )}
+          
           {expanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
         </div>
       </button>

@@ -1,27 +1,30 @@
 import { useState, useMemo, useEffect } from 'react';
 import { DraftHeader } from './DraftHeader';
 import { DraftOverviewBlock } from './DraftOverviewBlock';
-import { DraftStepNav } from './DraftStepNav';
+import { DraftToolbar } from './DraftToolbar';
 import { DraftLoading } from './DraftLoading';
 import { DRAFT_OVERVIEW } from './mockOverview';
+import { ConfirmDialog } from '../../../shared/components/ui/confirm-dialog';
 import { toast } from '../../../shared/components/ui/toast';
 import { useT } from '../../../shared/i18n/useT';
 import { cn } from '../../../shared/utils/cn';
-import type { DraftStep, CharacterSubStep, FeedbackContext, DraftOverview } from './types';
+import type { DraftStep, CharacterSubStep, DraftOverview } from './types';
 
 interface DraftWorkspaceProps {
   onClose: () => void;
-  onFeedback: (feedback: FeedbackContext) => void;
   overview?: DraftOverview;
 }
 
 const STEP_ORDER: DraftStep[] = ['overview', 'chapter', 'world', 'scene', 'character', 'relationship'];
 
-export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW }: DraftWorkspaceProps) {
+export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWorkspaceProps) {
   const t = useT();
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
+  const [currentVersion, setCurrentVersion] = useState(overview.version);
   
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   // Transition states
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading' | 'fade-in'>('idle');
   const [loadingIdx, setLoadingIdx] = useState(0);
@@ -33,7 +36,6 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     t('draft.loading.msg4'),
   ];
 
-  // Xử lý đổi text mỗi 500ms khi loading
   useEffect(() => {
     if (transitionPhase !== 'loading') return;
     const interval = setInterval(() => {
@@ -42,36 +44,24 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     return () => clearInterval(interval);
   }, [transitionPhase, loadingMessages.length]);
 
-  const triggerTransition = (action: () => void, skipLoading = false) => {
+  const triggerTransition = (action: () => void) => {
     if (transitionPhase !== 'idle') return;
     setTransitionPhase('fade-out');
     
-    // Fade out 0.6s
     setTimeout(() => {
       action();
+      setLoadingIdx(0); 
+      setTransitionPhase('loading');
       
-      if (skipLoading) {
-        // Nếu là Back: Bỏ qua loading, chuyển thẳng sang fade-in
+      setTimeout(() => {
         setTransitionPhase('fade-in');
         setTimeout(() => setTransitionPhase('idle'), 600);
-      } else {
-        // Nếu là Next: Hiện loading 2s
-        setLoadingIdx(0); 
-        setTransitionPhase('loading');
-        setTimeout(() => {
-          setTransitionPhase('fade-in');
-          setTimeout(() => setTransitionPhase('idle'), 600);
-        }, 3000 * loadingMessages.length);
-      }
+      }, 3000 * loadingMessages.length);
     }, 600);
   };
 
-  const handleStart = () => {
-    toast({ title: t('draft.toast.started'), variant: 'success' });
-    onClose();
-  };
-
-  const handleNext = () => {
+  const executeNext = () => {
+    setConfirmOpen(false);
     triggerTransition(() => {
       if (currentStep === 'overview') setCurrentStep('chapter');
       else if (currentStep === 'chapter') setCurrentStep('world');
@@ -85,36 +75,26 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     });
   };
 
-  const handleBack = () => {
+  const handleStart = () => {
+    toast({ title: t('draft.toast.started'), variant: 'success' });
+    onClose();
+  };
+
+  const handleRegenerate = () => {
     triggerTransition(() => {
-      if (currentStep === 'relationship') {
-        setCurrentStep('character');
-        setCurrentSubStep('lifeExperience');
-        return;
-      }
-
-      if (currentStep === 'character') {
-        if (currentSubStep === 'lifeExperience') setCurrentSubStep('psychological');
-        else if (currentSubStep === 'psychological') setCurrentSubStep('appearance');
-        else setCurrentStep('scene');
-        return;
-      }
-
-      const currentIdx = STEP_ORDER.indexOf(currentStep);
-      if (currentIdx > 0) setCurrentStep(STEP_ORDER[currentIdx - 1]);
-    }, true);
+      toast({ title: 'Regenerated data for this phase.', variant: 'success' });
+    });
   };
 
   const currentStepNumber = STEP_ORDER.indexOf(currentStep) + 1;
 
-  // Logic "phình to ra": Ở phase overview thì không có chapters, từ phase chapter trở đi mới có
   const phaseOverview = useMemo(() => {
     if (currentStep === 'overview') {
       return {
         ...overview,
         arcs: overview.arcs.map(arc => ({
           ...arc,
-          chapters: undefined, // Ẩn chapters ở phase 1
+          chapters: undefined, 
         })),
       };
     }
@@ -140,12 +120,10 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       />
 
       <div className="relative flex-1 overflow-hidden">
-        {/* Loading Overlay */}
         {transitionPhase === 'loading' && (
           <DraftLoading message={loadingMessages[loadingIdx]} />
         )}
 
-        {/* Main Content Area */}
         <div className={cn(
           "h-full w-full transition-all duration-600",
           transitionPhase === 'fade-out' && "opacity-0 scale-[0.98]",
@@ -156,22 +134,34 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
           <DraftOverviewBlock
             overview={phaseOverview}
             currentStep={currentStep}
-            onFeedback={onFeedback}
           />
         </div>
 
-        {/* Navigation Buttons */}
+        {/* Toolbar */}
         <div className={cn(
-          "absolute bottom-6 right-6 z-20 w-max transition-opacity duration-600",
-          isFading ? "opacity-0 pointer-events-none" : "opacity-100"
+          "absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-all duration-600",
+          isFading ? "opacity-0 translate-y-4 pointer-events-none" : "opacity-100 translate-y-0"
         )}>
-          <DraftStepNav
-            onBack={currentStepNumber > 1 ? handleBack : undefined}
-            onNext={currentStep !== 'relationship' ? handleNext : undefined}
+          <DraftToolbar
+            currentVersion={currentVersion}
+            versionHistory={overview.versionHistory || []}
+            onVersionChange={setCurrentVersion}
+            onRegenerate={handleRegenerate}
+            onNext={currentStep !== 'relationship' ? () => setConfirmOpen(true) : undefined}
             onStart={currentStep === 'relationship' ? handleStart : undefined}
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('draft.dialog.nextTitle')}
+        description={t('draft.dialog.nextDesc')}
+        confirmLabel={t('draft.dialog.confirmNext')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={executeNext}
+      />
     </aside>
   );
 }

@@ -1,6 +1,14 @@
 import type { DraftOverview } from './types';
 
 export const DRAFT_OVERVIEW: DraftOverview = {
+  currentPhase: 'chapter',
+  version: 'v.03',
+  updatedAt: '10:45 AM, Today',
+  versionHistory: [
+    { version: 'v.03', updatedAt: '10:45 AM, Today' },
+    { version: 'v.02', updatedAt: 'Yesterday, 14:30' },
+    { version: 'v.01', updatedAt: '12/10/2026, 09:00' },
+  ],
   displayName: 'Tế nữ ngưu nhân',
   language: 'VI',
   summary:

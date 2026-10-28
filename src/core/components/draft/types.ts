@@ -104,7 +104,16 @@ export interface DraftWorldSettings {
   loreEntries: DraftLoreEntry[];
 }
 
+export interface DraftVersion {
+  version: string;
+  updatedAt: string;
+}
+
 export interface DraftOverview {
+  currentPhase: string;
+  version: string;
+  updatedAt: string;
+  versionHistory?: DraftVersion[];
   displayName: string;
   language: string;
   summary: string;

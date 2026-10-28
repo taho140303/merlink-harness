@@ -9,10 +9,10 @@ interface ArcCardProps {
   arc: DraftArc;
   isExpanded: boolean;
   onToggle: () => void;
-  onFeedback?: () => void;
+  
 }
 
-export function ArcCard({ arc, isExpanded, onToggle, onFeedback }: ArcCardProps) {
+export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
   const t = useT();
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">

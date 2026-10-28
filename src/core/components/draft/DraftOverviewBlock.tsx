@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, MessageSquareQuote, Tags, BookOpen, Users, Globe2 } from 'lucide-react';
+import { Bookmark, Tags, BookOpen, Users, Globe2 } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/ui/dialog';
 import { useT } from '../../../shared/i18n/useT';
@@ -13,10 +13,9 @@ const MAX_VISIBLE_GENRES = 9;
 interface DraftOverviewBlockProps {
   overview: DraftOverview;
   currentStep: DraftStep;
-  onFeedback?: (feedback: FeedbackContext) => void;
 }
 
-export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftOverviewBlockProps) {
+export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlockProps) {
   const t = useT();
   const [allGenresOpen, setAllGenresOpen] = useState(false);
   
@@ -47,11 +46,6 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
 
   const filteredArcs = arcFilter === 'all' ? overview.arcs : overview.arcs.filter(a => a.number === arcFilter);
 
-  const handleFeedbackClick = (tag: string, title: string, id: string = 'temp') => {
-    if (onFeedback) {
-      onFeedback({ id, tag, title });
-    }
-  };
 
   const showWorldTab = ['world', 'scene', 'character', 'relationship'].includes(currentStep);
 
@@ -77,18 +71,7 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
               </span>
             </div>
 
-            {onFeedback && (
-              <div className="flex items-center gap-2 self-start md:self-auto">
-                <button
-                  type="button"
-                  onClick={() => handleFeedbackClick('overview', t('draft.step.overview'))}
-                  className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
-                >
-                  <MessageSquareQuote className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>{t('draft.overview.feedback')}</span>
-                </button>
-              </div>
-            )}
+
           </div>
 
           <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
@@ -192,16 +175,7 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
                     </option>
                   ))}
                 </select>
-                {onFeedback && (
-                  <button
-                    type="button"
-                    onClick={() => handleFeedbackClick('arc-filter', t('draft.overview.filterArc'), arcFilter.toString())}
-                    className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-indigo-400"
-                    title={t('draft.overview.feedback')}
-                  >
-                    <MessageSquareQuote className="h-4 w-4" />
-                  </button>
-                )}
+
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
@@ -215,7 +189,6 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
                 arc={arc}
                 isExpanded={expandedArcs.has(arc.id)}
                 onToggle={() => toggleArc(arc.id)}
-                onFeedback={onFeedback ? () => handleFeedbackClick('arc', arc.title, arc.id) : undefined}
               />
             ))}
           </div>
@@ -224,13 +197,9 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
         {activeTab === 'characters' && (
           <div className="space-y-3">
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.charDesc')}</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {overview.characters.map(char => (
-                <CharacterCard 
-                  key={char.id} 
-                  character={char} 
-                  onFeedback={onFeedback ? () => handleFeedbackClick('character', char.name, char.id) : undefined} 
-                />
+                <CharacterCard key={char.id} character={char} />
               ))}
             </div>
           </div>
@@ -239,10 +208,7 @@ export function DraftOverviewBlock({ overview, currentStep, onFeedback }: DraftO
         {activeTab === 'world' && overview.worldSettings && (
           <div className="space-y-3 animate-in fade-in duration-300">
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
-            <WorldSettingsBlock 
-              settings={overview.worldSettings} 
-              onFeedback={onFeedback ? () => handleFeedbackClick('world', t('draft.overview.tabWorld'), overview.worldSettings?.code) : undefined} 
-            />
+            <WorldSettingsBlock settings={overview.worldSettings} />
           </div>
         )}
       </div>

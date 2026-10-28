@@ -1,13 +1,13 @@
-import { Globe2, Shield, BookOpen, MessageSquareQuote } from 'lucide-react';
+import { Globe2, Shield, BookOpen } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
 import type { DraftWorldSettings } from '../types';
 
 interface WorldSettingsBlockProps {
   settings: DraftWorldSettings;
-  onFeedback?: () => void;
+  
 }
 
-export function WorldSettingsBlock({ settings, onFeedback }: WorldSettingsBlockProps) {
+export function WorldSettingsBlock({ settings }: WorldSettingsBlockProps) {
   const t = useT();
 
   return (
@@ -28,15 +28,7 @@ export function WorldSettingsBlock({ settings, onFeedback }: WorldSettingsBlockP
               </div>
             </div>
           </div>
-          {onFeedback && (
-            <button
-              onClick={onFeedback}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 transition-colors"
-              title={t('draft.overview.feedback')}
-            >
-              <MessageSquareQuote className="h-4 w-4" />
-            </button>
-          )}
+          
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
