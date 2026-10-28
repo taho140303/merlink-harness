@@ -76,6 +76,48 @@ export interface DraftArc {
   chapters?: DraftChapter[];
 }
 
+export interface CharacterAppearance {
+  species: string;
+  birth: string;
+  gender: { identity: string; expression: string };
+  heightCm: number;
+  weightKg: number;
+  hair: { color: string; style: string; texture: string; length: string };
+  skin: { tone: string; texture: string };
+  eyes: { 
+    pupil: { shape: string; color: string }; 
+    iris: { texture: string | null; color: string }; 
+    sclera: string; 
+  };
+  outfitStyle: string;
+  distinguishingMarks: string[];
+  summary: string;
+}
+
+export interface CharacterCompetence {
+  id: string;
+  name: string;
+  domain: string;
+  description: string;
+  sceneLearned: string;
+  capabilities: string[];
+  limitations: string[];
+}
+
+export interface CharacterMemory {
+  id: string;
+  type: 'Episodic' | 'Semantic' | 'Procedural';
+  status: 'Active' | 'Suppressed' | 'Forgotten' | 'Distorted';
+  content: string;
+  sourceScene: string;
+}
+
+export interface CharacterPsychological {
+  coreTrauma: { wound: string; lie: string; fear: string };
+  moralFramework: { alignment: string; code: string; breakingPoint: string };
+  narrativeEngine: { want: string; need: string; conflict: string };
+}
+
 export interface DraftCharacter {
   id: string;
   name: string;
@@ -84,6 +126,10 @@ export interface DraftCharacter {
   motif: {
     description: string;
   };
+  appearance: CharacterAppearance;
+  competences: CharacterCompetence[];
+  memories: CharacterMemory[];
+  psychological: CharacterPsychological;
 }
 
 export interface DraftLoreEntry {

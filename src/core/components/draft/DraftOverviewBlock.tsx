@@ -7,7 +7,8 @@ import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
 import { WorldSettingsBlock } from './overview/WorldSettingsBlock';
 import { SceneConfigBlock } from './overview/SceneConfigBlock';
-import type { DraftOverview, DraftStep } from './types';
+import { CharacterDetailDialog } from './overview/CharacterDetailDialog';
+import type { DraftOverview, DraftStep, DraftCharacter } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
 
@@ -25,6 +26,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
   const [activeTab, setActiveTab] = useState<'arcs' | 'characters' | 'world' | 'scene'>('arcs');
   const [arcFilter, setArcFilter] = useState<'all' | number>('all');
   const [expandedArcs, setExpandedArcs] = useState<Set<string>>(new Set());
+  const [selectedCharacter, setSelectedCharacter] = useState<DraftCharacter | null>(null);
 
   const visibleGenres = overview.genres.slice(0, MAX_VISIBLE_GENRES);
   const remainingGenres = overview.genres.length - MAX_VISIBLE_GENRES;
@@ -222,6 +224,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 <CharacterCard 
                   key={char.id} 
                   character={char} 
+                  onView={() => setSelectedCharacter(char)}
                   isFeedbackMode={isFeedbackMode}
                   onAttachFeedback={onAttachFeedback}
                 />
@@ -289,6 +292,13 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Character Detail Dialog */}
+      <CharacterDetailDialog 
+        open={!!selectedCharacter} 
+        onOpenChange={(open) => !open && setSelectedCharacter(null)} 
+        character={selectedCharacter} 
+      />
     </div>
   );
 }

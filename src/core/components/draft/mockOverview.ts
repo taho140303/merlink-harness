@@ -143,9 +143,45 @@ export const DRAFT_OVERVIEW: DraftOverview = {
     },
   ],
   characters: [
-    { id: 'c-1', name: 'Phù Thanh Cơ', gender: 'Nữ', genderBadge: 'female', motif: { description: 'strong girl' } },
-    { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' } },
-    { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' } },
+    { 
+      id: 'c-1', 
+      name: 'Phù Thanh Cơ', 
+      gender: 'Nữ', 
+      genderBadge: 'female', 
+      motif: { description: 'strong girl' },
+      appearance: {
+        species: 'Ngưu Nhân (Humanoid)',
+        birth: '10/10/1998',
+        gender: { identity: 'Nữ', expression: 'Nữ tính' },
+        heightCm: 165,
+        weightKg: 52,
+        hair: { color: 'Đen', style: 'Buộc hai bên kiểu twintail thấp', texture: 'Thẳng mượt', length: 'Dài' },
+        skin: { tone: 'Trắng sáng', texture: 'Mịn' },
+        eyes: { pupil: { shape: 'Tròn', color: 'Đen' }, iris: { texture: null, color: 'Đen ánh xanh tím' }, sclera: 'Trắng' },
+        outfitStyle: 'Trang phục kiếm sĩ',
+        distinguishingMarks: ['Nốt ruồi đen khóe mắt trái'],
+        summary: 'Nữ kiếm sĩ trẻ tuổi, mang vẻ ngoài lạnh lùng nhưng ẩn chứa sự kiên định.'
+      },
+      competences: [
+        {
+          id: 'comp-1', name: 'Ngự Huyết Kiếm Pháp', domain: 'Kiếm thuật', description: 'Điều khiển huyết mạch hòa quyện cùng kiếm khí.',
+          sceneLearned: 'Chương 3', capabilities: ['Tăng tốc độ chém', 'Tạo lá chắn huyết mạch'], limitations: ['Tiêu hao sinh lực']
+        }
+      ],
+      memories: [
+        {
+          id: 'mem-1', type: 'Episodic', status: 'Active', sourceScene: 'Chương 1',
+          content: 'Đêm tế lễ, ánh mắt trưởng lão Hạc lạnh lẽo nhìn tôi bị đẩy lên tế đàn. Mùi máu tanh nồng và tiếng niệm chú chói tai.'
+        }
+      ],
+      psychological: {
+        coreTrauma: { wound: 'Bị phản bội bởi chính tộc nhân', lie: 'Chỉ có sức mạnh mới bảo vệ được bản thân', fear: 'Bị giam cầm và bất lực' },
+        moralFramework: { alignment: 'Chaotic Good', code: 'Bảo vệ kẻ yếu, tiêu diệt kẻ áp bức', breakingPoint: 'Bất kỳ ai làm hại Hạc Minh' },
+        narrativeEngine: { want: 'Phục hưng bộ tộc', need: 'Học cách tin tưởng người khác', conflict: 'Sự trả thù và lòng nhân từ' }
+      }
+    },
+    { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
+    { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
   ],
   sceneConfig: {
     arcs: [
