@@ -39,7 +39,7 @@ export function CharacterCard({ character, isFeedbackMode, onAttachFeedback }: C
         </div>
         <div className="flex items-center gap-1.5">
           <span className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+            "rounded-full px-2 py-0.5 text-[11px] font-medium",
             character.genderBadge === 'female' 
               ? "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300"
               : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
@@ -50,7 +50,7 @@ export function CharacterCard({ character, isFeedbackMode, onAttachFeedback }: C
       </div>
       <div className="mt-3 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.character.motif')}</span>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{character.motif.description}</p>
+        <p className="mt-1 text-base leading-relaxed text-slate-600 dark:text-slate-300">{character.motif.description}</p>
       </div>
     </div>
   );

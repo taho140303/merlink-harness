@@ -12,10 +12,10 @@ export function DraftLoading({ message }: DraftLoadingProps) {
       <div className="relative mb-6 flex items-center justify-center">
         <img src="/logo.svg" alt="Loading" className="h-24 w-24 object-contain animate-logo-float" />
       </div>
-      <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+      <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">
         {t('draft.loading.title')}
       </h3>
-      <p className="h-6 text-sm font-medium text-indigo-600 dark:text-indigo-400 animate-pulse">
+      <p className="h-6 text-base font-medium text-indigo-600 dark:text-indigo-400 animate-pulse">
         {message}
       </p>
     </div>

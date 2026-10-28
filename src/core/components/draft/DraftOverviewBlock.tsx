@@ -75,13 +75,13 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               <h2 className="min-w-0 text-2xl font-black leading-tight tracking-tight text-slate-900 dark:text-slate-100">
                 {overview.displayName}
               </h2>
-              <span className="shrink-0 rounded-xl px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-indigo-600 neu-pressed dark:text-indigo-400">
+              <span className="shrink-0 rounded-xl px-2.5 py-1 font-mono text-xs font-bold uppercase tracking-widest text-indigo-600 neu-pressed dark:text-indigo-400">
                 {overview.language}
               </span>
             </div>
           </div>
 
-          <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+          <p className="mt-4 max-w-4xl text-base leading-relaxed text-slate-600 dark:text-slate-300">
             {overview.summary}
           </p>
 
@@ -90,7 +90,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               {targets.map((target) => (
                 <div
                   key={target.key}
-                  className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/70 bg-white/70 px-3 py-1.5 font-mono text-xs font-bold text-slate-700 shadow-2xs dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-200"
+                  className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/70 bg-white/70 px-3 py-1.5 font-mono text-sm font-bold text-slate-700 shadow-2xs dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-200"
                 >
                   <span className={cn('font-black', target.hashClass)}>#</span>
                   <span className="text-slate-400 dark:text-slate-500">{target.label}:</span>
@@ -104,7 +104,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 <span
                   key={genre.name}
                   className={cn(
-                    'flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs',
+                    'flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-sm',
                     genre.isPrimary
                       ? 'border border-indigo-500/30 bg-indigo-500/10 font-bold text-indigo-700 dark:text-indigo-300'
                       : 'border border-slate-200/80 bg-white/60 font-medium text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/40 dark:text-slate-300'
@@ -118,10 +118,10 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); if (!isFeedbackMode) setAllGenresOpen(true); }}
-                  className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black text-indigo-600 transition-all hover:neu-pressed dark:text-indigo-400"
+                  className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-black text-indigo-600 transition-all hover:neu-pressed dark:text-indigo-400"
                 >
                   <span>...</span>
-                  <span className="rounded-lg px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500 neu-pressed dark:text-slate-300">
+                  <span className="rounded-lg px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-500 neu-pressed dark:text-slate-300">
                     +{remainingGenres}
                   </span>
                 </button>
@@ -135,7 +135,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           <button
             onClick={(e) => { e.stopPropagation(); setActiveTab('arcs'); }}
             className={cn(
-              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all",
               activeTab === 'arcs' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
@@ -144,18 +144,18 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           <button
             onClick={(e) => { e.stopPropagation(); setActiveTab('characters'); }}
             className={cn(
-              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+              "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all",
               activeTab === 'characters' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
             <Users className="h-3.5 w-3.5" /> {t('draft.overview.tabCharacters')}
-            <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600 dark:bg-slate-600 dark:text-slate-200">{overview.characters.length}</span>
+            <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-600 dark:text-slate-200">{overview.characters.length}</span>
           </button>
           {showWorldTab && (
             <button
               onClick={(e) => { e.stopPropagation(); setActiveTab('world'); }}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all animate-in fade-in slide-in-from-left-2",
                 activeTab === 'world' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
               )}
             >
@@ -174,7 +174,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                   value={arcFilter}
                   onChange={(e) => { e.stopPropagation(); setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value)); }}
                   onClick={(e) => e.stopPropagation()}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 >
                   <option value="all">{t('draft.overview.filterAll')}</option>
                   {overview.arcs.map(arc => (
@@ -245,7 +245,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               <span
                 key={genre.name}
                 className={cn(
-                  'flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs',
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-sm',
                   genre.isPrimary
                     ? 'border border-indigo-500/30 bg-indigo-500/10 font-bold text-indigo-700 dark:text-indigo-300'
                     : 'border border-slate-200/80 bg-white/60 font-medium text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/40 dark:text-slate-300'
@@ -260,7 +260,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
             <button
               type="button"
               onClick={() => setAllGenresOpen(false)}
-              className="rounded-xl px-4 py-1.5 text-xs font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
+              className="rounded-xl px-4 py-1.5 text-sm font-bold text-slate-700 transition-all hover:neu-pressed dark:text-slate-200"
             >
               {t('common.close')}
             </button>

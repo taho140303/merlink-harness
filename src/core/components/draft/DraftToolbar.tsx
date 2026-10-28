@@ -55,7 +55,7 @@ export function DraftToolbar({
         <button
           type="button"
           onClick={() => setVersionOpen(!versionOpen)}
-          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
         >
           <Layers className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           <span className="w-[30px] text-center font-mono">{currentVersion}</span>
@@ -64,7 +64,7 @@ export function DraftToolbar({
 
         {versionOpen && (
           <div className="absolute bottom-full left-0 mb-3 w-56 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in slide-in-from-bottom-2">
-            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Select Version
             </div>
             {versionHistory.map((v) => (
@@ -76,7 +76,7 @@ export function DraftToolbar({
                   setVersionOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
+                  "flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
                   currentVersion === v.version
                     ? "bg-slate-50 font-semibold text-slate-900 dark:bg-slate-800/60 dark:text-white"
                     : "text-slate-600 dark:text-slate-400"
@@ -135,7 +135,7 @@ export function DraftToolbar({
                   isExpanded ? "grid-rows-[1fr] opacity-100 ml-2 max-w-[120px]" : "grid-rows-[0fr] opacity-0 ml-0 max-w-0"
                 )}
               >
-                <span className="overflow-hidden whitespace-nowrap text-xs font-semibold tracking-wide">
+                <span className="overflow-hidden whitespace-nowrap text-sm font-semibold tracking-wide">
                   {action.label}
                 </span>
               </div>

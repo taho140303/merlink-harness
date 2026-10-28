@@ -59,7 +59,7 @@ export function DraftHeader({
                 >
                   <span
                     className={cn(
-                      "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition-colors",
+                      "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold transition-colors",
                       isDone
                         ? "bg-emerald-500 text-white"
                         : isActive
@@ -122,7 +122,7 @@ export function DraftHeader({
                     5.{idx + 1} {sub.label}
                   </button>
                   {idx < subSteps.length - 1 && (
-                    <span className="text-slate-300 dark:text-slate-700 text-[10px]">•</span>
+                    <span className="text-slate-300 dark:text-slate-700 text-[11px]">•</span>
                   )}
                 </div>
               );
