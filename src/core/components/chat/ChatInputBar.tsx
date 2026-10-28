@@ -19,7 +19,18 @@ export function ChatInputBar({
 }: ChatInputBarProps) {
   const t = useT();
   const [prompt, setPrompt] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const MAX_HEIGHT = 208;
+
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(textarea.scrollHeight, MAX_HEIGHT);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
+  }, [prompt]);
 
   useEffect(() => {
     if (feedbackContext) {
@@ -31,6 +42,10 @@ export function ChatInputBar({
     if (!prompt.trim()) return;
     onSend?.(prompt);
     setPrompt("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.overflowY = "hidden";
+    }
     onClearFeedback?.();
   };
 
@@ -56,26 +71,38 @@ export function ChatInputBar({
         </div>
       )}
 
-      <div className="flex items-center gap-2 px-2 pt-1 text-fg-subtle">
-        <Sparkles className="h-4 w-4" />
-        <input
+      <div className="flex items-start gap-2 px-2 pt-1 text-fg-subtle">
+        <Sparkles className="mt-2 h-4 w-4" />
+        <textarea
           ref={inputRef}
           aria-label={t("chat.message")}
-          type="text"
+          rows={1}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.nativeEvent.isComposing || e.key !== "Enter") return;
+            if (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) {
               e.preventDefault();
-              handleSend();
+              const textarea = e.currentTarget;
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const pos = start;
+              const nextPrompt = `${prompt.slice(0, start)}\n${prompt.slice(end)}`;
+              setPrompt(() => nextPrompt);
+              requestAnimationFrame(() => {
+                textarea.selectionStart = textarea.selectionEnd = pos + 1;
+              });
+              return;
             }
+            e.preventDefault();
+            handleSend();
           }}
           placeholder={
             feedbackContext
               ? t("chat.feedbackPlaceholder", { title: feedbackContext.title })
               : t("chat.messagePlaceholder")
           }
-          className="tier-input focus-ring w-full rounded-xl bg-transparent px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
+          className="tier-input focus-ring max-h-52 w-full resize-none overflow-hidden rounded-xl bg-transparent px-3 py-2 text-sm leading-relaxed text-fg placeholder:text-fg-subtle"
         />
       </div>
 

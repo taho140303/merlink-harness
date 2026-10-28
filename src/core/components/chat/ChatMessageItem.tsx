@@ -85,7 +85,9 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
             />
 
             <div className="relative z-10 text-xs leading-relaxed text-fg sm:text-sm">
-              <ReactMarkdown
+              {!isAssistant ? (
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              ) : <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
@@ -106,7 +108,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
                 }}
               >
                 {message.content}
-              </ReactMarkdown>
+              </ReactMarkdown>}
             </div>
           </div>
         </div>
