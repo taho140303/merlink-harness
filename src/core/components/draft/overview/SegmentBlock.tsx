@@ -6,9 +6,11 @@ import type { DraftSegment } from '../types';
 
 interface SegmentBlockProps {
   segments: DraftSegment[];
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function SegmentBlock({ segments }: SegmentBlockProps) {
+export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: SegmentBlockProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
@@ -17,12 +19,30 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
   const displaySegments = showAll ? segments : segments.slice(0, 3);
   const hasMore = segments.length > 3;
 
+  const handleAttach = (e: React.MouseEvent) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback('segments', 'segments', 'Event Segments');
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
-      {/* Toggle Header */}
+    <div 
+      onClick={handleAttach}
+      className={cn(
+        "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
+        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+      )}
+    >
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={(e) => {
+          if (isFeedbackMode) {
+            handleAttach(e);
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
         className="flex w-full items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -40,7 +60,6 @@ export function SegmentBlock({ segments }: SegmentBlockProps) {
         </div>
       </button>
 
-      {/* Toggle Body */}
       {expanded && (
         <div className="border-t border-slate-100 p-3 space-y-3 dark:border-slate-800">
           <div className="flex justify-end mb-2">

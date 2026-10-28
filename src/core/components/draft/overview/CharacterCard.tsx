@@ -5,13 +5,28 @@ import type { DraftCharacter } from '../types';
 
 interface CharacterCardProps {
   character: DraftCharacter;
-  
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function CharacterCard({ character }: CharacterCardProps) {
+export function CharacterCard({ character, isFeedbackMode, onAttachFeedback }: CharacterCardProps) {
   const t = useT();
+  
+  const handleAttach = (e: React.MouseEvent) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback(character.id, 'character', character.name);
+    }
+  };
+
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div 
+      onClick={handleAttach}
+      className={cn(
+        "flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all duration-300",
+        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
@@ -31,7 +46,6 @@ export function CharacterCard({ character }: CharacterCardProps) {
           )}>
             {character.gender}
           </span>
-          
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">

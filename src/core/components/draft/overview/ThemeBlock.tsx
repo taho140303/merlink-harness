@@ -1,21 +1,43 @@
 import { useState } from 'react';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
+import { cn } from '../../../../shared/utils/cn';
 import type { DraftTheme } from '../types';
 
 interface ThemeBlockProps {
   theme: DraftTheme;
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function ThemeBlock({ theme }: ThemeBlockProps) {
+export function ThemeBlock({ theme, isFeedbackMode, onAttachFeedback }: ThemeBlockProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
 
+  const handleAttach = (e: React.MouseEvent) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback('theme', 'theme', theme.question);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+    <div 
+      onClick={handleAttach}
+      className={cn(
+        "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
+        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+      )}
+    >
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={(e) => {
+          if (isFeedbackMode) {
+            handleAttach(e);
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
         className="flex w-full items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">

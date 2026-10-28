@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Tags } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
+import { cn } from '../../../../shared/utils/cn';
 import { ThemeBlock } from './ThemeBlock';
 import { SegmentBlock } from './SegmentBlock';
 import { ChapterBlock } from './ChapterBlock';
@@ -9,16 +10,37 @@ interface ArcCardProps {
   arc: DraftArc;
   isExpanded: boolean;
   onToggle: () => void;
-  
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
+export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFeedback }: ArcCardProps) {
   const t = useT();
+  
+  const handleAttach = (e: React.MouseEvent) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback(arc.id, 'arc', arc.title);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+    <div 
+      onClick={handleAttach}
+      className={cn(
+        "rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
+        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+      )}
+    >
       <button
         type="button"
-        onClick={onToggle}
+        onClick={(e) => {
+          if (isFeedbackMode) {
+            handleAttach(e);
+          } else {
+            onToggle();
+          }
+        }}
         className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -56,12 +78,24 @@ export function ArcCard({ arc, isExpanded, onToggle }: ArcCardProps) {
             )}
           </div>
           
-          <ThemeBlock theme={arc.theme} />
+          <ThemeBlock 
+            theme={arc.theme} 
+            isFeedbackMode={isFeedbackMode} 
+            onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'theme', arc.title) : undefined} 
+          />
           
-          <SegmentBlock segments={arc.segments} />
+          <SegmentBlock 
+            segments={arc.segments} 
+            isFeedbackMode={isFeedbackMode} 
+            onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'segment', arc.title) : undefined} 
+          />
           
           {arc.chapters && arc.chapters.length > 0 && (
-            <ChapterBlock chapters={arc.chapters} onFeedback={onFeedback} />
+            <ChapterBlock 
+              chapters={arc.chapters} 
+              isFeedbackMode={isFeedbackMode} 
+              onAttachFeedback={onAttachFeedback ? (e) => onAttachFeedback(arc.id, 'chapter', arc.title) : undefined} 
+            />
           )}
         </div>
       )}

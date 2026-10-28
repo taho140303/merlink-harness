@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { MessageSquareQuote } from 'lucide-react';
 import { DraftHeader } from './DraftHeader';
 import { DraftOverviewBlock } from './DraftOverviewBlock';
 import { DraftToolbar } from './DraftToolbar';

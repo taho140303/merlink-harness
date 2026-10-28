@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Layers, Play } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
+import { cn } from '../../../../shared/utils/cn';
 import type { DraftChapter } from '../types';
 
 interface ChapterBlockProps {
   chapters: DraftChapter[];
-  
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function ChapterBlock({ chapters }: ChapterBlockProps) {
+export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: ChapterBlockProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
@@ -24,11 +26,30 @@ export function ChapterBlock({ chapters }: ChapterBlockProps) {
     });
   };
 
+  const handleAttach = (e: React.MouseEvent, tag: string, title: string, id: string) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback(id, tag, title);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+    <div 
+      onClick={(e) => handleAttach(e, 'chapters', 'Chapters & Scenes', 'chapters')}
+      className={cn(
+        "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
+        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+      )}
+    >
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={(e) => {
+          if (isFeedbackMode) {
+            handleAttach(e, 'chapters', 'Chapters & Scenes', 'chapters');
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
         className="flex w-full items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -42,7 +63,6 @@ export function ChapterBlock({ chapters }: ChapterBlockProps) {
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             {t('draft.chapter.count', { count: chapters.length })}
           </span>
-          
           {expanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
         </div>
       </button>
@@ -55,7 +75,13 @@ export function ChapterBlock({ chapters }: ChapterBlockProps) {
               <div key={chap.position} className="rounded-lg border border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/30 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => toggleChapter(chap.position)}
+                  onClick={(e) => {
+                    if (isFeedbackMode) {
+                      handleAttach(e, 'chapter', chap.displayName, chap.position.toString());
+                    } else {
+                      toggleChapter(chap.position);
+                    }
+                  }}
                   className="flex w-full items-center justify-between p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <div className="flex items-center gap-2">

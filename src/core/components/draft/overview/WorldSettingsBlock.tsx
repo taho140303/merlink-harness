@@ -1,18 +1,33 @@
 import { Globe2, Shield, BookOpen } from 'lucide-react';
 import { useT } from '../../../../shared/i18n/useT';
+import { cn } from '../../../../shared/utils/cn';
 import type { DraftWorldSettings } from '../types';
 
 interface WorldSettingsBlockProps {
   settings: DraftWorldSettings;
-  
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function WorldSettingsBlock({ settings }: WorldSettingsBlockProps) {
+export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback }: WorldSettingsBlockProps) {
   const t = useT();
+
+  const handleAttach = (e: React.MouseEvent, tag: string, title: string, id: string) => {
+    if (isFeedbackMode && onAttachFeedback) {
+      e.stopPropagation();
+      onAttachFeedback(id, tag, title);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div 
+        onClick={(e) => handleAttach(e, 'world', settings.displayName, settings.code)}
+        className={cn(
+          "rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all duration-300",
+          isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+        )}
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
@@ -28,7 +43,6 @@ export function WorldSettingsBlock({ settings }: WorldSettingsBlockProps) {
               </div>
             </div>
           </div>
-          
         </div>
 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -61,7 +75,14 @@ export function WorldSettingsBlock({ settings }: WorldSettingsBlockProps) {
 
         <div className="space-y-2">
           {settings.loreEntries.map((lore) => (
-            <div key={lore.code} className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+            <div 
+              key={lore.code} 
+              onClick={(e) => handleAttach(e, 'lore', lore.displayName, lore.code)}
+              className={cn(
+                "rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50 transition-all duration-300",
+                isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+              )}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <span className="rounded bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-600 shadow-2xs dark:bg-slate-900 dark:text-slate-300">
                   {lore.type}

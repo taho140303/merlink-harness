@@ -88,15 +88,15 @@ export function DraftToolbar({
         type="button"
         onClick={onToggleFeedback}
         className={cn(
-          "flex h-9 items-center gap-1.5 rounded-full px-3 transition-all duration-300 group",
+          "group flex h-9 items-center rounded-full px-2.5 transition-all duration-300",
           isFeedbackMode
             ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
             : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         )}
         title={t('draft.toolbar.feedback')}
       >
-        <MessageSquareQuote className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-        <span className="text-xs font-medium hidden sm:inline-block">
+        <MessageSquareQuote className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+        <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100">
           {t('draft.toolbar.feedback')}
         </span>
       </button>
