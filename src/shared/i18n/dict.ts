@@ -415,6 +415,8 @@ const en = {
   'draft.scene.stylePreset': 'Style Preset',
   'draft.scene.narrator': 'Narrator',
   'draft.scene.lore': 'Lore',
+  'draft.scene.none': 'Không có',
+  'draft.scene.none': 'None',
   'draft.scene.characters': 'Characters',
 } as const;
 
@@ -835,6 +837,9 @@ const vi: Record<keyof typeof en, string> = {
   'draft.scene.stylePreset': 'Phong cách',
   'draft.scene.narrator': 'Người kể chuyện',
   'draft.scene.lore': 'Lore',
+  'draft.scene.none': 'Không có',
+  'draft.scene.none': 'Không có',
+  'draft.scene.none': 'None',
   'draft.scene.characters': 'Nhân vật',
 };
 

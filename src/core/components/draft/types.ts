@@ -121,7 +121,7 @@ export interface SceneConfig {
   summary: string;
   stylePresetCode: string;
   narratorConfigCode: string;
-  loreEntriesCode: string;
+  loreEntriesCode?: string | null;
   characters: SceneCharacter[];
 }
 
@@ -153,7 +153,7 @@ export interface SceneConfig {
   summary: string;
   stylePresetCode: string;
   narratorConfigCode: string;
-  loreEntriesCode: string;
+  loreEntriesCode?: string | null;
   characters: SceneCharacter[];
 }
 

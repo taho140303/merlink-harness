@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Film, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, Film } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
 import { useT } from '../../../../shared/i18n/useT';
 import type { SceneConfigPhase, SceneConfig } from '../types';
@@ -168,8 +168,13 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
             {t('draft.scene.lore')}
           </span>
-          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-            {scene.loreEntriesCode}
+          <p className={cn(
+            "mt-1 text-sm font-medium",
+            scene.loreEntriesCode 
+              ? "text-slate-800 dark:text-slate-200" 
+              : "text-slate-400 italic"
+          )}>
+            {scene.loreEntriesCode || t('draft.scene.none')}
           </p>
         </div>
       </div>

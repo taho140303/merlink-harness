@@ -164,7 +164,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 summary: 'Thanh Cơ tỉnh dậy trong tế đàn, xung quanh là máu và tiếng niệm chú vang vọng.',
                 stylePresetCode: 'action.combat',
                 narratorConfigCode: 'first-person-protagonist',
-                loreEntriesCode: 'lore-1',
+                loreEntriesCode: 'Thánh tích Ngưu Nhân',
                 characters: [
                   { displayName: 'Phù Thanh Cơ', isPov: true },
                   { displayName: 'Trưởng lão Hạc', isPov: false },
@@ -177,7 +177,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 summary: 'Nghe thấy tiếng gọi từ sâu trong huyết mạch, Thanh Cơ quyết định phá vỡ phong ấn.',
                 stylePresetCode: 'mystery.deduction',
                 narratorConfigCode: 'third-person-limited-single',
-                loreEntriesCode: 'lore-2',
+                loreEntriesCode: null,
                 characters: [
                   { displayName: 'Phù Thanh Cơ', isPov: true },
                   { displayName: 'Hạc Minh', isPov: false },
@@ -206,7 +206,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 summary: 'Thanh Cơ tỉnh dậy trong tế đàn, xung quanh là máu và tiếng niệm chú vang vọng.',
                 stylePresetCode: 'action.combat',
                 narratorConfigCode: 'first-person-protagonist',
-                loreEntriesCode: 'lore-1',
+                loreEntriesCode: 'Thánh tích Ngưu Nhân',
                 characters: [
                   { displayName: 'Phù Thanh Cơ', isPov: true },
                   { displayName: 'Trưởng lão Hạc', isPov: false },
@@ -219,7 +219,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 summary: 'Nghe thấy tiếng gọi từ sâu trong huyết mạch, Thanh Cơ quyết định phá vỡ phong ấn.',
                 stylePresetCode: 'mystery.deduction',
                 narratorConfigCode: 'third-person-limited-single',
-                loreEntriesCode: 'lore-2',
+                loreEntriesCode: null,
                 characters: [
                   { displayName: 'Phù Thanh Cơ', isPov: true },
                   { displayName: 'Hạc Minh', isPov: false },
