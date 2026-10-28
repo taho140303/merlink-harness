@@ -201,7 +201,6 @@ html.dark .tier-overlay {
 .focus-ring:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: inherit;
 }
 
 /* Tôn trọng prefers-reduced-motion cho mọi animation/transition */
