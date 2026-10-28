@@ -48,7 +48,7 @@ export function DraftToolbar({
   ].filter(a => a.onClick !== undefined);
 
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300 relative z-[60]">
+    <div className="flex items-center gap-2.5 rounded-full border border-slate-200/60 bg-white/90 p-2 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300 relative z-[60]">
       
       {/* Version Selector */}
       <div className="relative" ref={dropdownRef}>
@@ -95,10 +95,10 @@ export function DraftToolbar({
         )}
       </div>
 
-      <div className="h-6 w-[1.5px] bg-slate-200 dark:bg-slate-700 mx-1 rounded-full" />
+      <div className="h-6 w-[1.5px] bg-slate-200 dark:bg-slate-700 mx-2 rounded-full" />
 
       {/* Dynamic Expandable Actions */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         {actions.map((action) => {
           const Icon = action.icon;
           const isHovered = hoveredItem === action.id;
@@ -113,7 +113,7 @@ export function DraftToolbar({
               onMouseLeave={() => setHoveredItem(null)}
               onClick={action.onClick}
               className={cn(
-                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
                 isExpanded
                   ? "bg-slate-900 text-white px-4 shadow-md dark:bg-slate-100 dark:text-slate-900"
                   : "bg-transparent text-slate-600 hover:text-slate-900 w-9 sm:w-10 px-0 dark:text-slate-400 dark:hover:text-slate-100",
@@ -124,14 +124,14 @@ export function DraftToolbar({
               <Icon
                 className={cn(
                   "shrink-0 transition-transform duration-300",
-                  isExpanded ? "w-4 h-4" : "w-4 h-4 group-hover:scale-110",
+                  isExpanded ? "w-5 h-5" : "w-5 h-5 group-hover:scale-110",
                   action.active && !isExpanded && "text-purple-600 dark:text-purple-400"
                 )}
               />
 
               <div
                 className={cn(
-                  "grid transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden",
+                  "grid transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden",
                   isExpanded ? "grid-rows-[1fr] opacity-100 ml-2 max-w-[120px]" : "grid-rows-[0fr] opacity-0 ml-0 max-w-0"
                 )}
               >
