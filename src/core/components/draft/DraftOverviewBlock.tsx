@@ -70,7 +70,10 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
         {/* Header */}
         <header 
           onClick={() => isFeedbackMode && onAttachFeedback?.('overview', 'overview', overview.displayName)}
-          className={fbClass(isFeedbackMode, "rounded-3xl p-5 neu-flat")}
+          className={cn(
+            "rounded-3xl p-5 neu-flat transition-all duration-300",
+            isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+          )}
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-3">
@@ -119,7 +122,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               {remainingGenres > 0 && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setAllGenresOpen(true); }}
+                  onClick={(e) => { e.stopPropagation(); if (!isFeedbackMode) setAllGenresOpen(true); }}
                   className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black text-indigo-600 transition-all hover:neu-pressed dark:text-indigo-400"
                 >
                   <span>...</span>
@@ -135,7 +138,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
         {/* Nav Bar */}
         <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 w-fit">
           <button
-            onClick={() => setActiveTab('arcs')}
+            onClick={(e) => { e.stopPropagation(); setActiveTab('arcs'); }}
             className={cn(
               "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
               activeTab === 'arcs' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -144,7 +147,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
             <BookOpen className="h-3.5 w-3.5" /> {t('draft.overview.tabArcs')}
           </button>
           <button
-            onClick={() => setActiveTab('characters')}
+            onClick={(e) => { e.stopPropagation(); setActiveTab('characters'); }}
             className={cn(
               "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
               activeTab === 'characters' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -155,7 +158,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           </button>
           {showWorldTab && (
             <button
-              onClick={() => setActiveTab('world')}
+              onClick={(e) => { e.stopPropagation(); setActiveTab('world'); }}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all animate-in fade-in slide-in-from-left-2",
                 activeTab === 'world' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -174,7 +177,8 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.overview.filterArc')}</span>
                 <select
                   value={arcFilter}
-                  onChange={(e) => setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  onChange={(e) => { e.stopPropagation(); setArcFilter(e.target.value === 'all' ? 'all' : Number(e.target.value)); }}
+                  onClick={(e) => e.stopPropagation()}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 >
                   <option value="all">{t('draft.overview.filterAll')}</option>
@@ -186,9 +190,9 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
+                <button onClick={(e) => { e.stopPropagation(); expandAll(); }} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
                 <span className="text-slate-300 dark:text-slate-600">|</span>
-                <button onClick={collapseAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.collapseAll')}</button>
+                <button onClick={(e) => { e.stopPropagation(); collapseAll(); }} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.collapseAll')}</button>
               </div>
             </div>
             {filteredArcs.map(arc => (

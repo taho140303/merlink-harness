@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { MessageSquareQuote } from 'lucide-react';
 import { DraftHeader } from './DraftHeader';
 import { DraftOverviewBlock } from './DraftOverviewBlock';
@@ -26,11 +26,15 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   // Feedback Mode State & Custom Cursor
   const [isFeedbackMode, setIsFeedbackMode] = useState(false);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!isFeedbackMode) return;
     const handleMouseMove = (e: MouseEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY });
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
@@ -117,10 +121,14 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   const isFading = transitionPhase === 'fade-out' || transitionPhase === 'loading';
 
   return (
-    <aside className={cn(
-      "flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 relative",
-      isFeedbackMode && "cursor-none [&_*]:cursor-none"
-    )}>
+    <aside 
+      ref={containerRef}
+      onMouseLeave={() => setIsFeedbackMode(false)}
+      className={cn(
+        "flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 relative",
+        isFeedbackMode && "cursor-none [&_*]:cursor-none"
+      )}
+    >
       <DraftHeader
         currentStep={currentStep}
         currentSubStep={currentSubStep}
@@ -186,7 +194,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       {/* Custom Feedback Cursor */}
       {isFeedbackMode && (
         <div
-          className="pointer-events-none fixed z-[9999] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-purple-500 bg-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.5)] backdrop-blur-sm transition-transform duration-75 ease-out"
+          className="pointer-events-none absolute z-[9999] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-purple-500 bg-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.5)] backdrop-blur-sm transition-transform duration-75 ease-out"
           style={{ left: cursorPos.x, top: cursorPos.y }}
         >
           <MessageSquareQuote className="h-4 w-4 text-purple-600 dark:text-purple-400" />
