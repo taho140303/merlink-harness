@@ -84,7 +84,7 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
       {/* Popup List khi Hover */}
       <div 
         className={cn(
-          "absolute right-0 top-1/2 -translate-y-1/2 w-64 max-h-[60vh] overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 z-20 transition-all duration-200",
+          "absolute right-0 top-1/2 -translate-y-1/2 w-64 max-h-[400px] overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 z-20 transition-all duration-200",
           isHovered ? "opacity-100 visible scale-100 pointer-events-auto" : "opacity-0 invisible scale-95 pointer-events-none"
         )}
       >
@@ -92,7 +92,10 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
           {items.map((item) => (
             <button
               key={item.id}
-              onClick={() => onItemClick(item.id)}
+              onClick={() => {
+                setActiveId(item.id);
+                onItemClick(item.id);
+              }}
               className={cn(
                 "w-full text-left px-3 py-2 text-xs rounded-lg transition-colors truncate",
                 activeId === item.id
