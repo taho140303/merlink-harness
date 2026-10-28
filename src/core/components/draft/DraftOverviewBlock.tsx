@@ -188,6 +188,28 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               <Film className="h-3.5 w-3.5" /> {t('draft.overview.tabScene')}
             </button>
           )}
+          {showSceneTab && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('scene'); }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                activeTab === 'scene' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              )}
+            >
+              <Film className="h-3.5 w-3.5" /> {t('draft.overview.tabScene')}
+            </button>
+          )}
+          {showSceneTab && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('scene'); }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                activeTab === 'scene' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              )}
+            >
+              <Film className="h-3.5 w-3.5" /> {t('draft.overview.tabScene')}
+            </button>
+          )}
         </div>
 
         {/* Panels */}
