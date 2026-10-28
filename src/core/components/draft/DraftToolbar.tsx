@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Layers, ChevronDown, RotateCcw, ArrowRight, Check, MessageSquareQuote } from 'lucide-react';
+import { Layers, ChevronDown, RotateCcw, ArrowRight, Check, MessageSquareQuote, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { useT } from '../../../shared/i18n/useT';
 import type { DraftVersion } from './types';
@@ -27,6 +27,7 @@ export function DraftToolbar({
 }: DraftToolbarProps) {
   const t = useT();
   const [versionOpen, setVersionOpen] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +40,13 @@ export function DraftToolbar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [versionOpen]);
 
+  const actions = [
+    { id: 'feedback', label: t('draft.toolbar.feedback'), icon: MessageSquareQuote, onClick: onToggleFeedback, active: isFeedbackMode },
+    { id: 'regenerate', label: t('draft.toolbar.regenerate'), icon: RotateCcw, onClick: onRegenerate, active: false },
+    { id: 'next', label: t('draft.toolbar.next'), icon: ArrowRight, onClick: onNext, active: false },
+    { id: 'confirm', label: t('draft.toolbar.confirm'), icon: Check, onClick: onStart, active: false },
+  ].filter(a => a.onClick !== undefined);
+
   return (
     <div className="flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300 relative z-[60]">
       
@@ -47,15 +55,18 @@ export function DraftToolbar({
         <button
           type="button"
           onClick={() => setVersionOpen(!versionOpen)}
-          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
         >
-          <Layers className="h-4 w-4 text-indigo-500" />
+          <Layers className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           <span className="w-[30px] text-center font-mono">{currentVersion}</span>
-          <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform", versionOpen && "rotate-180")} />
+          <ChevronDown className={cn("h-3.5 w-3.5 text-slate-500 transition-transform duration-200", versionOpen && "rotate-180")} />
         </button>
 
         {versionOpen && (
-          <div className="absolute bottom-full left-0 mb-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute bottom-full left-0 mb-3 w-56 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in slide-in-from-bottom-2">
+            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Select Version
+            </div>
             {versionHistory.map((v) => (
               <button
                 key={v.version}
@@ -65,7 +76,7 @@ export function DraftToolbar({
                   setVersionOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-4 py-2.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
+                  "flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
                   currentVersion === v.version
                     ? "bg-slate-50 font-semibold text-slate-900 dark:bg-slate-800/60 dark:text-white"
                     : "text-slate-600 dark:text-slate-400"
@@ -74,63 +85,68 @@ export function DraftToolbar({
                 <div className="flex items-center gap-2">
                   <span className="font-mono">{v.version}</span>
                 </div>
-                <span className="text-[10px] font-normal text-slate-400">{v.updatedAt}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-normal text-slate-400">{v.updatedAt}</span>
+                  {currentVersion === v.version && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900 dark:text-white" />}
+                </div>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+      <div className="h-6 w-[1.5px] bg-slate-200 dark:bg-slate-700 mx-1 rounded-full" />
 
-      {/* Action Buttons */}
-      <button
-        type="button"
-        onClick={onToggleFeedback}
-        className={cn(
-          "group flex h-9 items-center rounded-full px-2.5 transition-all duration-300",
-          isFeedbackMode
-            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
-            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-        )}
-        title={t('draft.toolbar.feedback')}
-      >
-        <MessageSquareQuote className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:scale-110" />
-        <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 group-hover:ml-1.5 group-hover:max-w-[100px] group-hover:opacity-100">
-          {t('draft.toolbar.feedback')}
-        </span>
-      </button>
+      {/* Dynamic Expandable Actions */}
+      <div className="flex items-center gap-1.5">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          const isHovered = hoveredItem === action.id;
+          // Nếu là Feedback và đang bật, giữ trạng thái expand
+          const isExpanded = isHovered || (action.id === 'feedback' && action.active);
 
-      <button
-        type="button"
-        onClick={onRegenerate}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 group"
-        title={t('draft.toolbar.regenerate')}
-      >
-        <RotateCcw className="h-4 w-4 transition-transform duration-500 group-hover:-rotate-180" />
-      </button>
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onMouseEnter={() => setHoveredItem(action.id)}
+              onMouseLeave={() => setHoveredItem(null)}
+              onClick={action.onClick}
+              className={cn(
+                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                isExpanded
+                  ? "bg-slate-900 text-white px-4 shadow-md dark:bg-slate-100 dark:text-slate-900"
+                  : "bg-transparent text-slate-600 hover:text-slate-900 w-9 sm:w-10 px-0 dark:text-slate-400 dark:hover:text-slate-100",
+                (action.id === 'next' || action.id === 'confirm') && !isExpanded && "bg-slate-100 dark:bg-slate-800"
+              )}
+              aria-label={action.label}
+            >
+              <Icon
+                className={cn(
+                  "shrink-0 transition-transform duration-300",
+                  isExpanded ? "w-4 h-4" : "w-4 h-4 group-hover:scale-110",
+                  action.active && !isExpanded && "text-purple-600 dark:text-purple-400"
+                )}
+              />
 
-      {onNext && (
-        <button
-          type="button"
-          onClick={onNext}
-          className="flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md transition-all duration-300 hover:bg-slate-800 hover:shadow-lg dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white group"
-        >
-          <span>{t('draft.toolbar.next')}</span>
-          <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-        </button>
-      )}
+              <div
+                className={cn(
+                  "grid transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden",
+                  isExpanded ? "grid-rows-[1fr] opacity-100 ml-2 max-w-[120px]" : "grid-rows-[0fr] opacity-0 ml-0 max-w-0"
+                )}
+              >
+                <span className="overflow-hidden whitespace-nowrap text-xs font-semibold tracking-wide">
+                  {action.label}
+                </span>
+              </div>
 
-      {onStart && (
-        <button
-          type="button"
-          onClick={onStart}
-          className="flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition-all duration-300 hover:bg-blue-500 hover:shadow-lg group"
-        >
-          <Check className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-          <span>{t('draft.toolbar.confirm')}</span>
-        </button>
-      )}
+              {action.active && !isExpanded && (
+                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-purple-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
