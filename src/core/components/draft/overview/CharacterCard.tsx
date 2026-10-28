@@ -49,8 +49,8 @@ export function CharacterCard({ character, isFeedbackMode, onAttachFeedback }: C
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.character.motif')}</span>
-        <p className="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{character.motif.description}</p>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.character.motif')}</span>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{character.motif.description}</p>
       </div>
     </div>
   );

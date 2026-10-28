@@ -95,9 +95,9 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
                       <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                         {seg.chapterRange}
                       </span>
-                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
                     </div>
-                    <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{seg.summary}</p>
                   </div>
                 </div>
               ))}
@@ -110,9 +110,9 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
                     <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                       {seg.chapterRange}
                     </span>
-                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('draft.segment.phase', { num: seg.phaseNumber })}</span>
                   </div>
-                  <p className="text-[11px] text-slate-700 dark:text-slate-300">{seg.summary}</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{seg.summary}</p>
                 </div>
               ))}
             </div>

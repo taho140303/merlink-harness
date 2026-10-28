@@ -90,7 +90,7 @@ export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: Cha
                     </span>
                     <div className="flex flex-col items-start text-left">
                       <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{chap.displayName}</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{chap.summary}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{chap.summary}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -110,10 +110,10 @@ export function ChapterBlock({ chapters, isFeedbackMode, onAttachFeedback }: Cha
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{scene.displayName}</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{scene.displayName}</span>
                             <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] font-mono text-slate-500 dark:bg-slate-800">{scene.code}</span>
                           </div>
-                          <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">{scene.summary}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{scene.summary}</p>
                         </div>
                       </div>
                     ))}

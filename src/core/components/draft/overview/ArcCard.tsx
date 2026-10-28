@@ -63,16 +63,16 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
       {isExpanded && (
         <div className="border-t border-slate-100 p-4 dark:border-slate-800 space-y-4">
           <div className="flex flex-col gap-2">
-            <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{arc.summary}</p>
+            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{arc.summary}</p>
             {arc.motif && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <Tags className="h-3.5 w-3.5 text-slate-400" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Motif:</span>
-                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Motif:</span>
+                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
                   {arc.motif.displayName} ({arc.motif.category})
                 </span>
                 {arc.motif.note && (
-                  <span className="text-[10px] text-slate-400 italic">— {arc.motif.note}</span>
+                  <span className="text-xs text-slate-400 italic">— {arc.motif.note}</span>
                 )}
               </div>
             )}

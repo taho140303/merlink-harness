@@ -48,14 +48,14 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.desc')}</span>
-              <p className="mt-1 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.desc')}</span>
+              <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                 {settings.description}
               </p>
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.access')}</span>
-              <p className="mt-1 text-xs leading-relaxed text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.access')}</span>
+              <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Shield className="h-3 w-3 text-emerald-500" />
                 {settings.access}
               </p>
@@ -90,9 +90,9 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
                 <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{lore.displayName}</span>
                 <span className="text-[9px] font-mono text-slate-400">{lore.code}</span>
               </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">{lore.description}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">{lore.description}</p>
               {lore.data && (
-                <p className="mt-1 text-[10px] italic text-slate-500 dark:text-slate-500 border-l-2 border-slate-300 pl-2 dark:border-slate-600">
+                <p className="mt-1 text-xs italic text-slate-500 dark:text-slate-500 border-l-2 border-slate-300 pl-2 dark:border-slate-600">
                   {lore.data}
                 </p>
               )}

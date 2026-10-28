@@ -59,22 +59,22 @@ export function ThemeBlock({ theme, isFeedbackMode, onAttachFeedback }: ThemeBlo
         <div className="border-t border-slate-100 p-3 space-y-3 dark:border-slate-800">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.question')}</span>
-              <p className="mt-1 text-xs font-serif text-slate-800 dark:text-slate-200">{theme.question}</p>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.question')}</span>
+              <p className="mt-1 text-sm font-serif text-slate-800 dark:text-slate-200">{theme.question}</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.message')}</span>
-              <p className="mt-1 text-xs font-serif text-slate-800 dark:text-slate-200">{theme.message}</p>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.message')}</span>
+              <p className="mt-1 text-sm font-serif text-slate-800 dark:text-slate-200">{theme.message}</p>
             </div>
           </div>
           
           <div className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.resolution')}</span>
-            <p className="mt-1 text-xs font-serif text-slate-800 dark:text-slate-200">{theme.resolution}</p>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.resolution')}</span>
+            <p className="mt-1 text-sm font-serif text-slate-800 dark:text-slate-200">{theme.resolution}</p>
           </div>
 
           <div className="space-y-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.characterArguments')}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t('draft.theme.characterArguments')}</span>
             {theme.arguments.map(arg => (
               <div key={arg.id} className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -88,19 +88,19 @@ export function ThemeBlock({ theme, isFeedbackMode, onAttachFeedback }: ThemeBlo
                     </span>
                   </div>
                 </div>
-                {arg.note && <p className="text-[11px] text-slate-600 dark:text-slate-400">{arg.note}</p>}
+                {arg.note && <p className="text-xs text-slate-600 dark:text-slate-400">{arg.note}</p>}
                 {(arg.requiredKnowledge || arg.requiredCompetence) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                     {arg.requiredKnowledge && (
                       <div>
-                        <span className="text-[9px] uppercase text-slate-400">{t('draft.theme.requiredKnowledge')}</span>
-                        <p className="text-[11px] text-slate-700 dark:text-slate-300">{arg.requiredKnowledge}</p>
+                        <span className="text-[10px] uppercase text-slate-400">{t('draft.theme.requiredKnowledge')}</span>
+                        <p className="text-xs text-slate-700 dark:text-slate-300">{arg.requiredKnowledge}</p>
                       </div>
                     )}
                     {arg.requiredCompetence && (
                       <div>
-                        <span className="text-[9px] uppercase text-slate-400">{t('draft.theme.requiredCompetence')}</span>
-                        <p className="text-[11px] text-slate-700 dark:text-slate-300">{arg.requiredCompetence}</p>
+                        <span className="text-[10px] uppercase text-slate-400">{t('draft.theme.requiredCompetence')}</span>
+                        <p className="text-xs text-slate-700 dark:text-slate-300">{arg.requiredCompetence}</p>
                       </div>
                     )}
                   </div>
