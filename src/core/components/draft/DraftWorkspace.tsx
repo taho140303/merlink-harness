@@ -6,7 +6,6 @@ import { DraftToolbar } from './DraftToolbar';
 import { DraftLoading } from './DraftLoading';
 import { DRAFT_OVERVIEW } from './mockOverview';
 import { ConfirmDialog } from '../../../shared/components/ui/confirm-dialog';
-import { toast } from '../../../shared/components/ui/toast';
 import { useT } from '../../../shared/i18n/useT';
 import { cn } from '../../../shared/utils/cn';
 import type { DraftStep, CharacterSubStep, DraftOverview, FeedbackContext } from './types';
@@ -88,20 +87,18 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   };
 
   const handleStart = () => {
-    toast({ title: t('draft.toast.started'), variant: 'success' });
     onClose();
   };
 
   const handleRegenerate = () => {
     triggerTransition(() => {
-      toast({ title: 'Regenerated data for this phase.', variant: 'success' });
+      // Logic regenerate data
     });
   };
 
   const handleAttachFeedback = (id: string, tag: string, title: string) => {
     onFeedback({ id, tag, title });
     setIsFeedbackMode(false); // Tắt mode sau khi chọn
-    toast({ title: 'Attached to chat context', variant: 'success' });
   };
 
   const phaseOverview = useMemo(() => {
