@@ -38,7 +38,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     if (transitionPhase !== 'loading') return;
     const interval = setInterval(() => {
       setLoadingIdx(prev => (prev + 1) % loadingMessages.length);
-    }, 500);
+    }, 3000);
     return () => clearInterval(interval);
   }, [transitionPhase, loadingMessages.length]);
 
@@ -61,7 +61,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         setTimeout(() => {
           setTransitionPhase('fade-in');
           setTimeout(() => setTransitionPhase('idle'), 600);
-        }, 2000);
+        }, 3000 * loadingMessages.length);
       }
     }, 600);
   };
