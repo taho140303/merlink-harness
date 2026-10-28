@@ -6,7 +6,7 @@ import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
 import { WorldSettingsBlock } from './overview/WorldSettingsBlock';
-import type { DraftOverview, FeedbackContext, DraftStep } from './types';
+import type { DraftOverview, DraftStep } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
 

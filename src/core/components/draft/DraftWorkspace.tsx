@@ -86,7 +86,6 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
     });
   };
 
-  const currentStepNumber = STEP_ORDER.indexOf(currentStep) + 1;
 
   const phaseOverview = useMemo(() => {
     if (currentStep === 'overview') {
