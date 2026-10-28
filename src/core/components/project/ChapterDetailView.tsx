@@ -58,13 +58,13 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
   const [editSnapshot, setEditSnapshot] = useState<ChapterBlock[] | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [activeOutlineId, setActiveOutlineId] = useState<string | undefined>();
   const [blocks, setBlocks] = useState<ChapterBlock[]>(
     chapter.blocks || [
       { id: "b1", text: "Nội dung chương đang được soạn thảo...", locked: false },
     ],
   );
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 45,
     minPx: 340,
@@ -108,7 +108,6 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
   const fullChapterTitle = `Chương ${chapterIndex}: ${chapter.title}`;
 
   const scrollToBlock = (id: string) => {
-    setActiveOutlineId(id);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -154,6 +153,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
       )}
 
       <div
+        ref={scrollContainerRef}
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
         className="relative flex h-full flex-col overflow-y-auto bg-transparent p-6 dark:bg-transparent sm:p-8"
       >
@@ -321,7 +321,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
       {blocks.length > 0 && (
         <FloatingOutline 
           items={outlineItems} 
-          activeId={activeOutlineId}
+          containerRef={scrollContainerRef}
           onItemClick={scrollToBlock} 
         />
       )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, type RefObject } from 'react';
 import { cn } from '../../utils/cn';
 
 export interface OutlineItem {
@@ -8,17 +8,49 @@ export interface OutlineItem {
 
 interface FloatingOutlineProps {
   items: OutlineItem[];
-  activeId?: string;
+  containerRef?: RefObject<HTMLElement>;
   onItemClick: (id: string) => void;
 }
 
-export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlineProps) {
+export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOutlineProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [activeId, setActiveId] = useState<string | undefined>(items[0]?.id);
+
+  // Logic theo dõi scroll để cập nhật active item
+  useEffect(() => {
+    const container = containerRef?.current;
+    if (!container || items.length === 0) return;
+
+    const handleScroll = () => {
+      // Ngưỡng offset để xác định element nào đang hiển thị trên cùng
+      const offset = 100; 
+      let currentActive = items[0].id;
+
+      for (const item of items) {
+        const el = document.getElementById(item.id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          // Nếu đỉnh của element vượt qua ngưỡng offset so với đỉnh container
+          if (rect.top - containerRect.top <= offset) {
+            currentActive = item.id;
+          } else {
+            break;
+          }
+        }
+      }
+      setActiveId(currentActive);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    // Gọi lần đầu để set active chuẩn xác
+    setTimeout(handleScroll, 100);
+
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [items, containerRef]);
 
   if (items.length === 0) return null;
-
-  // Chỉ lấy tối đa 10 items gần nhất
-  const displayItems = items.slice(-10);
 
   return (
     <div
@@ -29,14 +61,14 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
       {/* Vùng Trigger (Bắt sự kiện hover) */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-3/4 cursor-pointer z-0" />
 
-      {/* Trigger Indicator (Các dấu gạch ngang) - Tăng gap-4 để giãn cách */}
+      {/* Trigger Indicator (Các dấu gạch ngang) - Thêm scroll nếu quá dài */}
       <div 
         className={cn(
-          "flex flex-col items-end gap-4 py-8 max-h-[50vh] transition-opacity duration-200 z-10 pointer-events-none",
+          "flex flex-col items-end gap-4 py-8 max-h-[60vh] overflow-y-auto no-scrollbar transition-opacity duration-200 z-10 pointer-events-none",
           isHovered ? "opacity-0" : "opacity-100"
         )}
       >
-        {displayItems.map((item) => (
+        {items.map((item) => (
           <div
             key={`indicator-${item.id}`}
             className={cn(
@@ -53,11 +85,11 @@ export function FloatingOutline({ items, activeId, onItemClick }: FloatingOutlin
       <div 
         className={cn(
           "absolute right-0 top-1/2 -translate-y-1/2 w-64 max-h-[60vh] overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 z-20 transition-all duration-200",
-          isHovered ? "opacity-100 visible scale-100" : "opacity-0 invisible scale-95 pointer-events-none"
+          isHovered ? "opacity-100 visible scale-100 pointer-events-auto" : "opacity-0 invisible scale-95 pointer-events-none"
         )}
       >
         <div className="flex flex-col gap-0.5">
-          {displayItems.map((item) => (
+          {items.map((item) => (
             <button
               key={item.id}
               onClick={() => onItemClick(item.id)}
