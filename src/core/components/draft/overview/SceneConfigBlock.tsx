@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Film, User, BookOpen, Mic2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Film, User } from 'lucide-react';
 import { cn } from '../../../../shared/utils/cn';
+import { useT } from '../../../../shared/i18n/useT';
 import type { SceneConfigPhase, SceneConfig } from '../types';
 
 interface SceneConfigBlockProps {
@@ -92,7 +93,7 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
                       </button>
 
                       {isChapExpanded && (
-                        <div className="border-t border-slate-200 p-3 dark:border-slate-700 space-y-2">
+                        <div className="border-t border-slate-200 p-3 dark:border-slate-700 space-y-3">
                           {chap.scenes.map((scene) => (
                             <SceneCard
                               key={scene.code}
@@ -116,6 +117,8 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
 }
 
 function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneConfig; isFeedbackMode?: boolean; onAttachFeedback?: (id: string, tag: string, title: string) => void }) {
+  const t = useT();
+  
   const handleAttach = (e: React.MouseEvent) => {
     if (isFeedbackMode && onAttachFeedback) {
       e.stopPropagation();
@@ -127,52 +130,69 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
     <div
       onClick={handleAttach}
       className={cn(
-        "rounded-md border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 transition-all duration-300",
+        "rounded-md border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 transition-all duration-300",
         isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Film className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Cảnh {scene.position}: {scene.displayName}
-            </span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-500 dark:bg-slate-800 dark:text-slate-400">{scene.code}</span>
-          </div>
+      <div className="flex items-center gap-2 mb-2">
+        <Film className="h-4 w-4 text-blue-500" />
+        <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          Cảnh {scene.position}: {scene.displayName}
+        </span>
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-500 dark:bg-slate-800 dark:text-slate-400">{scene.code}</span>
+      </div>
 
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
-            {scene.summary}
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+        {scene.summary}
+      </p>
+
+      {/* Metadata: Title Group + Text */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            {t('draft.scene.stylePreset')}
+          </span>
+          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+            {scene.stylePresetCode}
           </p>
+        </div>
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            {t('draft.scene.narrator')}
+          </span>
+          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+            {scene.narratorConfigCode}
+          </p>
+        </div>
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            {t('draft.scene.lore')}
+          </span>
+          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+            {scene.loreEntriesCode}
+          </p>
+        </div>
+      </div>
 
-          <div className="flex flex-wrap gap-2 mt-2">
-            <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-              <BookOpen className="h-3 w-3" /> {scene.stylePresetCode}
+      {/* Characters Group */}
+      <div className="mt-4">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          {t('draft.scene.characters')}
+        </span>
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          {scene.characters.map((char, i) => (
+            <span
+              key={i}
+              className={cn(
+                "text-sm",
+                char.isPov
+                  ? "font-bold text-indigo-600 dark:text-indigo-400"
+                  : "text-slate-700 dark:text-slate-300"
+              )}
+            >
+              {char.displayName} {char.isPov && "(POV)"}
             </span>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Mic2 className="h-3 w-3" /> {scene.narratorConfigCode}
-            </span>
-            <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-              <BookOpen className="h-3 w-3" /> {scene.loreEntriesCode}
-            </span>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {scene.characters.map((char, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs",
-                  char.isPov
-                    ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 font-semibold"
-                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                )}
-              >
-                {char.isPov && <User className="h-3 w-3" />}
-                {char.displayName}
-              </span>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
     </div>

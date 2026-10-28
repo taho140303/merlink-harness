@@ -412,6 +412,10 @@ const en = {
   'draft.toolbar.confirm': 'Confirm',
   'draft.overview.tabScene': 'Scene Config',
   'draft.overview.sceneDesc': 'Configure style, narrator, lore, and POV for each scene.',
+  'draft.scene.stylePreset': 'Style Preset',
+  'draft.scene.narrator': 'Narrator',
+  'draft.scene.lore': 'Lore',
+  'draft.scene.characters': 'Characters',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -828,6 +832,10 @@ const vi: Record<keyof typeof en, string> = {
   'draft.toolbar.confirm': 'Xác nhận',
   'draft.overview.tabScene': 'Cấu hình cảnh',
   'draft.overview.sceneDesc': 'Cấu hình phong cách, người kể chuyện, lore và POV cho từng cảnh.',
+  'draft.scene.stylePreset': 'Phong cách',
+  'draft.scene.narrator': 'Người kể chuyện',
+  'draft.scene.lore': 'Lore',
+  'draft.scene.characters': 'Nhân vật',
 };
 
 export const dict = { en, vi };
