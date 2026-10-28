@@ -25,7 +25,7 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
         onClick={(e) => handleAttach(e, 'world', settings.displayName, settings.code)}
         className={cn(
           "rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all duration-300",
-          isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+          isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
         )}
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
@@ -80,7 +80,7 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
               onClick={(e) => handleAttach(e, 'lore', lore.displayName, lore.code)}
               className={cn(
                 "rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50 transition-all duration-300",
-                isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+                isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
               )}
             >
               <div className="flex items-center gap-2 mb-1">

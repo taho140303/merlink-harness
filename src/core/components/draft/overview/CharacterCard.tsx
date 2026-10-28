@@ -24,7 +24,7 @@ export function CharacterCard({ character, isFeedbackMode, onAttachFeedback }: C
       onClick={handleAttach}
       className={cn(
         "flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all duration-300",
-        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+        isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
       )}
     >
       <div className="flex items-start justify-between gap-2">

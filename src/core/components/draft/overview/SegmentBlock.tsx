@@ -31,7 +31,7 @@ export function SegmentBlock({ segments, isFeedbackMode, onAttachFeedback }: Seg
       onClick={handleAttach}
       className={cn(
         "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
-        isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+        isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
       )}
     >
       <button

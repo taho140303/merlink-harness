@@ -10,11 +10,6 @@ import type { DraftOverview, DraftStep } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
 
-const fbClass = (isFb?: boolean, extra?: string) => cn(
-  "transition-all duration-300",
-  isFb && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none",
-  extra
-);
 
 
 interface DraftOverviewBlockProps {
@@ -72,7 +67,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
           onClick={() => isFeedbackMode && onAttachFeedback?.('overview', 'overview', overview.displayName)}
           className={cn(
             "rounded-3xl p-5 neu-flat transition-all duration-300",
-            isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-500/5 cursor-none"
+            isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
           )}
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
