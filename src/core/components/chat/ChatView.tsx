@@ -16,6 +16,7 @@ export default function ChatView() {
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 50,
@@ -152,7 +153,7 @@ export default function ChatView() {
         />
 
         <div className="relative flex-1 overflow-hidden">
-          <div className="no-scrollbar h-full overflow-y-auto px-6 py-4 space-y-4">
+          <div ref={scrollContainerRef} className="no-scrollbar h-full overflow-y-auto px-6 py-4 space-y-4">
             {messages.length === 0 ? (
               <ChatWelcome />
             ) : (
@@ -165,7 +166,7 @@ export default function ChatView() {
           {messages.length > 0 && (
             <FloatingOutline 
               items={outlineItems} 
-              containerRef={containerRef}
+              containerRef={scrollContainerRef}
               onItemClick={scrollToMessage} 
             />
           )}

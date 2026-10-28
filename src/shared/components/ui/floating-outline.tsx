@@ -23,27 +23,37 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
     const container = containerRef?.current;
     if (!container || items.length === 0) return;
 
-    const handleScroll = () => {
-      const offset = 100; 
-      let currentActive = items[0].id;
+    let ticking = false;
 
-      for (const item of items) {
-        const el = document.getElementById(item.id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          
-          if (rect.top - containerRect.top <= offset) {
-            currentActive = item.id;
-          } else {
-            break;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const offset = 120; // Khoảng cách từ đỉnh container
+          let currentActive = items[0].id;
+
+          for (const item of items) {
+            const el = document.getElementById(item.id);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const containerRect = container.getBoundingClientRect();
+              
+              // Nếu đỉnh của item vượt qua ngưỡng offset so với đỉnh container
+              if (rect.top - containerRect.top <= offset) {
+                currentActive = item.id;
+              } else {
+                break;
+              }
+            }
           }
-        }
+          setActiveId(currentActive);
+          ticking = false;
+        });
+        ticking = true;
       }
-      setActiveId(currentActive);
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
+    // Gọi lần đầu để set active chuẩn xác
     setTimeout(handleScroll, 100);
 
     return () => container.removeEventListener('scroll', handleScroll);
