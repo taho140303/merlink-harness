@@ -15,7 +15,7 @@ export default function ProjectDetailRoute() {
   if (!project) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <p className="text-sm text-slate-500">Không tìm thấy dự án.</p>
+        <p className="text-sm text-fg-muted">Không tìm thấy dự án.</p>
         <Link to="/project" className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
           Quay lại danh sách Project
         </Link>

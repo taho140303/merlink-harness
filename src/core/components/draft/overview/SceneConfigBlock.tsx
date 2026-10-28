@@ -45,7 +45,7 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
           <div
             key={arcIdx}
             className={cn(
-              "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 overflow-hidden transition-all duration-300",
+              "tier-card rounded-card overflow-hidden transition-colors duration-300",
               isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
             )}
             onClick={(e) => handleAttach(e, `arc-${arcIdx}`, 'arc', arc.displayName)}
@@ -53,47 +53,47 @@ export function SceneConfigBlock({ config, isFeedbackMode, onAttachFeedback }: S
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); toggleArc(arcIdx); }}
-              className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              className="flex w-full items-center justify-between p-4 hover:bg-surface-muted  transition-colors"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 font-bold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
                   {arc.position}
                 </span>
                 <div className="text-left">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{arc.displayName}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{arc.chapters.length} chương</p>
+                  <h3 className="text-base font-bold text-fg">{arc.displayName}</h3>
+                  <p className="text-sm text-fg-muted">{arc.chapters.length} chương</p>
                 </div>
               </div>
-              {isArcExpanded ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
+              {isArcExpanded ? <ChevronUp className="h-5 w-5 text-fg-subtle" /> : <ChevronDown className="h-5 w-5 text-fg-subtle" />}
             </button>
 
             {isArcExpanded && (
-              <div className="border-t border-slate-100 p-4 dark:border-slate-800 space-y-3">
+              <div className="border-t border-line p-4  space-y-3">
                 {arc.chapters.map((chap, chapIdx) => {
                   const chapKey = `${arcIdx}-${chapIdx}`;
                   const isChapExpanded = expandedChapters.has(chapKey);
                   return (
                     <div
                       key={chapKey}
-                      className="rounded-lg border border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/30 overflow-hidden"
+                      className="rounded-lg border border-line bg-surface-muted/50   overflow-hidden"
                     >
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleChapter(chapKey); }}
-                        className="flex w-full items-center justify-between p-3 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="flex w-full items-center justify-between p-3 hover:bg-surface-muted  transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded bg-white text-xs font-bold text-slate-700 shadow-xs dark:bg-slate-900 dark:text-slate-300">
+                          <span className="flex h-6 w-6 items-center justify-center rounded bg-surface-card text-xs font-bold text-fg-muted   ">
                             {chap.position}
                           </span>
-                          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{chap.displayName}</span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">({chap.scenes.length} cảnh)</span>
+                          <span className="text-sm font-semibold text-fg">{chap.displayName}</span>
+                          <span className="text-xs text-fg-muted">({chap.scenes.length} cảnh)</span>
                         </div>
-                        {isChapExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                        {isChapExpanded ? <ChevronUp className="h-4 w-4 text-fg-subtle" /> : <ChevronDown className="h-4 w-4 text-fg-subtle" />}
                       </button>
 
                       {isChapExpanded && (
-                        <div className="border-t border-slate-200 p-3 dark:border-slate-700 space-y-3">
+                        <div className="border-t border-line p-3  space-y-3">
                           {chap.scenes.map((scene) => (
                             <SceneCard
                               key={scene.code}
@@ -130,49 +130,49 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
     <div
       onClick={handleAttach}
       className={cn(
-        "rounded-md border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 transition-all duration-300",
+        "tier-card rounded-card p-4 transition-colors duration-300",
         isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
       )}
     >
       <div className="flex items-center gap-2 mb-2">
         <Film className="h-4 w-4 text-blue-500" />
-        <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+        <span className="text-sm font-bold text-fg">
           Cảnh {scene.position}: {scene.displayName}
         </span>
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-500 dark:bg-slate-800 dark:text-slate-400">{scene.code}</span>
+        <span className="rounded bg-surface-muted px-1.5 py-0.5 text-xs font-mono text-fg-subtle  -subtle">{scene.code}</span>
       </div>
 
-      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+      <p className="text-sm text-fg-muted -subtle mb-4 leading-relaxed">
         {scene.summary}
       </p>
 
       {/* Metadata: Title Group + Text */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-line ">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
             {t('draft.scene.stylePreset')}
           </span>
-          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+          <p className="mt-1 text-sm font-medium text-fg ">
             {scene.stylePresetCode}
           </p>
         </div>
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
             {t('draft.scene.narrator')}
           </span>
-          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+          <p className="mt-1 text-sm font-medium text-fg ">
             {scene.narratorConfigCode}
           </p>
         </div>
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
             {t('draft.scene.lore')}
           </span>
           <p className={cn(
             "mt-1 text-sm font-medium",
             scene.loreEntriesCode 
-              ? "text-slate-800 dark:text-slate-200" 
-              : "text-slate-400 italic"
+              ? "text-fg " 
+              : "text-fg-subtle italic"
           )}>
             {scene.loreEntriesCode || t('draft.scene.none')}
           </p>
@@ -181,7 +181,7 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
 
       {/* Characters Group */}
       <div className="mt-4">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        <span className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
           {t('draft.scene.characters')}
         </span>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
@@ -192,7 +192,7 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
                 "text-sm",
                 char.isPov
                   ? "font-bold text-indigo-600 dark:text-indigo-400"
-                  : "text-slate-700 dark:text-slate-300"
+                  : "text-fg-muted "
               )}
             >
               {char.displayName} {char.isPov && "(POV)"}

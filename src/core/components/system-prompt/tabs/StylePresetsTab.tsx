@@ -17,7 +17,7 @@ import type { NarrativeWeight, TonePace } from '../types';
 const WEIGHT_PCT: Record<NarrativeWeight, number> = { NONE: 0, LOW: 33, MEDIUM: 66, HIGH: 100 };
 
 const PACE_COLOR: Record<TonePace, string> = {
-  VERY_LOW: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  VERY_LOW: 'bg-surface-muted text-fg-muted  ',
   LOW: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
   MODERATE: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
   FAST: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
@@ -30,11 +30,11 @@ const CATEGORIES = Array.from(new Set(stylePresets.map(p => p.category))).sort()
 function WeightMeter({ label, weight }: { label: string; weight: NarrativeWeight }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+      <div className="mb-1 flex items-center justify-between text-xs text-fg-muted">
         <span>{label}</span>
-        <span className="font-semibold text-slate-700 dark:text-slate-300">{weight}</span>
+        <span className="font-semibold text-fg-muted">{weight}</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted ">
         <div
           className="h-full rounded-full bg-indigo-500"
           style={{ width: `${WEIGHT_PCT[weight]}%` }}
@@ -48,8 +48,8 @@ function SectionTitle({ title, description }: { title: string; description: stri
   return (
     <div className="mb-3 flex items-start gap-2">
       <div>
-        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        <h3 className="font-semibold text-fg">{title}</h3>
+        <p className="mt-0.5 text-xs text-fg-muted">{description}</p>
       </div>
       <InfoTooltip content={description} className="mt-1" />
     </div>
@@ -73,15 +73,15 @@ export function StylePresetsTab() {
         <SectionTitle title={t('sp.style.title')} description={t('sp.style.desc')} />
         
         {/* Category Filter */}
-        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800 overflow-x-auto max-w-full">
+        <div className="flex items-center gap-1 rounded-xl bg-surface-muted p-0.5  overflow-x-auto max-w-full">
           <button
             type="button"
             onClick={() => setCategoryFilter('ALL')}
             className={cn(
-              'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
+              'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
               categoryFilter === 'ALL'
-                ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
-                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'bg-surface-card text-fg   '
+                : 'text-fg-muted hover:text-fg -subtle '
             )}
           >
             All
@@ -92,10 +92,10 @@ export function StylePresetsTab() {
               type="button"
               onClick={() => setCategoryFilter(cat)}
               className={cn(
-                'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
+                'flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
                 categoryFilter === cat
-                  ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-surface-card text-fg   '
+                  : 'text-fg-muted hover:text-fg -subtle '
               )}
             >
               {humanize(cat)}
@@ -105,7 +105,7 @@ export function StylePresetsTab() {
       </div>
 
       {filteredPresets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-10 text-center text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/40">
+        <div className="rounded-xl border border-dashed border-line-strong bg-surface-card/60 p-10 text-center text-xs text-fg-subtle -strong ">
           Không có style preset nào thuộc thể loại này.
         </div>
       ) : (
@@ -118,45 +118,45 @@ export function StylePresetsTab() {
           return (
             <details
               key={preset.id}
-              className="group rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              className="group tier-card rounded-card"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                    <h4 className="font-semibold text-fg">
                       {preset.code}
                     </h4>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
                       {preset.category}
                     </span>
                     <span
                       className={cn(
-                        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                        'rounded-full px-2 py-0.5 text-xs font-medium',
                         PACE_COLOR[preset.tonePace],
                       )}
                     >
                       {humanize(preset.tonePace)}
                     </span>
                     {preset.isSystem && (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
                         {t('sp.common.system')}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-xs text-fg-muted">
                     {t('sp.style.toneEmotion')}: {preset.toneEmotion}
                   </p>
                 </div>
-                <span className="text-xs text-slate-400 transition-transform group-open:rotate-180">
+                <span className="text-xs text-fg-subtle transition-transform group-open:rotate-180">
                   ▾
                 </span>
               </summary>
 
-              <div className="space-y-5 border-t border-slate-100 px-4 pb-4 pt-4 dark:border-slate-800">
+              <div className="space-y-5 border-t border-line px-4 pb-4 pt-4 ">
                 {/* Sensory */}
                 <div>
                   <div className="mb-2 flex items-center gap-1.5">
-                    <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                       {t('sp.style.sensory')}
                     </h5>
                     <InfoTooltip content="Relative weight of each sensory channel in the generated prose." />
@@ -174,25 +174,25 @@ export function StylePresetsTab() {
                 {/* Syntax */}
                 <div>
                   <div className="mb-2 flex items-center gap-1.5">
-                    <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                       {t('sp.style.syntax')}
                     </h5>
                     <InfoTooltip content="Sentence shape and rhythm constraints for this preset." />
                   </div>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     <div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-fg-muted">
                         {t('sp.style.sentenceLength')}
                       </p>
-                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      <p className="text-xs font-semibold text-fg">
                         {humanize(preset.syntaxSentence)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-fg-muted">
                         {t('sp.style.sentenceStructure')}
                       </p>
-                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      <p className="text-xs font-semibold text-fg">
                         {humanize(preset.syntaxStructure)}
                       </p>
                     </div>
@@ -204,7 +204,7 @@ export function StylePresetsTab() {
                 {rds.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center gap-1.5">
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                         {t('sp.style.rhetorical')}
                       </h5>
                       <InfoTooltip content="Which rhetorical devices to lean into, use lightly, or avoid." />
@@ -221,16 +221,16 @@ export function StylePresetsTab() {
                         return (
                           <div
                             key={r.id}
-                            className="flex flex-wrap items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-950/40"
+                            className="flex flex-wrap items-start gap-2 rounded-lg border border-line bg-surface-muted px-2.5 py-2 text-xs  "
                           >
                             <span className={cn('rounded-full px-2 py-0.5 font-medium', usageColor)}>
                               {t(`sp.style.usage.${r.usageType}`)}
                             </span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            <span className="font-semibold text-fg">
                               {humanize(dev?.code ?? '')}
                             </span>
                             {r.customInstruction && (
-                              <span className="text-slate-500 dark:text-slate-400">
+                              <span className="text-fg-muted">
                                 — {r.customInstruction}
                               </span>
                             )}
@@ -245,7 +245,7 @@ export function StylePresetsTab() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <div className="mb-2 flex items-center gap-1.5">
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                         {t('sp.style.vocab')}
                       </h5>
                       <InfoTooltip content="Suggested vocabulary tokens to bias the model's output." />
@@ -254,7 +254,7 @@ export function StylePresetsTab() {
                       {vocab.map((v) => (
                         <span
                           key={v.id}
-                          className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-fg-muted  "
                         >
                           {v.content}
                         </span>
@@ -263,7 +263,7 @@ export function StylePresetsTab() {
                   </div>
                   <div>
                     <div className="mb-2 flex items-center gap-1.5">
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                         {t('sp.style.focus')}
                       </h5>
                       <InfoTooltip content="Thematic / sensory focus items to prioritise." />
@@ -272,7 +272,7 @@ export function StylePresetsTab() {
                       {focus.map((f) => (
                         <span
                           key={f.id}
-                          className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
+                          className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
                         >
                           {f.content}
                         </span>
@@ -285,7 +285,7 @@ export function StylePresetsTab() {
                 {narratives.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center gap-1.5">
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      <h5 className="text-xs font-semibold uppercase tracking-wide text-fg-muted ">
                         {t('sp.style.directives')}
                       </h5>
                       <InfoTooltip content="Directives applied with the given weight." />
@@ -296,17 +296,17 @@ export function StylePresetsTab() {
                         return (
                           <div
                             key={sn.id}
-                            className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900"
+                            className="flex items-start justify-between gap-3 tier-card rounded-lg px-2.5 py-2"
                           >
                             <div className="min-w-0">
-                              <p className="font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">
+                              <p className="font-mono text-xs font-semibold text-fg">
                                 {nd?.code}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                              <p className="mt-0.5 text-xs text-fg-muted">
                                 {nd?.description}
                               </p>
                             </div>
-                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
                               {sn.weight}
                             </span>
                           </div>

@@ -62,10 +62,10 @@ export function AIProvidersTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="text-base font-semibold text-fg">
           {t("providers.models")}
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-fg-muted">
           {t("providers.subtitle")}
         </p>
       </div>
@@ -74,14 +74,14 @@ export function AIProvidersTab() {
         {providers.map((provider) => (
           <div
             key={provider.id}
-            className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-2.5 transition-colors dark:border-slate-800 dark:bg-slate-900"
+            className="flex items-center justify-between rounded-2xl border border-line bg-surface-card px-4 py-2.5 transition-colors  "
           >
             <div className="flex items-center gap-2.5 truncate">
-              <span className="truncate text-xs font-medium text-slate-900 dark:text-slate-100">
+              <span className="truncate text-xs font-medium text-fg">
                 {provider.name}
               </span>
               {provider.isCustom && (
-                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <span className="rounded-md bg-surface-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted  ">
                   {t("providers.custom")}
                 </span>
               )}
@@ -97,7 +97,7 @@ export function AIProvidersTab() {
               <button
                 type="button"
                 onClick={() => setEditingProvider(provider)}
-                className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                className="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg   "
               >
                 {t("providers.edit")}
               </button>
@@ -117,7 +117,7 @@ export function AIProvidersTab() {
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong py-3 text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg   "
         >
           <Plus className="h-4 w-4" />
           <span>{t("providers.add")}</span>

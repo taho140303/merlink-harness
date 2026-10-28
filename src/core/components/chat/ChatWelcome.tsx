@@ -16,7 +16,7 @@ export function ChatWelcome() {
           </span>
           
           {/* Tiêu đề chính */}
-          <h1 className="max-w-md text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 sm:text-3xl">
+          <h1 className="max-w-md text-2xl font-semibold tracking-tight text-fg  sm:text-3xl">
             {t("chat.welcomeTitle")}
           </h1>
         </div>

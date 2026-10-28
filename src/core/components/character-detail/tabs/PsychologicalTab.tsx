@@ -5,8 +5,8 @@ import type { PsychologicalProfile } from '../types';
 
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h3 className="mb-3 font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+    <section className="rounded-xl border border-line bg-surface-card p-5   ">
+      <h3 className="mb-3 font-semibold text-fg">{title}</h3>
       {children}
     </section>
   );
@@ -24,24 +24,24 @@ function ProseField({
   if (onChange) {
     return (
       <div>
-        <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="mb-1 text-xs uppercase tracking-wide text-fg-muted">
           {label}
         </p>
         <textarea
           rows={4}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-serif text-[14px] leading-7 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          className="w-full resize-y rounded-lg tier-input focus-ring px-3 py-2 font-serif text-sm leading-7 text-fg focus-ring   "
         />
       </div>
     );
   }
   return (
     <div>
-      <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <p className="mb-1 text-xs uppercase tracking-wide text-fg-muted">
         {label}
       </p>
-      <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800 dark:text-slate-200">
+      <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-fg ">
         {value}
       </p>
     </div>
@@ -81,14 +81,14 @@ export function PsychologicalTab() {
       <Block title={t('detail.psych.cognitiveMoral')}>
         <div className="mb-4 grid gap-4 md:grid-cols-2">
           <div>
-            <p className="mb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <p className="mb-1 text-xs uppercase tracking-wide text-fg-muted">
               {t('detail.psych.moralAlignment')}
             </p>
             {isEditing ? (
               <input
                 value={p.cognitiveMoral.moralAlignment}
                 onChange={(e) => upd((d) => (d.cognitiveMoral.moralAlignment = e.target.value))}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                className="w-full rounded-lg tier-input focus-ring px-3 py-1.5 text-xs   "
               />
             ) : (
               <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -111,7 +111,7 @@ export function PsychologicalTab() {
             onChange={isEditing ? (v) => upd((d) => (d.cognitiveMoral.moralCode = v)) : undefined}
           />
           <div className="rounded-lg border border-rose-100 bg-rose-50 p-3 dark:border-rose-900/60 dark:bg-rose-950/30">
-            <p className="mb-1 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-300">
+            <p className="mb-1 text-xs uppercase tracking-wide text-rose-700 dark:text-rose-300">
               {t('detail.psych.breakingPoint')}
             </p>
             {isEditing ? (
@@ -119,10 +119,10 @@ export function PsychologicalTab() {
                 rows={4}
                 value={p.cognitiveMoral.breakingPoint}
                 onChange={(e) => upd((d) => (d.cognitiveMoral.breakingPoint = e.target.value))}
-                className="w-full resize-y rounded-lg border border-rose-200 bg-white px-2 py-1.5 font-serif text-[14px] leading-7 text-rose-900 focus:outline-hidden focus:ring-2 focus:ring-rose-400 dark:border-rose-900 dark:bg-slate-950 dark:text-rose-100"
+                className="w-full resize-y rounded-lg border border-rose-200 bg-surface-card px-2 py-1.5 font-serif text-sm leading-7 text-rose-900 focus-ring focus:ring-2 focus:ring-rose-400 dark:border-rose-900  dark:text-rose-100"
               />
             ) : (
-              <p className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-rose-900 dark:text-rose-100">
+              <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-rose-900 dark:text-rose-100">
                 {p.cognitiveMoral.breakingPoint}
               </p>
             )}
@@ -159,7 +159,7 @@ export function PsychologicalTab() {
       <Block title={t('detail.psych.behavioralAdaptation')}>
         <div className="space-y-4">
           <div>
-            <h4 className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <h4 className="mb-2 text-xs uppercase tracking-wide text-fg-muted">
               {t('detail.psych.socialMask')}
             </h4>
             <div className="grid gap-4 md:grid-cols-2">
@@ -184,7 +184,7 @@ export function PsychologicalTab() {
             </div>
           </div>
           <div>
-            <h4 className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <h4 className="mb-2 text-xs uppercase tracking-wide text-fg-muted">
               {t('detail.psych.defenseMechanisms')}
             </h4>
             <div className="grid gap-4 md:grid-cols-3">

@@ -17,12 +17,12 @@ export function SettingsSidebar({ activeTab, onSelectTab }: SettingsSidebarProps
   ];
 
   return (
-    <aside className="w-52 shrink-0 border-r border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+    <aside className="w-52 shrink-0 border-r border-line bg-surface-muted/70 p-3">
       <div className="mb-4 px-2 pt-2">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-base font-semibold text-fg">
           {t("settings.title")}
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-fg-muted">
           {t("settings.subtitle")}
         </p>
       </div>
@@ -33,14 +33,15 @@ export function SettingsSidebar({ activeTab, onSelectTab }: SettingsSidebarProps
             key={id}
             type="button"
             onClick={() => onSelectTab(id)}
+            aria-current={activeTab === id ? 'page' : undefined}
             className={cn(
-              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors",
+              "focus-ring flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors",
               activeTab === id
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white"
-                : "text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:bg-surface-muted hover:text-fg",
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4" aria-hidden="true" />
             <span>{label}</span>
           </button>
         ))}

@@ -8,16 +8,18 @@ import { CharacterChatPane } from '../character/CharacterChatPane';
 import { ConfirmDialog } from '../../../shared/components/ui/confirm-dialog';
 import { toast } from '../../../shared/components/ui/toast';
 import { useT } from '../../../shared/i18n/useT';
+import { Tabs } from '../../../shared/components/ui/tabs';
+import type { TKey } from '../../../shared/i18n/dict';
 import { useCharacterDetailStore } from './store';
 import { CoreIdentityTab } from './tabs/CoreIdentityTab';
 import { LifeExperienceTab } from './tabs/LifeExperienceTab';
 import { PsychologicalTab } from './tabs/PsychologicalTab';
 import type { DetailTab } from './types';
 
-const tabLabels: Record<DetailTab, string> = {
-  core: 'Core Identity',
-  life: 'Life Experience',
-  psych: 'Psychological',
+const tabKeys: Record<DetailTab, TKey> = {
+  core: 'character.detail.core',
+  life: 'character.detail.life',
+  psych: 'character.detail.psych',
 };
 
 const lifeSubLabels = {
@@ -46,10 +48,11 @@ export function CharacterDetailLayout() {
     minPx: 340,
   });
 
+  const tabLabel = (tab: DetailTab) => t(tabKeys[tab]);
   const subSectionName =
     activeTab === 'life'
-      ? `${tabLabels.life} › ${lifeSubLabels[activeLifeTab]}`
-      : tabLabels[activeTab];
+      ? `${tabLabel('life')} › ${lifeSubLabels[activeLifeTab]}`
+      : tabLabel(activeTab);
 
   const handleSave = () => {
     saveEditing();
@@ -72,7 +75,7 @@ export function CharacterDetailLayout() {
         <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
           <CharacterChatPane
             characterName={character.basicInfo.name}
-            activeSection={tabLabels[activeTab]}
+            activeSection={tabLabel(activeTab)}
             onClose={() => toggleChat()}
           />
         </div>
@@ -83,38 +86,38 @@ export function CharacterDetailLayout() {
           onMouseDown={startDragging}
           className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
         >
-          <div className="h-full w-px bg-slate-200 transition-colors group-hover:bg-blue-500 dark:bg-slate-800" />
+          <div className="h-full w-px bg-surface-muted transition-colors group-hover:bg-blue-500 " />
           <div
             className={cn(
-              'absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800',
+              'absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-line-strong bg-surface-card  transition-opacity  ',
               isDragging
                 ? 'opacity-100 ring-2 ring-blue-500'
                 : 'opacity-0 group-hover:opacity-100',
             )}
           >
-            <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <GripVertical className="h-3.5 w-3.5 text-fg-muted" />
           </div>
         </div>
       )}
 
       <div
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : '100%' }}
-        className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8"
+        className="flex h-full flex-col overflow-y-auto bg-surface-muted/50 p-6  sm:p-8"
       >
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
-          <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <Link to="/character" className="shrink-0 hover:text-slate-900 dark:hover:text-slate-100">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pb-4 ">
+          <div className="flex items-center gap-2 truncate text-xs font-semibold text-fg-muted">
+            <Link to="/character" className="shrink-0 hover:text-fg ">
               Character
             </Link>
             <span>›</span>
             <span
-              className="truncate text-slate-500 dark:text-slate-400"
+              className="truncate text-fg-muted"
               title={character.basicInfo.name}
             >
               {truncate(character.basicInfo.name, 15)}
             </span>
             <span>›</span>
-            <span className="truncate font-bold text-slate-900 dark:text-slate-100">
+            <span className="truncate font-bold text-fg">
               {truncate(subSectionName, 20)}
             </span>
           </div>
@@ -124,7 +127,7 @@ export function CharacterDetailLayout() {
               <button
                 type="button"
                 onClick={startEditing}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3 py-1.5 text-xs font-medium text-fg  transition-colors hover:bg-surface-muted    "
               >
                 <Pencil className="h-3.5 w-3.5" />
                 <span>{t('common.edit')}</span>
@@ -134,7 +137,7 @@ export function CharacterDetailLayout() {
                 <button
                   type="button"
                   onClick={() => setDiscardOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex items-center gap-1.5 rounded-xl border border-line bg-surface-card px-3 py-1.5 text-xs font-medium text-fg  transition-colors hover:bg-surface-muted    "
                 >
                   <X className="h-3.5 w-3.5" />
                   <span>{t('common.cancel')}</span>
@@ -142,7 +145,7 @@ export function CharacterDetailLayout() {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                  className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white  transition-colors hover:opacity-90   "
                 >
                   <Check className="h-3.5 w-3.5" />
                   <span>{t('common.save')}</span>
@@ -154,10 +157,10 @@ export function CharacterDetailLayout() {
               type="button"
               onClick={toggleChat}
               className={cn(
-                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors',
+                'flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors',
                 isChatOpen
                   ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800',
+                  : 'border-line bg-surface-card text-fg hover:bg-surface-muted    ',
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -166,23 +169,16 @@ export function CharacterDetailLayout() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-          {(Object.keys(tabLabels) as DetailTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all',
-                activeTab === tab
-                  ? 'bg-slate-900 text-white shadow-xs dark:bg-slate-100 dark:text-slate-900'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
-              )}
-            >
-              {tabLabels[tab]}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          className="mt-6"
+          ariaLabel={t('character.detail.tabs')}
+          value={activeTab}
+          onChange={(id) => setActiveTab(id as DetailTab)}
+          items={(Object.keys(tabKeys) as DetailTab[]).map((tab) => ({
+            id: tab,
+            label: t(tabKeys[tab]),
+          }))}
+        />
 
         <div className="mt-6">
           {activeTab === 'core' && <CoreIdentityTab />}

@@ -1,4 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useT } from "../../../shared/i18n/useT";
 
 interface SidebarHeaderProps {
   collapsed: boolean;
@@ -6,19 +7,22 @@ interface SidebarHeaderProps {
 }
 
 export function SidebarHeader({ collapsed, onToggle }: SidebarHeaderProps) {
+  const t = useT();
+
   if (collapsed) {
     return (
       <div className="flex h-14 shrink-0 items-center justify-center px-2">
         <button
           onClick={onToggle}
-          className="group relative flex h-9 w-9 items-center justify-center rounded-xl neu-pressed text-slate-700 transition-all hover:text-pink-600 dark:text-slate-300 dark:hover:text-pink-400"
-          title="Mở sidebar"
+          aria-label={t("sidebar.expand")}
+          className="focus-ring group relative flex h-9 w-9 items-center justify-center rounded-xl neu-pressed text-fg-muted transition-colors hover:text-accent"
+          title={t("sidebar.expand")}
         >
           <div className="flex items-center justify-center transition-opacity duration-200 group-hover:opacity-0">
-            <img src="/logo.svg" alt="Merlink Logo" className="h-6 w-6 object-contain" />
+            <img src="/logo.svg" alt="" className="h-6 w-6 object-contain" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            <PanelLeftOpen className="h-5 w-5" />
+            <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
           </div>
         </button>
       </div>
@@ -28,19 +32,20 @@ export function SidebarHeader({ collapsed, onToggle }: SidebarHeaderProps) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between px-1">
       <div className="flex items-center gap-2.5 overflow-hidden">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl neu-pressed shadow-inner">
-          <img src="/logo.svg" alt="Merlink Logo" className="h-6 w-6 object-contain" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl neu-pressed">
+          <img src="/logo.svg" alt="" className="h-6 w-6 object-contain" />
         </div>
-        <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+        <span className="whitespace-nowrap text-sm font-extrabold tracking-tight text-fg">
           merlink-harness
         </span>
       </div>
       <button
         onClick={onToggle}
-        className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-all hover:neu-pressed hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        title="Thu gọn sidebar"
+        aria-label={t("sidebar.collapse")}
+        className="focus-ring shrink-0 rounded-lg p-1.5 text-fg-muted transition-colors hover:neu-pressed hover:text-fg"
+        title={t("sidebar.collapse")}
       >
-        <PanelLeftClose className="h-5 w-5" />
+        <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
       </button>
     </div>
   );

@@ -23,54 +23,47 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
   const location = useLocation();
   const isWorldbuildingActive = location.pathname.startsWith("/worldbuilding");
 
-  const activeClass = "neu-pressed text-slate-900 dark:text-white font-semibold";
-  const inactiveClass = "text-slate-600 hover:neu-flat hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200";
+  const activeClass = "neu-pressed text-fg font-semibold";
+  const inactiveClass = "text-fg-muted hover:neu-flat hover:text-fg";
+  const itemClass =
+    "focus-ring flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors";
 
   return (
     <div className="space-y-2">
       <NavLink
         to="/"
         end
+        aria-label={t("sidebar.newChat")}
         className={({ isActive }) =>
-          cn(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            isActive ? activeClass : inactiveClass,
-            collapsed && "justify-center px-0"
-          )
+          cn(itemClass, isActive ? activeClass : inactiveClass, collapsed && "justify-center px-0")
         }
         title={collapsed ? t("sidebar.newChat") : undefined}
       >
-        <MessageSquarePlus className="h-5 w-5 shrink-0" />
+        <MessageSquarePlus className="h-5 w-5 shrink-0" aria-hidden="true" />
         {!collapsed && <span>{t("sidebar.newChat")}</span>}
       </NavLink>
 
       <NavLink
         to="/project"
+        aria-label={t("sidebar.project")}
         className={({ isActive }) =>
-          cn(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            isActive ? activeClass : inactiveClass,
-            collapsed && "justify-center px-0"
-          )
+          cn(itemClass, isActive ? activeClass : inactiveClass, collapsed && "justify-center px-0")
         }
         title={collapsed ? t("sidebar.project") : undefined}
       >
-        <FolderGit2 className="h-5 w-5 shrink-0" />
+        <FolderGit2 className="h-5 w-5 shrink-0" aria-hidden="true" />
         {!collapsed && <span>{t("sidebar.project")}</span>}
       </NavLink>
 
       <NavLink
         to="/character"
+        aria-label={t("sidebar.character")}
         className={({ isActive }) =>
-          cn(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            isActive ? activeClass : inactiveClass,
-            collapsed && "justify-center px-0"
-          )
+          cn(itemClass, isActive ? activeClass : inactiveClass, collapsed && "justify-center px-0")
         }
         title={collapsed ? t("sidebar.character") : undefined}
       >
-        <Users className="h-5 w-5 shrink-0" />
+        <Users className="h-5 w-5 shrink-0" aria-hidden="true" />
         {!collapsed && <span>{t("sidebar.character")}</span>}
       </NavLink>
 
@@ -79,51 +72,57 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
         <button
           type="button"
           onClick={() => setWorldbuildingOpen((prev) => !prev)}
+          aria-expanded={worldbuildingOpen}
+          aria-label={t("sidebar.worldbuilding")}
           className={cn(
-            "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+            itemClass,
+            "justify-between",
             isWorldbuildingActive ? activeClass : inactiveClass,
-            collapsed && "justify-center px-0"
+            collapsed && "justify-center px-0",
           )}
           title={collapsed ? t("sidebar.worldbuilding") : undefined}
         >
           <div className="flex items-center gap-3">
-            <Globe className="h-5 w-5 shrink-0" />
+            <Globe className="h-5 w-5 shrink-0" aria-hidden="true" />
             {!collapsed && <span>{t("sidebar.worldbuilding")}</span>}
           </div>
           {!collapsed && (
             <ChevronDown
+              aria-hidden="true"
               className={cn(
                 "h-4 w-4 shrink-0 transition-transform duration-200",
-                worldbuildingOpen && "rotate-180"
+                worldbuildingOpen && "rotate-180",
               )}
             />
           )}
         </button>
 
         {!collapsed && worldbuildingOpen && (
-          <div className="ml-5 mt-1 space-y-1 border-l-2 border-slate-100 pl-3 dark:border-slate-800">
+          <div className="ml-5 mt-1 space-y-1 border-l-2 border-line pl-3">
             <NavLink
               to="/worldbuilding/lore"
+              aria-label={t("sidebar.lore")}
               className={({ isActive }) =>
                 cn(
-                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-all",
-                  isActive ? activeClass : inactiveClass
+                  "focus-ring flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                  isActive ? activeClass : inactiveClass,
                 )
               }
             >
-              <BookOpen className="h-4 w-4" />
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
               <span>{t("sidebar.lore")}</span>
             </NavLink>
             <NavLink
               to="/worldbuilding/settings"
+              aria-label={t("sidebar.worldSettings")}
               className={({ isActive }) =>
                 cn(
-                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-all",
-                  isActive ? activeClass : inactiveClass
+                  "focus-ring flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                  isActive ? activeClass : inactiveClass,
                 )
               }
             >
-              <Sliders className="h-4 w-4" />
+              <Sliders className="h-4 w-4" aria-hidden="true" />
               <span>{t("sidebar.worldSettings")}</span>
             </NavLink>
           </div>
@@ -132,16 +131,13 @@ export function SidebarNav({ collapsed }: SidebarNavProps) {
 
       <NavLink
         to="/config"
+        aria-label={t("sidebar.systemPrompt")}
         className={({ isActive }) =>
-          cn(
-            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            isActive ? activeClass : inactiveClass,
-            collapsed && "justify-center px-0"
-          )
+          cn(itemClass, isActive ? activeClass : inactiveClass, collapsed && "justify-center px-0")
         }
         title={collapsed ? t("sidebar.systemPrompt") : undefined}
       >
-        <Braces className="h-5 w-5 shrink-0" />
+        <Braces className="h-5 w-5 shrink-0" aria-hidden="true" />
         {!collapsed && <span>{t("sidebar.systemPrompt")}</span>}
       </NavLink>
     </div>

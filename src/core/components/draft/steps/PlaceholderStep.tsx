@@ -8,9 +8,9 @@ interface PlaceholderStepProps {
 
 export function PlaceholderStep({ title, description, onFeedback }: PlaceholderStepProps) {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/50 p-8 text-center dark:border-slate-700 dark:bg-slate-900/50">
-      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-      <p className="mt-2 max-w-md text-base text-slate-500 dark:text-slate-400">{description}</p>
+    <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-surface-card/50 p-8 text-center  ">
+      <h3 className="text-lg font-bold text-fg">{title}</h3>
+      <p className="mt-2 max-w-md text-base text-fg-muted">{description}</p>
 
       {onFeedback && (
         <button onClick={onFeedback} className="mt-4 flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">

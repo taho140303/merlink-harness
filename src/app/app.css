@@ -5,18 +5,51 @@
 @theme {
   --color-base-light: #eef2f7;
   --color-base-dark: #0f1015;
+
+  /* Tier 2 — nội dung (light; override trong html.dark) */
+  --color-surface-panel: #ffffff;
+  --color-surface-card: #ffffff;
+  --color-surface-input: #f8fafc;
+  --color-surface-muted: #f1f5f9;
+  --color-fg: #0f172a;
+  --color-fg-muted: #475569;
+  --color-fg-subtle: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-accent: #8b5cf6;
+  --color-accent-soft: #f5f3ff;
+
+  /* Radius ladder chính thức */
+  --radius-shell: 2.5rem;
+  --radius-shell-sm: 2rem;
+  --radius-panel: 1.5rem;
+  --radius-card: 1rem;
+}
+
+html.dark {
+  --color-surface-panel: #12151c;
+  --color-surface-card: #151922;
+  --color-surface-input: #0f131a;
+  --color-surface-muted: #1a1f29;
+  --color-fg: #f1f5f9;
+  --color-fg-muted: #cbd5e1;
+  --color-fg-subtle: #94a3b8;
+  --color-line: #232a36;
+  --color-line-strong: #334155;
+  --color-accent: #a78bfa;
+  --color-accent-soft: #1e1b2e;
 }
 
 body {
   background-color: var(--color-base-light);
-  color: #1e293b;
+  color: var(--color-fg);
   margin: 0;
   transition: background-color 0.7s ease;
 }
 
 html.dark body {
   background-color: var(--color-base-dark);
-  color: #f1f5f9;
+  color: var(--color-fg);
 }
 
 /* 
@@ -114,3 +147,102 @@ html.dark .neu-pressed {
 .animate-logo-float {
   animation: logo-float 3s ease-in-out infinite;
 }
+
+/* ==========================================================================
+   Design System v1 — Tier 2 surfaces (flat-bordered) + focus + motion
+   ========================================================================== */
+
+/* Panel lớn: nền bán trong suốt + hairline + blur */
+.tier-panel {
+  background-color: color-mix(in srgb, var(--color-surface-panel) 82%, transparent);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Card nội dung: đục vừa phải, không bóng */
+.tier-card {
+  background-color: var(--color-surface-card);
+  border: 1px solid var(--color-line);
+}
+
+/* Input / select / textarea */
+.tier-input {
+  background-color: var(--color-surface-input);
+  border: 1px solid var(--color-line);
+  color: var(--color-fg);
+}
+
+.tier-input::placeholder {
+  color: var(--color-fg-subtle);
+}
+
+.tier-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Overlay: dialog / popover / tooltip — bóng mềm duy nhất được phép */
+.tier-overlay {
+  background-color: var(--color-surface-panel);
+  border: 1px solid var(--color-line);
+  box-shadow:
+    0 12px 32px -12px rgba(15, 23, 42, 0.28),
+    0 2px 8px -2px rgba(15, 23, 42, 0.12);
+}
+
+html.dark .tier-overlay {
+  box-shadow:
+    0 16px 40px -16px rgba(0, 0, 0, 0.85),
+    0 2px 8px -2px rgba(0, 0, 0, 0.6);
+}
+
+/* Focus ring duy nhất toàn app */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* Tôn trọng prefers-reduced-motion cho mọi animation/transition */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Motion thật cho overlay (thay cho animate-in của tailwindcss-animate)
+   ========================================================================== */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.dialog-overlay[data-state='open'] { animation: overlay-in 0.2s ease-out; }
+.dialog-overlay[data-state='closed'] { animation: overlay-out 0.15s ease-in; }
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dialog-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+}
+.dialog-content[data-state='open'] { animation: dialog-in 0.2s ease-out; }
+.dialog-content[data-state='closed'] { animation: dialog-out 0.15s ease-in; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-item { animation: toast-in 0.2s ease-out; }

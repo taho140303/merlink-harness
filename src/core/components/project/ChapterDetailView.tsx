@@ -43,10 +43,10 @@ function AutoResizeTextarea({
       onChange={(e) => onChange(e.target.value)}
       rows={1}
       className={cn(
-        "w-full resize-none overflow-hidden bg-transparent text-sm leading-relaxed focus:outline-hidden",
+        "w-full resize-none overflow-hidden bg-transparent text-sm leading-relaxed focus-ring",
         disabled
-          ? "cursor-not-allowed text-slate-400 select-none dark:text-slate-500"
-          : "text-slate-800 dark:text-slate-200",
+          ? "cursor-not-allowed text-fg-subtle select-none -subtle"
+          : "text-fg ",
       )}
     />
   );
@@ -140,14 +140,14 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
           onMouseDown={startDragging}
           className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
         >
-          <div className="h-full w-px bg-slate-200 transition-colors group-hover:bg-blue-500 dark:bg-slate-800" />
+          <div className="h-full w-px bg-surface-muted transition-colors group-hover:bg-blue-500 " />
           <div
             className={cn(
-              "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800",
+              "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-line-strong bg-surface-card  transition-opacity  ",
               isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100",
             )}
           >
-            <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <GripVertical className="h-3.5 w-3.5 text-fg-muted" />
           </div>
         </div>
       )}
@@ -157,22 +157,22 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
         style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
         className="relative flex h-full flex-col overflow-y-auto bg-transparent p-6 dark:bg-transparent sm:p-8"
       >
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
-          <div className="flex items-center gap-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <Link to="/project" className="shrink-0 hover:text-slate-900 dark:hover:text-slate-100">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pb-4 ">
+          <div className="flex items-center gap-2 truncate text-xs font-semibold text-fg-muted">
+            <Link to="/project" className="shrink-0 hover:text-fg ">
               Project
             </Link>
             <span>›</span>
             <Link
               to={`/project/${project.id}`}
-              className="truncate hover:text-slate-900 dark:hover:text-slate-100"
+              className="truncate hover:text-fg "
               title={project.title}
             >
               {truncate(project.title, 15)}
             </Link>
             <span>›</span>
             <span
-              className="truncate font-bold text-slate-900 dark:text-slate-100"
+              className="truncate font-bold text-fg"
               title={fullChapterTitle}
             >
               {truncate(fullChapterTitle, 15)}
@@ -181,11 +181,11 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
 
           <div className="flex shrink-0 items-center gap-2">
             {isEditing && (
-              <div className="mr-2 flex items-center gap-1 border-r border-slate-200 pr-3 dark:border-slate-800">
+              <div className="mr-2 flex items-center gap-1 border-r border-line pr-3 ">
                 <button
                   type="button"
                   onClick={handleLockAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-all duration-100 hover:bg-rose-50 active:scale-95 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors duration-100 hover:bg-rose-50 active:scale-95 dark:text-rose-400 dark:hover:bg-rose-950/50"
                   title={t("project.lockAll")}
                 >
                   <Lock className="h-3.5 w-3.5" />
@@ -194,7 +194,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 <button
                   type="button"
                   onClick={handleUnlockAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-all duration-100 hover:bg-emerald-50 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-colors duration-100 hover:bg-emerald-50 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   title={t("project.unlockAll")}
                 >
                   <Unlock className="h-3.5 w-3.5" />
@@ -207,7 +207,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex items-center gap-1.5 tier-card rounded-card px-3 py-1.5 text-xs font-medium text-fg-muted  transition-colors hover:bg-surface-muted    "
               >
                 <Pencil className="h-3.5 w-3.5" />
                 <span>{t("common.edit")}</span>
@@ -217,7 +217,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 <button
                   type="button"
                   onClick={() => setDiscardOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex items-center gap-1.5 tier-card rounded-card px-3 py-1.5 text-xs font-medium text-fg-muted  transition-colors hover:bg-surface-muted    "
                 >
                   <X className="h-3.5 w-3.5" />
                   <span>{t("common.cancel")}</span>
@@ -225,7 +225,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                  className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white  transition-colors hover:opacity-90   "
                 >
                   <Check className="h-3.5 w-3.5" />
                   <span>{t("common.save")}</span>
@@ -237,10 +237,10 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
               type="button"
               onClick={() => setIsChatOpen(!isChatOpen)}
               className={cn(
-                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-xs transition-colors",
+                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors",
                 isChatOpen
                   ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
+                  : "border-line bg-surface-card text-fg-muted hover:bg-surface-muted   ",
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -249,12 +249,12 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
           </div>
         </div>
 
-        <div className="mx-auto mt-6 w-full max-w-3xl space-y-5 pr-14">
-          <div className="border-b border-slate-100 pb-4 dark:border-slate-800">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+        <div className="mx-auto mt-6 w-full max-w-2xl space-y-5 pr-10">
+          <div className="border-b border-line pb-4 ">
+            <h1 className="text-xl font-bold tracking-tight text-fg sm:text-2xl">
               {fullChapterTitle}
             </h1>
-            <p className="mt-1 text-xs text-slate-400">Đăng ngày: {chapter.date}</p>
+            <p className="mt-1 text-xs text-fg-subtle">Đăng ngày: {chapter.date}</p>
           </div>
 
           <div className="space-y-4">
@@ -263,17 +263,17 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                 key={block.id}
                 id={block.id}
                 className={cn(
-                  "group relative rounded-2xl transition-all duration-200 scroll-mt-24",
+                  "group relative rounded-2xl transition-colors duration-200 scroll-mt-24",
                   isEditing
-                    ? "border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-                    : "text-sm leading-relaxed text-slate-700 dark:text-slate-300",
+                    ? "border border-line bg-surface-card p-4   "
+                    : "text-sm leading-relaxed text-fg-muted ",
                 )}
               >
                 {isEditing ? (
                   <>
                     <div
                       className={cn(
-                        "absolute -right-11 top-1/2 z-10 -translate-y-1/2 transition-all duration-200",
+                        "absolute -right-11 top-1/2 z-10 -translate-y-1/2 transition-colors duration-200",
                         block.locked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                       )}
                     >
@@ -281,10 +281,10 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                         type="button"
                         onClick={() => toggleLock(block.id)}
                         className={cn(
-                          "flex h-7 w-7 items-center justify-center rounded-lg border shadow-xs transition-colors",
+                          "flex h-7 w-7 items-center justify-center rounded-lg border  transition-colors",
                           block.locked
                             ? "border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                            : "border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                            : "border-line bg-surface-card text-fg-subtle hover:border-line-strong hover:text-fg   -subtle ",
                         )}
                       >
                         {block.locked ? (
@@ -302,7 +302,7 @@ export function ChapterDetailView({ project, chapter, chapterIndex }: ChapterDet
                     />
 
                     {block.locked && (
-                      <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-rose-500">
+                      <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-rose-500">
                         <Lock className="h-3 w-3" />
                         <span>Khối nội dung đã bị khóa</span>
                       </span>

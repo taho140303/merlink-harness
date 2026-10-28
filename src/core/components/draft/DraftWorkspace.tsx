@@ -41,7 +41,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   }, [isFeedbackMode]);
 
   // Transition states
-  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading' | 'fade-in'>('idle');
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | '' | 'loading' | ''>('idle');
   const [loadingIdx, setLoadingIdx] = useState(0);
 
   const loadingMessages = [
@@ -61,7 +61,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
   const triggerTransition = (action: () => void) => {
     if (transitionPhase !== 'idle') return;
-    setTransitionPhase('fade-out');
+    setTransitionPhase('');
     
     setTimeout(() => {
       action();
@@ -69,7 +69,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       setTransitionPhase('loading');
       
       setTimeout(() => {
-        setTransitionPhase('fade-in');
+        setTransitionPhase('');
         setTimeout(() => setTransitionPhase('idle'), 600);
       }, 3000 * loadingMessages.length);
     }, 600);
@@ -118,14 +118,14 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     return overview;
   }, [overview, currentStep]);
 
-  const isFading = transitionPhase === 'fade-out' || transitionPhase === 'loading';
+  const isFading = transitionPhase === '' || transitionPhase === 'loading';
 
   return (
     <aside 
       ref={containerRef}
       onMouseLeave={() => setIsFeedbackMode(false)}
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 relative",
+        "flex h-full w-full flex-col overflow-hidden border-l border-line bg-surface-muted/40   relative",
         isFeedbackMode && "cursor-none [&_*]:cursor-none"
       )}
     >
@@ -141,10 +141,10 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         )}
 
         <div className={cn(
-          "h-full w-full transition-all duration-600",
-          transitionPhase === 'fade-out' && "opacity-0 scale-[0.98]",
+          "h-full w-full transition-colors duration-300",
+          transitionPhase === '' && "opacity-0 scale-[0.98]",
           transitionPhase === 'loading' && "hidden",
-          transitionPhase === 'fade-in' && "opacity-100 scale-100 animate-in fade-in duration-600",
+          transitionPhase === '' && "opacity-100 scale-100   duration-300",
           transitionPhase === 'idle' && "opacity-100 scale-100"
         )}>
           <DraftOverviewBlock
@@ -157,7 +157,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
 
         {/* Toolbar */}
         <div className={cn(
-          "absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-all duration-600",
+          "absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-colors duration-300",
           isFading ? "opacity-0 translate-y-4 pointer-events-none" : "opacity-100 translate-y-0"
         )}>
           <DraftToolbar
@@ -186,7 +186,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       {/* Custom Feedback Cursor */}
       {isFeedbackMode && (
         <div
-          className="pointer-events-none absolute z-[9999] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-purple-500 bg-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.5)] backdrop-blur-sm transition-transform duration-75 ease-out"
+          className="pointer-events-none absolute z-[9999] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-purple-500 bg-purple-500/20 backdrop-blur-sm transition-transform duration-150 ease-out"
           style={{ left: cursorPos.x, top: cursorPos.y }}
         >
           <MessageSquareQuote className="h-4 w-4 text-purple-600 dark:text-purple-400" />

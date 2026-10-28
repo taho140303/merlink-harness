@@ -48,23 +48,23 @@ export function DraftToolbar({
   ].filter(a => a.onClick !== undefined);
 
   return (
-    <div className="flex items-center gap-2.5 rounded-full border border-slate-200/60 bg-white/90 p-2 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300 relative z-[60]">
+    <div className="flex items-center gap-2.5 rounded-full border border-line bg-surface-card/90 p-2  backdrop-blur-md    -from-bottom-4 duration-300 relative z-[60]">
       
       {/* Version Selector */}
       <div className="relative" ref={dropdownRef}>
         <button
           type="button"
           onClick={() => setVersionOpen(!versionOpen)}
-          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          className="flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-2 text-sm font-semibold text-fg-muted transition-colors duration-200 hover:bg-surface-muted active:scale-95   "
         >
-          <Layers className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+          <Layers className="h-3.5 w-3.5 text-fg-muted" />
           <span className="w-[30px] text-center font-mono">{currentVersion}</span>
-          <ChevronDown className={cn("h-3.5 w-3.5 text-slate-500 transition-transform duration-200", versionOpen && "rotate-180")} />
+          <ChevronDown className={cn("h-3.5 w-3.5 text-fg-subtle transition-transform duration-200", versionOpen && "rotate-180")} />
         </button>
 
         {versionOpen && (
-          <div className="absolute bottom-full left-0 mb-3 w-56 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in slide-in-from-bottom-2">
-            <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="absolute bottom-full left-0 mb-3 w-56 overflow-hidden rounded-2xl border border-line bg-surface-card    z-50   -from-bottom-2">
+            <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-fg-subtle">
               Select Version
             </div>
             {versionHistory.map((v) => (
@@ -76,18 +76,18 @@ export function DraftToolbar({
                   setVersionOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60",
+                  "flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted ",
                   currentVersion === v.version
-                    ? "bg-slate-50 font-semibold text-slate-900 dark:bg-slate-800/60 dark:text-white"
-                    : "text-slate-600 dark:text-slate-400"
+                    ? "bg-surface-muted font-semibold text-fg  "
+                    : "text-fg-muted -subtle"
                 )}
               >
                 <div className="flex items-center gap-5">
                   <span className="font-mono">{v.version}</span>
                 </div>
                 <div className="flex items-center gap-5">
-                  <span className="text-[10px] font-normal text-slate-400">{v.updatedAt}</span>
-                  {currentVersion === v.version && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900 dark:text-white" />}
+                  <span className="text-xs font-normal text-fg-subtle">{v.updatedAt}</span>
+                  {currentVersion === v.version && <CheckCircle2 className="h-3.5 w-3.5 text-fg " />}
                 </div>
               </button>
             ))}
@@ -95,7 +95,7 @@ export function DraftToolbar({
         )}
       </div>
 
-      <div className="h-6 w-[1.5px] bg-slate-200 dark:bg-slate-700 mx-2 rounded-full" />
+      <div className="h-6 w-[1.5px] bg-surface-muted  mx-2 rounded-full" />
 
       {/* Dynamic Expandable Actions */}
       <div className="flex items-center gap-5">
@@ -113,11 +113,11 @@ export function DraftToolbar({
               onMouseLeave={() => setHoveredItem(null)}
               onClick={action.onClick}
               className={cn(
-                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
+                "group relative flex h-9 sm:h-10 items-center justify-center rounded-full transition-colors duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
                 isExpanded
-                  ? "bg-slate-900 text-white px-4 shadow-md dark:bg-slate-100 dark:text-slate-900"
-                  : "bg-transparent text-slate-600 hover:text-slate-900 w-9 sm:w-10 px-0 dark:text-slate-400 dark:hover:text-slate-100",
-                (action.id === 'next' || action.id === 'confirm') && !isExpanded && "bg-slate-100 dark:bg-slate-800"
+                  ? "bg-accent text-white px-4   "
+                  : "bg-transparent text-fg-muted hover:text-fg w-9 sm:w-10 px-0 -subtle ",
+                (action.id === 'next' || action.id === 'confirm') && !isExpanded && "bg-surface-muted "
               )}
               aria-label={action.label}
             >
@@ -131,7 +131,7 @@ export function DraftToolbar({
 
               <div
                 className={cn(
-                  "grid transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden",
+                  "grid transition-colors duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden",
                   isExpanded ? "grid-rows-[1fr] opacity-100 ml-2 max-w-[120px]" : "grid-rows-[0fr] opacity-0 ml-0 max-w-0"
                 )}
               >

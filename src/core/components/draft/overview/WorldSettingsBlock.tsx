@@ -24,21 +24,21 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
       <div 
         onClick={(e) => handleAttach(e, 'world', settings.displayName, settings.code)}
         className={cn(
-          "w-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all duration-300",
+          "w-full tier-card rounded-card p-5    transition-colors duration-300",
           isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
         )}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-line pb-4 ">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <Globe2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-lg font-bold text-fg">
                 {settings.displayName}
               </h3>
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-                <span className="rounded bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{settings.type}</span>
+              <div className="flex items-center gap-2 text-sm font-medium text-fg-muted mt-1">
+                <span className="rounded bg-surface-muted px-2 py-0.5 ">{settings.type}</span>
                 {settings.parentCode && <span>Parent: {settings.parentCode}</span>}
               </div>
             </div>
@@ -47,14 +47,14 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
 
         <div className="mt-4 flex flex-col gap-5 w-full">
           <div className="w-full">
-            <span className="text-sm font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.desc')}</span>
-            <p className="mt-1 text-lg leading-relaxed text-slate-700 dark:text-slate-300 w-full">
+            <span className="text-sm font-semibold uppercase tracking-wider text-fg-subtle">{t('draft.world.desc')}</span>
+            <p className="mt-1 text-lg leading-relaxed text-fg-muted  w-full">
               {settings.description}
             </p>
           </div>
           <div className="w-full">
-            <span className="text-sm font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.access')}</span>
-            <div className="mt-1 flex items-start gap-2 text-lg leading-relaxed text-slate-700 dark:text-slate-300 w-full">
+            <span className="text-sm font-semibold uppercase tracking-wider text-fg-subtle">{t('draft.world.access')}</span>
+            <div className="mt-1 flex items-start gap-2 text-lg leading-relaxed text-fg-muted  w-full">
               <Shield className="h-5 w-5 shrink-0 text-emerald-500 mt-1" />
               <p className="flex-1">{settings.access}</p>
             </div>
@@ -62,10 +62,10 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
         </div>
       </div>
 
-      <div className="w-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="w-full tier-card rounded-card p-5   ">
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="h-5 w-5 text-amber-500" />
-          <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{t('draft.world.lore')}</h4>
+          <h4 className="text-lg font-bold text-fg">{t('draft.world.lore')}</h4>
           <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             {settings.loreEntries.length} entries
           </span>
@@ -77,20 +77,20 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
               key={lore.code} 
               onClick={(e) => handleAttach(e, 'lore', lore.displayName, lore.code)}
               className={cn(
-                "w-full rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50 transition-all duration-300",
+                "w-full rounded-lg border border-line bg-surface-muted p-4   transition-colors duration-300",
                 isFeedbackMode && "hover:!border-2 hover:!border-dashed hover:!border-purple-500 hover:bg-purple-500/5 cursor-none"
               )}
             >
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="rounded bg-white px-2 py-0.5 text-xs font-bold text-slate-600 shadow-2xs dark:bg-slate-900 dark:text-slate-300">
+                <span className="rounded bg-surface-card px-2 py-0.5 text-xs font-bold text-fg-muted   ">
                   {lore.type}
                 </span>
-                <span className="text-base font-bold text-slate-900 dark:text-slate-100">{lore.displayName}</span>
-                <span className="text-sm font-mono text-slate-400">{lore.code}</span>
+                <span className="text-base font-bold text-fg">{lore.displayName}</span>
+                <span className="text-sm font-mono text-fg-subtle">{lore.code}</span>
               </div>
-              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">{lore.description}</p>
+              <p className="text-base text-fg-muted -subtle leading-relaxed">{lore.description}</p>
               {lore.data && (
-                <p className="mt-2 text-base italic text-slate-500 dark:text-slate-500 border-l-2 border-slate-300 pl-3 dark:border-slate-600 leading-relaxed">
+                <p className="mt-2 text-base italic text-fg-subtle -subtle border-l-2 border-line-strong pl-3  leading-relaxed">
                   {lore.data}
                 </p>
               )}

@@ -5,3 +5,9 @@
 # React Router
 /.react-router/
 /build/
+
+# QA artifacts (ảnh chụp màn hình)
+/docs/refactor-ui-reports/screenshots/
+
+# DSH tool lock artifacts
+.dsh-ops-update-*.lock

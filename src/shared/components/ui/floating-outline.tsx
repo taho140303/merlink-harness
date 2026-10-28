@@ -8,7 +8,7 @@ export interface OutlineItem {
 
 interface FloatingOutlineProps {
   items: OutlineItem[];
-  containerRef?: RefObject<HTMLElement>;
+  containerRef?: RefObject<HTMLElement | null>;
   onItemClick: (id: string) => void;
 }
 
@@ -81,6 +81,8 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
       className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocusCapture={() => setIsHovered(true)}
+      onBlurCapture={() => setIsHovered(false)}
     >
       {/* Vùng Trigger (Bắt sự kiện hover) */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-3/4 cursor-pointer z-0" />
@@ -98,8 +100,8 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
             className={cn(
               "h-1.5 rounded-full transition-all duration-300 shrink-0",
               activeId === item.id 
-                ? "w-6 bg-[#e61380]" 
-                : "w-3 bg-slate-300 dark:bg-slate-700"
+                ? "w-6 bg-accent"
+                : "w-3 bg-line-strong"
             )}
           />
         ))}
@@ -108,7 +110,7 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
       {/* Popup List khi Hover (Hiển thị full danh sách, có scroll) */}
       <div 
         className={cn(
-          "absolute right-0 top-1/2 -translate-y-1/2 w-52 max-h-[400px] overflow-y-auto no-scrollbar rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 z-20 transition-all duration-200",
+          "tier-overlay absolute right-0 top-1/2 z-20 max-h-100 w-52 -translate-y-1/2 overflow-y-auto rounded-panel p-2 no-scrollbar transition-all duration-200",
           isHovered ? "opacity-100 visible scale-100 pointer-events-auto" : "opacity-0 invisible scale-95 pointer-events-none"
         )}
       >
@@ -121,12 +123,13 @@ export function FloatingOutline({ items, containerRef, onItemClick }: FloatingOu
                 onItemClick(item.id);
               }}
               className={cn(
-                "w-full text-left px-3 py-2 text-xs rounded-lg transition-colors truncate",
+                "focus-ring w-full truncate rounded-lg px-3 py-2 text-left text-xs transition-colors",
                 activeId === item.id
-                  ? "bg-[#e61380]/10 text-[#e61380] font-medium"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  ? "bg-accent-soft font-medium text-accent"
+                  : "text-fg-muted hover:bg-surface-muted hover:text-fg"
               )}
               title={item.title}
+              aria-current={activeId === item.id ? "location" : undefined}
             >
               {item.title.length > 20 ? `${item.title.substring(0, 20)}...` : item.title}
             </button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, Lock } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
+import { Tabs } from '../../../shared/components/ui/tabs';
 import { truncate } from '../../../shared/utils/string';
 import { useT } from '../../../shared/i18n/useT';
 import type { TKey } from '../../../shared/i18n/dict';
@@ -31,74 +32,65 @@ export function SystemPromptLayout() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-slate-50/50 p-6 dark:bg-slate-950/20 sm:p-8">
+    <div className="flex h-full flex-col overflow-y-auto bg-surface-muted p-6  sm:p-8">
       {/* Header: Dynamic Breadcrumb as Title */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
+      <div className="flex items-start justify-between gap-3 border-b border-line pb-4 ">
         <div>
-          <div className="flex items-center gap-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+          <div className="flex items-center gap-1.5 text-xl font-bold tracking-tight text-fg sm:text-2xl">
             <button
               type="button"
               onClick={() => setActiveChild(null)}
               className={cn(
                 'transition-colors hover:underline',
                 tab === 'motifs' && !activeChild
-                  ? 'text-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100',
+                  ? 'text-fg'
+                  : 'text-fg-muted hover:text-fg -subtle ',
               )}
             >
               {t('sp.title')}
             </button>
-            <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />
+            <ChevronRight className="h-5 w-5 shrink-0 text-fg-subtle -muted" />
             <button
               type="button"
               onClick={() => setActiveChild(null)}
               className={cn(
                 'transition-colors hover:underline',
                 activeChild
-                  ? 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
-                  : 'text-slate-900 dark:text-slate-100',
+                  ? 'text-fg-muted hover:text-fg -subtle '
+                  : 'text-fg',
               )}
             >
               {t(TAB_LABELS[tab])}
             </button>
             {activeChild && (
               <>
-                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-fg-subtle -muted" />
                 <span
-                  className="max-w-[200px] truncate text-slate-900 dark:text-slate-100"
+                  className="max-w-[200px] truncate text-fg"
                   title={activeChild.name}
                 >
                   {truncate(activeChild.name, 15)}
                 </span>
               </>
             )}
-            <span className="ml-2 flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <span className="ml-2 flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
               <Lock className="h-2.5 w-2.5" />
               {t('sp.readonly')}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('sp.subtitle')}</p>
+          <p className="mt-1 text-xs text-fg-muted">{t('sp.subtitle')}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-        {(Object.keys(TAB_LABELS) as SpTab[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => handleTabChange(key)}
-            className={cn(
-              'rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all',
-              tab === key
-                ? 'bg-slate-900 text-white shadow-xs dark:bg-slate-100 dark:text-slate-900'
-                : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
-            )}
-          >
-            {t(TAB_LABELS[key])}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        className="mt-6 flex-wrap"
+        items={(Object.keys(TAB_LABELS) as SpTab[]).map((key) => ({ id: key, label: t(TAB_LABELS[key]) }))}
+        value={tab}
+        onChange={(key) => handleTabChange(key as SpTab)}
+        ariaLabel={t('sp.title')}
+        variant="underline"
+      />
 
       {/* Content */}
       <div className="mt-6">

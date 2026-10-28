@@ -20,14 +20,14 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-line bg-surface-card   ">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-5 py-3.5 text-left"
       >
-        <span className="font-semibold text-slate-900 dark:text-slate-100">{title}</span>
-        <span className="text-sm text-slate-400">{open ? '−' : '+'}</span>
+        <span className="font-semibold text-fg">{title}</span>
+        <span className="text-sm text-fg-subtle">{open ? '−' : '+'}</span>
       </button>
       {open && <div className="px-5 pb-5">{children}</div>}
     </div>
@@ -149,7 +149,7 @@ export function CoreIdentityTab() {
           {character.distinguishingMarks.map((mark) => (
             <li
               key={mark.id}
-              className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60"
+              className="flex items-center justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2 "
             >
               {isEditing ? (
                 <input
@@ -160,10 +160,10 @@ export function CoreIdentityTab() {
                       if (m) m.content = e.target.value;
                     })
                   }
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  className="flex-1 rounded-md border border-line bg-surface-card px-2 py-1 text-sm   "
                 />
               ) : (
-                <span className="text-sm text-slate-800 dark:text-slate-200">{mark.content}</span>
+                <span className="text-sm text-fg ">{mark.content}</span>
               )}
               {isEditing && (
                 <button

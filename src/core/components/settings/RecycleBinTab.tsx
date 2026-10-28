@@ -67,10 +67,10 @@ export function RecycleBinTab() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 pr-10 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-base font-semibold text-fg">
             {t('recycleBin.title')}
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-fg-muted">
             {t('recycleBin.subtitle')}
           </p>
         </div>
@@ -78,20 +78,20 @@ export function RecycleBinTab() {
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('recycleBin.searchPlaceholder')}
-              className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-xl border border-line bg-surface-card py-1.5 pl-8 pr-3 text-xs text-fg placeholder:text-fg-subtle focus-ring   "
             />
           </div>
         </div>
       </div>
 
       {/* Filter Switch */}
-      <div className="flex w-fit items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
+      <div className="flex w-fit items-center gap-1 rounded-xl bg-surface-muted p-0.5 ">
         {FILTERS.map((f) => {
           const count = f === 'ALL' ? items.length : items.filter((i) => i.type === f).length;
           return (
@@ -102,17 +102,17 @@ export function RecycleBinTab() {
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                 filter === f
-                  ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200',
+                  ? 'bg-surface-card text-fg'
+                  : 'text-fg-muted hover:text-fg  ',
               )}
             >
               <span>{filterLabels[f]}</span>
               <span
                 className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  'rounded-full px-1.5 py-0.5 text-xs font-semibold',
                   filter === f
-                    ? 'bg-slate-900 text-white dark:bg-slate-900 dark:text-white'
-                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                    ? 'bg-accent text-white  '
+                    : 'bg-surface-muted text-fg  ',
                 )}
               >
                 {count}
@@ -125,9 +125,9 @@ export function RecycleBinTab() {
       {/* List */}
       <div className="space-y-2">
         {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-12 text-center dark:border-slate-800 dark:bg-slate-900/20">
-            <Trash2 className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface-muted/50 py-12 text-center  ">
+            <Trash2 className="h-8 w-8 text-fg-subtle  mb-2" />
+            <p className="text-sm font-medium text-fg-muted">
               {t('recycleBin.empty')}
             </p>
           </div>
@@ -135,7 +135,7 @@ export function RecycleBinTab() {
           filteredItems.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              className="flex items-center justify-between gap-3 tier-card rounded-card p-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className={cn(
@@ -147,24 +147,24 @@ export function RecycleBinTab() {
                   {item.type === 'PROJECT' ? <FolderGit2 className="h-4 w-4" /> : <User className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  <h4 className="truncate text-xs font-semibold text-fg">
                     {item.name}
                   </h4>
-                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-xs text-fg-muted">
                     {item.details}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4 shrink-0">
-                <span className="text-[10px] text-slate-400 hidden sm:inline-block">
+                <span className="text-xs text-fg-subtle hidden sm:inline-block">
                   {t('recycleBin.deletedAt')}: {item.deletedAt}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => handleRestore(item.id)}
-                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-colors"
+                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-colors"
                     title={t('recycleBin.restore')}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
@@ -173,7 +173,7 @@ export function RecycleBinTab() {
                   <button
                     type="button"
                     onClick={() => requestDelete(item)}
-                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50 transition-colors"
+                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50 transition-colors"
                     title={t('recycleBin.delete')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />

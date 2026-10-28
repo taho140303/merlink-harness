@@ -39,7 +39,7 @@ export function LifeExperienceTab() {
             className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
               active === st.id
                 ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                : 'text-fg-muted hover:bg-surface-muted  '
             }`}
           >
             {st.label}
@@ -53,7 +53,7 @@ export function LifeExperienceTab() {
             {character.knowledge.map((k) => (
               <div
                 key={k.id}
-                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                className="flex items-start gap-3 rounded-xl border border-line bg-surface-card px-4 py-3   "
               >
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {isEditing ? (
@@ -66,7 +66,7 @@ export function LifeExperienceTab() {
                             if (x) x.type = e.target.value as KnowledgeType;
                           })
                         }
-                        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] uppercase tracking-wide dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                        className="rounded-md tier-input focus-ring px-2 py-1 text-xs uppercase tracking-wide   "
                       >
                         {KNOWLEDGE_TYPE_OPTIONS.map((o) => (
                           <option key={o} value={o}>
@@ -82,15 +82,15 @@ export function LifeExperienceTab() {
                             if (x) x.path = e.target.value;
                           })
                         }
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                        className="mt-1 w-full rounded-lg tier-input focus-ring px-2 py-1 text-sm   "
                       />
                     </>
                   ) : (
                     <>
-                      <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <span className="text-xs uppercase tracking-wide text-fg-muted">
                         {k.type}
                       </span>
-                      <p className="truncate text-sm text-slate-900 dark:text-slate-100">
+                      <p className="truncate text-sm text-fg">
                         {k.path}
                       </p>
                     </>
@@ -105,7 +105,7 @@ export function LifeExperienceTab() {
                         if (x) x.certainty = e.target.value as KnowledgeCertainty;
                       })
                     }
-                    className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                    className="shrink-0 rounded-md tier-input focus-ring px-2 py-1 text-xs font-medium   "
                   >
                     {CERTAINTY_OPTIONS.map((o) => (
                       <option key={o} value={o}>
@@ -115,7 +115,7 @@ export function LifeExperienceTab() {
                   </select>
                 ) : (
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${certaintyColor[k.certainty]}`}
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${certaintyColor[k.certainty]}`}
                   >
                     {k.certainty}
                   </span>
@@ -184,10 +184,10 @@ function CompetenceCard({ competence }: { competence: Competence }) {
     });
 
   const inputCls =
-    'mt-1 w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200';
+    'mt-1 w-full rounded-md tier-input focus-ring px-2 py-1 text-xs text-fg focus-ring   ';
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-line bg-surface-card   ">
       <div className="px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -215,10 +215,10 @@ function CompetenceCard({ competence }: { competence: Competence }) {
               </>
             ) : (
               <>
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                <h4 className="font-semibold text-fg">
                   {competence.name}
                 </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-fg-muted">
                   {competence.domain} · {competence.level}
                 </p>
               </>
@@ -230,7 +230,7 @@ function CompetenceCard({ competence }: { competence: Competence }) {
               onChange={(e) =>
                 update((c) => (c.reliability = e.target.value as KnowledgeCertainty))
               }
-              className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+              className="shrink-0 rounded-md tier-input focus-ring px-2 py-1 text-xs font-medium   "
             >
               {CERTAINTY_OPTIONS.map((o) => (
                 <option key={o} value={o}>
@@ -240,7 +240,7 @@ function CompetenceCard({ competence }: { competence: Competence }) {
             </select>
           ) : (
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${certaintyColor[competence.reliability]}`}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${certaintyColor[competence.reliability]}`}
             >
               {competence.reliability}
             </span>
@@ -265,10 +265,10 @@ function CompetenceCard({ competence }: { competence: Competence }) {
           </>
         ) : (
           <>
-            <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+            <p className="mt-2 text-sm text-fg-muted">
               {competence.description}
             </p>
-            <p className="mt-1 text-xs italic text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs italic text-fg-muted">
               {competence.experience}
             </p>
           </>
@@ -283,9 +283,9 @@ function CompetenceCard({ competence }: { competence: Competence }) {
         </button>
       </div>
       {expanded && (
-        <div className="grid grid-cols-1 gap-4 border-t border-slate-100 px-4 pb-4 pt-3 dark:border-slate-800 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 border-t border-line px-4 pb-4 pt-3  md:grid-cols-2">
           <div>
-            <p className="mb-1.5 text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+            <p className="mb-1.5 text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
               {t('detail.life.capabilities')}
             </p>
             {isEditing ? (
@@ -298,7 +298,7 @@ function CompetenceCard({ competence }: { competence: Competence }) {
                 onRemove={(i) => update((c) => c.capabilities.splice(i, 1))}
               />
             ) : (
-              <ul className="list-disc space-y-1 pl-4 text-sm text-slate-800 dark:text-slate-200">
+              <ul className="list-disc space-y-1 pl-4 text-sm text-fg ">
                 {competence.capabilities.map((c, i) => (
                   <li key={i}>{c}</li>
                 ))}
@@ -306,7 +306,7 @@ function CompetenceCard({ competence }: { competence: Competence }) {
             )}
           </div>
           <div>
-            <p className="mb-1.5 text-[11px] uppercase tracking-wide text-rose-700 dark:text-rose-400">
+            <p className="mb-1.5 text-xs uppercase tracking-wide text-rose-700 dark:text-rose-400">
               {t('detail.life.limitations')}
             </p>
             {isEditing ? (
@@ -319,7 +319,7 @@ function CompetenceCard({ competence }: { competence: Competence }) {
                 onRemove={(i) => update((c) => c.limitations.splice(i, 1))}
               />
             ) : (
-              <ul className="list-disc space-y-1 pl-4 text-sm text-slate-800 dark:text-slate-200">
+              <ul className="list-disc space-y-1 pl-4 text-sm text-fg ">
                 {competence.limitations.map((c, i) => (
                   <li key={i}>{c}</li>
                 ))}
@@ -355,7 +355,7 @@ function EditableList({
           <input
             value={item}
             onChange={(e) => onChange(i, e.target.value)}
-            className="flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            className="flex-1 rounded-md tier-input focus-ring px-2 py-1 text-xs   "
           />
           <button type="button" onClick={() => onRemove(i)} className="text-rose-500">
             <Trash2 className="h-3.5 w-3.5" />

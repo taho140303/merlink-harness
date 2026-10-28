@@ -12,27 +12,27 @@ export function GeneralTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="text-base font-semibold text-fg">
           {t("settings.general.title")}
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-fg-muted">
           {t("settings.general.subtitle")}
         </p>
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <label className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
           {t("settings.appearance")}
         </label>
-        <div className="grid max-w-sm grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="grid max-w-sm grid-cols-3 gap-2 rounded-xl bg-surface-muted p-1">
           <button
             type="button"
             onClick={() => setTheme("light")}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-all",
+              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
               theme === "light"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             <Sun className="h-4 w-4" />
@@ -42,10 +42,10 @@ export function GeneralTab() {
             type="button"
             onClick={() => setTheme("dark")}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-all",
+              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
               theme === "dark"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             <Moon className="h-4 w-4" />
@@ -55,10 +55,10 @@ export function GeneralTab() {
             type="button"
             onClick={() => setTheme("system")}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-all",
+              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
               theme === "system"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             <Laptop className="h-4 w-4" />
@@ -68,18 +68,18 @@ export function GeneralTab() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <label className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
           {t("settings.language")}
         </label>
-        <div className="grid max-w-sm grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="grid max-w-sm grid-cols-2 gap-2 rounded-xl bg-surface-muted p-1">
           <button
             type="button"
             onClick={() => setLocale("en")}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-all",
+              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
               locale === "en"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             <Languages className="h-4 w-4" />
@@ -89,10 +89,10 @@ export function GeneralTab() {
             type="button"
             onClick={() => setLocale("vi")}
             className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-all",
+              "focus-ring flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium transition-colors",
               locale === "vi"
-                ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             <Languages className="h-4 w-4" />

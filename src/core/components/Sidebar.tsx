@@ -16,8 +16,8 @@ export default function Sidebar() {
     <>
       <aside
         className={cn(
-          "relative flex h-full flex-col rounded-[2rem] neu-flat transition-all duration-300 ease-in-out select-none",
-          collapsed ? "w-[76px] px-2 py-4" : "w-64 px-3 py-4"
+          "relative flex h-full flex-col rounded-shell-sm neu-flat transition-all duration-300 ease-in-out select-none",
+          collapsed ? "w-19 px-2 py-4" : "w-64 px-3 py-4"
         )}
       >
         <SidebarHeader
@@ -37,7 +37,7 @@ export default function Sidebar() {
           <button
             onClick={() => setSettingsOpen(true)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all hover:text-slate-900 hover:neu-pressed dark:text-slate-400 dark:hover:text-slate-200",
+              "focus-ring flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-fg-muted transition-colors hover:text-fg hover:neu-pressed",
               collapsed && "justify-center px-0"
             )}
             title={t("sidebar.settings")}

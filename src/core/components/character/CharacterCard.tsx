@@ -13,41 +13,50 @@ export function CharacterCard({ character }: CharacterCardProps) {
 
   return (
     <div
+      role="link"
+      tabIndex={0}
       onClick={() => navigate(`/character/${character.id}`)}
-      className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(`/character/${character.id}`);
+        }
+      }}
+      aria-label={`${t("character.title")}: ${character.name}`}
+      className="group relative flex cursor-pointer flex-col justify-between tier-card rounded-card p-5 focus-ring transition-colors duration-200"
     >
       <div>
         <div className="flex items-center gap-3.5">
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-bold text-white shadow-xs ${character.avatarBg}`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-bold text-white ${character.avatarBg}`}
           >
             {character.name.charAt(0)}
           </div>
           <div className="truncate">
-            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-900 transition-colors group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
+            <h3 className="truncate text-sm font-semibold tracking-tight text-fg transition-colors group-hover:text-blue-600  dark:group-hover:text-blue-400">
               {character.name}
             </h3>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <p className="truncate text-xs text-fg-muted">
               {character.species}
             </p>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-1.5">
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+          <span className="rounded-md border border border-line bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
             {character.biologicalSex}
           </span>
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+          <span className="rounded-md border border border-line bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
             {character.genderIdentity}
           </span>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-slate-800/80">
+      <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs text-fg-subtle ">
         <span>
           {character.relationships.length} {t("character.relationshipsCount")}
         </span>
-        <ArrowUpRight className="h-4 w-4 text-slate-700 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-200" />
+        <ArrowUpRight className="h-4 w-4 text-fg opacity-0 transition-opacity group-hover:opacity-100 " />
       </div>
     </div>
   );

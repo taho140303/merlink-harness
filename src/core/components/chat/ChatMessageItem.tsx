@@ -26,15 +26,15 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
     <div id={message.id} className="mx-auto w-full max-w-4xl py-3 space-y-2 select-text scroll-mt-6">
       {/* 1. Trạng thái Đang suy nghĩ: Đồng hồ đếm giây + Stream dòng suy nghĩ */}
       {isAssistant && message.isThinking && (
-        <div className="space-y-2 animate-in fade-in-0 duration-200">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="space-y-2   duration-200">
+          <div className="flex items-center gap-2 text-xs font-medium text-fg-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
             <span>Đang suy nghĩ ({message.thinkingSeconds ?? 1}s)...</span>
           </div>
 
           {/* Khối log suy nghĩ streaming trực tiếp */}
           {message.thinkingDetails && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-3 font-mono text-xs italic leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+            <div className="rounded-xl border border-dashed border-line-strong bg-surface-muted/70 p-3 font-mono text-xs italic leading-relaxed text-fg-muted   ">
               <span className="whitespace-pre-line">{message.thinkingDetails}</span>
               <span className="inline-block h-3 w-1.5 ml-1 animate-pulse bg-blue-500 align-middle" />
             </div>
@@ -48,7 +48,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
           <button
             type="button"
             onClick={() => setThinkingExpanded(!thinkingExpanded)}
-            className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 transition-colors w-fit"
+            className="flex items-center gap-1.5 text-xs font-medium text-fg-subtle hover:text-fg-muted   transition-colors w-fit"
           >
             <span>Đã suy nghĩ {message.thinkingSeconds} giây</span>
             {message.thinkingDetails && (
@@ -57,7 +57,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
           </button>
 
           {thinkingExpanded && message.thinkingDetails && (
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 font-mono text-xs italic leading-relaxed text-slate-500 dark:border-slate-800/80 dark:bg-slate-900/40 dark:text-slate-400">
+            <div className="rounded-xl border border-line bg-surface-muted/50 p-3 font-mono text-xs italic leading-relaxed text-fg-muted   ">
               <p className="whitespace-pre-line">{message.thinkingDetails}</p>
             </div>
           )}
@@ -68,10 +68,10 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
       {Boolean(message.content) && (
         <div
           className={cn(
-            "group relative rounded-2xl border p-4 transition-all duration-200",
+            "group relative rounded-card p-4 transition-colors duration-200",
             isAssistant
-              ? "w-full border-slate-200 bg-white/95 shadow-xs dark:border-slate-800/80 dark:bg-[#151921]"
-              : "ml-auto w-fit max-w-[85%] border-blue-100 bg-blue-50/70 dark:border-blue-900/50 dark:bg-blue-950/30 sm:max-w-[75%]"
+              ? "tier-card w-full"
+              : "ml-auto w-fit max-w-[85%] border border-accent/20 bg-accent-soft text-fg sm:max-w-[75%]"
           )}
         >
           <div className="relative">
@@ -81,18 +81,22 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
               aria-hidden="true"
             />
 
-            <div className="relative z-10 text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+            <div className="relative z-10 text-xs leading-relaxed text-fg sm:text-sm">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                  ol: ({ children }) => <ol className="mb-3 list-decimal pl-5 space-y-1.5">{children}</ol>,
-                  ul: ({ children }) => <ul className="mb-3 list-disc pl-5 space-y-1.5">{children}</ul>,
+                  ol: ({ children }) => <ol className="mb-3 list-decimal pl-5 space-y-1.5 text-fg">{children}</ol>,
+                  pre: ({ children }) => <pre className="my-3 overflow-x-auto rounded-lg border border-line bg-surface-muted p-3 text-fg">{children}</pre>,
+                  table: ({ children }) => <table className="my-3 w-full border-collapse border border-line text-left">{children}</table>,
+                  blockquote: ({ children }) => <blockquote className="my-3 border-l-2 border-line-strong pl-3 text-fg-muted">{children}</blockquote>,
+                  a: ({ children, href }) => <a className="focus-ring text-accent underline" href={href}>{children}</a>,
+                  ul: ({ children }) => <ul className="mb-3 list-disc pl-5 space-y-1.5 text-fg">{children}</ul>,
                   strong: ({ children }) => (
-                    <strong className="font-semibold text-slate-900 dark:text-slate-100">{children}</strong>
+                    <strong className="font-semibold text-fg">{children}</strong>
                   ),
                   code: ({ children }) => (
-                    <code className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                    <code className="rounded-md bg-surface-muted px-1.5 py-0.5 text-xs font-mono text-fg">
                       {children}
                     </code>
                   ),
@@ -111,10 +115,11 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+            className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg tier-card text-fg-muted transition-colors"
+            aria-label="Sao chép nội dung"
             title="Sao chép nội dung"
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? <Check aria-hidden="true" className="h-3.5 w-3.5 text-emerald-500" /> : <Copy aria-hidden="true" className="h-3.5 w-3.5" />}
           </button>
 
           {message.toolCalls && message.toolCalls.length > 0 && (

@@ -15,6 +15,7 @@ export default function ChatView() {
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [keyboardRatio, setKeyboardRatio] = useState<number | null>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +24,8 @@ export default function ChatView() {
     minPxLeft: 545,
     minPxRight: 530,
   });
+
+  const splitRatio = keyboardRatio ?? leftRatio;
 
   // Tự động cuộn xuống đáy khi có message mới hoặc đang streaming
   useEffect(() => {
@@ -139,13 +142,13 @@ export default function ChatView() {
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full overflow-hidden rounded-[2rem] bg-transparent",
+        "flex h-full w-full overflow-hidden rounded-shell-sm bg-transparent",
         isDragging && "cursor-col-resize select-none"
       )}
     >
       {/* Cột trái: Chat Area */}
       <div
-        style={{ width: isDraftOpen ? `${leftRatio}%` : "100%" }}
+        style={{ width: isDraftOpen ? `${splitRatio}%` : "100%" }}
         className="flex flex-col overflow-hidden "
       >
         <ChatHeader
@@ -185,17 +188,34 @@ export default function ChatView() {
       {/* Ranh giới kéo thả */}
       {isDraftOpen && (
         <div
-          onMouseDown={startDragging}
-          className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize chat and draft panels"
+          aria-orientation="vertical"
+          aria-valuenow={Math.round(splitRatio)}
+          aria-valuemin={10}
+          aria-valuemax={90}
+          onMouseDown={(event) => {
+            setKeyboardRatio(null);
+            startDragging(event);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              const adjustment = event.key === "ArrowLeft" ? -5 : 5;
+              setKeyboardRatio(Math.min(90, Math.max(10, splitRatio + adjustment)));
+            }
+          }}
+          className="focus-ring group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-accent-soft"
         >
-          <div className="h-full w-px bg-slate-200 transition-colors group-hover:bg-blue-500 dark:bg-slate-800" />
+          <div className="h-full w-px bg-line transition-colors group-hover:bg-accent" />
           <div
             className={cn(
-              "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md border border-slate-300 bg-white shadow-xs transition-opacity dark:border-slate-700 dark:bg-slate-800",
+              "absolute z-30 flex h-8 w-4.5 items-center justify-center rounded-md tier-card transition-opacity",
               isDragging ? "opacity-100 ring-2 ring-blue-500" : "opacity-0 group-hover:opacity-100"
             )}
           >
-            <GripVertical className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <GripVertical aria-hidden="true" className="h-3.5 w-3.5 text-fg-subtle" />
           </div>
         </div>
       )}
@@ -203,7 +223,7 @@ export default function ChatView() {
       {/* Cột phải: Draft Building Workspace */}
       {isDraftOpen && (
         <div
-          style={{ width: `${100 - leftRatio}%` }}
+          style={{ width: `${100 - splitRatio}%` }}
           className="flex flex-col overflow-hidden"
         >
           <DraftWorkspace

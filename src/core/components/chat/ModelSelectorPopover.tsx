@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
+import { Popover } from "../../../shared/components/ui/popover";
 
 interface ModelOption {
   id: string;
@@ -25,70 +26,51 @@ const AVAILABLE_MODELS: Record<string, ModelOption[]> = {
 };
 
 export function ModelSelectorPopover() {
-  const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelOption>(
     AVAILABLE_MODELS.Anthropic[0]
   );
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
 
   return (
-    <div className="relative inline-block" ref={containerRef}>
-      {/* Selectbox Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
-      >
-        <span className="max-w-[110px] truncate">{selectedModel.name}</span>
-        <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform", open && "rotate-180")} />
-      </button>
-
-      {/* Popover danh sách model theo provider */}
-      {open && (
-        <div className="no-scrollbar absolute bottom-full right-0 mb-2 w-56 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in-0 zoom-in-95">
-          {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
-            <div key={provider} className="py-1">
-              <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                {provider}
-              </div>
-              <div className="space-y-0.5">
-                {models.map((m) => {
-                  const isSelected = selectedModel.id === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedModel(m);
-                        setOpen(false);
-                      }}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
-                        isSelected
-                          ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200"
-                      )}
-                    >
-                      <span className="truncate">{m.name}</span>
-                      {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+    <Popover
+      label="Select model"
+      align="end"
+      trigger={
+        <span className="flex items-center gap-1.5 rounded-xl tier-input px-2.5 py-1.5 text-xs font-medium text-fg hover:bg-surface-muted transition-colors">
+          <span className="max-w-[110px] truncate">{selectedModel.name}</span>
+          <ChevronDown aria-hidden="true" className="h-3 w-3 text-fg-subtle" />
+        </span>
+      }
+      triggerClassName="rounded-xl"
+      contentClassName="no-scrollbar max-h-72 w-56 overflow-y-auto p-1.5"
+    >
+      {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
+        <div key={provider} className="py-1">
+          <div className="px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+            {provider}
+          </div>
+          <div className="space-y-0.5">
+            {models.map((m) => {
+              const isSelected = selectedModel.id === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedModel(m)}
+                  className={cn(
+                    "focus-ring flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
+                    isSelected
+                      ? "bg-surface-muted font-medium text-fg"
+                      : "text-fg-muted hover:bg-surface-muted hover:text-fg"
+                  )}
+                >
+                  <span className="truncate">{m.name}</span>
+                  {isSelected && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-accent" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
-    </div>
+      ))}
+    </Popover>
   );
 }

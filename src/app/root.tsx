@@ -25,13 +25,13 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        {/* Inline script chặn FOUC: Chạy trước khi React render */}
+        {/* Inline script chặn FOUC: chạy trước khi React render */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -42,6 +42,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     document.documentElement.classList.add('dark');
                   } else {
                     document.documentElement.classList.add('light');
+                  }
+                  var locale = localStorage.getItem('merlink.locale');
+                  if (locale === 'en' || locale === 'vi') {
+                    document.documentElement.lang = locale;
                   }
                 } catch (e) {}
               })();

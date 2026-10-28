@@ -23,6 +23,11 @@ interface SidebarHistoryProps {
   onExpand: () => void;
 }
 
+const rowBase =
+  "focus-ring flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left";
+const rowActive = "bg-surface-muted font-medium text-fg";
+const rowIdle = "text-fg-muted hover:bg-surface-muted hover:text-fg";
+
 export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
   const t = useT();
   const [groupByProject, setGroupByProject] = useState(false);
@@ -47,10 +52,11 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
       <div className="pt-3">
         <button
           onClick={onExpand}
-          className="flex w-full justify-center rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          aria-label={t("sidebar.history")}
+          className="focus-ring flex w-full justify-center rounded-xl p-2.5 text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
           title={t("sidebar.history")}
         >
-          <HistoryIcon className="h-5 w-5" />
+          <HistoryIcon className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
     );
@@ -59,24 +65,26 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
   return (
     <div className="pt-3">
       <div className="flex items-center justify-between px-2.5 py-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          {t('sidebar.history')}
+        <span className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+          {t("sidebar.history")}
         </span>
         <button
           type="button"
           role="switch"
           aria-checked={groupByProject}
+          aria-label={t("sidebar.groupByProject")}
           onClick={() => setGroupByProject(!groupByProject)}
           className={cn(
-            "relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden",
-            groupByProject ? "bg-slate-900 dark:bg-slate-100" : "bg-slate-200 dark:bg-slate-700"
+            "focus-ring relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out",
+            groupByProject ? "bg-accent" : "bg-line",
           )}
-          title="Nhóm theo project"
+          title={t("sidebar.groupByProject")}
         >
           <span
+            aria-hidden="true"
             className={cn(
-              "pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out dark:bg-slate-900",
-              groupByProject ? "translate-x-3.5" : "translate-x-0.5"
+              "pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ease-in-out",
+              groupByProject ? "translate-x-3.5" : "translate-x-0.5",
             )}
           />
         </button>
@@ -91,39 +99,34 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
                 <button
                   type="button"
                   onClick={() => toggleProject(projectName)}
-                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                  aria-expanded={isOpen}
+                  className="focus-ring flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <Folder className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+                    <Folder className="h-3.5 w-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
                     <span className="truncate">{projectName}</span>
                   </div>
                   <ChevronDown
+                    aria-hidden="true"
                     className={cn(
-                      "h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200",
-                      !isOpen && "-rotate-90"
+                      "h-3.5 w-3.5 shrink-0 text-fg-subtle transition-transform duration-200",
+                      !isOpen && "-rotate-90",
                     )}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="ml-3 space-y-0.5 border-l border-slate-100 pl-2 dark:border-slate-800">
+                  <div className="ml-3 space-y-0.5 border-l border-line pl-2">
                     {chats.map((chat) => (
                       <NavLink
                         key={chat.id}
                         to={`/chat/${chat.id}`}
                         className={({ isActive }) =>
-                          cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors text-left",
-                            isActive
-                              ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-                          )
+                          cn(rowBase, isActive ? rowActive : rowIdle)
                         }
                       >
                         <span className="truncate">{formatTitle(chat.title)}</span>
-                        <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
-                          {chat.time}
-                        </span>
+                        <span className="shrink-0 text-xs text-fg-subtle">{chat.time}</span>
                       </NavLink>
                     ))}
                   </div>
@@ -136,19 +139,10 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
             <NavLink
               key={chat.id}
               to={`/chat/${chat.id}`}
-              className={({ isActive }) =>
-                cn(
-                  "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
-                  isActive
-                    ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-                )
-              }
+              className={({ isActive }) => cn(rowBase, isActive ? rowActive : rowIdle)}
             >
               <span className="truncate">{formatTitle(chat.title)}</span>
-              <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
-                {chat.time}
-              </span>
+              <span className="shrink-0 text-xs text-fg-subtle">{chat.time}</span>
             </NavLink>
           ))
         )}

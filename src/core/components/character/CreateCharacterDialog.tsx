@@ -73,14 +73,14 @@ export function CreateCharacterDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-6">
-        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+        <h3 className="text-base font-bold text-fg">
           {t("character.create.title")}
         </h3>
-        <p className="text-xs text-slate-500">{t("character.create.subtitle")}</p>
+        <p className="text-xs text-fg-muted">{t("character.create.subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <label className="text-xs font-semibold text-fg-muted">
               {t("character.create.nameLabel")}
             </label>
             <input
@@ -89,12 +89,12 @@ export function CreateCharacterDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("character.create.namePlaceholder")}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs focus-ring   "
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <label className="text-xs font-semibold text-fg-muted">
               {t("character.create.speciesLabel")}
             </label>
             <input
@@ -102,12 +102,12 @@ export function CreateCharacterDialog({
               value={species}
               onChange={(e) => setSpecies(e.target.value)}
               placeholder={t("character.create.speciesPlaceholder")}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs focus-ring   "
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <label className="text-xs font-semibold text-fg-muted">
               {t("character.create.sexLabel")}
             </label>
             <select
@@ -115,7 +115,7 @@ export function CreateCharacterDialog({
               onChange={(e) =>
                 setBiologicalSex(e.target.value as CharacterItem["biologicalSex"])
               }
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs font-medium focus-ring   "
             >
               <option value="Male">{t("sex.male")}</option>
               <option value="Female">{t("sex.female")}</option>
@@ -125,13 +125,13 @@ export function CreateCharacterDialog({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <label className="text-xs font-semibold text-fg-muted">
               {t("character.create.genderIdentityLabel")}
             </label>
             <select
               value={genderIdentity}
               onChange={(e) => setGenderIdentity(e.target.value as Gender)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs font-medium focus-ring   "
             >
               {GENDER_OPTIONS.map((g) => (
                 <option key={g} value={g}>
@@ -142,13 +142,13 @@ export function CreateCharacterDialog({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <label className="text-xs font-semibold text-fg-muted">
               {t("character.create.genderExpressionLabel")}
             </label>
             <select
               value={genderExpression}
               onChange={(e) => setGenderExpression(e.target.value as Gender)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium focus:outline-hidden dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs font-medium focus-ring   "
             >
               {GENDER_OPTIONS.map((g) => (
                 <option key={g} value={g}>
@@ -158,17 +158,17 @@ export function CreateCharacterDialog({
             </select>
           </div>
 
-          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <div className="mt-6 flex justify-end gap-2 border-t border-line pt-3 ">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              className="rounded-xl px-4 py-2 text-xs font-medium text-fg-muted hover:bg-surface-muted  "
             >
               {t("character.create.cancel")}
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+              className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white  hover:opacity-90   "
             >
               {t("character.create.submit")}
             </button>

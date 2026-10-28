@@ -1,11 +1,11 @@
 export function OrbSphere() {
   return (
-    <div className="relative flex items-center justify-center">
+    <div aria-hidden="true" className="relative flex items-center justify-center">
       {/* Glow aura phía sau */}
       <div className="animate-orb-glow absolute h-44 w-44 rounded-full bg-linear-to-tr from-fuchsia-400/40 via-sky-300/40 to-indigo-400/30 blur-2xl dark:from-fuchsia-600/30 dark:via-blue-500/20 dark:to-violet-600/30" />
 
       {/* Quả cầu chính với dải gradient ngọc trai / fluid orb */}
-      <div className="animate-orb-float relative h-36 w-36 overflow-hidden rounded-full shadow-2xl shadow-indigo-300/40 ring-1 ring-white/60 dark:shadow-indigo-950/60 dark:ring-white/20">
+      <div className="animate-orb-float relative h-36 w-36 overflow-hidden rounded-full ring-1 ring-white/60 ">
         <div
           className="absolute inset-0 rounded-full"
           style={{

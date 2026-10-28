@@ -225,48 +225,6 @@ export const DRAFT_OVERVIEW: DraftOverview = {
       },
     ],
   },
-  sceneConfig: {
-    arcs: [
-      {
-        displayName: 'Hồi 1: Huyết tế tế đàn',
-        position: 1,
-        chapters: [
-          {
-            displayName: 'Khởi nguyên đứt gãy',
-            position: 1,
-            scenes: [
-              {
-                code: 'sc-1',
-                displayName: 'Thức tỉnh',
-                position: 1,
-                summary: 'Thanh Cơ tỉnh dậy trong tế đàn, xung quanh là máu và tiếng niệm chú vang vọng.',
-                stylePresetCode: 'action.combat',
-                narratorConfigCode: 'first-person-protagonist',
-                loreEntriesCode: 'Thánh tích Ngưu Nhân',
-                characters: [
-                  { displayName: 'Phù Thanh Cơ', isPov: true },
-                  { displayName: 'Trưởng lão Hạc', isPov: false },
-                ],
-              },
-              {
-                code: 'sc-2',
-                displayName: 'Tiếng gọi',
-                position: 2,
-                summary: 'Nghe thấy tiếng gọi từ sâu trong huyết mạch, Thanh Cơ quyết định phá vỡ phong ấn.',
-                stylePresetCode: 'mystery.deduction',
-                narratorConfigCode: 'third-person-limited-single',
-                loreEntriesCode: null,
-                characters: [
-                  { displayName: 'Phù Thanh Cơ', isPov: true },
-                  { displayName: 'Hạc Minh', isPov: false },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
   worldSettings: {
     code: 'ws-1',
     displayName: 'Hạ Nam Vương Quốc',

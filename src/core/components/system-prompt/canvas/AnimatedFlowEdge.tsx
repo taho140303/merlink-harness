@@ -27,7 +27,7 @@ export const AnimatedFlowEdge = memo(function AnimatedFlowEdge({
       path={edgePath}
       markerEnd={markerEnd}
       style={{
-        stroke: '#6366f1',
+        stroke: 'var(--color-accent)',
         strokeWidth: 3,
         strokeDasharray: '8 6',
         animation: 'dash-flow 1s linear infinite',

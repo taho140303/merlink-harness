@@ -65,7 +65,7 @@ export function MotifCanvas({
       source: et.fromEventBlockId,
       target: et.toEventBlockId,
       type: 'animatedFlow',
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 20, height: 20 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-accent)', width: 20, height: 20 },
       data: { transition: et },
     }));
 
@@ -96,7 +96,7 @@ export function MotifCanvas({
     : [];
 
   return (
-    <div className="h-[600px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40">
+    <div className="h-[600px] w-full overflow-hidden rounded-2xl border border-line bg-surface-muted/40  ">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -109,12 +109,12 @@ export function MotifCanvas({
         nodesConnectable={false}
         elementsSelectable
       >
-        <Background gap={20} size={1} color="#cbd5e1" />
+        <Background gap={20} size={1} color="var(--color-line-strong)" />
         <Controls showInteractive={false} />
         <MiniMap
           pannable
           zoomable
-          className="!rounded-lg !border !border-slate-200 dark:!border-slate-800"
+          className="!rounded-lg !border !border-line dark:!border-line"
         />
       </ReactFlow>
 

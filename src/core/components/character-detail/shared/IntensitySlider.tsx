@@ -14,9 +14,9 @@ export function IntensitySlider({ label, value, onChange }: IntensitySliderProps
   const idx = INTENSITY_LEVELS.indexOf(value);
   return (
     <div>
-      <div className="mb-1 flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
+      <div className="mb-1 flex justify-between text-xs text-fg-muted ">
         <span>{label}</span>
-        <span className="font-semibold text-slate-900 dark:text-slate-100">{value}</span>
+        <span className="font-semibold text-fg">{value}</span>
       </div>
       <input
         type="range"
@@ -27,7 +27,7 @@ export function IntensitySlider({ label, value, onChange }: IntensitySliderProps
         onChange={(e) => onChange(INTENSITY_LEVELS[Number(e.target.value)])}
         className="w-full accent-indigo-600"
       />
-      <div className="mt-0.5 flex justify-between text-[9px] text-slate-400 dark:text-slate-500">
+      <div className="mt-0.5 flex justify-between text-xs text-fg-subtle">
         {INTENSITY_LEVELS.map((l) => (
           <span key={l}>{l}</span>
         ))}

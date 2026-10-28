@@ -30,11 +30,11 @@ export function EditableField({
   }
 
   const inputCls =
-    'mt-1 w-full text-sm rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200';
+    'mt-1 w-full text-sm rounded-lg tier-input focus-ring px-3 py-2 text-fg focus-ring   ';
 
   return (
     <div className={cn('flex flex-col', className)}>
-      <label className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <label className="text-xs uppercase tracking-wide text-fg-muted">
         {label}
       </label>
       {multiline ? (

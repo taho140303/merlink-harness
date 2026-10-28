@@ -11,14 +11,14 @@ interface EnumSelectProps {
 export function EnumSelect({ label, value, options, onChange, className }: EnumSelectProps) {
   return (
     <div className={cn('flex flex-col', className)}>
-      <label className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <label className="text-xs uppercase tracking-wide text-fg-muted">
         {label}
       </label>
       {onChange ? (
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          className="mt-1 w-full rounded-lg tier-input focus-ring px-3 py-2 text-sm text-fg focus-ring   "
         >
           {options.map((o) => (
             <option key={o} value={o}>
@@ -27,7 +27,7 @@ export function EnumSelect({ label, value, options, onChange, className }: EnumS
           ))}
         </select>
       ) : (
-        <span className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+        <span className="mt-1 text-sm font-medium text-fg">
           {value}
         </span>
       )}
