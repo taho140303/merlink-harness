@@ -82,10 +82,10 @@ export function DraftToolbar({
                     : "text-slate-600 dark:text-slate-400"
                 )}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-5">
                   <span className="font-mono">{v.version}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-5">
                   <span className="text-[10px] font-normal text-slate-400">{v.updatedAt}</span>
                   {currentVersion === v.version && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900 dark:text-white" />}
                 </div>
@@ -98,7 +98,7 @@ export function DraftToolbar({
       <div className="h-6 w-[1.5px] bg-slate-200 dark:bg-slate-700 mx-2 rounded-full" />
 
       {/* Dynamic Expandable Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-5">
         {actions.map((action) => {
           const Icon = action.icon;
           const isHovered = hoveredItem === action.id;

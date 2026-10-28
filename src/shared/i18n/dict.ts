@@ -9,34 +9,27 @@ const en = {
   'common.close': 'Close',
   'common.remove': 'Remove',
   'common.add': 'Add',
-
   'sex.all': 'All Sex',
   'sex.male': 'Male',
   'sex.female': 'Female',
   'sex.intersex': 'Intersex',
   'sex.unknown': 'Unknown',
-
   'gender.NONE': 'None',
   'gender.MALE': 'Male',
   'gender.FEMALE': 'Female',
-
   'character.create.genderIdentityLabel': 'Gender Identity',
   'character.create.genderExpressionLabel': 'Gender Expression',
-
   'discard.title': 'Discard changes?',
   'discard.description': 'You have unsaved changes. Are you sure you want to discard them?',
   'discard.confirm': 'Discard',
   'discard.cancel': 'Keep editing',
-
   'delete.title': 'Confirm deletion',
   'delete.description': 'This action cannot be undone. Type the 6-character code below to confirm.',
   'delete.codeLabel': 'Type the code below to confirm:',
   'delete.codePlaceholder': 'Type 6-character code',
   'delete.codeMismatch': 'Code does not match',
   'delete.confirm': 'Delete',
-
   'toast.featureInProgress': 'This feature is being completed',
-
   'settings.title': 'Settings',
   'settings.subtitle': 'Customize your environment',
   'settings.general': 'General',
@@ -50,7 +43,6 @@ const en = {
   'settings.appearance.light': 'Light',
   'settings.appearance.dark': 'Dark',
   'settings.appearance.system': 'System',
-
   'providers.models': 'Models',
   'providers.subtitle': 'Enter your API keys to use models from the following providers.',
   'providers.add': 'Add model provider',
@@ -60,7 +52,6 @@ const en = {
   'providers.delete': 'Delete',
   'providers.delete.title': 'Delete provider',
   'providers.delete.description': 'This provider will be permanently removed.',
-
   'project.title': 'Project',
   'project.subtitle': 'Manage your world scripts and text progress.',
   'project.searchPlaceholder': 'Search projects or genres...',
@@ -73,14 +64,10 @@ const en = {
   'project.delete.description': 'This project will be moved to the recycle bin. You can restore it later.',
   'project.trashTooltip': 'Move to recycle bin',
   'project.deletedToast': 'Project moved to recycle bin',
-
   'chat.mode.chat': 'Chat',
   'chat.mode.manual': 'Manual',
   'chat.draftBuilding': 'Draft building',
   'chat.preview': 'preview',
-
-
-  // ----- Character list -----
   'character.title': 'Character',
   'character.subtitle': 'Manage your character list, biometric profiles, and relationship graphs.',
   'character.searchPlaceholder': 'Search by name, species...',
@@ -88,8 +75,6 @@ const en = {
   'character.create': 'Create Character',
   'character.empty': 'No matching characters found.',
   'character.relationshipsCount': 'Relationships',
-
-  // ----- Create dialog -----
   'character.create.title': 'Create new character',
   'character.create.subtitle': 'Enter basic parameters to register a new character.',
   'character.create.nameLabel': 'Character name *',
@@ -99,8 +84,6 @@ const en = {
   'character.create.sexLabel': 'Biological Sex',
   'character.create.cancel': 'Cancel',
   'character.create.submit': 'Create character',
-
-  // ----- Character detail (existing view) -----
   'character.detail.edit': 'Edit',
   'character.detail.chat': 'Chat',
   'character.detail.basicInfo': 'Basic Info',
@@ -132,15 +115,11 @@ const en = {
   'character.detail.colorNamePlaceholder': 'Color name',
   'character.detail.markLocationPlaceholder': 'Location...',
   'character.detail.markDescriptionPlaceholder': 'Detailed description...',
-
-  // ----- Character chat pane -----
   'character.chat.title': 'Merlink',
   'character.chat.emptyTitle': 'Merlink character assistant active',
   'character.chat.emptySubtitle': 'Ask AI to help complete the character sheet for {name}.',
   'character.chat.sourceLabel': 'Select source',
   'character.chat.placeholder': 'Ask about {name}...',
-
-  // ----- Character-detail tabs -----
   'detail.core.basicInfo': 'Basic Info',
   'detail.core.appearance': 'Appearance',
   'detail.core.marks': 'Distinguishing Marks',
@@ -162,7 +141,6 @@ const en = {
   'detail.core.defaultSummary': 'Default Summary',
   'detail.core.addMark': 'Add Mark',
   'detail.core.newMark': 'New mark',
-
   'detail.life.knowledge': 'Knowledge',
   'detail.life.competence': 'Competence',
   'detail.life.memory': 'Memory',
@@ -192,7 +170,6 @@ const en = {
   'detail.life.rolePlaceholder': 'Role',
   'detail.life.namePlaceholder': 'Name',
   'detail.life.emotionPlaceholder': 'Emotion',
-
   'detail.state.trust': 'Trust',
   'detail.state.affection': 'Affection',
   'detail.state.hostility': 'Hostility',
@@ -200,7 +177,6 @@ const en = {
   'detail.state.respect': 'Respect',
   'detail.state.familiarity': 'Familiarity',
   'detail.state.dependency': 'Dependency',
-
   'detail.psych.coreTrauma': 'Core Trauma & Belief',
   'detail.psych.theWound': 'The Wound',
   'detail.psych.theLie': 'The Lie',
@@ -325,8 +301,7 @@ const en = {
   'sp.eventBlock.state': 'State',
   'sp.eventBlock.emotionalRanges': 'Emotional ranges',
   'sp.eventBlock.outgoingTransitions': 'Outgoing transitions',
-  'sp.eventBlock.childHint':
-    'Child entities resolved through schema relations: component, state, emotional_ranges (-N), event_transitions (-N).',
+  'sp.eventBlock.childHint': 'Child entities resolved through schema relations: component, state, emotional_ranges (-N), event_transitions (-N).',
   'sp.eventBlock.noEmotionals': 'No emotional ranges linked.',
   'sp.eventBlock.noTransitions': 'No outgoing transitions.',
   'sp.narrator.filter.all': 'All',
@@ -381,6 +356,7 @@ const en = {
   'draft.overview.moreGenres': 'Show more genres',
   'draft.overview.tabArcs': 'Story Arcs',
   'draft.overview.tabCharacters': 'Characters',
+  'draft.overview.tabWorld': 'World Settings',
   'draft.overview.filterArc': 'Filter Arc:',
   'draft.overview.filterAll': 'All',
   'draft.overview.arcNum': 'Arc {num}',
@@ -388,10 +364,10 @@ const en = {
   'draft.overview.expandAll': 'Expand all',
   'draft.overview.collapseAll': 'Collapse all',
   'draft.overview.charDesc': 'Character profiles and archetypes.',
-  'draft.overview.allGenres': 'All genres',
-  'draft.overview.arcWord': 'arc',
-  'draft.overview.chapterWord': 'chapter',
-  'draft.overview.wordPerChapWord': 'word/chap',
+  'draft.overview.worldDesc': 'World context, environment settings, and lore.',
+  'draft.overview.targetArc': 'arc',
+  'draft.overview.targetChapter': 'chapter',
+  'draft.overview.targetWord': 'word/chap',
   'draft.arc.segmentsCount': '{count} segments',
   'draft.theme.title': 'Philosophy & Theme',
   'draft.theme.subtitle': 'Questions, messages, and arguments',
@@ -414,25 +390,26 @@ const en = {
   'draft.segment.phase': 'Phase {num}',
   'draft.segment.collapse': 'Collapse segments',
   'draft.segment.showMore': 'Show {count} more segments',
-  'draft.character.motif': 'Character Motif',
-  'draft.nav.back': 'Back',
-  'draft.nav.next': 'Next Step',
-  'draft.nav.start': 'Start Generation',
-  'draft.toast.started': 'Started generating story content...',
   'draft.chapter.title': 'Chapters & Scenes',
   'draft.chapter.subtitle': 'Detailed chapter breakdown',
   'draft.chapter.count': '{count} chapters',
-  'draft.overview.arcs': 'arc',
-  'draft.overview.chapters': 'chapter',
-  'draft.overview.wordsPerChapter': 'word/chap',
-  'draft.overview.tabWorld': 'World Settings',
-  'draft.overview.worldDesc': 'World context, environment settings, and lore.',
   'draft.world.desc': 'Description',
   'draft.world.access': 'Access',
   'draft.world.lore': 'Lore Entries',
-  'draft.overview.targetArc': 'arc',
-  'draft.overview.targetChapter': 'chapter',
-  'draft.overview.targetWord': 'word/chap',
+  'draft.loading.title': 'Merlink is analyzing...',
+  'draft.loading.msg1': 'Reviewing project overview...',
+  'draft.loading.msg2': 'Generating structural data...',
+  'draft.loading.msg3': 'Connecting narrative elements...',
+  'draft.loading.msg4': 'Finalizing new phase...',
+  'draft.toolbar.version': 'Version',
+  'draft.toolbar.regenerate': 'Regenerate',
+  'draft.toolbar.next': 'Next',
+  'draft.dialog.nextTitle': 'Proceed to next step?',
+  'draft.dialog.nextDesc': 'Current data will be saved. Are you sure you want to proceed?',
+  'draft.dialog.confirmNext': 'Proceed',
+  'draft.character.motif': 'Character Motif',
+  'draft.toolbar.feedback': 'Feedback',
+  'draft.toolbar.confirm': 'Confirm',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -446,34 +423,27 @@ const vi: Record<keyof typeof en, string> = {
   'common.close': 'Đóng',
   'common.remove': 'Xóa',
   'common.add': 'Thêm',
-
   'sex.all': 'Tất cả giới tính',
   'sex.male': 'Nam',
   'sex.female': 'Nữ',
   'sex.intersex': 'Liên giới',
   'sex.unknown': 'Không rõ',
-
   'gender.NONE': 'Không',
   'gender.MALE': 'Nam',
   'gender.FEMALE': 'Nữ',
-
   'character.create.genderIdentityLabel': 'Bản dạng giới',
   'character.create.genderExpressionLabel': 'Thể hiện giới',
-
   'discard.title': 'Hủy thay đổi?',
   'discard.description': 'Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy không?',
   'discard.confirm': 'Hủy thay đổi',
   'discard.cancel': 'Tiếp tục chỉnh sửa',
-
   'delete.title': 'Xác nhận xóa',
   'delete.description': 'Hành động này không thể hoàn tác. Nhập mã 6 ký tự bên dưới để xác nhận.',
   'delete.codeLabel': 'Nhập mã bên dưới để xác nhận:',
   'delete.codePlaceholder': 'Nhập mã 6 ký tự',
   'delete.codeMismatch': 'Mã không khớp',
   'delete.confirm': 'Xóa',
-
   'toast.featureInProgress': 'Chức năng đang được hoàn thiện',
-
   'settings.title': 'Cài đặt',
   'settings.subtitle': 'Tùy biến môi trường',
   'settings.general': 'Chung',
@@ -487,7 +457,6 @@ const vi: Record<keyof typeof en, string> = {
   'settings.appearance.light': 'Sáng',
   'settings.appearance.dark': 'Tối',
   'settings.appearance.system': 'Hệ thống',
-
   'providers.models': 'Mô hình',
   'providers.subtitle': 'Nhập API key để dùng mô hình từ các nhà cung cấp bên dưới.',
   'providers.add': 'Thêm nhà cung cấp',
@@ -497,7 +466,6 @@ const vi: Record<keyof typeof en, string> = {
   'providers.delete': 'Xóa',
   'providers.delete.title': 'Xóa nhà cung cấp',
   'providers.delete.description': 'Nhà cung cấp này sẽ bị xóa vĩnh viễn.',
-
   'project.title': 'Dự án',
   'project.subtitle': 'Quản lý các kịch bản thế giới và tiến trình văn bản của bạn.',
   'project.searchPlaceholder': 'Tìm dự án hoặc thể loại...',
@@ -510,13 +478,10 @@ const vi: Record<keyof typeof en, string> = {
   'project.delete.description': 'Dự án sẽ được chuyển vào thùng rác. Bạn có thể phục hồi sau.',
   'project.trashTooltip': 'Chuyển vào thùng rác',
   'project.deletedToast': 'Đã chuyển dự án vào thùng rác',
-
   'chat.mode.chat': 'Trò chuyện',
   'chat.mode.manual': 'Thủ công',
   'chat.draftBuilding': 'Xây dựng bản nháp',
   'chat.preview': 'xem trước',
-
-
   'character.title': 'Nhân vật',
   'character.subtitle': 'Quản lý danh sách nhân vật, hồ sơ nhân trắc học và đồ thị quan hệ.',
   'character.searchPlaceholder': 'Tìm theo tên, chủng tộc...',
@@ -524,7 +489,6 @@ const vi: Record<keyof typeof en, string> = {
   'character.create': 'Tạo nhân vật',
   'character.empty': 'Không tìm thấy nhân vật phù hợp.',
   'character.relationshipsCount': 'mối quan hệ',
-
   'character.create.title': 'Khởi tạo nhân vật mới',
   'character.create.subtitle': 'Nhập các thông số cơ bản để khởi tạo hồ sơ nhân vật.',
   'character.create.nameLabel': 'Tên nhân vật *',
@@ -534,7 +498,6 @@ const vi: Record<keyof typeof en, string> = {
   'character.create.sexLabel': 'Giới tính sinh học',
   'character.create.cancel': 'Hủy',
   'character.create.submit': 'Tạo nhân vật',
-
   'character.detail.edit': 'Chỉnh sửa',
   'character.detail.chat': 'Trò chuyện',
   'character.detail.basicInfo': 'Thông tin cơ bản',
@@ -566,13 +529,11 @@ const vi: Record<keyof typeof en, string> = {
   'character.detail.colorNamePlaceholder': 'Tên màu',
   'character.detail.markLocationPlaceholder': 'Vị trí...',
   'character.detail.markDescriptionPlaceholder': 'Mô tả chi tiết...',
-
   'character.chat.title': 'Merlink',
   'character.chat.emptyTitle': 'Trợ lý Merlink nhân vật đang hoạt động',
   'character.chat.emptySubtitle': 'Yêu cầu AI hỗ trợ hoàn thiện hồ sơ cho {name}.',
   'character.chat.sourceLabel': 'Nguồn dữ liệu',
   'character.chat.placeholder': 'Hỏi về {name}...',
-
   'detail.core.basicInfo': 'Thông tin cơ bản',
   'detail.core.appearance': 'Ngoại hình',
   'detail.core.marks': 'Điểm đặc biệt',
@@ -594,7 +555,6 @@ const vi: Record<keyof typeof en, string> = {
   'detail.core.defaultSummary': 'Mô tả tổng quan',
   'detail.core.addMark': 'Thêm điểm đặc biệt',
   'detail.core.newMark': 'Điểm mới',
-
   'detail.life.knowledge': 'Tri thức',
   'detail.life.competence': 'Năng lực',
   'detail.life.memory': 'Ký ức',
@@ -624,7 +584,6 @@ const vi: Record<keyof typeof en, string> = {
   'detail.life.rolePlaceholder': 'Vai trò',
   'detail.life.namePlaceholder': 'Tên',
   'detail.life.emotionPlaceholder': 'Cảm xúc',
-
   'detail.state.trust': 'Tin tưởng',
   'detail.state.affection': 'Yêu mến',
   'detail.state.hostility': 'Thù địch',
@@ -632,7 +591,6 @@ const vi: Record<keyof typeof en, string> = {
   'detail.state.respect': 'Tôn trọng',
   'detail.state.familiarity': 'Quen thuộc',
   'detail.state.dependency': 'Phụ thuộc',
-
   'detail.psych.coreTrauma': 'Tổn thương & Niềm tin cốt lõi',
   'detail.psych.theWound': 'Vết thương lòng',
   'detail.psych.theLie': 'Lời dối trá niềm tin',
@@ -757,8 +715,7 @@ const vi: Record<keyof typeof en, string> = {
   'sp.eventBlock.state': 'State',
   'sp.eventBlock.emotionalRanges': 'Khoảng cảm xúc',
   'sp.eventBlock.outgoingTransitions': 'Chuyển tiếp đi ra',
-  'sp.eventBlock.childHint':
-    'Các thực thể con được đối chiếu qua quan hệ -N trong schema: component, state, emotional_ranges, event_transitions.',
+  'sp.eventBlock.childHint': 'Các thực thể con được đối chiếu qua quan hệ -N trong schema: component, state, emotional_ranges, event_transitions.',
   'sp.eventBlock.noEmotionals': 'Chưa có khoảng cảm xúc nào.',
   'sp.eventBlock.noTransitions': 'Không có chuyển tiếp đi ra.',
   'sp.narrator.filter.all': 'Tất cả',
@@ -813,6 +770,7 @@ const vi: Record<keyof typeof en, string> = {
   'draft.overview.moreGenres': 'Xem thêm thể loại khác',
   'draft.overview.tabArcs': 'Hồi truyện',
   'draft.overview.tabCharacters': 'Nhân vật',
+  'draft.overview.tabWorld': 'Bối cảnh',
   'draft.overview.filterArc': 'Lọc Hồi:',
   'draft.overview.filterAll': 'Tất cả',
   'draft.overview.arcNum': 'Hồi {num}',
@@ -820,10 +778,10 @@ const vi: Record<keyof typeof en, string> = {
   'draft.overview.expandAll': 'Mở rộng tất cả',
   'draft.overview.collapseAll': 'Thu gọn tất cả',
   'draft.overview.charDesc': 'Hồ sơ nhân vật và hình mẫu.',
-  'draft.overview.allGenres': 'Toàn bộ thể loại tác phẩm',
-  'draft.overview.arcWord': 'arc',
-  'draft.overview.chapterWord': 'chapter',
-  'draft.overview.wordPerChapWord': 'word/chap',
+  'draft.overview.worldDesc': 'Bối cảnh thế giới, thiết lập môi trường và các truyền thuyết.',
+  'draft.overview.targetArc': 'hồi',
+  'draft.overview.targetChapter': 'chương',
+  'draft.overview.targetWord': 'chữ/chương',
   'draft.arc.segmentsCount': '{count} phân đoạn',
   'draft.theme.title': 'Triết lý & Chủ đề',
   'draft.theme.subtitle': 'Câu hỏi, thông điệp và luận điểm',
@@ -846,25 +804,26 @@ const vi: Record<keyof typeof en, string> = {
   'draft.segment.phase': 'Giai đoạn {num}',
   'draft.segment.collapse': 'Thu gọn phân đoạn',
   'draft.segment.showMore': 'Xem thêm {count} phân đoạn',
-  'draft.character.motif': 'Motif nhân vật',
-  'draft.nav.back': 'Quay lại',
-  'draft.nav.next': 'Bước tiếp theo',
-  'draft.nav.start': 'Bắt đầu sinh',
-  'draft.toast.started': 'Bắt đầu sinh nội dung truyện...',
   'draft.chapter.title': 'Chương & Phân cảnh',
   'draft.chapter.subtitle': 'Chi tiết dàn ý chương',
   'draft.chapter.count': '{count} chương',
-  'draft.overview.arcs': 'arc',
-  'draft.overview.chapters': 'chapter',
-  'draft.overview.wordsPerChapter': 'word/chap',
-  'draft.overview.tabWorld': 'Bối cảnh',
-  'draft.overview.worldDesc': 'Bối cảnh thế giới, thiết lập môi trường và các truyền thuyết.',
   'draft.world.desc': 'Mô tả',
   'draft.world.access': 'Quyền truy cập',
   'draft.world.lore': 'Truyền thuyết / Lore',
-  'draft.overview.targetArc': 'hồi',
-  'draft.overview.targetChapter': 'chương',
-  'draft.overview.targetWord': 'chữ/chương',
+  'draft.loading.title': 'Merlink đang phân tích...',
+  'draft.loading.msg1': 'Đang xem xét tổng quan dự án...',
+  'draft.loading.msg2': 'Đang sinh cấu trúc dữ liệu...',
+  'draft.loading.msg3': 'Đang kết nối các yếu tố tự sự...',
+  'draft.loading.msg4': 'Đang hoàn thiện phase mới...',
+  'draft.toolbar.version': 'Phiên bản',
+  'draft.toolbar.regenerate': 'Tạo lại',
+  'draft.toolbar.next': 'Tiếp theo',
+  'draft.dialog.nextTitle': 'Chuyển sang bước tiếp theo?',
+  'draft.dialog.nextDesc': 'Dữ liệu hiện tại sẽ được lưu lại. Bạn có chắc chắn muốn tiếp tục?',
+  'draft.dialog.confirmNext': 'Tiếp tục',
+  'draft.character.motif': 'Motif nhân vật',
+  'draft.toolbar.feedback': 'Góp ý',
+  'draft.toolbar.confirm': 'Xác nhận',
 };
 
 export const dict = { en, vi };
