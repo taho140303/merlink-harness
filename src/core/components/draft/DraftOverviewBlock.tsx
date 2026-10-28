@@ -13,9 +13,11 @@ const MAX_VISIBLE_GENRES = 9;
 interface DraftOverviewBlockProps {
   overview: DraftOverview;
   currentStep: DraftStep;
+  isFeedbackMode?: boolean;
+  onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlockProps) {
+export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAttachFeedback }: DraftOverviewBlockProps) {
   const t = useT();
   const [allGenresOpen, setAllGenresOpen] = useState(false);
   
@@ -27,9 +29,9 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
   const remainingGenres = overview.genres.length - MAX_VISIBLE_GENRES;
 
   const targets = [
-    { key: 'arcs', label: t('draft.overview.arcs'), value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
-    { key: 'chapters', label: t('draft.overview.chapters'), value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
-    { key: 'words', label: t('draft.overview.wordsPerChapter'), value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
+    { key: 'arcs', label: t('draft.overview.targetArc'), value: overview.target.arcs, hashClass: 'text-indigo-500', valueClass: 'text-indigo-600' },
+    { key: 'chapters', label: t('draft.overview.targetChapter'), value: overview.target.chapters, hashClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
+    { key: 'words', label: t('draft.overview.targetWord'), value: overview.target.wordPerChapter, hashClass: 'text-violet-500', valueClass: 'text-violet-600' },
   ];
 
   const toggleArc = (id: string) => {
@@ -46,7 +48,6 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
 
   const filteredArcs = arcFilter === 'all' ? overview.arcs : overview.arcs.filter(a => a.number === arcFilter);
 
-
   const showWorldTab = ['world', 'scene', 'character', 'relationship'].includes(currentStep);
 
   return (
@@ -60,7 +61,13 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
 
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-6 p-6 pb-24">
         {/* Header */}
-        <header className="rounded-3xl p-5 neu-flat">
+        <header 
+          onClick={() => isFeedbackMode && onAttachFeedback?.('overview', 'overview', overview.displayName)}
+          className={cn(
+            "rounded-3xl p-5 neu-flat transition-all duration-300",
+            isFeedbackMode && "hover:border-2 hover:border-dashed hover:border-purple-500 hover:bg-purple-50/10 cursor-none"
+          )}
+        >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <h2 className="min-w-0 text-2xl font-black leading-tight tracking-tight text-slate-900 dark:text-slate-100">
@@ -70,8 +77,6 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
                 {overview.language}
               </span>
             </div>
-
-
           </div>
 
           <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
@@ -110,7 +115,7 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
               {remainingGenres > 0 && (
                 <button
                   type="button"
-                  onClick={() => setAllGenresOpen(true)}
+                  onClick={(e) => { e.stopPropagation(); setAllGenresOpen(true); }}
                   className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black text-indigo-600 transition-all hover:neu-pressed dark:text-indigo-400"
                 >
                   <span>...</span>
@@ -175,7 +180,6 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
                     </option>
                   ))}
                 </select>
-
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={expandAll} className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">{t('draft.overview.expandAll')}</button>
@@ -189,6 +193,8 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
                 arc={arc}
                 isExpanded={expandedArcs.has(arc.id)}
                 onToggle={() => toggleArc(arc.id)}
+                isFeedbackMode={isFeedbackMode}
+                onAttachFeedback={onAttachFeedback}
               />
             ))}
           </div>
@@ -199,7 +205,12 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.charDesc')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {overview.characters.map(char => (
-                <CharacterCard key={char.id} character={char} />
+                <CharacterCard 
+                  key={char.id} 
+                  character={char} 
+                  isFeedbackMode={isFeedbackMode}
+                  onAttachFeedback={onAttachFeedback}
+                />
               ))}
             </div>
           </div>
@@ -208,7 +219,11 @@ export function DraftOverviewBlock({ overview, currentStep }: DraftOverviewBlock
         {activeTab === 'world' && overview.worldSettings && (
           <div className="space-y-3 animate-in fade-in duration-300">
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
-            <WorldSettingsBlock settings={overview.worldSettings} />
+            <WorldSettingsBlock 
+              settings={overview.worldSettings} 
+              isFeedbackMode={isFeedbackMode}
+              onAttachFeedback={onAttachFeedback}
+            />
           </div>
         )}
       </div>

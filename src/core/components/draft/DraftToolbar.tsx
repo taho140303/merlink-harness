@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Layers, ChevronDown, RotateCcw, ArrowRight, Check } from 'lucide-react';
+import { Layers, ChevronDown, RotateCcw, ArrowRight, Check, MessageSquareQuote } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { useT } from '../../../shared/i18n/useT';
 import type { DraftVersion } from './types';
@@ -11,6 +11,8 @@ interface DraftToolbarProps {
   onRegenerate: () => void;
   onNext?: () => void;
   onStart?: () => void;
+  isFeedbackMode: boolean;
+  onToggleFeedback: () => void;
 }
 
 export function DraftToolbar({
@@ -20,6 +22,8 @@ export function DraftToolbar({
   onRegenerate,
   onNext,
   onStart,
+  isFeedbackMode,
+  onToggleFeedback,
 }: DraftToolbarProps) {
   const t = useT();
   const [versionOpen, setVersionOpen] = useState(false);
@@ -36,7 +40,7 @@ export function DraftToolbar({
   }, [versionOpen]);
 
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300">
+    <div className="flex items-center gap-1.5 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/90 animate-in slide-in-from-bottom-4 duration-300 relative z-[60]">
       
       {/* Version Selector */}
       <div className="relative" ref={dropdownRef}>
@@ -82,6 +86,23 @@ export function DraftToolbar({
       {/* Action Buttons */}
       <button
         type="button"
+        onClick={onToggleFeedback}
+        className={cn(
+          "flex h-9 items-center gap-1.5 rounded-full px-3 transition-all duration-300 group",
+          isFeedbackMode
+            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
+            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        )}
+        title={t('draft.toolbar.feedback')}
+      >
+        <MessageSquareQuote className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+        <span className="text-xs font-medium hidden sm:inline-block">
+          {t('draft.toolbar.feedback')}
+        </span>
+      </button>
+
+      <button
+        type="button"
         onClick={onRegenerate}
         className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 group"
         title={t('draft.toolbar.regenerate')}
@@ -107,7 +128,7 @@ export function DraftToolbar({
           className="flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition-all duration-300 hover:bg-blue-500 hover:shadow-lg group"
         >
           <Check className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-          <span>{t('draft.toolbar.confirm') || 'Confirm'}</span>
+          <span>{t('draft.toolbar.confirm')}</span>
         </button>
       )}
     </div>

@@ -8,22 +8,33 @@ import { ConfirmDialog } from '../../../shared/components/ui/confirm-dialog';
 import { toast } from '../../../shared/components/ui/toast';
 import { useT } from '../../../shared/i18n/useT';
 import { cn } from '../../../shared/utils/cn';
-import type { DraftStep, CharacterSubStep, DraftOverview } from './types';
+import type { DraftStep, CharacterSubStep, DraftOverview, FeedbackContext } from './types';
 
 interface DraftWorkspaceProps {
   onClose: () => void;
+  onFeedback: (feedback: FeedbackContext) => void;
   overview?: DraftOverview;
 }
 
-const STEP_ORDER: DraftStep[] = ['overview', 'chapter', 'world', 'scene', 'character', 'relationship'];
-
-export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWorkspaceProps) {
+export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW }: DraftWorkspaceProps) {
   const t = useT();
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
   const [currentVersion, setCurrentVersion] = useState(overview.version);
-  
   const [confirmOpen, setConfirmOpen] = useState(false);
+  
+  // Feedback Mode State & Custom Cursor
+  const [isFeedbackMode, setIsFeedbackMode] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!isFeedbackMode) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isFeedbackMode]);
 
   // Transition states
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading' | 'fade-in'>('idle');
@@ -86,6 +97,11 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
     });
   };
 
+  const handleAttachFeedback = (id: string, tag: string, title: string) => {
+    onFeedback({ id, tag, title });
+    setIsFeedbackMode(false); // Tắt mode sau khi chọn
+    toast({ title: 'Attached to chat context', variant: 'success' });
+  };
 
   const phaseOverview = useMemo(() => {
     if (currentStep === 'overview') {
@@ -103,7 +119,10 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
   const isFading = transitionPhase === 'fade-out' || transitionPhase === 'loading';
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40">
+    <aside className={cn(
+      "flex h-full w-full flex-col overflow-hidden border-l border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/40 relative",
+      isFeedbackMode && "cursor-none [&_*]:cursor-none"
+    )}>
       <DraftHeader
         currentStep={currentStep}
         currentSubStep={currentSubStep}
@@ -133,6 +152,8 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
           <DraftOverviewBlock
             overview={phaseOverview}
             currentStep={currentStep}
+            isFeedbackMode={isFeedbackMode}
+            onAttachFeedback={handleAttachFeedback}
           />
         </div>
 
@@ -148,6 +169,8 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
             onRegenerate={handleRegenerate}
             onNext={currentStep !== 'relationship' ? () => setConfirmOpen(true) : undefined}
             onStart={currentStep === 'relationship' ? handleStart : undefined}
+            isFeedbackMode={isFeedbackMode}
+            onToggleFeedback={() => setIsFeedbackMode(!isFeedbackMode)}
           />
         </div>
       </div>
@@ -161,6 +184,16 @@ export function DraftWorkspace({ onClose, overview = DRAFT_OVERVIEW }: DraftWork
         cancelLabel={t('common.cancel')}
         onConfirm={executeNext}
       />
+
+      {/* Custom Feedback Cursor */}
+      {isFeedbackMode && (
+        <div
+          className="pointer-events-none fixed z-[9999] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-purple-500 bg-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.5)] backdrop-blur-sm transition-transform duration-75 ease-out"
+          style={{ left: cursorPos.x, top: cursorPos.y }}
+        >
+          <MessageSquareQuote className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+        </div>
+      )}
     </aside>
   );
 }
