@@ -34,10 +34,10 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
               <Globe2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 {settings.displayName}
               </h3>
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
                 <span className="rounded bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{settings.type}</span>
                 {settings.parentCode && <span>Parent: {settings.parentCode}</span>}
               </div>
@@ -45,17 +45,17 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-4 w-full">
+        <div className="mt-4 flex flex-col gap-5 w-full">
           <div className="w-full">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.desc')}</span>
-            <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300 w-full">
+            <span className="text-sm font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.desc')}</span>
+            <p className="mt-1 text-lg leading-relaxed text-slate-700 dark:text-slate-300 w-full">
               {settings.description}
             </p>
           </div>
           <div className="w-full">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.access')}</span>
-            <div className="mt-1 flex items-start gap-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300 w-full">
-              <Shield className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5" />
+            <span className="text-sm font-semibold uppercase tracking-wider text-slate-400">{t('draft.world.access')}</span>
+            <div className="mt-1 flex items-start gap-2 text-lg leading-relaxed text-slate-700 dark:text-slate-300 w-full">
+              <Shield className="h-5 w-5 shrink-0 text-emerald-500 mt-1" />
               <p className="flex-1">{settings.access}</p>
             </div>
           </div>
@@ -64,9 +64,9 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
 
       <div className="w-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="h-4 w-4 text-amber-500" />
-          <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">{t('draft.world.lore')}</h4>
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+          <BookOpen className="h-5 w-5 text-amber-500" />
+          <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{t('draft.world.lore')}</h4>
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             {settings.loreEntries.length} entries
           </span>
         </div>
@@ -82,15 +82,15 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
               )}
             >
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="rounded bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600 shadow-2xs dark:bg-slate-900 dark:text-slate-300">
+                <span className="rounded bg-white px-2 py-0.5 text-xs font-bold text-slate-600 shadow-2xs dark:bg-slate-900 dark:text-slate-300">
                   {lore.type}
                 </span>
-                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{lore.displayName}</span>
-                <span className="text-xs font-mono text-slate-400">{lore.code}</span>
+                <span className="text-base font-bold text-slate-900 dark:text-slate-100">{lore.displayName}</span>
+                <span className="text-sm font-mono text-slate-400">{lore.code}</span>
               </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{lore.description}</p>
+              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">{lore.description}</p>
               {lore.data && (
-                <p className="mt-2 text-sm italic text-slate-500 dark:text-slate-500 border-l-2 border-slate-300 pl-3 dark:border-slate-600 leading-relaxed">
+                <p className="mt-2 text-base italic text-slate-500 dark:text-slate-500 border-l-2 border-slate-300 pl-3 dark:border-slate-600 leading-relaxed">
                   {lore.data}
                 </p>
               )}
