@@ -132,14 +132,6 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       <DraftHeader
         currentStep={currentStep}
         currentSubStep={currentSubStep}
-        onStepClick={(step) => {
-          if (step === currentStep) return;
-          triggerTransition(() => {
-            setCurrentStep(step);
-            if (step === 'character') setCurrentSubStep('appearance');
-          });
-        }}
-        onSubStepClick={setCurrentSubStep}
         onClose={onClose}
       />
 
