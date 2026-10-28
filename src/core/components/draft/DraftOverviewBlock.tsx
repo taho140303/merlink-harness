@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Bookmark, Tags, BookOpen, Users, Globe2 } from 'lucide-react';
+import { Bookmark, Tags, BookOpen, Users, Globe2, Film } from 'lucide-react';
 import { cn } from '../../../shared/utils/cn';
 import { Dialog, DialogContent, DialogTitle } from '../../../shared/components/ui/dialog';
 import { useT } from '../../../shared/i18n/useT';
 import { ArcCard } from './overview/ArcCard';
 import { CharacterCard } from './overview/CharacterCard';
 import { WorldSettingsBlock } from './overview/WorldSettingsBlock';
+import { SceneConfigBlock } from './overview/SceneConfigBlock';
+import { SceneConfigBlock } from './overview/SceneConfigBlock';
 import type { DraftOverview, DraftStep } from './types';
 
 const MAX_VISIBLE_GENRES = 9;
@@ -23,7 +25,7 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
   const t = useT();
   const [allGenresOpen, setAllGenresOpen] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'arcs' | 'characters' | 'world'>('arcs');
+  const [activeTab, setActiveTab] = useState<'arcs' | 'characters' | 'world' | 'scene'>('arcs');
   const [arcFilter, setArcFilter] = useState<'all' | number>('all');
   const [expandedArcs, setExpandedArcs] = useState<Set<string>>(new Set());
 
@@ -51,6 +53,8 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
   const filteredArcs = arcFilter === 'all' ? overview.arcs : overview.arcs.filter(a => a.number === arcFilter);
 
   const showWorldTab = ['world', 'scene', 'character', 'relationship'].includes(currentStep);
+  const showSceneTab = ['scene', 'character', 'relationship'].includes(currentStep);
+  const showSceneTab = ['scene', 'character', 'relationship'].includes(currentStep);
 
   return (
     <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-auto bg-slate-50/40 dark:bg-slate-950/40">
@@ -162,6 +166,28 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
               <Globe2 className="h-3.5 w-3.5" /> {t('draft.overview.tabWorld')}
             </button>
           )}
+          {showSceneTab && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('scene'); }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                activeTab === 'scene' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              )}
+            >
+              <Film className="h-3.5 w-3.5" /> {t('draft.overview.tabScene')}
+            </button>
+          )}
+          {showSceneTab && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('scene'); }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all animate-in fade-in slide-in-from-left-2",
+                activeTab === 'scene' ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              )}
+            >
+              <Film className="h-3.5 w-3.5" /> {t('draft.overview.tabScene')}
+            </button>
+          )}
         </div>
 
         {/* Panels */}
@@ -221,9 +247,20 @@ export function DraftOverviewBlock({ overview, currentStep, isFeedbackMode, onAt
 
         {activeTab === 'world' && overview.worldSettings && (
           <div className="space-y-3 animate-in fade-in duration-300">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('draft.overview.worldDesc')}</p>
             <WorldSettingsBlock 
               settings={overview.worldSettings} 
+              isFeedbackMode={isFeedbackMode}
+              onAttachFeedback={onAttachFeedback}
+            />
+          </div>
+        )}
+
+        {activeTab === 'scene' && overview.sceneConfig && (
+          <div className="space-y-3 animate-in fade-in duration-300">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('draft.overview.sceneDesc')}</p>
+            <SceneConfigBlock
+              config={overview.sceneConfig}
               isFeedbackMode={isFeedbackMode}
               onAttachFeedback={onAttachFeedback}
             />

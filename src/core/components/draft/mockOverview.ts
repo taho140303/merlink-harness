@@ -147,6 +147,86 @@ export const DRAFT_OVERVIEW: DraftOverview = {
     { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' } },
     { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' } },
   ],
+  sceneConfig: {
+    arcs: [
+      {
+        displayName: 'Hồi 1: Huyết tế tế đàn',
+        position: 1,
+        chapters: [
+          {
+            displayName: 'Khởi nguyên đứt gãy',
+            position: 1,
+            scenes: [
+              {
+                code: 'sc-1',
+                displayName: 'Thức tỉnh',
+                position: 1,
+                stylePresetCode: 'action.combat',
+                narratorConfigCode: 'first-person-protagonist',
+                loreEntriesCode: 'lore-1',
+                characters: [
+                  { displayName: 'Phù Thanh Cơ', isPov: true },
+                  { displayName: 'Trưởng lão Hạc', isPov: false },
+                ],
+              },
+              {
+                code: 'sc-2',
+                displayName: 'Tiếng gọi',
+                position: 2,
+                stylePresetCode: 'mystery.deduction',
+                narratorConfigCode: 'third-person-limited-single',
+                loreEntriesCode: 'lore-2',
+                characters: [
+                  { displayName: 'Phù Thanh Cơ', isPov: true },
+                  { displayName: 'Hạc Minh', isPov: false },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  sceneConfig: {
+    arcs: [
+      {
+        displayName: 'Hồi 1: Huyết tế tế đàn',
+        position: 1,
+        chapters: [
+          {
+            displayName: 'Khởi nguyên đứt gãy',
+            position: 1,
+            scenes: [
+              {
+                code: 'sc-1',
+                displayName: 'Thức tỉnh',
+                position: 1,
+                stylePresetCode: 'action.combat',
+                narratorConfigCode: 'first-person-protagonist',
+                loreEntriesCode: 'lore-1',
+                characters: [
+                  { displayName: 'Phù Thanh Cơ', isPov: true },
+                  { displayName: 'Trưởng lão Hạc', isPov: false },
+                ],
+              },
+              {
+                code: 'sc-2',
+                displayName: 'Tiếng gọi',
+                position: 2,
+                stylePresetCode: 'mystery.deduction',
+                narratorConfigCode: 'third-person-limited-single',
+                loreEntriesCode: 'lore-2',
+                characters: [
+                  { displayName: 'Phù Thanh Cơ', isPov: true },
+                  { displayName: 'Hạc Minh', isPov: false },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
   worldSettings: {
     code: 'ws-1',
     displayName: 'Hạ Nam Vương Quốc',

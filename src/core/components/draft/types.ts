@@ -109,6 +109,68 @@ export interface DraftVersion {
   updatedAt: string;
 }
 
+export interface SceneCharacter {
+  displayName: string;
+  isPov: boolean;
+}
+
+export interface SceneConfig {
+  code: string;
+  displayName: string;
+  position: number;
+  stylePresetCode: string;
+  narratorConfigCode: string;
+  loreEntriesCode: string;
+  characters: SceneCharacter[];
+}
+
+export interface ChapterConfig {
+  displayName: string;
+  position: number;
+  scenes: SceneConfig[];
+}
+
+export interface ArcSceneConfig {
+  displayName: string;
+  position: number;
+  chapters: ChapterConfig[];
+}
+
+export interface SceneConfigPhase {
+  arcs: ArcSceneConfig[];
+}
+
+export interface SceneCharacter {
+  displayName: string;
+  isPov: boolean;
+}
+
+export interface SceneConfig {
+  code: string;
+  displayName: string;
+  position: number;
+  stylePresetCode: string;
+  narratorConfigCode: string;
+  loreEntriesCode: string;
+  characters: SceneCharacter[];
+}
+
+export interface ChapterConfig {
+  displayName: string;
+  position: number;
+  scenes: SceneConfig[];
+}
+
+export interface ArcSceneConfig {
+  displayName: string;
+  position: number;
+  chapters: ChapterConfig[];
+}
+
+export interface SceneConfigPhase {
+  arcs: ArcSceneConfig[];
+}
+
 export interface DraftOverview {
   currentPhase: string;
   version: string;
@@ -126,4 +188,5 @@ export interface DraftOverview {
   arcs: DraftArc[];
   characters: DraftCharacter[];
   worldSettings?: DraftWorldSettings;
+  sceneConfig?: SceneConfigPhase;
 }

@@ -410,6 +410,8 @@ const en = {
   'draft.character.motif': 'Character Motif',
   'draft.toolbar.feedback': 'Feedback',
   'draft.toolbar.confirm': 'Confirm',
+  'draft.overview.tabScene': 'Scene Config',
+  'draft.overview.sceneDesc': 'Configure style, narrator, lore, and POV for each scene.',
 } as const;
 
 const vi: Record<keyof typeof en, string> = {
@@ -824,6 +826,8 @@ const vi: Record<keyof typeof en, string> = {
   'draft.character.motif': 'Motif nhân vật',
   'draft.toolbar.feedback': 'Góp ý',
   'draft.toolbar.confirm': 'Xác nhận',
+  'draft.overview.tabScene': 'Cấu hình cảnh',
+  'draft.overview.sceneDesc': 'Cấu hình phong cách, người kể chuyện, lore và POV cho từng cảnh.',
 };
 
 export const dict = { en, vi };
