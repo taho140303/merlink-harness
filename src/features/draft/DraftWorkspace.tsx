@@ -41,8 +41,8 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isFeedbackMode]);
 
-  // Transition states
-  const [transitionPhase, setTransitionPhase] = useState<'idle' | '' | 'loading' | ''>('idle');
+  // Transition states — khởi tạo loading ngay khi mở Phase 1 overview
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading'>('loading');
   const [loadingIdx, setLoadingIdx] = useState(0);
 
   const loadingMessages = [
@@ -56,13 +56,21 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     if (transitionPhase !== 'loading') return;
     const interval = setInterval(() => {
       setLoadingIdx(prev => (prev + 1) % loadingMessages.length);
-    }, 3000);
+    }, 1500);
     return () => clearInterval(interval);
   }, [transitionPhase, loadingMessages.length]);
 
+  // Loading lần đầu khi vừa mở Draft Workspace ở Phase 1 overview
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTransitionPhase('idle');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const triggerTransition = (action: () => void) => {
     if (transitionPhase !== 'idle') return;
-    setTransitionPhase('');
+    setTransitionPhase('fade-out');
     
     setTimeout(() => {
       action();
@@ -70,10 +78,9 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       setTransitionPhase('loading');
       
       setTimeout(() => {
-        setTransitionPhase('');
-        setTimeout(() => setTransitionPhase('idle'), 600);
-      }, 3000 * loadingMessages.length);
-    }, 600);
+        setTransitionPhase('idle');
+      }, 3000);
+    }, 400);
   };
 
   const executeNext = () => {
@@ -174,7 +181,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     };
   }, [overview, currentStep, currentSubStep]);
 
-  const isFading = transitionPhase === '' || transitionPhase === 'loading';
+  const isFading = transitionPhase === 'fade-out' || transitionPhase === 'loading';
 
   return (
     <aside 
@@ -197,10 +204,9 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         )}
 
         <div className={cn(
-          "h-full w-full transition-colors duration-300",
-          transitionPhase === '' && "opacity-0 scale-[0.98]",
+          "h-full w-full transition-all duration-300",
+          transitionPhase === 'fade-out' && "opacity-0 scale-[0.98]",
           transitionPhase === 'loading' && "hidden",
-          transitionPhase === '' && "opacity-100 scale-100   duration-300",
           transitionPhase === 'idle' && "opacity-100 scale-100"
         )}>
           <DraftOverviewBlock
