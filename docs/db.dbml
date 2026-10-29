@@ -654,6 +654,23 @@ Table characters {
     }
 }
 
+Table project_characters {
+    id uuid [pk, note: 'UUIDv7']
+    project_id uuid [ref: > projects.id, not null, note: 'Dự án liên kết']
+    character_id uuid [ref: > characters.id, not null, note: 'Nhân vật tham gia dự án']
+    role varchar [note: 'Vai trò: PROTAGONIST, ANTAGONIST, SUPPORTING, CAMEO...']
+    notes text [note: 'Ghi chú thiết lập riêng của nhân vật trong phạm vi dự án này']
+    created_at timestamp
+    deleted_at timestamp
+
+    indexes {
+        (project_id, character_id) [unique]
+        project_id
+        character_id
+        deleted_at
+    }
+}
+
 
 
 Table appearance_option_groups {

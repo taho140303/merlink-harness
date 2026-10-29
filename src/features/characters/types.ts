@@ -119,6 +119,8 @@ export interface PsychologicalProfile {
 export interface CharacterProfile {
   id: string;
   code?: string;
+  projectId?: string;
+  projectName?: string;
   basicInfo: CharacterBasicInfo;
   avatarBg?: string;
   appearance: CharacterAppearance;

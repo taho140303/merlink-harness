@@ -3,6 +3,8 @@ import type { CharacterProfile } from './types';
 export const rimuruProfile: CharacterProfile = {
   id: 'rimuru-tempest',
   code: 'rimuru-tempest',
+  projectId: 'proj-3',
+  projectName: 'Echoes of the Void',
   basicInfo: {
     name: 'Rimuru Tempest',
     species: 'Ultimate Slime (True Dragon-tier)',
@@ -190,6 +192,8 @@ export const rimuruProfile: CharacterProfile = {
 export const kaelenProfile: CharacterProfile = {
   id: 'char-1',
   code: 'kaelen-vance',
+  projectId: 'proj-1',
+  projectName: 'Chronicles of Aethelgard',
   basicInfo: {
     name: 'Kaelen Vance',
     species: 'High Human (Aether-touched)',
@@ -270,6 +274,8 @@ export const kaelenProfile: CharacterProfile = {
 export const lyraProfile: CharacterProfile = {
   id: 'char-2',
   code: 'lyra-dawnseeker',
+  projectId: 'proj-1',
+  projectName: 'Chronicles of Aethelgard',
   basicInfo: {
     name: 'Lyra Dawnseeker',
     species: 'Human (Solar Blessed)',
@@ -334,6 +340,8 @@ export const lyraProfile: CharacterProfile = {
 export const vaelinProfile: CharacterProfile = {
   id: 'char-3',
   code: 'vaelin-grey',
+  projectId: 'proj-2',
+  projectName: 'The Sunken Leyline',
   basicInfo: {
     name: 'Vaelin Grey',
     species: 'Shadeborn',
@@ -379,16 +387,205 @@ export const vaelinProfile: CharacterProfile = {
   ],
 };
 
+export const phuThanhCoProfile: CharacterProfile = {
+  id: 'phu-thanh-co',
+  code: 'phu-thanh-co',
+  projectId: 'proj-sample-500',
+  projectName: 'Tế nữ ngưu nhân',
+  basicInfo: {
+    name: 'Phù Thanh Cơ',
+    species: 'Ngưu Nhân (Humanoid)',
+    biologicalSex: 'FEMALE',
+    genderIdentity: 'FEMALE',
+    genderExpression: 'FEMALE',
+  },
+  avatarBg: 'bg-rose-500',
+  appearance: {
+    height: 165,
+    weight: 52,
+    hair: 'Đen mượt',
+    eyes: 'Đen ánh tím',
+    skin: 'Trắng sáng',
+    hairNote: 'Mái tóc đen dài buộc hai bên kiểu twintail thấp.',
+    eyesNote: 'Đồng tử đen ánh xanh tím, sáng rực khi kích hoạt huyết mạch.',
+    skinNote: 'Nước da trắng sáng, mịn màng.',
+    outfitStyle: 'Trang phục kiếm sĩ tế đàn kết hợp găng tay hộ vệ.',
+    defaultSummary: 'Nữ kiếm sĩ trẻ tuổi, vẻ ngoài điềm tĩnh kiên cường, mang trên vai vận mệnh tộc nhân.',
+  },
+  distinguishingMarks: [
+    { id: 'm-ptc-1', content: 'Nốt ruồi đen nhỏ ở khóe mắt trái.' },
+    { id: 'm-ptc-2', content: 'Ấn ký huyết mạch Ngưu Nhân sau bờ vai.' },
+  ],
+  relationships: [
+    {
+      id: 'rel-ptc-1',
+      targetName: 'Hạc Minh',
+      category: 'SOCIAL',
+      role: 'EQUAL',
+      states: {
+        trust: 'HIGH',
+        affection: 'HIGH',
+        hostility: 'NONE',
+        fear: 'NONE',
+        respect: 'HIGH',
+        familiarity: 'HIGH',
+        dependency: 'MODERATE',
+      },
+    },
+  ],
+  competences: [
+    {
+      id: 'comp-ptc-1',
+      name: 'Ngự Huyết Kiếm Pháp',
+      domain: 'Kiếm thuật',
+      level: 'Đại sư',
+      description: 'Điều khiển huyết mạch hòa quyện cùng kiếm khí, gia tăng tốc độ và sức sát thương.',
+      capabilities: ['Tăng tốc độ chém', 'Tạo lá chắn huyết mạch', 'Phát hiện sát khí từ xa'],
+      limitations: ['Tiêu hao sinh lực khi thi triển kéo dài', 'Bị khắc chế bởi ma pháp thanh tẩy cấp cao'],
+    },
+  ],
+  memories: [
+    {
+      id: 'mem-ptc-1',
+      content: 'Đêm tế lễ, ánh mắt lạnh lẽo của trưởng lão nhìn tôi bị đẩy lên tế đàn. Mùi máu tanh nồng và tiếng niệm chú chói tai.',
+      sourceScene: 'Hồi 1 - Cảnh 1',
+      createdAt: 'Thời điểm thức tỉnh',
+    },
+  ],
+  psychological: {
+    coreTrauma: {
+      theWound: 'Bị phản bội bởi chính tộc nhân, chứng kiến sự hiến tế đẫm máu của đồng bào.',
+      theLie: 'Chỉ cần tận tụy với thần quyền thì bộ tộc sẽ được che chở và bình yên.',
+      fundamentalFear: 'Mất đi những người thân yêu và rơi vào trạng thái bất lực không bảo vệ được gia tộc.',
+    },
+    cognitiveMoral: {
+      moralAlignment: 'Chaotic Good / Pragmatic Protector',
+      moralCode: 'Bảo vệ người vô tội; nhưng kẻ nào hại đồng tộc thì phải trả giá triệt để.',
+      cognitiveBias: 'Hoài nghi thần quyền và lòng trung thành tôn giáo mù quáng.',
+      breakingPoint: 'Khi người thân cận hoặc đồng tộc vô tội bị đưa lên tế đàn làm vật hy sinh.',
+    },
+    narrativeEngine: {
+      externalWant: 'Thoát khỏi sự truy sát của tế đàn và tìm nơi an toàn cho những người sống sót.',
+      internalNeed: 'Chấp nhận gánh vác sứ mệnh dẫn dắt và chiến đấu thay vì tiếp tục chạy trốn.',
+      internalConflict: 'Nỗi đau giằng xé giữa đức tin thuở nhỏ và thực tế tàn khốc của sự lừa dối.',
+    },
+    behavioralAdaptation: {
+      socialMask: {
+        personaType: 'Kiếm sĩ quả cảm, ít nói, cảnh giác cao độ',
+        verbalStyle: 'Dứt khoát, điềm tĩnh, chỉ lên tiếng khi cần thiết',
+      },
+      defenseMechanisms: {
+        primaryReaction: 'Kiểm soát huyết mạch kìm nén run sợ, tập trung chiến đấu',
+        stressTrigger: 'Nghe thấy những bài tế văn cổ hoặc nhìn thấy tế đàn',
+        copingStrategy: 'Rút gươm tự vệ, phân tích điểm yếu đối phương và chủ động phản công',
+      },
+    },
+  },
+};
+
+export const hacMinhProfile: CharacterProfile = {
+  id: 'hac-minh',
+  code: 'hac-minh',
+  projectId: 'proj-sample-500',
+  projectName: 'Tế nữ ngưu nhân',
+  basicInfo: {
+    name: 'Hạc Minh',
+    species: 'Ngưu Nhân (Humanoid)',
+    biologicalSex: 'MALE',
+    genderIdentity: 'MALE',
+    genderExpression: 'MALE',
+  },
+  avatarBg: 'bg-blue-600',
+  appearance: {
+    height: 185,
+    weight: 80,
+    hair: 'Xanh thẫm',
+    eyes: 'Hổ phách',
+    skin: 'Rắn rỏi',
+    hairNote: 'Tóc cắt ngắn gọn gàng kiểu chiến binh.',
+    eyesNote: 'Đôi mắt sắc bén quan sát mọi biến động.',
+    skinNote: 'Nước da ngăm khỏe khoắn phong sương.',
+    outfitStyle: 'Giáp nhẹ kỵ sĩ hộ vệ vương tộc.',
+    defaultSummary: 'Kỵ sĩ trung thành, luôn đứng phía trước bảo vệ đồng đội.',
+  },
+  distinguishingMarks: [
+    { id: 'm-hm-1', content: 'Vết sẹo kiếm dọc theo bả vai trái.' },
+  ],
+  relationships: [],
+  competences: [],
+  memories: [],
+};
+
+export const haNamVuongProfile: CharacterProfile = {
+  id: 'ha-nam-vuong',
+  code: 'ha-nam-vuong',
+  projectId: 'proj-sample-500',
+  projectName: 'Tế nữ ngưu nhân',
+  basicInfo: {
+    name: 'Hạ Nam Vương',
+    species: 'Nhân Tộc (Vương Quyền)',
+    biologicalSex: 'MALE',
+    genderIdentity: 'MALE',
+    genderExpression: 'MALE',
+  },
+  avatarBg: 'bg-amber-600',
+  appearance: {
+    height: 178,
+    weight: 75,
+    hair: 'Đen pha bạc',
+    eyes: 'Nâu trầm',
+    skin: 'Quý tộc',
+    hairNote: 'Búi tóc đội vương miện ngọc bích.',
+    eyesNote: 'Ánh nhìn uy quyền thâm sâu khó dò.',
+    skinNote: 'Làn da ít phong trần nhưng đầy uy nghiêm.',
+    outfitStyle: 'Cẩm bào hoàng gia thêu rồng vàng.',
+    defaultSummary: 'Quân vương trị vì vương quốc Hạ Nam, luôn cân nhắc giữa lợi ích đế chế và nhân từ.',
+  },
+  distinguishingMarks: [],
+  relationships: [],
+  competences: [],
+  memories: [],
+};
+
 export const MOCK_CHARACTERS: CharacterProfile[] = [
   kaelenProfile,
   lyraProfile,
   vaelinProfile,
   rimuruProfile,
+  phuThanhCoProfile,
+  hacMinhProfile,
+  haNamVuongProfile,
 ];
 
 export const MOCK_CHARACTERS_MAP: Record<string, CharacterProfile> = {
+  // Kaelen Vance
   'char-1': kaelenProfile,
+  'kaelen-vance': kaelenProfile,
+  'char-kaelen-vance': kaelenProfile,
+
+  // Lyra Dawnseeker
   'char-2': lyraProfile,
+  'lyra-dawnseeker': lyraProfile,
+
+  // Vaelin Grey
   'char-3': vaelinProfile,
+  'vaelin-grey': vaelinProfile,
+
+  // Rimuru Tempest
   'rimuru-tempest': rimuruProfile,
+  'rimuru': rimuruProfile,
+
+  // Phù Thanh Cơ (Tế nữ ngưu nhân)
+  'phu-thanh-co': phuThanhCoProfile,
+  'c-1': phuThanhCoProfile,
+  'char-phu-thanh-co': phuThanhCoProfile,
+
+  // Hạc Minh
+  'hac-minh': hacMinhProfile,
+  'c-2': hacMinhProfile,
+  'char-hac-minh': hacMinhProfile,
+
+  // Hạ Nam Vương
+  'ha-nam-vuong': haNamVuongProfile,
+  'char-ha-nam-vuong': haNamVuongProfile,
 };

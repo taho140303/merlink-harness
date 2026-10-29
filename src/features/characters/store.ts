@@ -45,7 +45,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
   loadCharacter: (id: string) => {
     const list = get().charactersList;
-    const found = list.find((c) => c.id === id) || MOCK_CHARACTERS_MAP[id] || list[0];
+    const found =
+      list.find((c) => c.id === id || c.code === id) ||
+      MOCK_CHARACTERS_MAP[id] ||
+      list[0];
     if (found && found.id !== get().character.id) {
       set({ character: found, editSnapshot: null, isEditing: false });
     }

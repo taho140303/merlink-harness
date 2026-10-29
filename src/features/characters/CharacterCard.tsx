@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useT } from "@/shared/i18n/useT";
 import type { CharacterProfile } from "./types";
@@ -8,7 +8,6 @@ interface CharacterCardProps {
 }
 
 export function CharacterCard({ character }: CharacterCardProps) {
-  const navigate = useNavigate();
   const t = useT();
 
   const name = character.basicInfo.name;
@@ -17,18 +16,10 @@ export function CharacterCard({ character }: CharacterCardProps) {
   const genderIdentity = character.basicInfo.genderIdentity;
 
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={() => navigate(`/character/${character.id}`)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          navigate(`/character/${character.id}`);
-        }
-      }}
+    <Link
+      to={`/character/${character.id}`}
       aria-label={`${t("character.title")}: ${name}`}
-      className="group relative flex cursor-pointer flex-col justify-between tier-card rounded-card p-5 focus-ring transition-colors duration-200"
+      className="group relative flex cursor-pointer flex-col justify-between tier-card rounded-card p-5 focus-ring transition-colors duration-200 hover:border-line-strong"
     >
       <div>
         <div className="flex items-center gap-3.5">
@@ -47,6 +38,14 @@ export function CharacterCard({ character }: CharacterCardProps) {
           </div>
         </div>
 
+        {character.projectName && (
+          <div className="mt-3">
+            <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600 dark:text-purple-300 border border-purple-500/20">
+              {character.projectName}
+            </span>
+          </div>
+        )}
+
         <div className="mt-4 flex flex-wrap gap-1.5">
           <span className="rounded-md border border-line bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
             {biologicalSex}
@@ -63,6 +62,6 @@ export function CharacterCard({ character }: CharacterCardProps) {
         </span>
         <ArrowUpRight className="h-4 w-4 text-fg opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
-    </div>
+    </Link>
   );
 }

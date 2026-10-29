@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 import { Pencil, MessageSquare, GripVertical, X, Check } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
@@ -12,6 +12,7 @@ import { useT } from '@/shared/i18n/useT';
 import { Tabs } from '@/shared/components/ui/tabs';
 import type { TKey } from '@/shared/i18n/dict';
 import { useCharacterStore } from './store';
+import { MOCK_CHARACTERS_MAP } from './mockData';
 import { CoreIdentityTab } from './tabs/CoreIdentityTab';
 import { LifeExperienceTab } from './tabs/LifeExperienceTab';
 import { PsychologicalTab } from './tabs/PsychologicalTab';
@@ -37,7 +38,8 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
   const { characterId: paramId } = useParams();
   const targetId = propId || paramId;
 
-  const character = useCharacterStore((s) => s.character);
+  const charactersList = useCharacterStore((s) => s.charactersList);
+  const storeCharacter = useCharacterStore((s) => s.character);
   const loadCharacter = useCharacterStore((s) => s.loadCharacter);
   const isEditing = useCharacterStore((s) => s.isEditing);
   const startEditing = useCharacterStore((s) => s.startEditing);
@@ -49,12 +51,22 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
   const setActiveTab = useCharacterStore((s) => s.setActiveTab);
   const activeLifeTab = useCharacterStore((s) => s.activeLifeTab);
 
-  // 1.1: Sửa lỗi fix cứng — chỉ load khi targetId khác với nhân vật hiện tại
+  // Synchronously resolve character from URL param / propId (no delay, no flashing Kaelen Vance!)
+  const character = useMemo(() => {
+    if (!targetId) return storeCharacter;
+    return (
+      charactersList.find((c) => c.id === targetId || c.code === targetId) ||
+      MOCK_CHARACTERS_MAP[targetId] ||
+      storeCharacter
+    );
+  }, [charactersList, targetId, storeCharacter]);
+
+  // Đồng bộ vào store khi param URL thay đổi
   useEffect(() => {
-    if (targetId && targetId !== character.id) {
+    if (targetId) {
       loadCharacter(targetId);
     }
-  }, [targetId, character.id, loadCharacter]);
+  }, [targetId, loadCharacter]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 

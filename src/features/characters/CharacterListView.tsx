@@ -3,6 +3,7 @@ import { Search, Plus } from "lucide-react";
 import { useCharacterStore } from "./store";
 import { CharacterCard } from "./CharacterCard";
 import { CreateCharacterDialog } from "./CreateCharacterDialog";
+import { MOCK_PROJECTS } from "@/features/projects/mockProjects";
 import { useT } from "@/shared/i18n/useT";
 import { Input } from "@/shared/components/ui/input";
 import { Select } from "@/shared/components/ui/select";
@@ -16,7 +17,23 @@ export function CharacterListView() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSex, setFilterSex] = useState<string>("ALL");
+  const [filterProject, setFilterProject] = useState<string>("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const projectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    characters.forEach((c) => {
+      if (c.projectId && c.projectName) {
+        map.set(c.projectId, c.projectName);
+      }
+    });
+    MOCK_PROJECTS.forEach((p) => {
+      if (!map.has(p.id)) {
+        map.set(p.id, p.title);
+      }
+    });
+    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  }, [characters]);
 
   const filteredCharacters = useMemo(() => {
     return characters.filter((c) => {
@@ -25,10 +42,15 @@ export function CharacterListView() {
       const term = searchTerm.toLowerCase();
 
       const matchSearch = name.includes(term) || species.includes(term);
-      const matchFilter = filterSex === "ALL" || c.basicInfo.biologicalSex === filterSex;
-      return matchSearch && matchFilter;
+      const matchSex = filterSex === "ALL" || c.basicInfo.biologicalSex === filterSex;
+      const matchProject =
+        filterProject === "ALL" ||
+        c.projectId === filterProject ||
+        (filterProject === "proj-sample-500" && c.projectName?.includes("Tế nữ"));
+
+      return matchSearch && matchSex && matchProject;
     });
-  }, [characters, searchTerm, filterSex]);
+  }, [characters, searchTerm, filterSex, filterProject]);
 
   const handleAddCharacter = (newChar: CharacterProfile) => {
     addCharacter(newChar);
@@ -58,6 +80,21 @@ export function CharacterListView() {
               className="py-1.5 pl-9 pr-3 text-xs"
             />
           </div>
+
+          {/* Filter theo Project */}
+          <Select
+            aria-label={t("character.filterProject")}
+            value={filterProject}
+            onChange={(e) => setFilterProject(e.target.value)}
+            className="py-1.5 text-xs max-w-[180px]"
+          >
+            <option value="ALL">{t("project.all")}</option>
+            {projectOptions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </Select>
 
           {/* 1.2: Chỉ filter theo ALL, MALE, FEMALE, NONE */}
           <Select
