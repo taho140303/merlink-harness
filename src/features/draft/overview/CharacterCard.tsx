@@ -6,11 +6,12 @@ import type { DraftCharacter } from '../types';
 interface CharacterCardProps {
   character: DraftCharacter;
   onView: () => void;
+  canViewDetail?: boolean;
   isFeedbackMode?: boolean;
   onAttachFeedback?: (id: string, tag: string, title: string) => void;
 }
 
-export function CharacterCard({ character, onView, isFeedbackMode, onAttachFeedback }: CharacterCardProps) {
+export function CharacterCard({ character, onView, canViewDetail = true, isFeedbackMode, onAttachFeedback }: CharacterCardProps) {
   const t = useT();
   
   const handleAttach = (e: React.MouseEvent) => {
@@ -55,7 +56,7 @@ export function CharacterCard({ character, onView, isFeedbackMode, onAttachFeedb
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">{character.motif.description}</p>
         </div>
         
-        {character.appearance && (
+        {canViewDetail && character.appearance && (
           <button
             onClick={(e) => { e.stopPropagation(); onView(); }}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-surface-card py-1.5 text-xs font-medium text-indigo-600  hover:bg-surface-muted  dark:text-indigo-400  transition-colors"

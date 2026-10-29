@@ -69,6 +69,8 @@ const SAMPLE_ARCS: ArcItem[] = [
   },
 ];
 
+const getSampleArcs = (): ArcItem[] => structuredClone(SAMPLE_ARCS);
+
 export const MOCK_PROJECTS: ProjectItem[] = [
   {
     id: "proj-1",
@@ -85,7 +87,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "42 entries",
       createdDate: "2025-11-10",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-2",
@@ -102,7 +104,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "19 entries",
       createdDate: "2026-01-15",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-3",
@@ -119,7 +121,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "27 entries",
       createdDate: "2025-08-04",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-4",
@@ -136,7 +138,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "14 entries",
       createdDate: "2026-03-01",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-5",
@@ -153,7 +155,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "33 entries",
       createdDate: "2025-09-12",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-6",
@@ -170,7 +172,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "58 entries",
       createdDate: "2025-02-20",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-7",
@@ -187,7 +189,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "22 entries",
       createdDate: "2026-05-18",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-8",
@@ -204,7 +206,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "31 entries",
       createdDate: "2025-12-01",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-9",
@@ -221,7 +223,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "15 entries",
       createdDate: "2026-07-22",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-10",
@@ -238,7 +240,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "49 entries",
       createdDate: "2025-04-14",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-11",
@@ -255,7 +257,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "25 entries",
       createdDate: "2026-02-11",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-12",
@@ -272,7 +274,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "38 entries",
       createdDate: "2025-06-30",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-13",
@@ -289,7 +291,7 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "18 entries",
       createdDate: "2026-08-05",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
   {
     id: "proj-14",
@@ -306,6 +308,6 @@ export const MOCK_PROJECTS: ProjectItem[] = [
       worldLore: "12 entries",
       createdDate: "2026-09-01",
     },
-    arcs: SAMPLE_ARCS,
+    arcs: getSampleArcs(),
   },
 ];

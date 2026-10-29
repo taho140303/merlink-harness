@@ -5,3 +5,4 @@ export * from "./DraftHeader";
 export * from "./DraftLoading";
 export * from "./DraftOverviewBlock";
 export * from "./DraftToolbar";
+export * from "./overview/RelationshipBlock";

@@ -30,9 +30,9 @@
 
 | Chỉ số | Giá trị |
 |---|---|
-| Số dòng | 1.088 |
-| Số bảng (`Table`) | **55** (thêm `scene_lore_entries`) |
-| Số enum (`enum` / `Enum`) | **25** (xoá 6 enum chết ở S-02; thêm `LoreUsageType`, `RevealDepth`, `ContentStatus`) |
+| Số dòng | 1.102 |
+| Số bảng (`Table`) | **55** |
+| Số enum (`enum` / `Enum`) | **26** (xoá 6 enum chết ở S-02; thêm `LoreUsageType`, `RevealDepth`, `ContentStatus`, `RhetoricalUsage`) |
 
 Các phân vùng theo comment trong file:
 
@@ -617,18 +617,18 @@ Table scene_lore_entries {
 | P1-02 | ~~"block" ≠ scene & locked~~ — **đã fix**: `scenes.is_locked` khớp `ChapterBlock.locked` 1:1 (khóa sửa tay / chống AI ghi đè) |
 | P1-03 | Scene bị lưu 2 lần trong `DraftOverview` (`arcs[].chapters[].scenes` vs `sceneConfig`) |
 | P1-04 | ~~`scene_characters` dùng displayName~~ — **đã fix**: bổ sung `characterId` & `characterCode` dùng cho deep-link/query, `displayName` hiển thị |
-| P1-05 | ~~`scenes.lore_entries` 1 uuid~~ — schema **đã fix** (S-07: N-N + `usage`/`reveal_*`); còn lại: UI `loreEntriesCode` → mảng |
+| P1-05 | ~~`scenes.lore_entries` 1 uuid & UI loreEntriesCode~~ — **đã fix**: schema có `scene_lore_entries` N-N; UI `SceneConfig.loreEntries` đã chuyển thành mảng có `usage`, `revealToReader`, `revealToPov` |
 | P1-06 | `scene_versions`/`SceneSource` không có UI; `versionHistory` cấp project không có bảng |
 | P1-07 | ~~`character_memories` quá phẳng~~ — **đã fix (2.1)**: UI thu gọn theo DBML phẳng (`id`, `content`, `sourceScene`, `createdAt`), competence bao hàm knowledge |
 | P1-08 | ~~UI `certainty` / Knowledge~~ — **đã fix (2.1)**: Knowledge được biểu diễn qua competence (nếu không có capabilities thì là knowledge) |
-| P1-09 | `character_competences` thiếu `level/reliability/experience`; `domain_level` 🧟; `scene_id not null` |
+| P1-09 | ~~`character_competences` thiếu level/reliability/experience~~ — **đã fix**: DBML đã bổ sung `level_id`, `reliability`, `experience`. `scene_id not null` là **chủ ý thiết kế chuẩn** (mọi năng lực/kỹ năng dù bình dị nhất cũng phải gắn cảnh thể hiện) |
 | P1-10 | ~~`appearance_options`...~~ — **đã fix (2.2)**: UI bỏ `hairHex`, `eyeHex`, `skinHex`, theo DBML |
 | P1-11 | ~~UI gộp `relationships`...~~ — **đã fix (2.3)**: UI dùng đúng `CategoryGroup` và `Hierarchy` theo DBML |
 | P1-12 | `world_settings.access` enum bị thay bằng câu văn; 6 trường `spatial/sensory` không có UI; chưa có UI cây không gian |
 | P1-13 | `lore_entries.data json` ↔ UI `data: string`; `/worldbuilding/*` là placeholder |
 | P1-14 | ~~`project_genres` bị thay bằng string[]~~ — **đã chốt (2a / 3.2)**: Dùng `project_genres` N-N |
 | P1-15 | ~~Recycle Bin không có `deleted_at`~~ — **đã fix (3.3)**: Đã thêm `deleted_at timestamp` vào các bảng chính trong DBML |
-| P1-16 | Draft theme argument dùng nhãn tiếng Việt (`'Chính'`, `'Phản đề'`, `'Hành động'`, `'Lời nói'`) thay enum code |
+| P1-16 | ~~Draft theme argument dùng nhãn tiếng Việt~~ — **đã fix**: chuyển thành enum `PRIMARY`, `ANTITHESIS`, `ACTION`, `VERBAL` kèm badge màu và i18n |
 
 ### P2 — naming / cosmetic / mock hygiene (12)
 
@@ -636,15 +636,15 @@ Table scene_lore_entries {
 |---|---|
 | P2-01 | `display_name` ↔ `name` ở ~16 bảng (motifs, genres, components, states, state_rules, emotional_ranges, narrator_configs, arcs, chapters, scenes, characters, competence_domains, domain_level, world_settings, lore_entries, projects) |
 | P2-02 | Casing enum không thống nhất trong UI (`'equal'` vs `'Equal'`, `'Male'` vs `'none'`) |
-| P2-03 | `motifs.minChapter/maxChapter` không có cột trong DBML |
-| P2-04 | `narrator_configs` thiếu `description` (27 narrator có mô tả) |
-| P2-05 | `character_distinguishing_marks`: UI list có `location`, DBML không; UI detail không có `location` |
+| P2-03 | ~~`motifs.minChapter/maxChapter`~~ — **đã fix**: thêm `min_chapter` và `max_chapter` vào `motifs` |
+| P2-04 | ~~`narrator_configs` thiếu `description`~~ — **đã fix**: thêm `description text` vào DBML |
+| P2-05 | ~~`character_distinguishing_marks` location~~ — **đã fix**: thêm `location varchar` vào DBML |
 | P2-06 | `characters.birth` timestamp ↔ UI chuỗi `'10/10/1998'` |
-| P2-07 | `MeasurementUnit` gộp length + weight; thiếu `FT/IN/LBS`, thừa `MM/HA/KM/ML/L/MG/G` |
-| P2-08 | `style_preset_rhetorical_devices.usage_type` là varchar thay vì enum |
-| P2-09 | `symbolics` stub; `symbolic_motifs` thiếu unique |
+| P2-07 | ~~`MeasurementUnit` thiếu FT/IN/LBS~~ — **đã fix**: đã thêm `FT, IN, LBS` vào enum |
+| P2-08 | ~~`usage_type` là varchar~~ — **đã fix**: chuyển sang enum `RhetoricalUsage` (`primary`, `secondary`, `avoid`) |
+| P2-09 | ~~`symbolics` stub; `symbolic_motifs` thiếu unique~~ — **đã fix (S-04)**: thêm `code/display_name/description` và unique |
 | P2-10 | `/config` read-only + badge "custom" nhưng không có đường tạo custom item |
-| P2-11 | 14 project dùng chung `SAMPLE_ARCS`/`DEFAULT_BLOCKS` (cùng tham chiếu object) → không phản ánh dữ liệu riêng |
+| P2-11 | ~~14 project dùng chung SAMPLE_ARCS~~ — **đã fix**: mỗi project dùng bản clone `getSampleArcs()` độc lập |
 | P2-12 | ~~`draft/types.ts` khai báo trùng 5 interface~~ — **đã dọn dẹp xong** |
 
 ---
@@ -910,7 +910,7 @@ và format ở tầng view (`Intl.NumberFormat` + đơn vị i18n), không forma
 | Q5 | ~~Có cần theme cấp project không?~~ → **Không**: theme chỉ gắn arc; theme cấp project = JOIN `arcs` | Đã chốt |
 | Q6 | Có cần soft-delete cho Recycle Bin không? | P1-15 |
 | Q7 | UI `certainty` (Low/Medium/High) là *độ tin cậy của nguồn* hay *mức chắc chắn của chủ thể*? | P1-08 |
-| Q8 | Năng lực bẩm sinh (không gắn scene) lưu thế nào khi `character_competences.scene_id NOT NULL`? | P1-09 |
+| Q8 | ~~Năng lực bẩm sinh lưu thế nào?~~ → **Đã chốt**: Bắt buộc gắn cảnh (`scene_id NOT NULL`), vì trong kể chuyện bất kỳ năng lực/kỹ năng nào (kể cả bà lão biết may đồ) đều được thể hiện/bộc lộ qua một cảnh cụ thể | Đã chốt |
 
 ---
 
@@ -940,10 +940,13 @@ và format ở tầng view (`Intl.NumberFormat` + đơn vị i18n), không forma
 - [x] P0-06: `world_settings` gắn `project_id`, `characters` độc lập tái sử dụng qua `scene_characters`
 - [x] P0-07: `SidebarHistory` lưu `projectId`, chỉ render `projectName`
 - [x] P1-04: `SceneCharacter` có `characterId` / `characterCode`
+- [x] P1-05: `SceneConfig` có mảng `loreEntries` chuẩn N-N theo `scene_lore_entries`
 - [x] P1-07: `character_memories` thu gọn phẳng theo DBML
 - [x] P1-10: bỏ `hairHex`, `eyeHex`, `skinHex` trên UI theo DBML
 - [x] P1-11: relationships chuẩn hóa theo `CategoryGroup` và `Hierarchy`
 - [x] P1-14: `project_genres` theo Option 2a
+- [x] P1-16: Theme arguments chuẩn hóa sang enum (`PRIMARY`, `ANTITHESIS`, `ACTION`, `VERBAL`)
+- [x] P2-11: mỗi project clone `SAMPLE_ARCS` riêng biệt
 - [x] P2-12: dọn dẹp interface trùng trong `draft/types.ts`
 - [x] Tái cấu trúc toàn bộ `src/` thành `features/`, `pages/`, `app/`, `shared/`, `config/` và dọn sạch `src/core/`
 

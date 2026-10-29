@@ -170,14 +170,38 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
           <span className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
             {t('draft.scene.lore')}
           </span>
-          <p className={cn(
-            "mt-1 text-sm font-medium",
-            scene.loreEntriesCode 
-              ? "text-fg " 
-              : "text-fg-subtle italic"
-          )}>
-            {scene.loreEntriesCode || t('draft.scene.none')}
-          </p>
+          {scene.loreEntries && scene.loreEntries.length > 0 ? (
+            <div className="mt-1 space-y-1.5">
+              {scene.loreEntries.map((lore) => (
+                <div
+                  key={lore.code}
+                  className="rounded border border-line bg-surface-muted/50 p-2 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-semibold text-fg">
+                      {lore.displayName || lore.code}
+                    </span>
+                    <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                      {lore.usage}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-fg-muted">
+                    <span>{t('draft.scene.revealReader')}: <span className="font-medium text-fg">{lore.revealToReader}</span></span>
+                    <span>•</span>
+                    <span>{t('draft.scene.revealPov')}: <span className="font-medium text-fg">{lore.revealToPov}</span></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : scene.loreEntriesCode ? (
+            <p className="mt-1 text-sm font-medium text-fg">
+              {scene.loreEntriesCode}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm font-medium text-fg-subtle italic">
+              {t('draft.scene.none')}
+            </p>
+          )}
         </div>
       </div>
 

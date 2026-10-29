@@ -27,11 +27,14 @@ export interface DraftSegment {
   summary: string;
 }
 
+export type DraftThemeArgumentRole = 'PRIMARY' | 'ANTITHESIS' | 'CAUTIONARY' | 'WITNESS';
+export type DraftThemeReactionType = 'VERBAL' | 'ACTION' | 'OUTCOME' | 'IMPLICIT';
+
 export interface DraftThemeArgument {
   id: string;
   characterName: string;
-  role: string;
-  reactionType: string;
+  role: 'PRIMARY' | 'ANTITHESIS' | 'CAUTIONARY' | 'WITNESS';
+  reactionType: 'VERBAL' | 'ACTION' | 'OUTCOME' | 'IMPLICIT';
   note?: string;
   requiredKnowledge?: string;
   requiredCompetence?: string;
@@ -162,6 +165,26 @@ export interface SceneCharacter {
   isPov: boolean;
 }
 
+export type SceneLoreUsage =
+  | 'SETTING'
+  | 'REFERENCE'
+  | 'FORESHADOW'
+  | 'PAYOFF'
+  | 'REVEAL'
+  | 'CONFLICT'
+  | 'CONSTRAINT'
+  | 'RED_HERRING';
+
+export type SceneLoreReveal = 'NONE' | 'HINT' | 'PARTIAL' | 'FULL';
+
+export interface SceneLoreEntry {
+  code: string;
+  displayName?: string;
+  usage: SceneLoreUsage;
+  revealToReader: SceneLoreReveal;
+  revealToPov: SceneLoreReveal;
+}
+
 export interface SceneConfig {
   code: string;
   displayName: string;
@@ -172,6 +195,13 @@ export interface SceneConfig {
   stylePresetCode: string;
   narratorConfigCode: string;
   loreEntriesCode?: string | null;
+  loreEntries?: Array<{
+    code: string;
+    displayName?: string;
+    usage: 'SETTING' | 'REFERENCE' | 'FORESHADOW' | 'PAYOFF' | 'REVEAL' | 'CONFLICT' | 'CONSTRAINT' | 'RED_HERRING';
+    revealToReader: 'NONE' | 'HINT' | 'PARTIAL' | 'FULL';
+    revealToPov: 'NONE' | 'HINT' | 'PARTIAL' | 'FULL';
+  }>;
   characters: SceneCharacter[];
 }
 
@@ -189,6 +219,31 @@ export interface ArcSceneConfig {
 
 export interface SceneConfigPhase {
   arcs: ArcSceneConfig[];
+}
+
+export interface DraftRelationship {
+  id: string;
+  fromCharacterName: string;
+  toCharacterName: string;
+  role: {
+    hierarchy: 'SUPERIOR' | 'EQUAL' | 'INFERIOR';
+    category: 'FAMILY' | 'ROMANTIC' | 'SOCIAL' | 'PROFESSIONAL' | 'ANTAGONISTIC';
+    subType: string;
+    isPrimary: boolean;
+  };
+  states: {
+    trust: string;
+    affection: string;
+    hostility: string;
+    fear: string;
+    respect: string;
+    familiarity: string;
+    dependency: string;
+  };
+  motif?: {
+    code: string;
+    description: string;
+  };
 }
 
 export interface DraftOverview {
@@ -209,4 +264,5 @@ export interface DraftOverview {
   characters: DraftCharacter[];
   worldSettings?: DraftWorldSettings;
   sceneConfig?: SceneConfigPhase;
+  relationships?: DraftRelationship[];
 }

@@ -22,6 +22,8 @@ Table motifs {
     version varchar
     is_system boolean [default: false]
     description text
+    min_chapter int [note: 'Gợi ý số chương tối thiểu']
+    max_chapter int [note: 'Gợi ý số chương tối đa']
 
     indexes {
         category
@@ -216,11 +218,17 @@ Table rhetorical_devices {
     Note: 'Kho từ điển các biện pháp tu từ phổ quát'
 }
 
+enum RhetoricalUsage {
+    primary   [note: 'Chính']
+    secondary [note: 'Phụ']
+    avoid     [note: 'Né tránh']
+}
+
 Table style_preset_rhetorical_devices {
     id uuid [pk, note: 'UUIDv7']
     preset_id uuid [ref: > style_presets.id, not null]
     rhetorical_device_id uuid [ref: > rhetorical_devices.id, not null]
-    usage_type varchar [note: 'primary | secondary | avoid']
+    usage_type RhetoricalUsage [note: 'primary | secondary | avoid']
     custom_instruction text [note: 'Ghi chú cụ thể: câu cụt mơ hồ, nhấn tiếp xúc, bộc phát...']
 
     indexes {
@@ -613,16 +621,19 @@ enum gender {
 }
 
 enum MeasurementUnit {
-    MM [note: 'Milimét (mm)']
-    CM [note: 'Xentimét (cm)']
-    M  [note: 'Mét (m)']
-    HA [note: 'Hecta (ha)']
-    KM [note: 'Kilômét (km)']
-    ML [note: 'Mililít (ml)']
-    L  [note: 'Lít (l)']
-    MG [note: 'Miligam (mg)']
-    G  [note: 'Gam (g)']
-    KG [note: 'Kilôgam (kg)']
+    MM  [note: 'Milimét (mm)']
+    CM  [note: 'Xentimét (cm)']
+    M   [note: 'Mét (m)']
+    HA  [note: 'Hecta (ha)']
+    KM  [note: 'Kilômét (km)']
+    IN  [note: 'Inch (in)']
+    FT  [note: 'Foot (ft)']
+    ML  [note: 'Mililít (ml)']
+    L   [note: 'Lít (l)']
+    MG  [note: 'Miligam (mg)']
+    G   [note: 'Gam (g)']
+    KG  [note: 'Kilôgam (kg)']
+    LBS [note: 'Pound (lbs)']
 }
 
 Table characters {
@@ -692,6 +703,7 @@ Table character_appearances {
 Table character_distinguishing_marks {
     id uuid [pk, note: 'UUIDv7']
     character_id uuid [ref: > characters.id, not null]
+    location varchar [note: 'Vị trí đặc điểm: cẳng tay, gáy, bả vai...']
     content text [not null]
 
     indexes {
@@ -1012,9 +1024,11 @@ Table character_competences {
   character_id uuid [not null, ref: > characters.id]
   domain_id uuid [not null, ref: > competence_domains.id]
   level_id uuid [ref: > domain_level.id, note: 'Cấp bậc trong domain; null = chưa xếp cấp']
-    scene_id uuid [not null, ref: > scenes.id ]
+  scene_id uuid [not null, ref: > scenes.id, note: 'Cảnh nhân vật thể hiện/bộc lộ năng lực (bắt buộc theo ngữ cảnh kể chuyện)']
   display_name text [not null]
   description text
+  reliability varchar [note: 'Mức độ thuần thục / tin cậy (Low / Medium / High)']
+  experience text [note: 'Quá trình thực hành / nguồn gốc tích lũy']
   
   indexes {
     character_id

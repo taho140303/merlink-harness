@@ -54,8 +54,8 @@ export const DRAFT_OVERVIEW: DraftOverview = {
           {
             id: 'ta-1',
             characterName: 'Phù Thanh Cơ',
-            role: 'Chính',
-            reactionType: 'Hành động',
+            role: 'PRIMARY',
+            reactionType: 'ACTION',
             note: 'Quyết định phá hủy tế đàn, đánh đổi tu vi để cứu đồng tộc.',
             requiredKnowledge: 'Bí mật về cấu trúc linh hồn Ngưu Nhân',
             requiredCompetence: 'Khả năng điều khiển huyết mạch',
@@ -63,8 +63,8 @@ export const DRAFT_OVERVIEW: DraftOverview = {
           {
             id: 'ta-2',
             characterName: 'Trưởng lão Hạc',
-            role: 'Phản đề',
-            reactionType: 'Lời nói',
+            role: 'ANTITHESIS',
+            reactionType: 'VERBAL',
             note: 'Tin rằng sự hy sinh là cần thiết để duy trì cân bằng.',
             requiredKnowledge: 'Kinh điển cổ của tế đàn',
           },
@@ -118,8 +118,8 @@ export const DRAFT_OVERVIEW: DraftOverview = {
           {
             id: 'ta-3',
             characterName: 'Phù Thanh Cơ',
-            role: 'Chính',
-            reactionType: 'Hành động',
+            role: 'PRIMARY',
+            reactionType: 'ACTION',
             note: 'Âm thầm xây dựng mạng lưới đồng minh trong quân đội.',
             requiredCompetence: 'Khả năng lãnh đạo và mưu lược',
           },
@@ -202,6 +202,15 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 stylePresetCode: 'action.combat',
                 narratorConfigCode: 'first-person-protagonist',
                 loreEntriesCode: 'Thánh tích Ngưu Nhân',
+                loreEntries: [
+                  {
+                    code: 'lore-1',
+                    displayName: 'Thánh tích Ngưu Nhân',
+                    usage: 'SETTING',
+                    revealToReader: 'FULL',
+                    revealToPov: 'PARTIAL',
+                  },
+                ],
                 characters: [
                   { characterId: 'c-1', characterCode: 'phu-thanh-co', displayName: 'Phù Thanh Cơ', isPov: true },
                   { characterId: 'c-3', characterCode: 'truong-lao-hac', displayName: 'Trưởng lão Hạc', isPov: false },
@@ -216,6 +225,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
                 stylePresetCode: 'mystery.deduction',
                 narratorConfigCode: 'third-person-limited-single',
                 loreEntriesCode: null,
+                loreEntries: [],
                 characters: [
                   { characterId: 'c-1', characterCode: 'phu-thanh-co', displayName: 'Phù Thanh Cơ', isPov: true },
                   { characterId: 'c-2', characterCode: 'hac-minh', displayName: 'Hạc Minh', isPov: false },
@@ -250,5 +260,55 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         data: 'Ghi chép bị thất lạc, chỉ còn tồn tại trong truyền miệng.'
       }
     ]
-  }
+  },
+  relationships: [
+    {
+      id: 'rel-1',
+      fromCharacterName: 'Phù Thanh Cơ',
+      toCharacterName: 'Hạc Minh',
+      role: {
+        hierarchy: 'EQUAL',
+        category: 'SOCIAL',
+        subType: 'Đồng minh sinh tử / Hộ vệ',
+        isPrimary: true,
+      },
+      states: {
+        trust: 'HIGH',
+        affection: 'HIGH',
+        hostility: 'NONE',
+        fear: 'NONE',
+        respect: 'HIGH',
+        familiarity: 'HIGH',
+        dependency: 'MODERATE',
+      },
+      motif: {
+        code: 'mc-bond-betrayal',
+        description: 'Tương ngộ nơi chiến trường, cùng kề vai tác chiến',
+      },
+    },
+    {
+      id: 'rel-2',
+      fromCharacterName: 'Phù Thanh Cơ',
+      toCharacterName: 'Trưởng lão Hạc',
+      role: {
+        hierarchy: 'INFERIOR',
+        category: 'ANTAGONISTIC',
+        subType: 'Phản nghịch / Thù địch',
+        isPrimary: true,
+      },
+      states: {
+        trust: 'NONE',
+        affection: 'NONE',
+        hostility: 'HIGH',
+        fear: 'LOW',
+        respect: 'MODERATE',
+        familiarity: 'HIGH',
+        dependency: 'NONE',
+      },
+      motif: {
+        code: 'mc-rising-tension',
+        description: 'Xung đột giữa phục tùng thần quyền và tự do của giống loài',
+      },
+    },
+  ],
 };

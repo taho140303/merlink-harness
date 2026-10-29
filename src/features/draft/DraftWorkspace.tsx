@@ -81,7 +81,10 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
       if (currentStep === 'overview') setCurrentStep('chapter');
       else if (currentStep === 'chapter') setCurrentStep('world');
       else if (currentStep === 'world') setCurrentStep('scene');
-      else if (currentStep === 'scene') setCurrentStep('character');
+      else if (currentStep === 'scene') {
+        setCurrentStep('character');
+        setCurrentSubStep('appearance');
+      }
       else if (currentStep === 'character') {
         if (currentSubStep === 'appearance') setCurrentSubStep('psychological');
         else if (currentSubStep === 'psychological') setCurrentSubStep('lifeExperience');
@@ -106,17 +109,65 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   };
 
   const phaseOverview = useMemo(() => {
-    if (currentStep === 'overview') {
-      return {
-        ...overview,
-        arcs: overview.arcs.map(arc => ({
-          ...arc,
-          chapters: undefined, 
-        })),
-      };
-    }
-    return overview;
-  }, [overview, currentStep]);
+    const isStepOverview = currentStep === 'overview';
+    const isStepRelationship = currentStep === 'relationship';
+
+    return {
+      ...overview,
+      // Phase 1 (overview): Ẩn chapters trong Arcs
+      arcs: isStepOverview
+        ? overview.arcs.map(arc => ({
+            ...arc,
+            chapters: undefined,
+          }))
+        : overview.arcs,
+
+      // Phase 3 (world): World building mở từ bước world trở đi
+      worldSettings: ['world', 'scene', 'character', 'relationship'].includes(currentStep)
+        ? overview.worldSettings
+        : undefined,
+
+      // Phase 4 (scene): Scene config mở từ bước scene trở đi
+      sceneConfig: ['scene', 'character', 'relationship'].includes(currentStep)
+        ? overview.sceneConfig
+        : undefined,
+
+      // Phase 5 (character): Nhân vật chỉ sinh dữ liệu dần dần từ bước character
+      characters: overview.characters.map(char => {
+        // Trước bước character (Phase 1-4): Chỉ có name, gender, motif cơ bản (appearance = undefined)
+        if (['overview', 'chapter', 'world', 'scene'].includes(currentStep)) {
+          return {
+            ...char,
+            appearance: undefined as any,
+            psychological: undefined as any,
+            competences: [],
+            memories: [],
+          };
+        }
+        if (currentStep === 'character') {
+          if (currentSubStep === 'appearance') {
+            return {
+              ...char,
+              psychological: undefined as any,
+              competences: [],
+              memories: [],
+            };
+          }
+          if (currentSubStep === 'psychological') {
+            return {
+              ...char,
+              competences: [],
+              memories: [],
+            };
+          }
+        }
+        return char;
+      }),
+
+      // Phase 6 (relationship): Mối quan hệ chỉ xuất hiện ở bước relationship
+      relationships: isStepRelationship ? overview.relationships : undefined,
+    };
+  }, [overview, currentStep, currentSubStep]);
 
   const isFading = transitionPhase === '' || transitionPhase === 'loading';
 
@@ -150,6 +201,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
           <DraftOverviewBlock
             overview={phaseOverview}
             currentStep={currentStep}
+            currentSubStep={currentSubStep}
             isFeedbackMode={isFeedbackMode}
             onAttachFeedback={handleAttachFeedback}
           />

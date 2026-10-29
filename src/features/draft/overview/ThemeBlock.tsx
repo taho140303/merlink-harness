@@ -4,6 +4,28 @@ import { useT } from '@/shared/i18n/useT';
 import { cn } from '@/shared/utils/cn';
 import type { DraftTheme } from '../types';
 
+const ROLE_BADGE_STYLE: Record<string, string> = {
+  PRIMARY: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+  Chính: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+  ANTITHESIS: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  'Phản đề': 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
+  CAUTIONARY: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  'Cảnh báo': 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  WITNESS: 'bg-surface-muted text-fg-muted',
+  'Nhân chứng': 'bg-surface-muted text-fg-muted',
+};
+
+const REACTION_BADGE_STYLE: Record<string, string> = {
+  ACTION: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  'Hành động': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  VERBAL: 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
+  'Lời nói': 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
+  OUTCOME: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+  'Hệ quả': 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
+  IMPLICIT: 'bg-surface-muted text-fg-muted',
+  'Ngầm định': 'bg-surface-muted text-fg-muted',
+};
+
 interface ThemeBlockProps {
   theme: DraftTheme;
   isFeedbackMode?: boolean;
@@ -13,6 +35,44 @@ interface ThemeBlockProps {
 export function ThemeBlock({ theme, isFeedbackMode, onAttachFeedback }: ThemeBlockProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'PRIMARY':
+      case 'Chính':
+        return t('draft.theme.role.primary') || 'Chính';
+      case 'ANTITHESIS':
+      case 'Phản đề':
+        return t('draft.theme.role.antithesis') || 'Phản đề';
+      case 'CAUTIONARY':
+      case 'Cảnh báo':
+        return t('draft.theme.role.cautionary') || 'Cảnh báo';
+      case 'WITNESS':
+      case 'Nhân chứng':
+        return t('draft.theme.role.witness') || 'Nhân chứng';
+      default:
+        return role;
+    }
+  };
+
+  const getReactionLabel = (reactionType: string) => {
+    switch (reactionType) {
+      case 'ACTION':
+      case 'Hành động':
+        return t('draft.theme.reaction.action') || 'Hành động';
+      case 'VERBAL':
+      case 'Lời nói':
+        return t('draft.theme.reaction.verbal') || 'Lời nói';
+      case 'OUTCOME':
+      case 'Hệ quả':
+        return t('draft.theme.reaction.outcome') || 'Hệ quả';
+      case 'IMPLICIT':
+      case 'Ngầm định':
+        return t('draft.theme.reaction.implicit') || 'Ngầm định';
+      default:
+        return reactionType;
+    }
+  };
 
   const handleAttach = (e: React.MouseEvent) => {
     if (isFeedbackMode && onAttachFeedback) {
@@ -80,11 +140,21 @@ export function ThemeBlock({ theme, isFeedbackMode, onAttachFeedback }: ThemeBlo
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-bold text-fg">{arg.characterName}</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                      {arg.role === 'Chính' ? t('draft.theme.role.primary') : arg.role === 'Phản đề' ? t('draft.theme.role.antithesis') : arg.role}
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-xs font-medium",
+                        ROLE_BADGE_STYLE[arg.role] || "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
+                      )}
+                    >
+                      {getRoleLabel(arg.role)}
                     </span>
-                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      {arg.reactionType === 'Hành động' ? t('draft.theme.reaction.action') : arg.reactionType === 'Lời nói' ? t('draft.theme.reaction.verbal') : arg.reactionType}
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-xs font-medium",
+                        REACTION_BADGE_STYLE[arg.reactionType] || "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                      )}
+                    >
+                      {getReactionLabel(arg.reactionType)}
                     </span>
                   </div>
                 </div>
