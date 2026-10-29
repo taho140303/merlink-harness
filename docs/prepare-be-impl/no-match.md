@@ -257,11 +257,35 @@ Mọi phương án kiến trúc đi ngược lại 4 nguyên tắc trên hoặc 
 
 ---
 
+### PHÂN HỆ 6: NHỮNG DESIGN PATTERN CỔ ĐIỂN (GOF) BỊ LOẠI BỎ TRONG RUST
+
+#### 6.1 Bác bỏ: Global Mutable Singleton (`static mut` / `lazy_static` rải rác)
+- **Lý do từ chối kỹ thuật:** Vi phạm quy tắc Ownership & Borrowing của Rust, gây khó khăn cho việc chạy unit test song song (vì các test chia sẻ chung một state toàn cục) và tiềm ẩn rủi ro deadlock.
+- **Phương án thay thế đã chọn:** **Managed Dependency Injection (`AppState`)** khởi tạo tại Composition Root (`src-tauri/src/lib.rs`) và tiêm vào command qua `tauri::State<AppState>`.
+
+#### 6.2 Bác bỏ: OOP State Pattern với Cấp phát Heap (`Box<dyn State>`)
+- **Lý do từ chối kỹ thuật:** Tốn chi phí cấp phát bộ nhớ trên heap mỗi lần chuyển trạng thái, mất khả năng kiểm tra vét cạn (exhaustive pattern matching) của trình biên dịch Rust.
+- **Phương án thay thế đã chọn:** **Algebraic Data Type (`enum RunPhase`) + Sans-I/O Functional Core** — zero-allocation, kiểm tra tính hợp lệ ngay lúc compile.
+
+#### 6.3 Bác bỏ: Classic Bridge & Flyweight Pattern hướng đối tượng
+- **Lý do từ chối kỹ thuật:** Bridge cổ điển tạo ra hai hệ thống phân cấp kế thừa chồng chéo rườm rà; Flyweight cổ điển đòi hỏi bảng factory quản lý con trỏ phức tạp.
+- **Phương án thay thế đã chọn:** Sử dụng **Generic Traits / Trait Objects** (`Arc<dyn LlmClient>`, `Arc<dyn SecretStore>`) và kiểu dữ liệu chia sẻ bất biến bản địa của Rust (`Arc<str>`).
+
+#### 6.4 Bác bỏ: Classic Visitor & Heavyweight Interpreter Pattern
+- **Lý do từ chối kỹ thuật:** Visitor cổ điển đòi hỏi double-dispatch rườm rà (`accept` / `visit_*`) rất khó viết với borrow checker của Rust; Interpreter tự xây dựng cây AST để lọc dữ liệu là dư thừa khi đã có SQLite.
+- **Phương án thay thế đã chọn:** Dùng **`match` exhaustive trên Rust Enum** thay cho Visitor; dùng **SQLite FTS5 & các rule/specification cụ thể** thay cho Interpreter. Specification chỉ được tạo thành abstraction dùng chung khi có nhiều consumer hoặc quy tắc composition thực sự; phase gating đơn lẻ có thể dùng validation function thuần.
+
+---
+
+### 2.8 Bác bỏ: Specification Framework cho mọi validation đơn lẻ
+- **Lý do từ chối kỹ thuật:** Tạo cây interface/composite cho một rule chỉ có một consumer làm tăng số type và indirection nhưng không cải thiện tính đúng đắn đáng kể.
+- **Phương án thay thế đã chọn:** Dùng validation function thuần cho một điều kiện đơn giản; chỉ dùng Specification khi rule được tái sử dụng hoặc thực sự cần AND/OR composition, diagnostics có cấu trúc và test riêng.
+
 ## 3. TỔNG KẾT
 
 Tất cả các quyết định loại bỏ trên đây xuất phát từ phân tích kỹ thuật nghiêm ngặt nhằm bảo đảm hệ thống backend của Merlink:
 1. **Gọn nhẹ tối đa:** Không kéo theo các dependency hoặc tiến trình cồng kềnh (Docker, WASM, standalone vector DB, local gRPC server).
 2. **Bảo mật tuyệt đối:** Không lưu key plaintext, không tin tưởng prompt guardrail, cưỡng chế quyền bằng OCAP capabilities.
-3. **Hiệu năng & Độ ổn định cao:** Tránh lock contention trên SQLite bằng Dual-Pool, tránh xáo trộn sự kiện bằng Tauri IPC Channel, tránh nghẽn thread Tokio bằng Async Suspension.
+3. **Hiệu năng & Độ ổn định cao:** Tránh lock contention trên SQLite bằng Dual-Pool, tránh xáo trộn sự kiện bằng Tauri IPC Channel, tránh nghẽn thread Tokio bằng Async Suspension, và tận dụng tối đa hệ thống kiểu zero-cost của Rust.
 
 Mọi tài liệu thiết kế và hướng dẫn thực thi tiếp theo tại [`docs/be-tauri-plan.md`](../be-tauri-plan.md) sẽ chỉ tập trung vào việc mô tả chi tiết, khẳng định các giải pháp tối ưu đã được lựa chọn.

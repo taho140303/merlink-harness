@@ -84,6 +84,43 @@ Chỉ lấy **pattern khẳng định tích cực** (không phụ thuộc repo n
 | 006 | Non-blocking approval pause vô thời hạn, batch theo lượt, nhả permit semaphore |
 | 007 | Quan hệ Nhiều-Nhiều (N-N) giữa projects và characters qua bảng liên kết `project_characters` (mục 5.4) |
 
+### 2.3 Hệ thống Design Patterns chuẩn hóa (21 Patterns Chọn Lọc)
+
+> **Nguyên tắc áp dụng:** Đây là danh mục pattern được chọn làm công cụ thiết kế cho các nhu cầu cụ thể, không phải yêu cầu tạo 21 framework/module trừu tượng riêng. Chỉ triển khai abstraction khi có hơn một implementation thực sự cần thay thế, hoặc khi abstraction giúp cưỡng chế an toàn, tính đúng đắn, hoặc kiểm thử được ranh giới.
+
+> **Báo cáo tổng hợp & chỉ mục:** [`docs/design-pattern/README.md`](design-pattern/README.md) — catalog chấp nhận/loại bỏ, ánh xạ sang các mục kế hoạch và ràng buộc kỹ thuật rút ra.
+>
+> **Báo cáo chi tiết từng nhóm Pattern:**
+> - [`docs/design-pattern/agent-a-report.md`](design-pattern/agent-a-report.md): Creational Patterns (Builder + Typestate, Factory, Prototype, Managed DI State)
+> - [`docs/design-pattern/agent-b-report.md`](design-pattern/agent-b-report.md): Structural Patterns (Adapter, Decorator, Proxy + Newtype, Composite, Facade)
+> - [`docs/design-pattern/agent-c-report.md`](design-pattern/agent-c-report.md): Behavioral Patterns Phần 1 (State Enum Sans-I/O, Command + Savepoint, Chain of Responsibility, Iterator/Stream)
+> - [`docs/design-pattern/agent-d-report.md`](design-pattern/agent-d-report.md): Behavioral Patterns Phần 2 (Strategy, Observer/EventSink, Memento, Template Method)
+> - [`docs/design-pattern/agent-e-report.md`](design-pattern/agent-e-report.md): Data Access, Concurrency & FE-BE Synchronization Patterns (Repository + Unit of Work, Specification, CQRS nhẹ, rAF Producer-Consumer)
+
+| # | Nhóm | Design Pattern | Thành phần áp dụng trong Merlink | Lợi ích tối ưu hóa cốt lõi |
+|---|---|---|---|---|
+| 1 | **Creational** | **Builder + Typestate** | `ContextBuilder<Stage>`, `LlmChatRequestBuilder`, `RunConfigBuilder` | Dùng zero-sized marker structs (`MissingProject` → `HasProject` → `ReadyToBuild`) ép buộc thứ tự nạp context và kiểm tra tham số bắt buộc khi compile-time; chỉ thêm Typestate khi các trạng thái thiếu/sai có thể biểu diễn thành kiểu rõ ràng |
+| 2 | **Creational** | **Factory Method** | `LlmClientFactory`, `ToolRegistryFactory` | Khởi tạo `Arc<dyn LlmClient>` theo `ProviderProtocol`; tạo registry theo `RunMode` và chỉ đưa tool được phép vào schema |
+| 3 | **Creational** | **Prototype / snapshot có chọn lọc** | `ToolContext::fork_for_call`, `SceneVersion` | Clone nhẹ các `Arc` và child `CancellationToken` cho từng tool call; snapshot nội dung scene trước thao tác có thể đảo ngược |
+| 4 | **Creational / Architectural** | **Managed DI State** | `tauri::State<AppState>` tại Composition Root | Quản lý rõ vòng đời `SqliteDualPool`, semaphore, `SecretStore`, runtime và event sinks; đơn giản hóa test bằng dependency injection |
+| 5 | **Structural** | **Adapter / Ports & Adapters** | `OpenAiCompatAdapter`, `AnthropicAdapter`, `OllamaAdapter`, `SecretStore` adapters | Chuẩn hóa giao thức SSE/NDJSON/thinking về `StreamItem`; domain không phụ thuộc wire protocol hoặc OS keychain |
+| 6 | **Structural** | **Decorator / middleware composition** | Retry, tracing/redaction, context-overflow recovery, tool commit guard | Bọc hành vi xuyên suốt quanh `LlmClient` và `ToolExecutor` mà giữ phần nghiệp vụ chính tách biệt, thứ tự middleware được khai báo rõ |
+| 7 | **Structural** | **Proxy + scope guard** | `OutboundGuard`, repository truy vấn theo `ToolContext` | Thẩm định endpoint outbound (scheme, DNS/IP, SSRF) và luôn giới hạn dữ liệu theo project qua `project_characters` trước khi trả entity cho tool |
+| 8 | **Structural** | **Newtype** | `ProjectId`, `CharacterId`, `SessionId`, `RunId`, `SecretRef` | Phân biệt ID cùng biểu diễn cơ sở bằng kiểu riêng, phát hiện truyền nhầm khi compile-time với chi phí runtime bằng không |
+| 9 | **Structural** | **Composite** | Cây `world_settings`, `themes`, `PromptLayer` | Biểu diễn rõ các cấu trúc phân cấp; thêm phát hiện cycle và giới hạn độ sâu khi duyệt cây lấy từ dữ liệu DB |
+| 10 | **Structural** | **Facade** | Tauri commands mỏng | Chuẩn hóa ranh giới IPC: validate DTO → gọi use case → trả kết quả/Channel; command không giữ nghiệp vụ hay truy cập repository trực tiếp |
+| 11 | **Behavioral** | **Sans-I/O State Machine (enum ADT)** | `RunPhase` + pure transition function | Tách quyết định chuyển trạng thái khỏi I/O; test exhaustive các transition mà không cần DB, mạng hoặc Tauri |
+| 12 | **Behavioral** | **Command + reversible execution** | `ToolCommand`, approval batch, SQLite savepoints | Giữ nguyên args gốc và args đã được người dùng sửa; thực thi theo transaction/savepoint và dùng `scene_versions`/soft delete cho thao tác có thể khôi phục |
+| 13 | **Behavioral** | **Verification pipeline** | `Schema` → `Scope` → `Domain Rules` → `Postconditions` | Các validator độc lập trả `Pass`, `Retry(feedback)` hoặc `Block(reason)` để lỗi có cấu trúc và dễ kiểm thử |
+| 14 | **Behavioral** | **Iterator / async Stream** | `Stream<Item = Result<StreamItem, LlmError>>`, `ToolCallAccumulator` | Chuẩn hóa stream có cancellation/backpressure và chỉ thực thi tool call sau khi đã tích lũy, parse và validate đầy đủ |
+| 15 | **Behavioral** | **Strategy** | Token estimation, compaction, memory retrieval | Thay thuật toán qua trait; mặc định FTS5 và tỉa tất định, chỉ bật vector retrieval ở phase sau khi có tiêu chí đo và migration rõ |
+| 16 | **Behavioral** | **Observer / EventSink multiplexer** | IPC Channel, append-only trace, `entity_changed` | Một `DomainEvent` được chuyển tới observer tách biệt; lỗi gửi UI không làm mất audit hoặc làm hỏng transaction nghiệp vụ |
+| 17 | **Behavioral** | **Memento / version snapshot** | `scene_versions`, prompt manifest, run checkpoints | Khôi phục nội dung scene và kiểm toán context của run; checkpoint phải versioned, có giới hạn dung lượng và không mặc định lưu secrets |
+| 18 | **Behavioral** | **Template Method / pipeline** | Attachment ingestion pipeline | Chuẩn hóa validate → hash/dedupe → extract → token estimate/persist, trong khi extraction là hook theo MIME đã được allowlist |
+| 19 | **Data Access** | **Repository + Unit of Work** | Reader repositories và writer transaction trên Dual-Pool | Đóng gói query theo aggregate; mọi lệnh ghi đi qua một Unit of Work/transaction có commit guard và quy tắc quyền project |
+| 20 | **Domain** | **Specification** | Readiness / phase-gating rules | Tái sử dụng các rule kiểm tra required fields và trả danh sách vi phạm có mã; không nhân đôi logic tính progress giữa Rust và FE |
+| 21 | **FE-BE Sync** | **CQRS nhẹ + rAF producer-consumer** | TanStack Query, Zustand, token buffer | TanStack Query giữ server cache; Zustand giữ UI state; buffer token theo frame để tránh render cho từng delta |
+
 ---
 
 ## 3. Kiến trúc tổng quan
@@ -164,26 +201,29 @@ src-tauri/
     │       ├── prompt.rs        # PromptLayer, PromptTemplate
     │       ├── provider.rs      # Provider, ModelProfile, Capabilities
     │       ├── events.rs        # DomainEvent (RunStarted, ToolCallFinished, EntityChanged...)
-    │       └── ports.rs         # trait: LlmClient, *Repo, SecretStore, FileStore, Extractor, EventSink, Clock, IdGen
+    │       ├── ports.rs         # trait: LlmClient, *Repo, SecretStore, FileStore, Extractor, EventSink, Clock, IdGen
+    │       ├── ids.rs           # Newtypes: ProjectId, CharacterId, SessionId, RunId, SecretRef
+    │       └── specifications/  # composable rules where reused
     ├── agent/
     │   └── src/
     │       ├── runtime/
-    │       │   ├── run_loop.rs  # async loop điều khiển bởi RunPhase
-    │       │   ├── phase.rs     # RunPhase + chuyển trạng thái hợp lệ
+    │       │   ├── run_loop.rs  # Tokio I/O driver; executes DriverCommand and manages cancellation/budget
+    │       │   ├── phase.rs     # Sans-I/O RunPhase + pure transition(phase, event)
     │       │   ├── budget.rs    # RunBudget (step/tool/retry/token/time)
     │       │   ├── scheduler.rs # 1 run/session + semaphore toàn cục
     │       │   └── reconcile.rs # startup: run mồ côi → interrupted
-    │       ├── context/{builder,tokens,compactor}.rs
+    │       ├── context/{builder,tokens,compactor}.rs # concrete strategies; abstract only when alternatives are needed
     │       ├── prompt/{composer,manifest,render,story_directives}.rs
     │       ├── tools/
     │       │   ├── registry.rs  executor.rs  schema.rs   # registry sau trait ToolProvider
+    │       │   ├── context.rs   # ToolContext + fork_for_call; scoped capabilities
     │       │   ├── mode.rs      # RunMode → tập tool được phép (explore/edit)
     │       │   ├── scope.rs     # ToolContext {project_id, session_id, run_id, mode}
     │       │   ├── policy.rs    # quyết định: auto | approve | deny
     │       │   ├── approval.rs  # chờ user duyệt, timeout, edited_args
     │       │   └── builtin/{project,arc,chapter,scene,character,relationship,
     │       │               world,lore,theme,motif,memory,attachment}.rs
-    │       ├── verify/{pipeline,schema,rules,postcond}.rs
+    │       ├── verify/{pipeline,schema,rules,postcond}.rs # schema -> scope -> domain -> postcondition
     │       │   └── rules/{scene,arc,world,relationship,theme}.rs
     │       ├── memory/{manager,retrieval}.rs
     │       └── trace.rs
@@ -201,7 +241,7 @@ src-tauri/
     │       └── retry.rs         # phân loại lỗi, backoff 429/5xx (mục 6.1)
     └── infra/
         └── src/
-            ├── db/{pool,migrate}.rs
+            ├── db/{pool,migrate}.rs # SqliteDualPool: serialized writer + read-only readers
             ├── db/repos/        # 1 repo/aggregate
             ├── fs/{attachment_store,extractor}.rs
             ├── secrets.rs       # keyring
@@ -215,7 +255,7 @@ Tuỳ chọn: `crates/cli` — bin headless dùng lại `agent` để chạy k�
 | Crate | Được phụ thuộc | Cấm |
 |---|---|---|
 | `domain` | `serde`, `specta`, `thiserror`, `async-trait`, `uuid` | `tauri`, `sqlx`, `reqwest`, `keyring` |
-| `agent` | `domain`, `tokio`, `tokio-util` (CancellationToken), `tiktoken-rs` | `tauri`, `sqlx`, `reqwest` |
+| `agent` | `domain`, `tokio`, `tokio-util` (CancellationToken), `tiktoken-rs`, `futures` | `tauri`, `sqlx`, `reqwest` |
 | `llm` | `domain`, `reqwest`, SSE parser | `tauri`, `sqlx`, `agent` |
 | `infra` | `domain`, `sqlx`, `keyring`, `tracing-appender`, extractor | `tauri`, `agent`, `llm` |
 | `src-tauri` | tất cả (composition root: nối port ↔ adapter) | — |
@@ -471,7 +511,7 @@ role ∈ user | assistant | tool | summary
 - `supports_vision = false` → attachment ảnh bị từ chối/ẩn.
 - `context_window` → đầu vào cho token allocation (mục 7.2). `context_window < 16k` → disable `edit` mode và cảnh báo trên UI.
 
-**Adapter:** mỗi protocol chỉ làm hai việc — encode request và normalize stream thành `StreamItem`; runtime không biết wire format.
+**Adapter:** mỗi protocol chỉ encode request và normalize stream thành `StreamItem`; runtime không biết wire format. `SecretStore` cũng là port với adapter production (`KeyringSecretStore`) và adapter test (`InMemorySecretStore`).
 
 **Bảo mật:** key không bao giờ trả về FE; FE chỉ nhận `has_key: bool`. Log/trace phải redact header `Authorization`. Provider có `is_local`; khi gửi dữ liệu project/attachment tới provider không local, UI hiện badge "cloud", và `prompt_preview` cho thấy đúng nội dung sẽ gửi.
 
@@ -513,7 +553,7 @@ Prompt injection trong file đính kèm khi ở `explore` không thể ghi dữ 
 
 **RunBudget** (runtime enforce; cấu hình theo session/model): `max_steps` (25), `max_tool_calls` (40), `max_retries_per_tool` (2), `max_llm_retries` (3), `max_tokens_total`, `max_duration`. Chạm 80% → `BudgetWarning`; vượt → run `blocked` (reason = budget).
 
-**State machine** (mỗi lần chuyển phase ghi một `run_step` qua `EventSink`):
+**State machine (Sans-I/O Functional Core + Async Driver):** logic `transition(phase, event)` là hàm thuần trả `Result<(RunPhase, Vec<DriverCommand>), TransitionError>`; `run_loop.rs` thực thi command I/O bằng Tokio, `CancellationToken` và `EventSink`. Nhờ vậy có thể kiểm thử exhaustive mọi transition không cần DB/mạng. Mỗi lần đổi phase ghi append-only `run_step`.
 
 ```
 Idle → BuildingContext → Streaming ─┬─ final answer → Finalizing → Completed
@@ -529,12 +569,16 @@ Bất kỳ phase: cancel → Cancelled · vượt budget → Blocked · lỗi �
 
 **Độ bền:**
 - **Scheduler:** 1 run active / session (`chat_send` khi đang chạy → `RUN_ACTIVE`); semaphore toàn cục; run chờ approval không giữ slot.
+- **Active Compute Timer:** `max_duration` chỉ tính thời gian agent thực sự chạy; tạm dừng khi `AwaitingApproval`, tiếp tục khi nhận quyết định và phát `BudgetWarning` tại ngưỡng cấu hình.
+- **Sans-I/O core:** `RunPhase` không sở hữu I/O handle hoặc DB transaction; các `DriverCommand` mô tả yêu cầu I/O để driver thực thi.
 - **Commit guard:** tool ghi chỉ commit nếu `agent_runs.status` còn `running`/`awaiting_approval` *trong cùng transaction* → run đã cancel/interrupted không ghi muộn.
 - **Startup reconcile:** run còn `running`/`awaiting_approval` khi mở app → `interrupted`; UI cho "Tiếp tục" (`run_continue`: run mới từ history, kèm tóm tắt step đã xong).
 - **Compact recovery:** compactor lỗi → fallback cắt history theo budget, không làm fail run.
 - **Sau final:** MemoryManager đề xuất memory; đóng trace.
 
 ### 7.2 Context builder & budget
+
+`ContextBuilder` dùng Builder API để làm rõ các input cần thiết; chỉ dùng Typestate cho các invariant bắt buộc có thể chứng minh hữu ích ở compile-time. Prompt layers được lắp ráp theo thứ tự precedence, sau đó cấp phát token budget và ghi `PromptManifest` có version/hash vào `run_steps`.
 
 Thứ tự ưu tiên khi cắt (giữ cao → bỏ trước thấp):
 
@@ -573,6 +617,8 @@ Thứ tự ưu tiên khi cắt (giữ cao → bỏ trước thấp):
 
 ### 7.3 Prompt composer (nhiều lớp)
 
+`PromptComposer` triển khai theo Strategy/Template-style composition: mỗi prompt layer có renderer riêng, còn composer áp dụng precedence, locked-layer invariant và manifest. Giữ implementation đơn giản; không tạo framework template tổng quát nếu các lớp cấu hình hiện tại chưa cần thay đổi runtime.
+
 | Lớp | Nguồn | Ví dụ |
 |---|---|---|
 | `base` | `resources/prompts/base.md` hoặc template user override | Vai trò agent, quy tắc chung |
@@ -584,7 +630,7 @@ Thứ tự ưu tiên khi cắt (giữ cao → bỏ trước thấp):
 
 Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **không hiển thị cho người dùng**; dùng `display_name`.
 
-**Precedence (cố định):** `base` < `project` < `session` < `story directives` — lớp cụ thể hơn thắng khi mâu thuẫn. Ngoại lệ: template `is_locked` (invariants: quy ước `code`/`display_name`, ngôn ngữ dự án, tool contract) **không bị lớp nào override**.
+**Precedence (cố định):** `base` < `project` < `session` < `story directives` — lớp cụ thể hơn thắng khi cấu hình cùng một thuộc tính. `is_locked` là invariant/guard riêng, không phải tầng precedence: các quy tắc bất biến (quy ước `code`/`display_name`, ngôn ngữ dự án, tool contract, safety rules) phải còn nguyên trong prompt cuối cùng; nội dung project/session không được ghi đè.
 
 **Prompt manifest:** mỗi lần build context, lưu vào step `context`: `{layer, template_id, version, sha256, tokens}` + id memory/attachment được nạp. Khi agent làm sai có thể truy vết lớp/nguồn nào đã vào prompt; `prompt_preview` trả đúng nội dung sẽ gửi.
 
@@ -600,7 +646,7 @@ Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **kh
 | Arc | `arc_list/get/create/update/reorder`, `arc_set_motif`, `arc_set_event_blocks` | arcs, arc_motifs, arc_event_blocks | write: approve |
 | Chapter | `chapter_list/get/create/update/reorder` | chapters | write: approve |
 | Scene | `scene_list/get`, `scene_create`, `scene_update_summary`, `scene_write_content`, `scene_restore_version` | scenes, scene_versions, scene_characters, scene_lore_entries | `write_content`: approve |
-| Character | `character_search/get/create/update`, `character_add_memory`, `character_set_competence` | characters, character_appearances, character_memories, character_competences | write: approve |
+| Character | `character_search/get/create/update`, `character_add_memory`, `character_set_competence`, `project_character_link/unlink` | characters, project_characters, character_appearances, character_memories, character_competences | write: approve |
 | Relationship | `relationship_get/upsert`, `relationship_record_state` | relationships, relationship_roles, relationship_states | write: approve |
 | World | `world_tree`, `world_get/create/update` | world_settings | write: approve |
 | Lore | `lore_search/get/create/update` | lore_entries | write: approve |
@@ -612,6 +658,9 @@ Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **kh
 | Delete | `*_delete` | — | **chỉ soft delete** (`deleted_at`), luôn approve |
 
 **Nguyên tắc tool:**
+- Registry tạo tập tool từ `RunMode`; executor kiểm tra capability lần hai. `ToolContext` được tiêm từ run, không lấy `project_id`/`session_id` từ arguments của model.
+- Tool calls trong cùng lượt được gom thành approval batch; mỗi call giữ `original_args`, `edited_args` và diff preview. Edited args phải validate lại schema, scope và policy trước khi chạy.
+- Chỉ phát `entity_changed` sau khi Unit of Work commit thành công; rollback/reject không invalidate cache như thể dữ liệu đã ghi.
 - Read tool trả kết quả **gọn** (id + `display_name` + trường cần thiết); có phân trang/`limit`.
 - Write tool trả **diff** (before/after) để UI hiển thị trong approval.
 - Mọi tool ghi chạy trong **một transaction**; verify.post fail → rollback.
@@ -625,7 +674,7 @@ Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **kh
 
 1. **Schema**: args khớp JSON schema của `ToolSpec`; enum hợp lệ theo DBML (`LocationType`, `RevealDepth`, `Language`...).
 2. **Scope**: mọi id tham chiếu thuộc `session.project_id`.
-3. **Business rules** (bám schema hiện có):
+3. **Domain rules** (bám schema hiện có; validator độc lập chạy theo thứ tự trong Verification Pipeline):
 
 | Rule | Mức |
 |---|---|
@@ -641,7 +690,7 @@ Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **kh
 | `relationship_states`: `from ≠ to`; giá trị thuộc `RelationDimensionLevel` | Retry |
 | `theme_arguments`: (VFILL, phase sau) nhân vật có `required_knowledge/competence` | Warn |
 
-4. **Post-condition**: đọc lại DB sau ghi, so với intent (số dòng, FK, version tăng).
+4. **Post-condition**: đọc lại dữ liệu sau ghi trong cùng Unit of Work, so với intent (số dòng, FK, version tăng); chỉ commit khi mọi handler pass và CommitGuard xác nhận run còn active.
 5. **Output verify (tuỳ chọn)**: nội dung scene sinh ra khớp `language`, `word_count` hợp lý, tuân thủ `narrative_directives`/`style_preset` (rule-based trước, LLM-judge sau).
 
 Giới hạn retry/step nằm trong `RunBudget` (mục 7.1). `Block` → rollback toàn bộ transaction của tool.
@@ -712,7 +761,7 @@ RunFinished { status, usage }
 RunFailed { error }
 ```
 
-**Event toàn cục** (để invalidate cache): `entity_changed { entity, ids }` — phát khi tool/UI ghi, FE gọi `queryClient.invalidateQueries`. `RunEvent`, `entity_changed` và trace đều là subscriber của `EventSink` (từ `DomainEvent`), không phát tay rải rác.
+**Event toàn cục** (để invalidate cache): `entity_changed { project_id, entity, ids }` — phát sau khi tool/UI ghi commit thành công; FE invalidate query keys có scope project. `RunEvent`, `entity_changed` và trace là observer của `EventSink` (từ `DomainEvent`), không phát tay rải rác. Observer được cô lập lỗi; audit trace ghi riêng để còn lại khi business transaction rollback.
 
 ---
 
@@ -727,7 +776,7 @@ src/
 │   ├── chat/
 │   │   ├── components/               # ChatView, ChatInputBar, ChatMessageItem, ToolCallsPopover, ...
 │   │   ├── api/                      # useSendMessage, useRunStream, useMessages
-│   │   ├── store.ts                  # run đang chạy, buffer streaming
+│   │   ├── store.ts                  # ephemeral UI state: run, stream buffers, panel/tabs
 │   │   └── index.ts
 │   ├── sessions/                     # MỚI: list/tạo/đổi tên/archive theo project
 │   ├── memory/                       # MỚI: quản lý context memory
@@ -739,7 +788,7 @@ src/
 ├── shared/
 │   ├── lib/
 │   │   ├── ipc/{bindings.ts,client.ts,channel.ts}   # DUY NHẤT được import @tauri-apps/api
-│   │   └── query-client.ts
+│   │   └── query-client.ts           # TanStack Query quản lý server state/cache
 │   ├── components/ui/ hooks/ i18n/ utils/           # giữ
 │   └── services/                                    # bỏ (thay bằng lib/ipc)
 └── pages/                                           # giữ mỏng
@@ -763,9 +812,9 @@ src/
 ### 13.3 Quy tắc
 - Chỉ `shared/lib/ipc` import `@tauri-apps/api`. Feature gọi qua hook.
 - `bindings.ts` sinh tự động, **không sửa tay**, commit vào repo.
-- Streaming: buffer token theo `requestAnimationFrame` để tránh re-render từng token.
+- Streaming: buffer text/reasoning riêng trong `useRef`, flush bằng `requestAnimationFrame` tối đa một lần mỗi frame; cleanup RAF khi unmount/cancel. Không thực thi tool đến khi arguments delta đã tích lũy, parse và validate đầy đủ.
 - Approval là UI chặn: chạy tool ghi chỉ tiếp tục sau `approval_decide`. Chờ vô thời hạn; run đang chờ phải hiện rõ trong sidebar. Khi session có run active, `ChatInputBar` chuyển sang nút Dừng (BE vẫn trả `RUN_ACTIVE` nếu bị gọi).
-- FE không giữ state nghiệp vụ: store chỉ chứa buffer streaming + UI state; còn lại là cache của query.
+- FE không giữ state nghiệp vụ làm nguồn sự thật: TanStack Query giữ server state/cache; Zustand chỉ giữ ephemeral UI state (stream buffer, panel ratio, active tabs, dialogs).
 
 ---
 
@@ -774,7 +823,8 @@ src/
 - `capabilities/`: chỉ mở `dialog` + `fs` scoped (app data dir); không mở `shell`, không `fs` toàn cục.
 - CSP chặt; không `eval`; WebView không gọi LLM trực tiếp (mọi request ra ngoài đi qua Rust).
 - **Outbound guard:** redact secret/header trước khi gửi và trước khi lưu trace; badge cloud/local + `prompt_preview` (mục 6). Không có Privacy Engine riêng.
-- Backup DB: copy file SQLite (WAL checkpoint trước), nút Export/Import trong Settings.
+- Attachment ingestion chạy trong app data scope: whitelist MIME/size → SHA-256 dedupe → trích xuất theo định dạng cho phép → token estimate/persist; không dùng path do model cung cấp.
+- Backup DB: checkpoint WAL trước khi copy file SQLite; nút Export/Import trong Settings.
 - Auto-update (Tauri updater) — để sau.
 - Telemetry: mặc định tắt.
 - **Observability (log hệ thống, tách khỏi `run_steps`):** `tracing` + `tracing-subscriber` + `tracing-appender`; file ở `app_data/logs/`, xoay theo ngày, giữ 7 ngày; level cấu hình trong Settings (`app_settings`), mặc định `info`. Span mang `run_id`/`session_id` để nối log ↔ trace. Không log nội dung prompt/scene ở `info`; secret luôn redact. Có panic hook ghi log và nút "Mở thư mục log".
@@ -806,14 +856,14 @@ src/
 **Phase 0 — Nền tảng (gate)**
 - [ ] Workspace 4 crate + CI kiểm `cargo tree` (mục 4.2)
 - [ ] Migration `0001` (từ `db.dbml`) + **`0002_scope.sql`: bảng liên kết `project_characters`, `project_id` cho `lore_entries` + backfill** (mục 5.4) + seed system
-- [ ] `sqlx` **Dual-Pool** (`writer_pool` max 1 conn, `reader_pool` max 10 conn, WAL, FK, busy_timeout=5000), `error.rs`, `state.rs`, `telemetry.rs` (tracing + log file)
+- [ ] `sqlx` **Dual-Pool** (`writer_pool` max 1 conn, `reader_pool` max 10 conn, WAL, FK, busy_timeout=5000), `error.rs`, Sans-I/O `phase.rs` + I/O `run_loop.rs`, `AppState`, `telemetry.rs` (tracing + log file)
 - [ ] **Spike IPC:** Ghim `tauri-specta = "=2.0.0-rc.27"` + `Channel<RunEvent>` (tagged enum) → sinh `bindings.ts`
 - [ ] Chốt message envelope v1 (mục 5.5) và các ADR 001–007
 - [ ] FE: `shared/lib/ipc`, TanStack Query, `ssr: false`
 
 **Phase 1 — Vertical slice (đi hết đường với 1 tool)**
 - [ ] `MockLlmClient` theo kịch bản (gọi `project_get` rồi trả lời)
-- [ ] `RunPhase` state machine + `EventSink` + `run_steps` + scheduler (`RUN_ACTIVE`) + startup reconcile
+- [ ] Sans-I/O `RunPhase` state machine + async `run_loop.rs` driver + multiplexed `EventSink` (IPC, audit trace, entity invalidation) + `run_steps` + scheduler (`RUN_ACTIVE`) + startup reconcile + Active Compute Timer
 - [ ] `ToolContext` + registry + tool `project_get` (read-only)
 - [ ] `chat_send` + Channel + cancel
 - [ ] FE: `ChatView` render stream, tool call, trace tối thiểu
@@ -832,23 +882,23 @@ src/
 
 **Phase 4 — Context, prompt, memory, attachment**
 - [ ] Prompt templates + bindings + composer + manifest + preview
-- [ ] ContextBuilder + token allocation + `tiktoken-rs` + calibration + `ContextUsagePopover`
-- [ ] `context_memories` + FTS5 + `content_hash` + UI quản lý
+- [ ] `ContextBuilder` + token allocation Strategy + `tiktoken-rs`/EMA calibration + `ContextUsagePopover`
+- [ ] `context_memories` + FTS5 retrieval strategy + `content_hash` + UI quản lý (không trộn với `character_memories`)
 - [ ] Attachment: txt/md trước, rồi docx
 
 **Phase 5 — Tool, approval, verify**
-- [ ] Tool đọc cho từng entity (đi cùng Phase 3)
+- [ ] Repository/Specification cho tool đọc từng entity (đi cùng Phase 3), luôn áp project scope qua `ToolContext`
 - [ ] `RunMode` explore/edit, `request_edit_mode`
-- [ ] Tool ghi + transaction + diff + **commit guard**
+- [ ] Tool ghi qua `UnitOfWork` + transaction/Savepoint + diff + **CommitGuard** + `scene_versions` Memento
 - [ ] `ApprovalRequest` batch + `approval_decide` + "duyệt phần còn lại của run"
-- [ ] Verify pipeline (schema → scope → rules → post-condition)
+- [ ] Verification Chain of Responsibility (schema → scope → domain rules → post-condition) với kết quả `Pass | Retry(feedback) | Block(reason)`
 - [ ] `ProcessDetailDialog`/`ToolCallsPopover` nối `run_steps`, prompt manifest
 
 **Phase 6 — Hoàn thiện**
-- [ ] Compactor (có fallback khi lỗi), change set draft → apply
+- [ ] Hierarchical Compaction Strategy (elide tool results → prune memories/attachments → summarize turns, deterministic fallback), change set draft → apply
 - [ ] Story directives compile, output verify
 - [ ] PDF extraction (sau khi đánh giá crate), export/import, updater, hardening `capabilities/`
-- [ ] (Tuỳ chọn) embedding + sqlite-vec + semantic dedupe, LLM-judge verifier, `crates/cli` headless eval
+- [ ] (Tuỳ chọn, đo trước khi bật) hybrid retrieval `sqlite-vec` + `fastembed-rs`, LLM-judge verifier, `crates/cli` headless eval
 
 ---
 
