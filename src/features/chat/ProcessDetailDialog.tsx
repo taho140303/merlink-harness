@@ -45,19 +45,19 @@ export function ProcessDetailDialog({
         {/* Header / Stats */}
         <div className="space-y-3">
           <div>
-            <DialogTitle className="text-base font-semibold text-fg">
+            <DialogTitle className="text-lg font-semibold text-fg sm:text-xl">
               {t("chat.processDetails.title")}
             </DialogTitle>
-            <DialogDescription className="mt-1 text-xs text-fg-muted">
+            <DialogDescription className="mt-1 text-sm text-fg-muted">
               {t("chat.processDetails.description")}
             </DialogDescription>
           </div>
 
           {/* Thanh tiến trình mini + Badge */}
           <div className="rounded-xl border border-line bg-surface-muted/40 p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-fg">{progress.percent}%</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <span className="text-fg">{progress.percent}%</span>
                 <span className="text-fg-muted">•</span>
                 <span className="text-fg-muted">
                   {progress.filledCount}/{progress.totalCount}{" "}
@@ -66,7 +66,7 @@ export function ProcessDetailDialog({
               </div>
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border",
                   progress.isRequireComplete
                     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 dark:bg-emerald-950/60 border-emerald-500/30"
                     : "bg-amber-500/15 text-amber-700 dark:text-amber-300 dark:bg-amber-950/60 border-amber-500/30"
@@ -95,50 +95,46 @@ export function ProcessDetailDialog({
             remarkPlugins={[remarkGfm]}
             components={{
               h2: ({ children }) => (
-                <h2 className="mt-4 mb-2 flex items-center gap-2 border-b border-line pb-1.5 text-sm font-semibold text-fg first:mt-1">
+                <h2 className="text-base font-bold text-fg sm:text-lg border-b border-line pb-2 mt-5 mb-3 flex items-center gap-2 first:mt-1">
                   <span className="h-3.5 w-1 rounded-full bg-primary" aria-hidden="true" />
                   <span>{children}</span>
                 </h2>
               ),
               p: ({ children }) => (
-                <p className="mb-2.5 text-xs leading-relaxed text-fg-muted last:mb-0">
+                <p className="text-sm sm:text-base leading-relaxed text-fg-muted mb-3 last:mb-0">
                   {children}
                 </p>
               ),
               ul: ({ children }) => (
-                <ul className="mb-3 list-disc pl-5 space-y-1 text-xs text-fg-muted leading-relaxed">
+                <ul className="text-sm sm:text-base leading-relaxed space-y-1.5 mb-3.5 list-disc pl-5 text-fg-muted">
                   {children}
                 </ul>
               ),
               ol: ({ children }) => (
-                <ol className="mb-3 list-decimal pl-5 space-y-1 text-xs text-fg-muted leading-relaxed">
+                <ol className="text-sm sm:text-base leading-relaxed space-y-1.5 mb-3.5 list-decimal pl-5 text-fg-muted">
                   {children}
                 </ol>
               ),
               li: ({ children }) => (
-                <li className="text-xs leading-relaxed">
+                <li className="text-sm sm:text-base leading-relaxed">
                   {children}
                 </li>
               ),
               strong: ({ children }) => (
-                <strong className="font-semibold text-fg">
+                <strong className="text-sm sm:text-base font-semibold text-fg">
                   {children}
                 </strong>
               ),
               code: ({ children, className }) => {
-                const text = String(children);
-                const isHighlighted = text.startsWith("<") && text.endsWith(">");
+                const text = String(children).replace(/^<|>$/g, "");
                 return (
                   <code
                     className={cn(
-                      "rounded px-1.5 py-0.5 font-mono text-xs font-semibold",
-                      isHighlighted
-                        ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 dark:bg-purple-950/60 border border-purple-500/30"
-                        : "bg-surface-muted text-fg",
+                      "inline-block rounded-md bg-purple-500/15 px-2 py-0.5 font-sans text-sm font-semibold text-purple-700 border border-purple-500/30 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/60 align-baseline mx-0.5",
                       className
                     )}
                   >
-                    {children}
+                    {text}
                   </code>
                 );
               },
@@ -150,7 +146,7 @@ export function ProcessDetailDialog({
 
         {/* Nút đóng Dialog dưới chân */}
         <div className="flex justify-end pt-3 border-t border-line mt-auto">
-          <Button type="button" variant="primary" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="primary" size="md" onClick={() => onOpenChange(false)}>
             {t("chat.close")}
           </Button>
         </div>

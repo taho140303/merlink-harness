@@ -1,11 +1,28 @@
 import type { BiologicalSex, BusinessFlowData } from './types';
 
-function formatVal(value: string | number | undefined | null): string {
+export function formatVal(value: string | number | undefined | null): string {
   const safe = value !== undefined && value !== null ? String(value) : '';
-  return `\`<${safe}>\``;
+  return `\`${safe}\``;
 }
 
-const GENDER_LABEL_MAP: Record<'vi' | 'en', Record<BiologicalSex, string>> = {
+export const LANGUAGE_LABEL_MAP: Record<'vi' | 'en', Record<string, string>> = {
+  vi: {
+    VI: 'Tiếng Việt',
+    EN: 'Tiếng Anh',
+    JA: 'Tiếng Nhật',
+    ZH_HANT: 'Tiếng Trung (Phồn thể)',
+    ZH_HANS: 'Tiếng Trung (Giản thể)',
+  },
+  en: {
+    VI: 'Vietnamese',
+    EN: 'English',
+    JA: 'Japanese',
+    ZH_HANT: 'Traditional Chinese',
+    ZH_HANS: 'Simplified Chinese',
+  },
+};
+
+export const GENDER_LABEL_MAP: Record<'vi' | 'en', Record<BiologicalSex, string>> = {
   vi: {
     FEMALE: 'Nữ',
     MALE: 'Nam',
@@ -37,10 +54,12 @@ export function generateRequireMarkdown(
   const secondaryGenres = genres.filter((g) => !g.is_primary);
 
   if (lang === 'vi') {
+    const languageLabel = LANGUAGE_LABEL_MAP.vi[language] || language;
+
     // Overview Section
     const overviewLines = [
       '## Overview',
-      `Dự án tên ${formatVal(displayName)}, sử dụng ngôn ngữ sáng tác là ${formatVal(language)}. Mục tiêu quy mô tác phẩm được thiết lập gồm ${formatVal(arcCount)} phân đoạn arc lớn, dự kiến đạt ${formatVal(chapterCount)} chương với mật độ bình quân ${formatVal(wordPerChapter)} từ mỗi chương.`,
+      `Dự án tên ${formatVal(displayName)}, sử dụng ngôn ngữ sáng tác là ${formatVal(languageLabel)}. Mục tiêu quy mô tác phẩm được thiết lập gồm ${formatVal(arcCount)} phân đoạn arc lớn, dự kiến đạt ${formatVal(chapterCount)} chương với mật độ bình quân ${formatVal(wordPerChapter)} từ mỗi chương.`,
     ];
 
     // Content Section
@@ -50,10 +69,7 @@ export function generateRequireMarkdown(
     contentLines.push('**Thể loại:**');
     if (primaryGenres.length > 0) {
       const primaryFormatted = primaryGenres
-        .map(
-          (g) =>
-            `${formatVal(g.display_name || g.code)} (mã: ${formatVal(g.code)})`,
-        )
+        .map((g) => formatVal(g.display_name || g.code))
         .join(', ');
       contentLines.push(`- Thể loại chủ đạo: ${primaryFormatted}`);
     } else {
@@ -62,10 +78,7 @@ export function generateRequireMarkdown(
 
     if (secondaryGenres.length > 0) {
       const secondaryFormatted = secondaryGenres
-        .map(
-          (g) =>
-            `${formatVal(g.display_name || g.code)} (mã: ${formatVal(g.code)})`,
-        )
+        .map((g) => formatVal(g.display_name || g.code))
         .join(', ');
       contentLines.push(`- Thể loại phối hợp: ${secondaryFormatted}`);
     }
@@ -79,7 +92,7 @@ export function generateRequireMarkdown(
         const sex = char.biological_sex;
         const sexLabel = GENDER_LABEL_MAP.vi[sex] || sex;
         contentLines.push(
-          `- Nhân vật ${formatVal(char.display_name)}: Giới tính ${formatVal(sexLabel)} (mã: ${formatVal(sex)}), Motif khởi điểm ${formatVal(char.motif_code)}`,
+          `- Nhân vật ${formatVal(char.display_name)}: Giới tính ${formatVal(sexLabel)}, Motif khởi điểm ${formatVal(char.motif_code)}`,
         );
       }
     } else {
@@ -90,9 +103,11 @@ export function generateRequireMarkdown(
   }
 
   // English version
+  const languageLabel = LANGUAGE_LABEL_MAP.en[language] || language;
+
   const overviewLines = [
     '## Overview',
-    `The project is titled ${formatVal(displayName)}, written in ${formatVal(language)}. The planned scale comprises ${formatVal(arcCount)} major arcs, targeting ${formatVal(chapterCount)} chapters with an average of ${formatVal(wordPerChapter)} words per chapter.`,
+    `The project is titled ${formatVal(displayName)}, written in ${formatVal(languageLabel)}. The planned scale comprises ${formatVal(arcCount)} major arcs, targeting ${formatVal(chapterCount)} chapters with an average of ${formatVal(wordPerChapter)} words per chapter.`,
   ];
 
   const contentLines: string[] = ['## Content', '**Story Summary:**', formatVal(summary), ''];
@@ -101,10 +116,7 @@ export function generateRequireMarkdown(
   if (primaryGenres.length > 0) {
     const label = primaryGenres.length > 1 ? 'Primary genres' : 'Primary genre';
     const primaryFormatted = primaryGenres
-      .map(
-        (g) =>
-          `${formatVal(g.display_name || g.code)} (code: ${formatVal(g.code)})`,
-      )
+      .map((g) => formatVal(g.display_name || g.code))
       .join(', ');
     contentLines.push(`- ${label}: ${primaryFormatted}`);
   } else {
@@ -113,10 +125,7 @@ export function generateRequireMarkdown(
 
   if (secondaryGenres.length > 0) {
     const secondaryFormatted = secondaryGenres
-      .map(
-        (g) =>
-          `${formatVal(g.display_name || g.code)} (code: ${formatVal(g.code)})`,
-      )
+      .map((g) => formatVal(g.display_name || g.code))
       .join(', ');
     contentLines.push(`- Secondary genres: ${secondaryFormatted}`);
   }
@@ -129,7 +138,7 @@ export function generateRequireMarkdown(
       const sex = char.biological_sex;
       const sexLabel = GENDER_LABEL_MAP.en[sex] || sex;
       contentLines.push(
-        `- Character ${formatVal(char.display_name)}: Biological sex ${formatVal(sexLabel)} (code: ${formatVal(sex)}), Initial motif ${formatVal(char.motif_code)}`,
+        `- Character ${formatVal(char.display_name)}: Biological sex ${formatVal(sexLabel)}, Initial motif ${formatVal(char.motif_code)}`,
       );
     }
   } else {
