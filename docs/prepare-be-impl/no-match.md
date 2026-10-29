@@ -1,11 +1,6 @@
 # NHỮNG KIẾN TRÚC & TIẾP CẬN KHÔNG PHÙ HỢP CHO MERLINK BACKEND (NO-MATCH CATALOG)
 
-> **Tài liệu tham chiếu:** Tổng hợp và đối chiếu từ 5 báo cáo nghiên cứu chuyên sâu:
-> - [`agent-a-report.md`](agent-a-report.md): Runtime Execution, State Machine & Driver Loop
-> - [`agent-b-report.md`](agent-b-report.md): Tool Registry, Capability Security & HITL Approvals
-> - [`agent-c-report.md`](agent-c-report.md): Context Assembly, Hierarchical Prompts & Memory
-> - [`agent-d-report.md`](agent-d-report.md): Multi-Provider LLM Adapters, SSE Streaming & Outbound Guard
-> - [`agent-e-report.md`](agent-e-report.md): Tauri v2 IPC Channels, Type Safety & SQLite Dual-Pool
+> **Tài liệu tham chiếu:** các quyết định kiến trúc đã chốt trong [`docs/be-tauri-plan.md`](../be-tauri-plan.md) (mục 2, 5, 7–14) và catalog pattern tại mục 2.3.
 >
 > **Mục đích:** Ghi nhận và phân tích kỹ thuật chi tiết các kiến trúc, framework, thư viện và mẫu thiết kế đã được khảo sát trên thị trường nhưng **BỊ TỪ CHỐI (NO-MATCH)** áp dụng cho Backend của Merlink. Việc tách riêng file này giúp tài liệu kế hoạch hành động [`docs/be-tauri-plan.md`](../be-tauri-plan.md) giữ được tính cô đọng, thuần túy là hướng dẫn khẳng định tích cực (prescriptive & affirmative).
 

@@ -88,14 +88,7 @@ Chỉ lấy **pattern khẳng định tích cực** (không phụ thuộc repo n
 
 > **Nguyên tắc áp dụng:** Đây là danh mục pattern được chọn làm công cụ thiết kế cho các nhu cầu cụ thể, không phải yêu cầu tạo 21 framework/module trừu tượng riêng. Chỉ triển khai abstraction khi có hơn một implementation thực sự cần thay thế, hoặc khi abstraction giúp cưỡng chế an toàn, tính đúng đắn, hoặc kiểm thử được ranh giới.
 
-> **Báo cáo tổng hợp & chỉ mục:** [`docs/design-pattern/README.md`](design-pattern/README.md) — catalog chấp nhận/loại bỏ, ánh xạ sang các mục kế hoạch và ràng buộc kỹ thuật rút ra.
->
-> **Báo cáo chi tiết từng nhóm Pattern:**
-> - [`docs/design-pattern/agent-a-report.md`](design-pattern/agent-a-report.md): Creational Patterns (Builder + Typestate, Factory, Prototype, Managed DI State)
-> - [`docs/design-pattern/agent-b-report.md`](design-pattern/agent-b-report.md): Structural Patterns (Adapter, Decorator, Proxy + Newtype, Composite, Facade)
-> - [`docs/design-pattern/agent-c-report.md`](design-pattern/agent-c-report.md): Behavioral Patterns Phần 1 (State Enum Sans-I/O, Command + Savepoint, Chain of Responsibility, Iterator/Stream)
-> - [`docs/design-pattern/agent-d-report.md`](design-pattern/agent-d-report.md): Behavioral Patterns Phần 2 (Strategy, Observer/EventSink, Memento, Template Method)
-> - [`docs/design-pattern/agent-e-report.md`](design-pattern/agent-e-report.md): Data Access, Concurrency & FE-BE Synchronization Patterns (Repository + Unit of Work, Specification, CQRS nhẹ, rAF Producer-Consumer)
+> Các pattern dưới đây đã được chốt sau khi đối chiếu; mục 2.3.1–2.3.6 ghi **cách áp dụng cụ thể** (kiểu dữ liệu, thứ tự thực thi, bất biến) để triển khai không cần suy diễn thêm. Pattern bị loại bỏ và lý do: [`docs/prepare-be-impl/no-match.md`](prepare-be-impl/no-match.md), phân hệ 6.
 
 | # | Nhóm | Design Pattern | Thành phần áp dụng trong Merlink | Lợi ích tối ưu hóa cốt lõi |
 |---|---|---|---|---|
@@ -120,6 +113,275 @@ Chỉ lấy **pattern khẳng định tích cực** (không phụ thuộc repo n
 | 19 | **Data Access** | **Repository + Unit of Work** | Reader repositories và writer transaction trên Dual-Pool | Đóng gói query theo aggregate; mọi lệnh ghi đi qua một Unit of Work/transaction có commit guard và quy tắc quyền project |
 | 20 | **Domain** | **Specification** | Readiness / phase-gating rules | Tái sử dụng các rule kiểm tra required fields và trả danh sách vi phạm có mã; không nhân đôi logic tính progress giữa Rust và FE |
 | 21 | **FE-BE Sync** | **CQRS nhẹ + rAF producer-consumer** | TanStack Query, Zustand, token buffer | TanStack Query giữ server cache; Zustand giữ UI state; buffer token theo frame để tránh render cho từng delta |
+
+### 2.3.1 Creational — khởi tạo đối tượng
+
+**Builder + Typestate — `crates/agent/src/context/builder.rs`**
+
+Chuỗi trạng thái biên dịch: `MissingProject → HasProject → HasSession → ReadyToBuild`; chỉ `ReadyToBuild` có `.build()`.
+
+```rust
+impl ContextBuilder<MissingProject> {
+    pub fn new() -> Self;
+    pub fn with_project(self, id: ProjectId) -> ContextBuilder<HasProject>;
+}
+impl ContextBuilder<HasProject> {
+    pub fn with_session(self, id: SessionId, mode: RunMode) -> ContextBuilder<HasSession>;
+}
+impl ContextBuilder<HasSession> {
+    pub fn with_model_budget(self, cfg: ModelBudget) -> ContextBuilder<ReadyToBuild>;
+}
+impl ContextBuilder<ReadyToBuild> {
+    pub fn add_layer(self, l: PromptLayer) -> Self;
+    pub fn add_pinned_memory(self, m: MemoryItem) -> Self;
+    pub fn add_history(self, m: ChatMessage) -> Self;
+    pub fn set_tool_tokens(self, n: u32) -> Self;
+    pub fn build(self) -> Result<BuiltContext, ContextBuildError>;
+}
+```
+
+Bất biến trong `.build()`:
+1. `reserve_output = min(max_output_tokens, 25%W)`; `buffer = 20%W` khi chưa hiệu chỉnh, giảm tới `5%W` khi calibration ổn định; `U = W − reserve_output − buffer`.
+2. `system + tool_schemas > 50%U` → `ContextTooSmall` (báo UI chọn model lớn hơn; không nhồi).
+3. Lượt hiện tại + attachment mới không vừa → lỗi tương ứng, không cắt tuỳ tiện.
+4. Thứ tự nạp: system layers → pinned memory → lượt hiện tại → story directives → retrieved memory → history.
+
+`LlmChatRequestBuilder` chỉ dùng 2 trạng thái thật sự cần (`MissingModel → Ready`); không thêm Typestate cho field optional.
+
+**Factory — `crates/llm/src/factory.rs`, `crates/agent/src/tools/registry.rs`**
+
+```rust
+pub fn build_llm_client(
+    provider: &AiProviderRecord,          // caller đọc DB, factory không query
+    secrets: Arc<dyn SecretStore>,
+    http: reqwest::Client,
+) -> Result<Arc<dyn LlmClient>, LlmBuildError>;
+
+pub fn build_tool_registry(mode: RunMode, ctx: &ToolContext) -> ToolRegistry;
+```
+
+- Mapping: `openai_compat → OpenAiCompatAdapter`, `anthropic → AnthropicAdapter`, `ollama → OllamaAdapter`; protocol lạ → `UnsupportedProtocol`, không fallback ngầm.
+- `build_tool_registry`: read tools + `memory_*` + `request_edit_mode` luôn đăng ký; write tools **chỉ** khi `mode == Edit`. Test bắt buộc: schema ở `Explore` không chứa tên write tool nào.
+
+**Prototype — `crates/agent/src/tools/context.rs`**
+
+```rust
+#[derive(Clone)]
+pub struct ToolContext { project_id: ProjectId, session_id: SessionId, run_id: RunId, mode: RunMode, root: CancellationToken }
+
+pub fn fork_for_call(&self, call_id: CallId) -> ToolCallContext {
+    ToolCallContext { parent: self.clone(), call_id, call: self.root.child_token() }
+}
+```
+
+- Hủy run hủy `root` → lan xuống mọi child. Timeout/cancel một call chỉ hủy `call`, không làm đứt run.
+- Snapshot scene: trước `UPDATE scenes`, ghi `scene_versions` (`version_number = max+1`, `scene_source`, `content`, `summary`, `word_count`) trong cùng transaction với update.
+
+**Managed DI State — `src-tauri/src/state.rs`**
+
+```rust
+pub struct AppState {
+    pub pools: DatabasePools,          // writer + reader
+    pub secrets: Arc<dyn SecretStore>,
+    pub llm: Arc<dyn LlmClientFactory>,
+    pub events: Arc<dyn EventSink>,
+    pub run_gate: Arc<Semaphore>,
+}
+```
+
+Một composition root duy nhất; command nhận `tauri::State<'_, AppState>`. Không `static mut`/`lazy_static`.
+
+### 2.3.2 Structural — ráp nối và bảo vệ
+
+**Adapter — `crates/domain/src/ports.rs`**
+
+```rust
+pub trait LlmClient: Send + Sync {
+    async fn stream_chat(&self, req: LlmRequest) -> Result<ItemStream, LlmError>;
+}
+pub trait SecretStore: Send + Sync {
+    async fn get(&self, r: &SecretRef) -> Result<Option<String>, SecretError>;
+    async fn set(&self, r: &SecretRef, v: &str) -> Result<(), SecretError>;
+    async fn delete(&self, r: &SecretRef) -> Result<(), SecretError>;
+}
+```
+
+Adapter chỉ encode request + normalize event → `StreamItem`; không đọc DB, không retry, không ghi trace. `KeyringSecretStore` (prod) và `InMemorySecretStore` (test) cùng một port.
+
+**Decorator — thứ tự bọc cố định**
+
+```
+TracingLlm( RetryLlm( <Adapter> ) )
+TracingTool( CommitGuardTool( <Tool> ) )
+```
+
+- `RetryLlm`: chỉ retry transient (429/5xx/timeout/stream drop) **trước khi** tool chạy; `ContextOverflow` → compact rồi retry đúng 1 lần; 4xx khác fail-fast.
+- `TracingLlm`: redact secret/header, đo `duration_ms`, ghi `run_steps`.
+- `CommitGuardTool`: `SAVEPOINT sp_<call_id>` → execute → đọc `agent_runs.status` **trong cùng transaction** → chỉ commit khi `running|awaiting_approval`; ngược lại `ROLLBACK TO` và trả `ToolResult{rejected}`.
+- Cấm retry tool write đã có side effect; retry chỉ cho LLM và read tool idempotent.
+
+**Proxy — `crates/infra/src/proxy/`**
+
+- `OutboundGuard`: `is_local = true` → chỉ `http/https` + `localhost`/`127.0.0.1`/`::1`/LAN khai báo; `is_local = false` → bắt buộc `https`, resolve DNS rồi kiểm **toàn bộ IP**, chặn loopback/link-local/private/`169.254.169.254`, giữ IP đã resolve cho kết nối (chống rebinding).
+- `ScopedRepo`: scope lấy từ `ToolContext`, không từ args LLM. Nhân vật:
+
+```sql
+SELECT c.* FROM characters c
+JOIN project_characters pc ON pc.character_id = c.id
+WHERE pc.project_id = ? AND pc.deleted_at IS NULL AND c.deleted_at IS NULL
+```
+
+**Newtype — `crates/domain/src/ids.rs`**: `ProjectId`, `CharacterId`, `SessionId`, `RunId`, `SecretRef` (`#[serde(transparent)]`). Signature public của repo/tool không dùng `String`/`Uuid` trần.
+
+**Composite — `crates/domain/src/story/world_setting.rs`, `theme.rs`**
+
+- Duyệt cây có `depth_limit = 12` + `visited: HashSet<Id>`; gặp cycle → `HierarchyCycle`, dừng.
+- Trả breadcrumb `Realm / World / Region / Facility / Room`; hợp nhất lore/rule gốc → ngọn.
+- Reparent: từ chối nếu node đích là con/cháu của chính node đang đổi.
+
+**Facade — `src-tauri/src/commands/`**: mỗi command theo khuôn `parse DTO → authorize scope → use case → map AppError{code,message,details} → DTO`. Command không mở transaction, không gọi repo trực tiếp; `chat_send` nhận `Channel<RunEvent>`.
+
+### 2.3.3 State machine và Command (vòng chạy)
+
+`crates/agent/src/runtime/phase.rs`:
+
+```rust
+pub enum RunPhase {
+    Idle,
+    BuildingContext { run_id: RunId },
+    Streaming { run_id: RunId, pending: Vec<RawToolCall> },
+    PolicyCheck { run_id: RunId, commands: Vec<ToolCommand> },
+    AwaitingApproval { run_id: RunId, batch_id: BatchId, commands: Vec<ToolCommand> },
+    VerifyingPre { run_id: RunId, commands: Vec<ToolCommand> },
+    Executing { run_id: RunId, index: usize, commands: Vec<ToolCommand> },
+    VerifyingPost { run_id: RunId, commands: Vec<ToolCommand> },
+    Finalizing { run_id: RunId },
+    Completed { run_id: RunId },
+    Cancelled { run_id: RunId, reason: String },
+    Blocked { run_id: RunId, reason: String },
+    Failed { run_id: RunId, error: String },
+    Interrupted { run_id: RunId },
+}
+
+pub fn transition(current: RunPhase, event: RunEvent)
+    -> Result<(RunPhase, Vec<DriverCommand>), TransitionError>;
+```
+
+Quy tắc:
+1. `transition` thuần: không DB, không mạng, không sleep; I/O nằm ở `DriverCommand` do `run_loop.rs` thực thi tuần tự.
+2. Interrupt toàn cục (`UserCancelRequested`, `FatalErrorOccurred`) xử lý **trước** match, ở mọi phase chưa terminal.
+3. Mỗi lần đổi phase ghi `run_step` append-only kèm budget usage.
+4. Terminal không nhận event mới, trừ `run_continue` cho `Interrupted`.
+5. `AwaitingApproval` nhả permit `run_gate`; có quyết định mới acquire lại. Approval không timeout; timeout chỉ cho execution.
+
+`ToolCommand`:
+
+```rust
+pub struct ToolCommand {
+    pub call_id: CallId,
+    pub tool_name: String,
+    pub original_args: serde_json::Value,
+    pub edited_args: serde_json::Value,   // = original nếu user không sửa
+    pub requires_approval: bool,
+    pub savepoint: String,                // "sp_<call_id>"
+}
+```
+
+Thực thi batch:
+1. Args đã sửa → validate lại schema + scope + policy; sai → `ToolResult{error}`, không chạy.
+2. `SAVEPOINT` → execute → `RELEASE`; lỗi → `ROLLBACK TO`, ghi `run_steps` verdict `block`, có thể dừng batch.
+3. Sau batch: post-verify + commit guard → `COMMIT`; fail bất kỳ bước → rollback toàn transaction.
+4. Undo không tự động: khôi phục qua `scene_restore_version` và soft delete; `*_delete` luôn cần approval.
+
+### 2.3.4 Stream và Verification
+
+```rust
+pub enum StreamItem {
+    Text(String),
+    Reasoning(String),
+    ToolCallDelta { index: usize, call_id: Option<String>, tool_name: Option<String>, args_delta: String },
+    Usage(TokenUsage),
+    Done(FinishReason),
+}
+```
+
+- Accumulator gom theo `index`; `finalize()` sắp xếp index tăng dần, parse JSON từng buffer, lỗi → `MalformedJson` và **không dispatch** tool nào.
+- Text/reasoning đẩy UI ngay; tool chỉ dispatch sau `Done` + `finalize()` thành công.
+- Stream đứt trước `Done`: bỏ buffer, phát `StreamReset{reason}`, retry step nếu budget còn; không resume giữa chừng.
+
+```rust
+pub enum Verdict {
+    Pass,
+    Retry { stage: &'static str, feedback: String, suggested_fix: Option<serde_json::Value> },
+    Block { stage: &'static str, reason: String },
+}
+```
+
+Pipeline dừng ở verdict đầu tiên khác `Pass`, thứ tự: `Schema → Scope → DomainRule → PostCondition`. `Retry` tốn `max_retries_per_tool` và đưa feedback có cấu trúc vào prompt sau; `Block` rollback transaction.
+
+### 2.3.5 Strategy, Observer, Memento, Template Method
+
+```rust
+pub trait TokenEstimator { fn estimate(&self, t: &str) -> u32; fn calibrate(&self, est: u32, actual: u32) -> f64; }
+pub trait Compactor { async fn compact(&self, input: CompactionInput) -> Result<CompactionOutput, CompactError>; }
+pub trait MemoryRetriever { async fn search(&self, scope: MemoryScope, q: &str, limit: usize) -> Result<Vec<MemoryHit>, RetrieveError>; }
+```
+
+- Token: `tiktoken-rs` × `token_calibration`; `calib = 0.2×clamp(actual/raw, 0.5, 3.0) + 0.8×calib_cũ`; persist sau mỗi call có `usage`.
+- Compaction 3 tầng theo thứ tự: elide raw tool result cũ ngoài cửa sổ 6 message → bỏ retrieved memory điểm thấp (giữ pinned) → tóm tắt lượt cũ (`summary`, `covers: [from_seq, to_seq]`). Không cắt 6 message gần nhất/pinned/locked layer. Lỗi LLM → fallback cắt tất định, run không fail.
+- Retrieval P1: FTS5 (`unicode61 remove_diacritics 0`) + recency + pin. P3: `sqlite-vec` + `fastembed-rs` hợp nhất RRF, giữ nguyên trait.
+
+**Observer**: `EventSink::emit(DomainEvent)`; dispatch thứ tự cố định `AuditTrace → IpcChannel → EntityChanged`, mỗi observer cô lập lỗi. Audit dùng kết nối riêng autocommit append-only; `EntityChanged` chỉ cho mutation đã commit (`project_id, entity, ids`).
+
+**Memento**: `scene_versions` unique `(scene_id, version_number)`, tăng đơn điệu trong cùng transaction; `scene_source ∈ {AI_GENERATED, HUMAN_EDITED, RESTORE}`. `run_steps(kind='context')` lưu manifest `{layers[{layer,template_id,version,sha256,tokens}], memory_ids, attachment_ids, token_breakdown}`; prune theo `app_settings` (mặc định 30 ngày / 500 run), không lưu secret hay nội dung file thô. `run_continue` chỉ cho `interrupted`, không replay tool đã thành công.
+
+**Template Method** — `AttachmentPipeline.process(path, mime)`:
+1. Validate size ≤ `max_attachment_mb` (25MB) và MIME ∈ {`text/plain`, `text/markdown`, docx, pdf}.
+2. SHA-256 dedupe theo `attachments.sha256`; trùng → tái sử dụng row, không extract lại.
+3. Extract hook theo định dạng; lỗi → `extract_status = failed` nhưng giữ row.
+4. Token estimate + `extract_status = done`; `storage_path` tương đối trong app data dir.
+
+### 2.3.6 Data access, domain rules và FE–BE sync
+
+- `DatabasePools { writer, reader }`: writer `max_connections = 1`; reader `max_connections = 10` + `read_only(true)`.
+- PRAGMA mọi connection: `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`, `cache_size=-64000`, `temp_store=MEMORY`.
+- Read repo trả DTO đã scope; write qua `UnitOfWork` (`begin` writer, `savepoint`, `commit(guard)`, `rollback`). `CommitGuard` RAII: drop chưa commit → rollback.
+- Không mở transaction trong command; audit và business không dùng chung transaction.
+
+```rust
+pub struct ValidationReport { pub is_satisfied: bool, pub satisfied: usize, pub total: usize, pub violations: Vec<Violation> }
+pub trait Specification<T> { fn validate(&self, v: &T) -> ValidationReport; }
+```
+
+- Chỉ ghép `And/Or` khi thật sự cần; rule một-consumer viết `validate_*` thuần.
+- `RequireComplete` cho phase-gating: project meta (3), target (3), genre ≥ 1, character init ≥ 1 (mỗi char có name/sex/motif). FE hiển thị `violations[].field_key` và tiến độ từ cùng nguồn BE, không viết lại công thức.
+
+```ts
+export const queryKeys = {
+  projects: ['projects'] as const,
+  project: (id: string) => ['projects', id] as const,
+  characters: (id: string) => ['projects', id, 'characters'] as const,
+  character: (id: string, cid: string) => ['projects', id, 'characters', cid] as const,
+  arcs: (id: string) => ['projects', id, 'arcs'] as const,
+  chapters: (id: string, aid: string) => ['projects', id, 'arcs', aid, 'chapters'] as const,
+  world: (id: string) => ['projects', id, 'world_settings'] as const,
+  scenes: (id: string, cid: string) => ['projects', id, 'chapters', cid, 'scenes'] as const,
+};
+```
+
+- `entity_changed` → invalidate đúng nhánh; không invalidate toàn bộ `['projects']`.
+- Zustand chỉ giữ: stream text/reasoning buffer, panel ratio, active tab, dialog/mode; không cache entity.
+- `useTokenStreamRafBuffer`: 2 buffer trong `useRef`, một `requestAnimationFrame` flush cả hai; cleanup khi unmount/cancel; token sau `Done` bị bỏ.
+
+### 2.3.7 Bất biến chung rút ra từ các pattern
+
+1. **Ranh giới crate là hàng rào biên dịch**, không phải quy ước: `domain` không biết `tauri`/`sqlx`/`reqwest`; `agent` không biết wire format.
+2. **Scope cưỡng chế trong query**, không kiểm tra sau khi đọc: mọi truy vấn tool nhận `ToolContext` và áp `project_id`, kể cả qua `project_characters`.
+3. **Audit tách khỏi nghiệp vụ**: trace append-only dùng kết nối riêng để còn lại khi business transaction rollback.
+4. **Không phát cache event trước commit**: `entity_changed` chỉ sau khi Unit of Work commit thành công.
+5. **Cây dữ liệu có biên**: duyệt `world_settings`/`themes` phải có cycle detection, `depth_limit` và kiểm tra reparent.
+6. **Streaming không dispatch sớm**: tool chỉ chạy sau khi arguments delta tích lũy, parse và validate; UI flush token theo frame.
+7. **Không hứa hẹn tuyệt đối**: các pattern giảm thiểu rủi ro (lock contention, stale write, confused deputy) nhưng vẫn phải có test cho transition, retry, cancel và reconcile.
 
 ---
 
@@ -229,7 +491,10 @@ src-tauri/
     │       └── trace.rs
     ├── llm/
     │   └── src/
-    │       ├── client.rs        # trait + factory theo provider.protocol
+    │       ├── client.rs        # trait LlmClient + LlmRequest/ItemStream
+    │       ├── factory.rs       # build_llm_client(provider, secrets, http) theo provider.protocol
+    │       ├── middleware/      # TracingLlm( RetryLlm( adapter ) )
+    │       ├── secrets.rs       # KeyringSecretStore + InMemorySecretStore (impl SecretStore)
     │       ├── item.rs          # StreamItem chuẩn hoá: Text | Reasoning | ToolCall | Usage | Done
     │       ├── adapters/
     │       │   ├── chat_completions.rs  # OpenAI-compat: OpenAI, OpenRouter, Groq, vLLM, LM Studio, custom base_url
@@ -244,6 +509,7 @@ src-tauri/
             ├── db/{pool,migrate}.rs # SqliteDualPool: serialized writer + read-only readers
             ├── db/repos/        # 1 repo/aggregate
             ├── fs/{attachment_store,extractor}.rs
+            ├── proxy/{outbound_guard,scoped_repo}.rs # SSRF guard + project scope enforcement
             ├── secrets.rs       # keyring
             └── search.rs        # FTS5 (memory, scene, lore)
 ```
@@ -553,7 +819,7 @@ Prompt injection trong file đính kèm khi ở `explore` không thể ghi dữ 
 
 **RunBudget** (runtime enforce; cấu hình theo session/model): `max_steps` (25), `max_tool_calls` (40), `max_retries_per_tool` (2), `max_llm_retries` (3), `max_tokens_total`, `max_duration`. Chạm 80% → `BudgetWarning`; vượt → run `blocked` (reason = budget).
 
-**State machine (Sans-I/O Functional Core + Async Driver):** logic `transition(phase, event)` là hàm thuần trả `Result<(RunPhase, Vec<DriverCommand>), TransitionError>`; `run_loop.rs` thực thi command I/O bằng Tokio, `CancellationToken` và `EventSink`. Nhờ vậy có thể kiểm thử exhaustive mọi transition không cần DB/mạng. Mỗi lần đổi phase ghi append-only `run_step`.
+**State machine (Sans-I/O Functional Core + Async Driver):** logic `transition(phase, event)` là hàm thuần trả `Result<(RunPhase, Vec<DriverCommand>), TransitionError>`; `run_loop.rs` thực thi command I/O bằng Tokio, `CancellationToken` và `EventSink`. Nhờ vậy có thể kiểm thử exhaustive mọi transition không cần DB/mạng. Mỗi lần đổi phase ghi append-only `run_step`. Định nghĩa `RunPhase`/`RunEvent`/`DriverCommand` và quy tắc chuyển: mục 2.3.3.
 
 ```
 Idle → BuildingContext → Streaming ─┬─ final answer → Finalizing → Completed
@@ -591,6 +857,8 @@ Thứ tự ưu tiên khi cắt (giữ cao → bỏ trước thấp):
 7. History cũ → **tóm tắt** (compactor), lưu thành summary message
 
 `context/tokens.rs` trả về **breakdown theo segment** (system / memory / history / attachments / tools) để `ContextUsagePopover` hiển thị.
+
+Công thức EMA, ngưỡng và thứ tự nén chi tiết: mục 2.3.1 và 2.3.5.
 
 **Token allocation policy** (W = `context_window`):
 
@@ -670,7 +938,7 @@ Quy ước bắt buộc đưa vào base prompt: `code` là slug nội bộ, **kh
 
 ## 9. Verify pipeline
 
-`Verifier` trả `Verdict { Pass | Retry(feedback) | Block(reason) }`, chạy theo chuỗi:
+`Verifier` trả `Verdict { Pass | Retry(feedback) | Block(reason) }`, chạy theo chuỗi (định nghĩa kiểu và quy tắc dừng: mục 2.3.4):
 
 1. **Schema**: args khớp JSON schema của `ToolSpec`; enum hợp lệ theo DBML (`LocationType`, `RevealDepth`, `Language`...).
 2. **Scope**: mọi id tham chiếu thuộc `session.project_id`.
@@ -761,7 +1029,7 @@ RunFinished { status, usage }
 RunFailed { error }
 ```
 
-**Event toàn cục** (để invalidate cache): `entity_changed { project_id, entity, ids }` — phát sau khi tool/UI ghi commit thành công; FE invalidate query keys có scope project. `RunEvent`, `entity_changed` và trace là observer của `EventSink` (từ `DomainEvent`), không phát tay rải rác. Observer được cô lập lỗi; audit trace ghi riêng để còn lại khi business transaction rollback.
+**Event toàn cục** (để invalidate cache): `entity_changed { project_id, entity, ids }` — phát sau khi tool/UI ghi commit thành công; FE invalidate query keys có scope project. `RunEvent`, `entity_changed` và trace là observer của `EventSink` (từ `DomainEvent`), không phát tay rải rác. Observer được cô lập lỗi; audit trace ghi riêng để còn lại khi business transaction rollback. Thứ tự dispatch và chi tiết observer: mục 2.3.5.
 
 ---
 
@@ -811,6 +1079,7 @@ src/
 
 ### 13.3 Quy tắc
 - Chỉ `shared/lib/ipc` import `@tauri-apps/api`. Feature gọi qua hook.
+- Cây `queryKeys` phân cấp theo project/entity và cách invalidate: mục 2.3.6; không invalidate toàn bộ `['projects']` khi chỉ một entity đổi.
 - `bindings.ts` sinh tự động, **không sửa tay**, commit vào repo.
 - Streaming: buffer text/reasoning riêng trong `useRef`, flush bằng `requestAnimationFrame` tối đa một lần mỗi frame; cleanup RAF khi unmount/cancel. Không thực thi tool đến khi arguments delta đã tích lũy, parse và validate đầy đủ.
 - Approval là UI chặn: chạy tool ghi chỉ tiếp tục sau `approval_decide`. Chờ vô thời hạn; run đang chờ phải hiện rõ trong sidebar. Khi session có run active, `ChatInputBar` chuyển sang nút Dừng (BE vẫn trả `RUN_ACTIVE` nếu bị gọi).
