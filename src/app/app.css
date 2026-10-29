@@ -229,10 +229,18 @@ html.dark .tier-overlay {
 .dialog-overlay[data-state='open'] { animation: overlay-in 0.25s ease-out forwards; }
 .dialog-overlay[data-state='closed'] { animation: overlay-out 0.2s ease-in forwards; }
 
+.dialog-content {
+  position: fixed;
+  left: 50% !important;
+  top: 50% !important;
+  translate: none !important;
+  transform: translate(-50%, -50%);
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(-50% + 48px));
+    transform: translate(-50%, calc(-50% + 40px));
   }
   to {
     opacity: 1;
@@ -246,7 +254,7 @@ html.dark .tier-overlay {
   }
   to {
     opacity: 0;
-    transform: translate(-50%, calc(-50% + 48px));
+    transform: translate(-50%, calc(-50% + 40px));
   }
 }
 .dialog-content[data-state='open'] { animation: dialog-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
