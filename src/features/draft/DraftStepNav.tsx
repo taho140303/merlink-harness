@@ -1,0 +1,45 @@
+import { ArrowLeft, ArrowRight, Play } from 'lucide-react';
+import { useT } from '@/shared/i18n/useT';
+
+interface DraftStepNavProps {
+  onBack?: () => void;
+  onNext?: () => void;
+  onStart?: () => void;
+}
+
+export function DraftStepNav({ onBack, onNext, onStart }: DraftStepNavProps) {
+  const t = useT();
+  return (
+    <div className="flex items-center gap-2.5">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface-card px-4 py-2.5 text-sm font-semibold text-fg-muted  transition-colors hover:bg-surface-muted    "
+        >
+          <ArrowLeft className="h-4 w-4" /> {t('draft.nav.back')}
+        </button>
+      )}
+      {onNext && (
+        <button
+          type="button"
+          onClick={onNext}
+          className="flex items-center gap-2 whitespace-nowrap rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white   transition-colors hover:scale-105 hover:opacity-90   "
+        >
+          <span>{t('draft.nav.next')}</span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
+      {onStart && (
+        <button
+          type="button"
+          onClick={onStart}
+          className="flex items-center gap-2 whitespace-nowrap rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white   transition-colors hover:scale-105 hover:bg-blue-500"
+        >
+          <Play className="h-4 w-4 fill-current" />
+          <span>{t('draft.nav.start')}</span>
+        </button>
+      )}
+    </div>
+  );
+}

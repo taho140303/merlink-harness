@@ -1,12 +1,9 @@
-import { CharacterListView } from "../../core/components/character/CharacterListView";
+import { CharacterListPage } from "@/pages";
 
 export function meta() {
-  return [
-    { title: "Merlink Harness - Character" },
-    { name: "description", content: "Character directory and relation graphs" },
-  ];
+  return [{ title: "Merlink Harness - Characters" }];
 }
 
 export default function CharacterRoute() {
-  return <CharacterListView />;
+  return <CharacterListPage />;
 }

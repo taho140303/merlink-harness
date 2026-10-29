@@ -1,12 +1,9 @@
-import ProjectView from "../../core/components/project/ProjectView";
+import { ProjectListPage } from "@/pages";
 
 export function meta() {
-  return [
-    { title: "Merlink Harness - Project" },
-    { name: "description", content: "Worldbuilding Projects Workspace" },
-  ];
+  return [{ title: "Merlink Harness - Projects" }];
 }
 
 export default function ProjectRoute() {
-  return <ProjectView />;
+  return <ProjectListPage />;
 }

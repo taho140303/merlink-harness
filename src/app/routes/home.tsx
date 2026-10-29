@@ -1,4 +1,4 @@
-import ChatView from "../../core/components/chat/ChatView";
+import { HomePage } from "@/pages";
 
 export function meta() {
   return [
@@ -7,6 +7,6 @@ export function meta() {
   ];
 }
 
-export default function Home() {
-  return <ChatView />;
+export default function HomeRoute() {
+  return <HomePage />;
 }

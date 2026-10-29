@@ -120,10 +120,10 @@ html.dark .neu-pressed {
   65% { transform: translate(140px, -140px) scale(0.9) rotate(-230deg); }
   100% { transform: translate(0px, 0px) scale(1) rotate(-360deg); }
 }
-.animate-chaotic-1 { animation: chaotic-blob-1 18s ease-in-out infinite alternate; }
-.animate-chaotic-2 { animation: chaotic-blob-2 22s ease-in-out infinite alternate; }
-.animate-chaotic-3 { animation: chaotic-blob-3 26s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
-.animate-chaotic-4 { animation: chaotic-blob-4 19s ease-in-out infinite alternate; }
+.animate-chaotic-1 { animation: chaotic-blob-1 18s ease-in-out infinite alternate; will-change: transform; }
+.animate-chaotic-2 { animation: chaotic-blob-2 22s ease-in-out infinite alternate; will-change: transform; }
+.animate-chaotic-3 { animation: chaotic-blob-3 26s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; will-change: transform; }
+.animate-chaotic-4 { animation: chaotic-blob-4 19s ease-in-out infinite alternate; will-change: transform; }
 
 @keyframes orb-float { 0%, 100% { transform: translateY(0px) scale(1) rotate(0deg); } 50% { transform: translateY(-10px) scale(1.03) rotate(180deg); } }
 @keyframes orb-glow { 0%, 100% { opacity: 0.6; transform: scale(0.96); } 50% { opacity: 0.9; transform: scale(1.05); } }

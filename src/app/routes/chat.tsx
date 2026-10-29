@@ -1,4 +1,4 @@
-import ChatView from "../../core/components/chat/ChatView";
+import { ChatPage } from "@/pages";
 
 export function meta() {
   return [
@@ -8,5 +8,5 @@ export function meta() {
 }
 
 export default function ChatRoute() {
-  return <ChatView />;
+  return <ChatPage />;
 }

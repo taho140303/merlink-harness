@@ -1,5 +1,9 @@
-import { CharacterDetailLayout } from '../../core/components/character-detail/CharacterDetailLayout';
+import { CharacterDetailPage } from "@/pages";
+
+export function meta() {
+  return [{ title: "Merlink - Chi tiết nhân vật" }];
+}
 
 export default function CharacterDetailRoute() {
-  return <CharacterDetailLayout />;
+  return <CharacterDetailPage />;
 }

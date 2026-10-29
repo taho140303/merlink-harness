@@ -1,7 +1,7 @@
 import { Outlet } from "react-router";
-import Sidebar from "../../core/components/Sidebar";
-import { ToastViewport } from "../../shared/components/ui/toast";
-import { AuroraBackground } from "../../shared/components/background/AuroraBackground";
+import { Sidebar } from "@/features/navigation";
+import { ToastViewport } from "@/shared/components/ui/toast";
+import { AuroraBackground } from "@/shared/components/background/AuroraBackground";
 
 export default function FullLayout() {
   return (

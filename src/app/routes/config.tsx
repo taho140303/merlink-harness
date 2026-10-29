@@ -1,9 +1,9 @@
-import { SystemPromptLayout } from "../../core/components/system-prompt/SystemPromptLayout";
+import { ConfigPage } from "@/pages";
 
 export function meta() {
   return [{ title: "Merlink Harness - System Prompt" }];
 }
 
-export default function ConfigPage() {
-  return <SystemPromptLayout />;
+export default function ConfigRoute() {
+  return <ConfigPage />;
 }
