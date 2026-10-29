@@ -7,3 +7,5 @@ export * from "./ChatMessageItem";
 export * from "./ChatWelcome";
 export * from "./ModelSelectorPopover";
 export * from "./ContextUsagePopover";
+export * from "./PreDraftSuggestionDialog";
+export * from "./ProcessDetailDialog";

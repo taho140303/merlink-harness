@@ -9,6 +9,12 @@ import { ChatInputBar } from "./ChatInputBar";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { DraftWorkspace } from "@/features/draft/DraftWorkspace";
 import { FloatingOutline } from "@/shared/components/ui/floating-outline";
+import { PreDraftSuggestionDialog } from "./PreDraftSuggestionDialog";
+import {
+  SAMPLE_BUSINESS_FLOW_DATA,
+  calculateBusinessFlowProgress,
+  isRequireComplete,
+} from "@/features/business-flow";
 import type { ChatMessage } from "./types";
 import type { FeedbackContext } from "@/features/draft/types";
 import { useT } from "@/shared/i18n/useT";
@@ -17,11 +23,45 @@ export default function ChatView() {
   const t = useT();
   const isCompact = useIsCompact();
   const [isDraftOpen, setIsDraftOpen] = useState(false);
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [keyboardRatio, setKeyboardRatio] = useState<number | null>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const businessFlowData = SAMPLE_BUSINESS_FLOW_DATA;
+  const progressResult = useMemo(
+    () => calculateBusinessFlowProgress(businessFlowData),
+    [businessFlowData]
+  );
+  const progressPercent = progressResult.percent;
+  const requireComplete = useMemo(
+    () => isRequireComplete(businessFlowData),
+    [businessFlowData]
+  );
+
+  const handleToggleDraft = () => {
+    if (isDraftOpen) {
+      setIsDraftOpen(false);
+    } else {
+      setIsSuggestionOpen(true);
+    }
+  };
+
+  const handleSuggestionConfirm = (suggestion?: string) => {
+    setIsSuggestionOpen(false);
+    setIsDraftOpen(true);
+    if (suggestion && suggestion.trim()) {
+      const userMsg: ChatMessage = {
+        id: `usr-${Date.now()}`,
+        role: "user",
+        content: suggestion.trim(),
+        timestamp: "Vừa xong",
+      };
+      setMessages((prev) => [...prev, userMsg]);
+    }
+  };
 
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 50,
@@ -161,7 +201,10 @@ export default function ChatView() {
       >
         <ChatHeader
           isDraftOpen={isDraftOpen}
-          onToggleDraft={() => setIsDraftOpen(!isDraftOpen)}
+          onToggleDraft={handleToggleDraft}
+          progressPercent={progressPercent}
+          isRequireComplete={requireComplete}
+          businessFlowData={businessFlowData}
         />
 
         <div className="relative flex-1 overflow-hidden">
@@ -243,6 +286,12 @@ export default function ChatView() {
           />
         </div>
       )}
+
+      <PreDraftSuggestionDialog
+        open={isSuggestionOpen}
+        onOpenChange={setIsSuggestionOpen}
+        onConfirm={handleSuggestionConfirm}
+      />
     </div>
   );
 }

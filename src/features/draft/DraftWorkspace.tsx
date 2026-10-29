@@ -22,6 +22,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
   const [currentVersion, setCurrentVersion] = useState(overview.version);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
   
   // Feedback Mode State & Custom Cursor
   const [isFeedbackMode, setIsFeedbackMode] = useState(false);
@@ -98,6 +99,10 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   };
 
   const handleRegenerate = () => {
+    setRegenerateConfirmOpen(true);
+  };
+
+  const executeRegenerate = () => {
     triggerTransition(() => {
       // Logic regenerate data
     });
@@ -233,6 +238,16 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         confirmLabel={t('draft.dialog.confirmNext')}
         cancelLabel={t('common.cancel')}
         onConfirm={executeNext}
+      />
+
+      <ConfirmDialog
+        open={regenerateConfirmOpen}
+        onOpenChange={setRegenerateConfirmOpen}
+        title={t('draft.dialog.regenerateTitle')}
+        description={t('draft.dialog.regenerateDesc')}
+        confirmLabel={t('draft.dialog.confirmRegenerate')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={executeRegenerate}
       />
 
       {/* Custom Feedback Cursor */}
