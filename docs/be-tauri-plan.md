@@ -29,73 +29,60 @@
 | Vấn đề | Quyết định | Ghi chú |
 |---|---|---|
 | DB | SQLite local, migration chạy lúc khởi động | Schema bám `docs/db.dbml` |
-| DB driver | **`sqlx` (sqlite)** + `sqlx::migrate!` | Đã chốt. Dùng `query_as` runtime-check + test trên DB in-memory; macro `query!` chỉ bật nếu chịu thêm bước `sqlx prepare` (offline). Pool: WAL, `foreign_keys=ON`, `busy_timeout`; ghi tool đi qua transaction |
+| DB driver & Pool | **`sqlx` (sqlite)** + `sqlx::migrate!`<br>**Mô hình Dual-Pool (Writer / Reader)** | `writer_pool`: cố định `max_connections = 1` tuần tự hóa các lệnh ghi ở tầng ứng dụng, triệt tiêu hoàn toàn Lock Starvation trong async Rust; `reader_pool`: `max_connections = 10`, `read_only = true` phục vụ UI đọc song song mượt mà. PRAGMA: WAL, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-64000` (64MB RAM), `temp_store=MEMORY` |
 | API key | `keyring` crate (OS keychain) | DB chỉ lưu `secret_ref`, không lưu key |
 | ID | Business: UUIDv7 (đã có). Runtime: string có prefix `ses_`, `msg_`, `run_` (ULID/UUIDv7) | Khớp `sessions.id`/`messages.id` là `varchar` |
-| Memory retrieval | Phase đầu: **SQLite FTS5 + pin + recency**. Embedding (sqlite-vec) để sau | Tránh phụ thuộc embedder sớm |
-| Cancel | `CancellationToken` đi xuyên runtime → tool → llm | |
+| Memory retrieval | Phase đầu: **SQLite FTS5 + pin + recency**. Lộ trình Phase 3: `sqlite-vec` + `fastembed-rs` nhúng in-process | Tránh phụ thuộc embedder sớm, zero tiến trình ngoài |
+| Cancel | `CancellationToken` đi xuyên runtime → tool → llm | Đóng ngay HTTP socket stream, rollback transaction an toàn |
 | FE routing | `react-router.config.ts`: `ssr: false` (SPA) | Dockerfile chỉ còn cho bản web |
 | Server state FE | TanStack Query, invalidate khi nhận event từ Rust | Client state: Zustand (đã có `store.ts`) |
-| Cấu trúc crate | **Cargo workspace 4 crate ngay từ Phase 0** (`domain`, `agent`, `llm`, `infra`), mỗi crate mỏng (vài file). Không có phương án 1 crate | Hàng rào là `Cargo.toml`, compiler enforce; ma trận phụ thuộc ở mục 4.2 |
-| Điều phối run | Async loop điều khiển bởi **state machine tường minh** (`RunPhase`); không event-choreography | Dễ test, dễ trace (mục 7.1) |
+| Cấu trúc crate | **Cargo workspace 4 crate ngay từ Phase 0** (`domain`, `agent`, `llm`, `infra`), mỗi crate mỏng (vài file) | Hàng rào là `Cargo.toml`, compiler enforce; ma trận phụ thuộc ở mục 4.2 |
+| Điều phối run | Async loop điều khiển bởi **state machine tường minh** (`RunPhase`) | Tách biệt Sans-I/O Functional Core (`state.rs`) và I/O Driver (`run_loop.rs`) (mục 7.1) |
 | Domain event | `DomainEvent` + port `EventSink`; `RunEvent` (Channel), `entity_changed`, trace đều là subscriber | Một nguồn sự thật cho UI và trace |
-| Trace | `run_steps` **append-only** trong SQLite; không thêm JSONL rollout riêng | Tránh hai nơi lưu dữ liệu |
-| Đồng thời | 1 run active / session; semaphore toàn cục (mặc định 3 run). `chat_send` khi session đang có run → lỗi `RUN_ACTIVE`, **không queue** | Run chờ approval nhả slot |
-| Tool calling | Chỉ model `supports_tools = true` chạy agent; model còn lại = chat thuần. **Không** làm prompt-based tool calling | ADR-005 |
-| Approval | Pause vô thời hạn cho human approval; timeout chỉ áp cho thực thi tool | ADR-006 |
-| Token | `tiktoken-rs` xấp xỉ + hiệu chỉnh theo `usage` thực của từng model + buffer | Mục 7.2, ADR-003 |
-| IPC | `tauri-specta` + `Channel<RunEvent>`; **spike ở Phase 0** (specta v2 còn RC → pin version) | Fallback: vẫn dùng Channel, chỉ xuất type bằng specta. Không đổi sang `app.emit` |
+| Trace | `run_steps` **append-only** trong SQLite; không thêm JSONL rollout riêng | Lưu trữ thống nhất trong SQLite; step `context` chứa Prompt Manifest |
+| Đồng thời | 1 run active / session; semaphore toàn cục (mặc định 3 run). `chat_send` khi session đang có run → lỗi `RUN_ACTIVE`, **không queue** | Run chờ approval nhả slot semaphore để tránh chiếm dụng quota |
+| Tool calling | Chỉ model `supports_tools = true` chạy agent; model còn lại = chat thuần | Tuân thủ ADR-005; sinh schema tự động qua `schemars` |
+| Approval | Non-blocking Async Suspension (`tokio::sync::oneshot`), pause vô thời hạn cho human approval | Không block worker thread, Active Compute Timer tạm dừng đếm giờ tính toán |
+| Token | `tiktoken-rs` xấp xỉ + **Adaptive EMA Calibration** (`token_calibration`) theo từng model | Mục 7.2, ADR-003; tự động thích ứng với đặc thù tiếng Việt |
+| IPC | **`tauri-specta` v2 (RC-27) + `tauri::ipc::Channel<RunEvent>`** | Kênh stream trực tiếp strictly in-order cho token/progress; FE buffer bằng `requestAnimationFrame` |
 | Log | `tracing` ra file xoay vòng, tách khỏi `run_steps` | Mục 14 |
 
 ### 2.1 Chắt lọc từ các harness tham khảo
 
-Chỉ lấy **pattern** (không phụ thuộc repo nào). Tiêu chí: hợp với *một process Tauri, một người dùng, SQLite local, tool chỉ chạm DB*.
-
-**Giữ lại**
+Chỉ lấy **pattern khẳng định tích cực** (không phụ thuộc repo nào). Tiêu chí: tối ưu cho *một process Tauri, một người dùng, SQLite local, tool chỉ chạm DB nghiệp vụ*.
 
 | Pattern (nguồn) | Áp dụng vào plan |
 |---|---|
 | Backend-authoritative (Orchestrix) | FE zero logic, kể cả gọi LLM; mọi request ra ngoài đi qua Rust |
-| Tool boundary theo mode (Orchestrix plan/worker) | `RunMode`: `explore` (chỉ tool đọc) / `edit`; tool ghi **không tồn tại** trong `explore`; `request_edit_mode` để xin nâng quyền |
-| Budget riêng mỗi run (Orchestrix) | `RunBudget`: step, tool call, retry, token, thời gian |
+| Tool boundary theo mode (Orchestrix plan/worker) | `RunMode`: `explore` (chỉ tool đọc) / `edit`; tool ghi **hoàn toàn không xuất hiện trong schema** khi ở `explore`; `request_edit_mode` để xin nâng quyền |
+| Budget riêng mỗi run (Orchestrix) | `RunBudget`: step, tool call, retry, token, thời gian tính toán thực (Active Compute Timer) |
 | Approval tách khỏi executor (LibrAgent `tool_approvals`) | `policy.rs` quyết định, `approval.rs` chờ user; đổi policy không đụng executor |
 | Execution mode như policy (LibrAgent normal/yolo) | `ApprovalPolicy`: `ask` / `auto_reversible`. Bỏ mức `unsafe` vì không có tool shell/fs |
 | Scope bị cưỡng chế (LibrAgent session-scoped proxy) | `ToolContext {project_id, session_id, run_id, mode}` do executor inject; tool không nhận id project từ args |
-| Reconcile khi khởi động (Tinybot orphan recovery) | Run `running`/`awaiting_approval` còn sót → `interrupted` |
-| Commit guard (thay generation counter của Tinybot) | Tool ghi chỉ commit nếu run còn active, trong cùng transaction |
-| Instruction precedence + truy vết (Tinybot `InstructionComposer`) | Precedence cố định + **prompt manifest** lưu vào trace |
+| Reconcile khi khởi động (Tinybot orphan recovery) | Run `running`/`awaiting_approval` còn sót khi app crash → `interrupted` kèm audit trace |
+| Commit guard (Bảo vệ tính toàn vẹn giao dịch) | Tool ghi chỉ commit nếu run còn active trong cùng transaction, triệt tiêu race condition khi cancel |
+| Instruction precedence + truy vết (Tinybot `InstructionComposer`) | Precedence cố định + **prompt manifest** lưu vào trace để audit và tối ưu prompt caching |
 | Protocol adapter tách khỏi loop (Tinybot) | `llm` chuẩn hoá về `StreamItem`; loop không biết wire format |
-| Compact recovery (LibrAgent) | Compactor lỗi → fallback cắt history, không làm fail run |
+| Compact recovery (LibrAgent) | Compactor lỗi → fallback cắt history tất định, không làm fail run |
 | Domain event (Quecto) | `DomainEvent` + `EventSink` thay cho phát event rải rác |
 | Ports & adapters (Quecto/HiddenSteps) | Đã có; thêm `EventSink`, `Clock`, `IdGen` để test tất định |
-| Global concurrency gate (LibrAgent) | Semaphore toàn cục + 1 run/session |
+| Global concurrency gate (LibrAgent) | Semaphore toàn cục + 1 run/session; nhả permit khi treo chờ duyệt |
 | GUI không chứa logic (Orchestrator) | Workspace cho phép thêm `crates/cli` headless để eval/regression (tuỳ chọn) |
 
-**Bỏ qua (và lý do)**
-
-| Pattern | Lý do bỏ |
-|---|---|
-| FE gọi LLM (LibrAgent hybrid) | Lộ key, hai nguồn sự thật; Rust `reqwest` streaming đủ tốt |
-| Event-driven không có loop (LibrAgent) | Hợp daemon nhiều session; ở đây loop + state machine đơn giản, ít lỗi hơn |
-| Daemon + CLI + gRPC, điều khiển CLI agent ngoài (Orchestrator) | Runtime chạy in-process; thêm process chỉ tăng độ phức tạp |
-| Sandboxed command runner | Không có tool shell; tool chỉ đi qua repo |
-| MCP proxy theo session | Chưa cần; registry nằm sau trait `ToolProvider` để thêm sau |
-| Rollout zstd/JSONL + projection (Tinybot) | SQLite đã là store duy nhất; `run_steps` append-only đủ audit, thêm file thứ hai dễ lệch dữ liệu |
-| Generation counter | Đã có commit guard + 1 run/session |
-| Privacy Engine đầy đủ, SQLCipher, WASM plugin (HiddenSteps) | Quá nặng cho app cá nhân; giữ outbound guard nhỏ (mục 6, 14) |
-| Multi-agent / swarm | Một agent + hai mode là đủ |
+> **Ghi chú về các phương án không phù hợp (No-Match):**  
+> Toàn bộ các phân tích kỹ thuật, lập luận phủ định và lý do bác bỏ các kiến trúc / công nghệ khảo sát không phù hợp (như Actor-based event-choreography, Docker/WASM sandboxing, external daemons, vector DB rời, prompt-based tool calling, polling IPC, global event emission...) được tổng hợp và phân tích chuyên sâu tại tài liệu: [`docs/prepare-be-impl/no-match.md`](prepare-be-impl/no-match.md).
 
 ### 2.2 ADR phải ghi trước Phase 1
 
 | ADR | Nội dung |
 |---|---|
 | 001 | Workspace 4 crate + ma trận phụ thuộc |
-| 002 | `sqlx`, pragma, cách kiểm tra query |
-| 003 | Chiến lược đếm token + calibration |
+| 002 | `sqlx`, pragma, kiến trúc Dual-Pool (Writer/Reader), cách kiểm tra query |
+| 003 | Chiến lược đếm token `tiktoken-rs` + Adaptive EMA calibration |
 | 004 | Message envelope `payload_json` v1 (mục 5.5) |
-| 005 | Không prompt-based tool calling |
-| 006 | Approval pause vô thời hạn, batch theo lượt |
-| 007 | `characters`/`lore_entries` thuộc về một project (mục 5.4) |
+| 005 | Không prompt-based tool calling; bắt buộc `supports_tools = true` |
+| 006 | Non-blocking approval pause vô thời hạn, batch theo lượt, nhả permit semaphore |
+| 007 | Quan hệ Nhiều-Nhiều (N-N) giữa projects và characters qua bảng liên kết `project_characters` (mục 5.4) |
 
 ---
 
@@ -419,7 +406,7 @@ Table app_settings {
 |---|---|---|
 | `sessions` | `+ updated_at, + default_model_id, + archived_at` | Sắp xếp history, nhớ model theo session |
 | `messages` | `+ run_id, + seq` | Sắp xếp ổn định, gắn message ↔ run |
-| `characters` | **`+ project_id` NOT NULL** (sau backfill) | **Blocker Phase 0**: không có thì không cô lập được tool/verify theo project (mục 5.4) |
+| `characters` | Giữ nguyên độc lập (Identity). Tạo bảng liên kết N-N **`project_characters`** (kèm `role`, `notes`, `created_at`, `deleted_at`) | Bám chuẩn `docs/db.dbml`. Cho phép nhân vật xuất hiện linh hoạt trong nhiều truyện của cùng vũ trụ tác giả |
 | `lore_entries` | **`+ project_id`** (nullable: null = template dùng chung, agent chỉ đọc) | Khớp với `world_settings.project_id` |
 
 ### 5.4 Scope theo project & backfill (gate của Phase 0)
@@ -432,18 +419,19 @@ Mọi entity tool chạm tới phải resolve được `project_id`:
 | chapters | `arc_id → arcs.project_id` |
 | scenes | `chapter_id → chapters → arcs` |
 | themes | `arc_id → arcs` |
-| characters, lore_entries, world_settings | `project_id` trực tiếp (null = template, read-only với agent) |
-| relationships | qua `from_character_id`; verify `from` và `to` cùng project |
+| characters | qua bảng liên kết **`project_characters`** (`project_id = ctx.project_id` và `deleted_at IS NULL`) |
+| lore_entries, world_settings | `project_id` trực tiếp (null = template, read-only với agent) |
+| relationships | qua `from_character_id` và `to_character_id` đều thuộc `project_characters` của project này |
 | character_memories / competences / appearances | qua `character_id` |
 
-`ScopeResolver::owns(kind, id)` (trong `tools/scope.rs`) phục vụ verify; ngoài ra **repo method dành cho tool nhận `ToolContext` và đưa điều kiện project vào `WHERE`** — không chỉ kiểm tra sau khi đã đọc.
+`ScopeResolver::owns(kind, id)` (trong `tools/scope.rs`) phục vụ verify; ngoài ra **repo method dành cho tool nhận `ToolContext` và đưa điều kiện project vào `WHERE`** (ví dụ với nhân vật: `JOIN project_characters pc ON pc.character_id = c.id WHERE pc.project_id = $ctx.project_id AND pc.deleted_at IS NULL`) — không chỉ kiểm tra sau khi đã đọc.
 
-**Backfill (`0002`):**
-1. Nhân vật có scene → gán project của scene đầu tiên (`scene_characters → scenes → chapters → arcs`). Nếu xuất hiện ở nhiều project (hiếm) → nhân bản row + remap bảng con.
-2. Nhân vật không gắn scene nào → project `legacy` (tự tạo, `PLANNING`).
-3. `lore_entries.project_id` lấy từ `world_settings.project_id`, không có thì null.
-
-Chia sẻ nhân vật giữa nhiều truyện: ngoài phạm vi; dùng thao tác "clone sang project khác".
+**Backfill (`0002_scope.sql`):**
+1. Tạo bảng liên kết `project_characters (id, project_id, character_id, role, notes, created_at, deleted_at)`.
+2. Nhân vật có scene → tự động gán liên kết vào project của scene đầu tiên (`scene_characters → scenes → chapters → arcs`).
+3. Nhân vật không gắn scene nào → gán liên kết vào project mặc định đầu tiên hoặc project `legacy`.
+4. `lore_entries.project_id` lấy từ `world_settings.project_id`, không có thì null.
+5. Hỗ trợ đầy đủ việc tái sử dụng nhân vật giữa các tập truyện trong cùng vũ trụ sáng tác mà không cần nhân bản trùng lặp thực thể.
 
 ### 5.5 Message envelope (`messages.payload_json`, v1)
 
@@ -797,17 +785,17 @@ src/
 
 | # | Vấn đề | Đề xuất |
 |---|---|---|
-| 1 | `characters`, `lore_entries` thiếu `project_id` | **Blocker Phase 0**: migration + backfill (mục 5.4); không viết CRUD/tool character trước đó |
+| 1 | Liên kết `characters` và `projects` theo N-N | Tạo bảng nối `project_characters` trong migration `0002_scope.sql` + backfill (mục 5.4); cô lập query qua `JOIN project_characters` |
 | 2 | Model không hỗ trợ tool calling (local/custom) | Chat thuần, không có prompt-based tool calling (mục 6, ADR-005) |
 | 3 | Scene dài làm phình context | Chỉ nạp `summary`; `scene_get(range)` khi cần nội dung |
 | 4 | Agent ghi nhiều entity trong một run | `ApprovalRequest` batch theo lượt + "duyệt phần còn lại của run" cho tool đảo ngược được (mục 7.1). Change set kiểu draft → apply để Phase 6 |
-| 5 | Sync dữ liệu (`docs/sync-data`) | Ngoài phạm vi phase 1; giữ UUIDv7 + `updated_at`/`deleted_at` để sync được sau |
+| 5 | Lock Starvation khi ghi SQLite async | **Mô hình Dual-Pool**: `writer_pool` (max 1 conn) + `reader_pool` (max 10 conn) (mục 2, ADR-002) |
 | 6 | sqlx vs rusqlite | **Đã chốt sqlx** (ADR-002) |
-| 7 | Có cần embedding cho memory ngay không | Mặc định: chưa, dùng FTS5 |
+| 7 | Có cần embedding cho memory ngay không | Mặc định: chưa, dùng FTS5; Phase 3 nâng cấp `sqlite-vec` + `fastembed-rs` nhúng |
 | 8 | Mock vs bản web (Dockerfile) | Bản web không có agent runtime; tách build target hoặc bỏ |
 | 9 | App bị kill giữa run | Startup reconcile → `interrupted` + commit guard (mục 7.1) |
 | 10 | Model yếu gọi tool sai liên tục | `RunBudget` + `max_retries_per_tool`; có thể hạ về `explore` |
-| 11 | `tauri-specta` + `Channel<T>` chưa chắc ổn (specta v2 còn RC) | Spike ở Phase 0, pin version; fallback giữ Channel và chỉ xuất type bằng specta |
+| 11 | `tauri-specta` + `Channel<T>` version compatibility | Ghim cứng `specta = "=2.0.0-rc.27"` và `tauri-specta = "=2.0.0-rc.27"` (mục 12) |
 | 12 | Đếm token sai làm tràn context | Calibration theo `usage` + buffer + retry 1 lần khi overflow (mục 7.2) |
 | 13 | Build theo chiều ngang, lỗi thiết kế core loop lộ muộn | Vertical slice ở Phase 1 (mục 16) |
 
@@ -817,9 +805,9 @@ src/
 
 **Phase 0 — Nền tảng (gate)**
 - [ ] Workspace 4 crate + CI kiểm `cargo tree` (mục 4.2)
-- [ ] Migration `0001` (từ `db.dbml`) + **`0002`: `project_id` cho `characters`/`lore_entries` + backfill** (mục 5.4) + seed system
-- [ ] `sqlx` pool (WAL, FK, busy_timeout), `error.rs`, `state.rs`, `telemetry.rs` (tracing + log file)
-- [ ] **Spike IPC:** `tauri-specta` + `Channel<RunEvent>` (tagged enum) → `bindings.ts`; chốt hoặc dùng fallback
+- [ ] Migration `0001` (từ `db.dbml`) + **`0002_scope.sql`: bảng liên kết `project_characters`, `project_id` cho `lore_entries` + backfill** (mục 5.4) + seed system
+- [ ] `sqlx` **Dual-Pool** (`writer_pool` max 1 conn, `reader_pool` max 10 conn, WAL, FK, busy_timeout=5000), `error.rs`, `state.rs`, `telemetry.rs` (tracing + log file)
+- [ ] **Spike IPC:** Ghim `tauri-specta = "=2.0.0-rc.27"` + `Channel<RunEvent>` (tagged enum) → sinh `bindings.ts`
 - [ ] Chốt message envelope v1 (mục 5.5) và các ADR 001–007
 - [ ] FE: `shared/lib/ipc`, TanStack Query, `ssr: false`
 
