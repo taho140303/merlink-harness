@@ -41,12 +41,12 @@ export function PreDraftSuggestionDialog({
           </DialogDescription>
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <Button type="button" variant="primary" onClick={handleCancel}>
-            {t('common.cancel')}
-          </Button>
+        <div className="mt-6 flex items-center justify-end gap-3">
           <Button type="button" variant="secondary" onClick={handleConfirm}>
             {t('common.confirm')}
+          </Button>
+          <Button type="button" variant="primary" onClick={handleCancel}>
+            {t('common.cancel')}
           </Button>
         </div>
       </DialogContent>
