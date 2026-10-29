@@ -226,19 +226,31 @@ html.dark .tier-overlay {
   from { opacity: 1; }
   to { opacity: 0; }
 }
-.dialog-overlay[data-state='open'] { animation: overlay-in 0.2s ease-out; }
-.dialog-overlay[data-state='closed'] { animation: overlay-out 0.15s ease-in; }
+.dialog-overlay[data-state='open'] { animation: overlay-in 0.25s ease-out forwards; }
+.dialog-overlay[data-state='closed'] { animation: overlay-out 0.2s ease-in forwards; }
 
 @keyframes dialog-in {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 48px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
 }
 @keyframes dialog-out {
-  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 48px));
+  }
 }
-.dialog-content[data-state='open'] { animation: dialog-in 0.2s ease-out; }
-.dialog-content[data-state='closed'] { animation: dialog-out 0.15s ease-in; }
+.dialog-content[data-state='open'] { animation: dialog-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.dialog-content[data-state='closed'] { animation: dialog-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards; }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
