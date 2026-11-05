@@ -2,6 +2,8 @@ export type SortOption = "a-z" | "z-a" | "modified";
 
 export interface ChapterBlock {
   id: string;
+  /** Stable scene identity supplied by the read model. Preview data derives one from the chapter and block id. */
+  sceneId?: string;
   text: string;
   locked: boolean;
 }

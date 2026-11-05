@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Sparkles, MessageSquare, GripVertical } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { truncate } from "@/shared/utils/string";
 import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
 import { useIsCompact } from "@/shared/hooks/useMediaQuery";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/components/ui/dialog";
+import { Segmented } from "@/shared/components/ui/segmented";
 import { useT } from "@/shared/i18n/useT";
 import { ProjectChatPane } from "./ProjectChatPane";
+import { ProjectCreatorPanel } from "./ProjectCreatorPanel";
 import type { ProjectItem, ArcItem } from "./types";
 
 interface ProjectDetailViewProps {
@@ -18,9 +20,18 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const t = useT();
   const isCompact = useIsCompact();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = searchParams.get("mode") === "creator" ? "creator" : "view";
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [expandedArcs, setExpandedArcs] = useState<Record<string, boolean>>({});
+
+  const handleModeChange = (nextMode: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextMode === "creator") next.set("mode", "creator");
+    else next.delete("mode");
+    setSearchParams(next);
+  };
 
   const { leftRatio, setLeftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
     initialRatio: 45,
@@ -102,23 +113,36 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors",
-              isChatOpen
-                ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                : "border-line bg-surface-card text-fg-muted hover:bg-surface-muted    "
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            <span>{t("project.chat.label")}</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Segmented
+              items={[
+                { id: "view", label: t("project.mode.view") },
+                { id: "creator", label: t("project.mode.creator") },
+              ]}
+              value={mode}
+              onChange={handleModeChange}
+              ariaLabel={t("project.mode.aria")}
+            />
+
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors",
+                isChatOpen
+                  ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                  : "border-line bg-surface-card text-fg-muted hover:bg-surface-muted    "
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>{t("project.chat.label")}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="mt-6 space-y-6">
-          {/* Overview Card */}
+        {mode === "view" ? (
+          <div className="mt-6 space-y-6">
+            {/* Overview Card */}
           <div className="flex flex-col gap-5 sm:flex-row tier-card rounded-card p-5">
             <div className="w-28 aspect-[3/5] shrink-0 overflow-hidden rounded-xl border border-line bg-surface-muted  ">
               <img src={project.cover} alt={project.title} className="h-full w-full object-cover" />
@@ -245,7 +269,10 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               );
             })}
           </div>
-        </div>
+          </div>
+        ) : (
+          <ProjectCreatorPanel project={project} />
+        )}
 
         {/* Dialog Assets */}
         <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>

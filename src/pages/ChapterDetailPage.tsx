@@ -1,11 +1,13 @@
-import { useParams, Link } from "react-router";
+import { useParams, Link, useSearchParams } from "react-router";
 import { ChapterDetailView, MOCK_PROJECTS } from "@/features/projects";
 import { useT } from "@/shared/i18n/useT";
 
 export default function ChapterDetailPage() {
   const { projectId, chapterId } = useParams();
+  const [searchParams] = useSearchParams();
   const t = useT();
   const project = MOCK_PROJECTS.find((p) => p.id === projectId);
+  const creatorEntry = searchParams.get("mode") === "creator";
 
   let targetChapter = null;
   let chapterIndex = 1;
@@ -38,9 +40,11 @@ export default function ChapterDetailPage() {
 
   return (
     <ChapterDetailView
+      key={targetChapter.id}
       project={project}
       chapter={targetChapter}
       chapterIndex={chapterIndex}
+      creatorEntry={creatorEntry}
     />
   );
 }
