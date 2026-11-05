@@ -22,6 +22,7 @@ export type Gender = (typeof GENDER_OPTIONS)[number];
 
 export interface CharacterBasicInfo {
   name: string;
+  nickname?: string | null;
   species: string;
   biologicalSex: Gender;
   genderIdentity: Gender;

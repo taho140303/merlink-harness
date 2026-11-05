@@ -1,4 +1,4 @@
-import { Sliders, Cpu, Trash2 } from "lucide-react";
+import { Sliders, Cpu, Workflow, Trash2 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { useT } from "@/shared/i18n/useT";
 import type { SettingsTabId } from "./types";
@@ -13,12 +13,13 @@ export function SettingsSidebar({ activeTab, onSelectTab }: SettingsSidebarProps
   const tabs = [
     { id: "general" as SettingsTabId, label: t("settings.general"), icon: Sliders },
     { id: "ai-providers" as SettingsTabId, label: t("settings.aiProviders"), icon: Cpu },
+    { id: "subagent-orchestration" as SettingsTabId, label: t("settings.subagent"), icon: Workflow },
     { id: "recycle-bin" as SettingsTabId, label: t("settings.recycleBin"), icon: Trash2 },
   ];
 
   return (
-    <aside className="w-52 shrink-0 border-r border-line bg-surface-muted/70 p-3">
-      <div className="mb-4 px-2 pt-2">
+    <aside className="w-full shrink-0 border-b border-line bg-surface-muted/70 p-3 md:w-52 md:border-b-0 md:border-r">
+      <div className="mb-2 px-2 pt-1 md:mb-4 md:pt-2">
         <h2 className="text-base font-semibold text-fg">
           {t("settings.title")}
         </h2>
@@ -27,7 +28,7 @@ export function SettingsSidebar({ activeTab, onSelectTab }: SettingsSidebarProps
         </p>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="grid grid-cols-2 gap-1 md:block md:space-y-1">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}

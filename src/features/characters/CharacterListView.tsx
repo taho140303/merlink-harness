@@ -38,10 +38,11 @@ export function CharacterListView() {
   const filteredCharacters = useMemo(() => {
     return characters.filter((c) => {
       const name = c.basicInfo.name.toLowerCase();
+      const nickname = (c.basicInfo.nickname ?? "").toLowerCase();
       const species = c.basicInfo.species.toLowerCase();
       const term = searchTerm.toLowerCase();
 
-      const matchSearch = name.includes(term) || species.includes(term);
+      const matchSearch = name.includes(term) || nickname.includes(term) || species.includes(term);
       const matchSex = filterSex === "ALL" || c.basicInfo.biologicalSex === filterSex;
       const matchProject =
         filterProject === "ALL" ||

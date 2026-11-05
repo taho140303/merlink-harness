@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "darkMode": false,
+  "version": "3.0.0",
+  "darkMode": true,
   "gridEnabling": false,
   "currentViewName": null,
   "defaultView": {
@@ -10,20 +10,20 @@
       {
         "name": "motifs",
         "schemaName": "public",
-        "x": 2.339599609375,
-        "y": -33.47099713883455
+        "x": 1.728759765625,
+        "y": 0.9031571542153642
       },
       {
         "name": "genres",
         "schemaName": "public",
-        "x": 2.339599609375,
-        "y": 451.9354655131653
+        "x": 30.654296875,
+        "y": 623.5661506577702
       },
       {
         "name": "motif_applicable_genres",
         "schemaName": "public",
-        "x": 2.339599609375,
-        "y": 307.883900666387
+        "x": 6.856228859399607,
+        "y": 400.47413870492386
       },
       {
         "name": "event_blocks",
@@ -35,7 +35,7 @@
         "name": "event_transitions",
         "schemaName": "public",
         "x": 342.1254615488195,
-        "y": -388.42603297230147
+        "y": -377.07764697768937
       },
       {
         "name": "states",
@@ -100,8 +100,8 @@
       {
         "name": "character_motifs",
         "schemaName": "public",
-        "x": -342.85428269569866,
-        "y": 86.48826340420572
+        "x": -368.90732832237563,
+        "y": -94.56973988447035
       },
       {
         "name": "symbolics",
@@ -112,8 +112,8 @@
       {
         "name": "motif_constraints",
         "schemaName": "public",
-        "x": 0.37744140625,
-        "y": -229.52197244285685
+        "x": 1.728759765625,
+        "y": -241.47105448532858
       },
       {
         "name": "symbolic_motifs",
@@ -124,8 +124,8 @@
       {
         "name": "style_presets",
         "schemaName": "public",
-        "x": -1103.1407425007776,
-        "y": 939.6312800226342
+        "x": -1096.4458144152297,
+        "y": 966.410992364826
       },
       {
         "name": "style_preset_vocab_items",
@@ -160,14 +160,14 @@
       {
         "name": "narrative_directives",
         "schemaName": "public",
-        "x": -678.2852527828229,
-        "y": 1041.5919843779086
+        "x": -707.3392761708785,
+        "y": 1210.3820250132794
       },
       {
         "name": "style_preset_narratives",
         "schemaName": "public",
-        "x": -678.2852527828229,
-        "y": 842.8194136223133
+        "x": -707.3392761708785,
+        "y": 1011.6094542576845
       },
       {
         "name": "chapters",
@@ -190,8 +190,8 @@
       {
         "name": "project_genres",
         "schemaName": "public",
-        "x": 2.837890625,
-        "y": 642.2699265510272
+        "x": 41.493408203125,
+        "y": 911.0074467116584
       },
       {
         "name": "scene_characters",
@@ -244,8 +244,8 @@
       {
         "name": "competence_domains",
         "schemaName": "public",
-        "x": -2610.8020036653834,
-        "y": -242.21190062266015
+        "x": -2587.4868181185084,
+        "y": -260.9792939612498
       },
       {
         "name": "character_competences",
@@ -334,8 +334,56 @@
       {
         "name": "scene_lore_entries",
         "schemaName": "public",
+        "x": -1874.984455372131,
+        "y": 1323.5536773991798
+      },
+      {
+        "name": "project_characters",
+        "schemaName": "public",
+        "x": -708.4649673372023,
+        "y": -61.713097170429535
+      },
+      {
+        "name": "prompt_blocks",
+        "schemaName": "public",
+        "x": 949.073941739372,
+        "y": 18.768216990480525
+      },
+      {
+        "name": "tools",
+        "schemaName": "public",
+        "x": 951.952189806197,
+        "y": 264.9035429034179
+      },
+      {
+        "name": "prompt_block_tools",
+        "schemaName": "public",
+        "x": 651.2284927834298,
+        "y": 165.94092831361226
+      },
+      {
+        "name": "character_psychological",
+        "schemaName": "public",
+        "x": -1492.0214946850729,
+        "y": -1214.1200384353385
+      },
+      {
+        "name": "draft_sessions",
+        "schemaName": "public",
         "x": -2612.7751481966334,
-        "y": 2092.197621386796
+        "y": 2156.197621386796
+      },
+      {
+        "name": "draft_versions",
+        "schemaName": "public",
+        "x": -2303.6691911653834,
+        "y": 2156.197621386796
+      },
+      {
+        "name": "pending_patches",
+        "schemaName": "public",
+        "x": -1990.6784685091334,
+        "y": 2156.197621386796
       }
     ],
     "tableGroupCollapseStates": [],
@@ -5077,6 +5125,486 @@
           "project_id"
         ],
         "secondTableName": "world_settings",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "projects",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "project_id"
+        ],
+        "secondTableName": "project_characters",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "project_characters",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_profiles",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "prompt_blocks",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "prompt_block_id"
+        ],
+        "secondTableName": "prompt_block_tools",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "tools",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "tool_id"
+        ],
+        "secondTableName": "prompt_block_tools",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_profile",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_profil",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_profi",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_prof",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_pro",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_pr",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_p",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_S",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_Sy",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_ps",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psy",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psyc",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psych",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psycho",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psychol",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psycholo",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psycholog",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psychologi",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psychologic",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psychologica",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "characters",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "character_id"
+        ],
+        "secondTableName": "character_psychological",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "projects",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "project_id"
+        ],
+        "secondTableName": "draft_sessions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "draft_sessions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "draft_session_id"
+        ],
+        "secondTableName": "draft_versions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "messages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "chat_message_id"
+        ],
+        "secondTableName": "draft_versions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "draft_sessions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "draft_session_id"
+        ],
+        "secondTableName": "pending_patches",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "sessions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "session_id"
+        ],
+        "secondTableName": "draft_sessions",
         "secondSchemaName": "public",
         "secondRelation": "*",
         "checkPoints": []

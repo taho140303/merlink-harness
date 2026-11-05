@@ -52,7 +52,14 @@ export function CoreIdentityTab() {
           <EditableField
             label={t('detail.core.name')}
             value={character.basicInfo.name}
+            displayValue={character.basicInfo.name?.trim() || t('common.unknown')}
             onChange={(v) => updateBasicInfo({ name: v })}
+          />
+          <EditableField
+            label={t('detail.core.nickname')}
+            value={character.basicInfo.nickname ?? ''}
+            displayValue={character.basicInfo.nickname?.trim() || t('common.unknown')}
+            onChange={(v) => updateBasicInfo({ nickname: v || null })}
           />
           <EditableField
             label={t('detail.core.species')}
@@ -77,7 +84,6 @@ export function CoreIdentityTab() {
             value={character.basicInfo.genderExpression}
             options={GENDER_OPTIONS}
             onChange={isEditing ? (v) => updateBasicInfo({ genderExpression: v as Gender }) : undefined}
-            className="sm:col-span-2 sm:max-w-xs"
           />
         </div>
       </Section>

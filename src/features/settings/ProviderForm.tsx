@@ -8,6 +8,18 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Switch } from "@/shared/components/ui/switch";
 import { useT } from "@/shared/i18n/useT";
 import type { AIProviderItem, ModelConfig } from "./types";
+import { ChooseModelsDialog } from "./ChooseModelsDialog";
+
+const DEFAULT_MODELS: ModelConfig[] = [
+  {
+    id: "gpt-6-luna",
+    name: "gpt-6-luna",
+    contextWindow: "272K",
+    maxOutputTokens: "32K",
+    inputTypes: { text: true, image: false },
+    reasoning: false,
+  },
+];
 
 interface ProviderFormProps {
   initialData?: AIProviderItem | null;
@@ -17,6 +29,7 @@ interface ProviderFormProps {
 
 export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProps) {
   const t = useT();
+  const isEditing = Boolean(initialData);
   const [providerMode, setProviderMode] = useState<"third-party" | "custom">(
     initialData?.isCustom ? "custom" : "third-party"
   );
@@ -31,17 +44,32 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
 
   // Models catalog
   const [models, setModels] = useState<ModelConfig[]>(
-    initialData?.models || [
-      {
-        id: "gpt-6-luna",
-        name: "gpt-6-luna",
-        contextWindow: "272K",
-        maxOutputTokens: "32K",
-        inputTypes: { text: true, image: false },
-        reasoning: false,
-      },
-    ]
+    initialData?.models || DEFAULT_MODELS
   );
+
+  // Fetch models dialog state
+  const [fetchDialogOpen, setFetchDialogOpen] = useState(false);
+
+  const handleAddSelectedModels = (selectedModelIds: string[]) => {
+    setModels((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const additions: ModelConfig[] = selectedModelIds
+        .filter((id) => !existingIds.has(id))
+        .map((id) => ({
+          id,
+          name: id,
+          contextWindow: "200K",
+          maxOutputTokens: "32K",
+          inputTypes: { text: true, image: true },
+          reasoning: id.includes("thinking") || id.includes("opus"),
+        }));
+      return [...prev, ...additions];
+    });
+  };
+
+  const restoreDefaultModels = () => {
+    setModels(DEFAULT_MODELS);
+  };
 
   const addModel = () => {
     setModels([
@@ -78,33 +106,41 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 text-fg ">
-      {/* Tab Switcher: Third-party vs Custom */}
-      <div className="inline-flex rounded-xl bg-surface-muted p-1 ">
-        <button
-          type="button"
-          onClick={() => setProviderMode("third-party")}
-          className={cn(
-            "focus-ring rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
-            providerMode === "third-party"
-              ? "bg-surface-card text-fg"
-              : "text-fg-muted hover:text-fg"
-          )}
+      {/* Provider mode (only visible when adding a new provider) */}
+      {!isEditing && (
+        <div
+          role="group"
+          aria-label={t("settings.provider.modeLabel")}
+          className="flex w-full flex-col rounded-xl bg-surface-muted p-1 sm:inline-flex sm:w-auto sm:flex-row"
         >
-          {t("settings.provider.thirdParty")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setProviderMode("custom")}
-          className={cn(
-            "focus-ring rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
-            providerMode === "custom"
-              ? "bg-surface-card text-fg"
-              : "text-fg-muted hover:text-fg"
-          )}
-        >
-          {t("settings.provider.customApi")}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setProviderMode("third-party")}
+            aria-pressed={providerMode === "third-party"}
+            className={cn(
+              "focus-ring rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
+              providerMode === "third-party"
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg"
+            )}
+          >
+            {t("settings.provider.thirdParty")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setProviderMode("custom")}
+            aria-pressed={providerMode === "custom"}
+            className={cn(
+              "focus-ring rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
+              providerMode === "custom"
+                ? "bg-surface-card text-fg"
+                : "text-fg-muted hover:text-fg"
+            )}
+          >
+            {t("settings.provider.customApi")}
+          </button>
+        </div>
+      )}
 
       <p className="text-xs text-fg-muted">
         {t("settings.provider.description")}
@@ -222,11 +258,19 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
                   <p className="text-xs text-fg-muted">{t("settings.provider.modelCatalog")}</p>
                 </div>
                 <div className="flex gap-2 text-xs">
-                  <button type="button" className="text-fg-muted hover:text-fg ">
+                  <button
+                    type="button"
+                    onClick={restoreDefaultModels}
+                    className="focus-ring rounded text-fg-muted hover:text-fg"
+                  >
                     {t("settings.provider.restoreDefaults")}
                   </button>
-                  <span className="text-fg-subtle ">•</span>
-                  <button type="button" className="text-fg-muted hover:text-fg ">
+                  <span className="text-fg-subtle">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setFetchDialogOpen(true)}
+                    className="focus-ring rounded text-fg-muted hover:text-fg"
+                  >
                     {t("settings.provider.fetchModels")}
                   </button>
                 </div>
@@ -363,6 +407,13 @@ export function ProviderForm({ initialData, onCancel, onSave }: ProviderFormProp
           {t("common.save")}
         </Button>
       </div>
+
+      {/* Fetch Available Models Dialog */}
+      <ChooseModelsDialog
+        open={fetchDialogOpen}
+        onOpenChange={setFetchDialogOpen}
+        onAddModels={handleAddSelectedModels}
+      />
     </form>
   );
 }

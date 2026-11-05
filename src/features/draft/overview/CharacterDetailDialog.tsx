@@ -51,6 +51,9 @@ export function CharacterDetailDialog({
               <DialogTitle className="text-xl font-bold text-fg">
                 {character.name}
               </DialogTitle>
+              <p className="text-xs font-medium text-fg-subtle mt-0.5">
+                {t('character.nickname')}: {character.nickname?.trim() || t('common.unknown')}
+              </p>
               <DialogDescription className="text-sm text-fg-muted mt-0.5">
                 {character.motif.description}
               </DialogDescription>
@@ -92,7 +95,8 @@ export function CharacterDetailDialog({
           {activeTab === 'appearance' && (
             character.appearance ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <Field label={t('draft.char.nickname')} value={character.nickname?.trim() || t('common.unknown')} />
                   <Field label={t('draft.char.species')} value={character.appearance.species} />
                   <Field label={t('draft.char.birth')} value={character.appearance.birth} />
                   <Field label={t('draft.char.height')} value={`${character.appearance.heightCm} cm`} />

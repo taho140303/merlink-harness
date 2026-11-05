@@ -402,7 +402,7 @@ Table projects {
 
 Table sessions {
     id varchar [pk, note: 'Mã session (sessionId) — do runtime sinh, không phải UUID']
-    project_id uuid [ref: > projects.id, note: 'Mã project mà session này liên kết vào']
+    project_id uuid [ref: > projects.id, note: 'Mã project mà session này liên kết vào; được gán khi draft của session commit']
     display_name text [note: 'Tiêu đề tóm tắt của phiên chat']
     created_at timestamp [note: 'Thời gian tạo session']
 
@@ -410,12 +410,13 @@ Table sessions {
         project_id
         created_at
     }
-    Note: 'Phiên làm việc / Chat sessions'
+    Note: 'Phiên làm việc / Chat sessions; project_id được gán khi draft của session commit'
 }
 
 Table messages {
-    id varchar [pk, note: 'Mã tin nhắn — do runtime sinh, không phải UUID']
+    id uuid [pk, note: 'UUIDv7 — mã tin nhắn do runtime sinh']
     session_id varchar [ref: > sessions.id, note: 'Thuộc session nào']
+    turn_id uuid [note: 'UUIDv7; gom message và tool call cùng một lượt AI']
     role varchar [note: 'Vai trò (user, assistant, tool,...)']
     content text [note: 'Nội dung văn bản hiển thị']
     payload_json text [note: 'Chuỗi JSON lưu chi tiết đầy đủ của message envelope (dữ liệu gọi tool, kết quả trả về của tool, token usage, v.v.)']
@@ -423,9 +424,10 @@ Table messages {
 
     indexes {
         session_id [name: 'idx_messages_session']
+        turn_id
         created_at
     }
-    Note: 'Lịch sử tin nhắn & Tool calls'
+    Note: 'Lịch sử tin nhắn & Tool calls; turn_id gom message và tool call cùng một lượt AI'
 }
 
 Table project_genres {
@@ -490,7 +492,7 @@ Table chapters {
     code varchar [unique, note: 'Slug ngữ nghĩa — KHÔNG hiển thị trên UI']
     display_name text
     arc_id uuid [ref: > arcs.id]
-    position int
+    position int [note: 'Thứ tự chương toàn truyện trong project; không đánh số lại theo Arc']
     summary text
     
     created_at timestamp
@@ -499,8 +501,11 @@ Table chapters {
 
     indexes {
         (arc_id, position)
+        position [name: 'idx_chapters_story_order']
         deleted_at
     }
+
+    Note: 'position là thứ tự duy nhất trong phạm vi project; project_id suy ra qua arcs.project_id và tính duy nhất được validate ở backend.'
 }
 
 enum SceneSource {
@@ -545,7 +550,7 @@ Table scenes {
     code varchar [unique, note: 'Slug ngữ nghĩa — KHÔNG hiển thị trên UI']
     display_name text
     chapter_id uuid [ref: > chapters.id]
-    world_setting_id uuid [ref: > world_settings.id, note: 'Địa điểm chính của scene']
+    world_setting_id uuid [ref: > world_settings.id, not null, note: 'Địa điểm chính của scene; bắt buộc trước commit']
     style_preset_id uuid [ref: > style_presets.id]
     narrator_config_id uuid [ref: > narrator_configs.id]
     summary text
@@ -639,7 +644,8 @@ enum MeasurementUnit {
 Table characters {
     id uuid [pk, note: 'UUIDv7']
     code varchar [unique]
-    display_name text
+    display_name text [note: 'Không được đồng thời null với nickname']
+    nickname text [note: 'Tên gọi ngắn / biệt danh; không được đồng thời null với display_name']
     birth timestamp
     species varchar
     biological_sex gender [note: 'Giới tính sinh học']
@@ -649,9 +655,12 @@ Table characters {
 
     indexes {
         display_name
+        nickname
         species
         deleted_at
     }
+
+    Note: 'Ràng buộc nghiệp vụ: CHECK (display_name IS NOT NULL OR nickname IS NOT NULL) — có thể null 1 trong 2 hoặc có cả 2.'
 }
 
 Table project_characters {
@@ -715,6 +724,31 @@ Table character_appearances {
     skin_note text
     outfit_style text
     default_summary text
+}
+
+// Hồ sơ tâm lý typed theo các trường của UI Character Psychological tab.
+// character_id là PK/FK để bảo đảm quan hệ 1-1 với characters.
+Table character_psychological {
+    character_id uuid [pk, ref: - characters.id, note: 'PK/FK 1-1 với nhân vật']
+
+    the_wound text
+    the_lie text
+    fundamental_fear text
+
+    moral_alignment text
+    moral_code text
+    cognitive_bias text
+    breaking_point text
+
+    external_want text
+    internal_need text
+    internal_conflict text
+
+    persona_type text
+    verbal_style text
+    primary_reaction text
+    stress_trigger text
+    coping_strategy text
 }
 
 Table character_distinguishing_marks {
@@ -1115,4 +1149,155 @@ Table symbolics {
         is_system
     }
 }
+
+// ==========================================
+// USECASE.BUSINESS.PROMPTS
+// Mỗi prompt block cấp 0..N tool cho run này qua prompt_block_tools;
+// block không cần tool thì registry không build schema.
+// ==========================================
+
+enum PromptBlockFormat {
+    JSON     [note: 'Nội dung là JSON có cấu trúc']
+    MARKDOWN [note: 'Nội dung là Markdown']
+}
+
+Table prompt_blocks {
+    id uuid [pk, note: 'UUIDv7']
+    prompt_code varchar [unique, not null, note: 'Định danh nạp: introduction, invariant_rule, exception_handling, tool_library... — KHÔNG hiển thị trên UI']
+    display_name text [note: 'Tiêu đề heading dùng khi compose prompt']
+    // CHECK (heading_level BETWEEN 1 AND 6) — DBML không có cú pháp CHECK; ghi rõ ở migration SQL
+    heading_level int [not null, note: '1 = H1 ... 6 = H6; render từ block']
+    content_format PromptBlockFormat [default: 'MARKDOWN', not null]
+    content text [not null, note: 'Nội dung block; hỗ trợ biến {{project.language}}... Không lặp lại mô tả tool — schema là nguồn duy nhất']
+
+    indexes {
+        prompt_code
+    }
+
+    Note: 'Đoạn prompt là unit compose nhỏ nhất; mỗi block quyết định cấp 0..N tool qua prompt_block_tools'
+}
+
+Table tools {
+    id uuid [pk, note: 'UUIDv7']
+    code varchar [unique, not null, note: 'Tên tool gửi lên API (function name) — KHÔNG hiển thị trên UI']
+    display_name text
+    description text [note: 'Mô tả cho model biết tool làm gì']
+    input_schema json [note: 'JSON Schema tham số']
+
+    indexes {
+        code
+    }
+
+    Note: 'Kho tool trung tâm; KHÔNG tự nạp vào context — chỉ expose qua prompt_block_tools'
+}
+
+Table prompt_block_tools {
+    id uuid [pk, note: 'UUIDv7']
+    prompt_block_id uuid [ref: > prompt_blocks.id, not null]
+    tool_id uuid [ref: > tools.id, not null]
+
+    indexes {
+        (prompt_block_id, tool_id) [unique]
+        tool_id
+    }
+
+    Note: 'Block được nạp lần này thì tool trong bảng này mới được cấp; thiếu row = block không mang tool nào'
+}
+
+// ==========================================
+// USECASE.BUSINESS.DRAFT
+// Lưu trữ phiên bản nháp (draft), lịch sử version bất biến và các patch chờ người dùng xác nhận.
+// Event log không có bảng riêng: được sinh từ draft_versions và pending_patches.
+// ==========================================
+
+enum DraftSessionStatus {
+    editing    [note: 'Đang dựng dàn ý']
+    committing [note: 'Đang commit']
+    committed  [note: 'Đã commit']
+}
+
+enum DraftVersionReason {
+    ai_patch      [note: 'AI cập nhật']
+    manual_edit   [note: 'Người sửa tay']
+    phase_confirm [note: 'Duyệt phase']
+    regenerate    [note: 'Tạo lại phase']
+    restore       [note: 'Khôi phục']
+    workflow_round [note: 'Kết thúc một vòng workflow phân đoạn có thay đổi State']
+}
+
+enum PendingPatchOperation {
+    set    [note: 'Ghi đè trường']
+    delete [note: 'Xóa phần tử']
+}
+
+enum PendingPatchStatus {
+    pending   [note: 'Chờ xác nhận']
+    confirmed [note: 'Đã xác nhận']
+    rejected  [note: 'Đã từ chối']
+    expired   [note: 'Hết hiệu lực']
+}
+
+Table draft_sessions {
+    id uuid [pk, note: 'UUIDv7']
+    session_id varchar [ref: > sessions.id, unique, not null, note: 'Chat session sở hữu draft; 1:1 trước commit']
+    project_id uuid [ref: > projects.id, note: 'Nullable khi đang dựng; được gán khi commit']
+    head_version_seq int [note: 'Số thứ tự version hiện tại']
+    status DraftSessionStatus [default: 'editing', note: 'Trạng thái phiên bản nháp: editing, committing, committed']
+    created_at timestamp
+    updated_at timestamp
+
+    indexes {
+        project_id
+        status
+    }
+
+    Note: 'Phiên dựng dàn ý (draft session); 1:1 với chat session trước commit; sau khi Start sẽ gán project_id và chuyển qua committing rồi committed'
+}
+
+Table draft_versions {
+    id uuid [pk, note: 'UUIDv7']
+    draft_session_id uuid [ref: > draft_sessions.id, not null]
+    seq int [not null, note: 'Số thứ tự version, hiển thị dạng v.03']
+    phase int [note: 'Phase tại thời điểm tạo version']
+    subphase int [null, note: 'Chỉ 1, 2, 3 khi phase = 5; null ở phase khác']
+    data_json json [not null, note: 'Snapshot toàn bộ businessFlowData kèm source từng trường']
+    data_hash varchar [not null, note: 'Hash dùng để loại version trùng']
+    reason DraftVersionReason [not null, note: 'Lý do tạo version']
+    parent_seq int [note: 'Nullable; version trước đó hoặc bản được khôi phục']
+    turn_id uuid [note: 'Nullable; lượt AI tạo version, gom message và tool call cùng lượt']
+    chat_message_id uuid [ref: > messages.id, note: 'Nullable; tin nhắn user khởi phát lượt AI; null với version do UI hoặc workflow tạo']
+    created_at timestamp
+
+    indexes {
+        (draft_session_id, seq) [unique]
+        draft_session_id
+        turn_id
+        chat_message_id
+    }
+
+    Note: 'Snapshot bất biến của bản nháp; phase/subphase xác định bước restore; CHECK ((phase = 5 AND subphase IN (1, 2, 3)) OR (phase <> 5 AND subphase IS NULL)); cùng pending_patches dùng để sinh event log'
+}
+
+Table pending_patches {
+    id uuid [pk, note: 'UUIDv7']
+    draft_session_id uuid [ref: > draft_sessions.id, not null]
+    base_version_seq int [note: 'Version làm cơ sở khi patch được tạo']
+    target_type varchar [not null, note: 'Loại thực thể đích, bắt buộc']
+    target_code varchar [not null, note: 'code ổn định của phần tử đích trong JSON nháp, bắt buộc']
+    field_name varchar [note: 'Nullable khi thao tác delete']
+    operation PendingPatchOperation [not null, note: 'Thao tác set hoặc delete']
+    previous_value json [note: 'Nullable; giá trị trước khi thay đổi']
+    new_value json [note: 'Nullable; giá trị đề xuất mới']
+    target_source varchar [note: 'Nguồn hiện có của chính phần tử đích; CHECK (target_source IN (\'user\', \'user_edited\', \'ai_generated\'))']
+    status PendingPatchStatus [default: 'pending', note: 'Trạng thái xử lý patch']
+    created_at timestamp
+    resolved_at timestamp [note: 'Nullable; thời điểm xác nhận/từ chối/hết hạn']
+
+    indexes {
+        (draft_session_id, status)
+    }
+
+    Note: 'Patch chờ xác nhận khi ghi đè/xóa đích được bảo vệ hoặc xóa cha ai_generated có hậu duệ được bảo vệ; CHECK (target_source IN (\'user\', \'user_edited\', \'ai_generated\')); tối đa một patch status = pending cho mỗi (draft_session_id, target_code, field_name), cưỡng chế ở handler; patch mới cùng đích và field_name với new_value khác làm patch cũ chuyển expired; chống trùng theo từng trường (target_code, field_name, new_value) thì trả patch_id cũ; không thêm ràng buộc unique'
+}
+
 

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'default' | 'danger';
+  cancelEmphasized?: boolean;
   onConfirm: () => void;
 }
 
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'default',
+  cancelEmphasized = false,
   onConfirm,
 }: ConfirmDialogProps) {
   return (
@@ -30,19 +32,39 @@ export function ConfirmDialog({
           <DialogDescription className="mt-1 text-xs">{description}</DialogDescription>
         </div>
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={variant === 'danger' ? 'danger' : 'primary'}
-            size="sm"
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
-          >
-            {confirmLabel}
-          </Button>
+          {cancelEmphasized ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onConfirm();
+                  onOpenChange(false);
+                }}
+              >
+                {confirmLabel}
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => onOpenChange(false)}>
+                {cancelLabel}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                {cancelLabel}
+              </Button>
+              <Button
+                variant={variant === 'danger' ? 'danger' : 'primary'}
+                size="sm"
+                onClick={() => {
+                  onConfirm();
+                  onOpenChange(false);
+                }}
+              >
+                {confirmLabel}
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

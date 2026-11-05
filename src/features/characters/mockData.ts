@@ -7,6 +7,7 @@ export const rimuruProfile: CharacterProfile = {
   projectName: 'Echoes of the Void',
   basicInfo: {
     name: 'Rimuru Tempest',
+    nickname: 'Rimuru',
     species: 'Ultimate Slime (True Dragon-tier)',
     biologicalSex: 'NONE',
     genderIdentity: 'NONE',
@@ -196,6 +197,7 @@ export const kaelenProfile: CharacterProfile = {
   projectName: 'Chronicles of Aethelgard',
   basicInfo: {
     name: 'Kaelen Vance',
+    nickname: 'Kael',
     species: 'High Human (Aether-touched)',
     biologicalSex: 'MALE',
     genderIdentity: 'MALE',
@@ -278,6 +280,7 @@ export const lyraProfile: CharacterProfile = {
   projectName: 'Chronicles of Aethelgard',
   basicInfo: {
     name: 'Lyra Dawnseeker',
+    nickname: null,
     species: 'Human (Solar Blessed)',
     biologicalSex: 'FEMALE',
     genderIdentity: 'FEMALE',
@@ -344,6 +347,7 @@ export const vaelinProfile: CharacterProfile = {
   projectName: 'The Sunken Leyline',
   basicInfo: {
     name: 'Vaelin Grey',
+    nickname: 'Bóng Đêm',
     species: 'Shadeborn',
     biologicalSex: 'MALE',
     genderIdentity: 'NONE',
@@ -394,6 +398,7 @@ export const phuThanhCoProfile: CharacterProfile = {
   projectName: 'Tế nữ ngưu nhân',
   basicInfo: {
     name: 'Phù Thanh Cơ',
+    nickname: 'A Cơ',
     species: 'Ngưu Nhân (Humanoid)',
     biologicalSex: 'FEMALE',
     genderIdentity: 'FEMALE',
@@ -490,6 +495,7 @@ export const hacMinhProfile: CharacterProfile = {
   projectName: 'Tế nữ ngưu nhân',
   basicInfo: {
     name: 'Hạc Minh',
+    nickname: 'A Minh',
     species: 'Ngưu Nhân (Humanoid)',
     biologicalSex: 'MALE',
     genderIdentity: 'MALE',
@@ -523,6 +529,7 @@ export const haNamVuongProfile: CharacterProfile = {
   projectName: 'Tế nữ ngưu nhân',
   basicInfo: {
     name: 'Hạ Nam Vương',
+    nickname: null,
     species: 'Nhân Tộc (Vương Quyền)',
     biologicalSex: 'MALE',
     genderIdentity: 'MALE',

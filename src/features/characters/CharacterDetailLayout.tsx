@@ -157,9 +157,12 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
             {/* 1.1: Hiển thị tên nhân vật đang xem thay vì fix cứng */}
             <span
               className="truncate text-fg-muted font-medium"
-              title={character.basicInfo.name}
+              title={`${character.basicInfo.name} (${t('character.nickname')}: ${character.basicInfo.nickname?.trim() || t('common.unknown')})`}
             >
-              {truncate(character.basicInfo.name, 18)}
+              {truncate(character.basicInfo.name, 18)}{' '}
+              <span className="text-fg-subtle font-normal">
+                ({character.basicInfo.nickname?.trim() || t('common.unknown')})
+              </span>
             </span>
             <span>›</span>
             <span className="truncate font-bold text-fg">

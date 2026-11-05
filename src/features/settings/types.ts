@@ -1,4 +1,4 @@
-export type SettingsTabId = "general" | "ai-providers" | "recycle-bin";
+export type SettingsTabId = "general" | "ai-providers" | "subagent-orchestration" | "recycle-bin";
 
 export interface ModelConfig {
   id: string;

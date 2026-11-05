@@ -36,7 +36,9 @@ export function CharacterCard({ character, onView, canViewDetail = true, isFeedb
           </div>
           <div>
             <h4 className="text-sm font-bold text-fg">{character.name}</h4>
-            <p className="text-xs text-fg-muted">{character.gender}</p>
+            <p className="text-xs text-fg-muted">
+              {t('character.nickname')}: {character.nickname?.trim() || t('common.unknown')}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">

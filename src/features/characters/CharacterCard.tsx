@@ -10,7 +10,8 @@ interface CharacterCardProps {
 export function CharacterCard({ character }: CharacterCardProps) {
   const t = useT();
 
-  const name = character.basicInfo.name;
+  const name = character.basicInfo.name?.trim() || character.basicInfo.nickname?.trim() || t("common.unknown");
+  const nickname = character.basicInfo.nickname?.trim() || t("common.unknown");
   const species = character.basicInfo.species;
   const biologicalSex = character.basicInfo.biologicalSex;
   const genderIdentity = character.basicInfo.genderIdentity;
@@ -33,6 +34,9 @@ export function CharacterCard({ character }: CharacterCardProps) {
               {name}
             </h3>
             <p className="truncate text-xs text-fg-muted">
+              {t("character.nickname")}: {nickname}
+            </p>
+            <p className="truncate text-xs text-fg-subtle">
               {species}
             </p>
           </div>

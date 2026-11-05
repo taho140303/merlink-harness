@@ -91,8 +91,10 @@ export function generateRequireMarkdown(
       for (const char of characters) {
         const sex = char.biological_sex;
         const sexLabel = GENDER_LABEL_MAP.vi[sex] || sex;
+        const charName = char.display_name?.trim() || char.nickname?.trim() || 'Không xác định';
+        const nicknameLabel = char.nickname?.trim() || 'Không xác định';
         contentLines.push(
-          `- Nhân vật ${formatVal(char.display_name)}: Giới tính ${formatVal(sexLabel)}, Motif khởi điểm ${formatVal(char.motif_code)}`,
+          `- Nhân vật ${formatVal(charName)} (Biệt danh: ${formatVal(nicknameLabel)}): Giới tính ${formatVal(sexLabel)}, Motif khởi điểm ${formatVal(char.motif_code)}`,
         );
       }
     } else {
@@ -137,8 +139,10 @@ export function generateRequireMarkdown(
     for (const char of characters) {
       const sex = char.biological_sex;
       const sexLabel = GENDER_LABEL_MAP.en[sex] || sex;
+      const charName = char.display_name?.trim() || char.nickname?.trim() || 'Unknown';
+      const nicknameLabel = char.nickname?.trim() || 'Unknown';
       contentLines.push(
-        `- Character ${formatVal(char.display_name)}: Biological sex ${formatVal(sexLabel)}, Initial motif ${formatVal(char.motif_code)}`,
+        `- Character ${formatVal(charName)} (Nickname: ${formatVal(nicknameLabel)}): Biological sex ${formatVal(sexLabel)}, Initial motif ${formatVal(char.motif_code)}`,
       );
     }
   } else {

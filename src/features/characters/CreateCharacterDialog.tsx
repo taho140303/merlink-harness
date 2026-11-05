@@ -24,6 +24,7 @@ export function CreateCharacterDialog({
 }: CreateCharacterDialogProps) {
   const t = useT();
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [species, setSpecies] = useState("Human");
   const [biologicalSex, setBiologicalSex] = useState<Gender>("MALE");
   const [genderIdentity, setGenderIdentity] = useState<Gender>("NONE");
@@ -31,12 +32,15 @@ export function CreateCharacterDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const trimmedName = name.trim();
+    const trimmedNickname = nickname.trim();
+    if (!trimmedName && !trimmedNickname) return;
 
     const newChar: CharacterProfile = {
       id: `char-${Date.now()}`,
       basicInfo: {
-        name: name.trim(),
+        name: trimmedName || trimmedNickname,
+        nickname: trimmedNickname || null,
         species: species.trim() || "Human",
         biologicalSex,
         genderIdentity,
@@ -64,6 +68,7 @@ export function CreateCharacterDialog({
     onCreate(newChar);
     onOpenChange(false);
     setName("");
+    setNickname("");
     setSpecies("Human");
     setBiologicalSex("MALE");
     setGenderIdentity("NONE");
@@ -85,10 +90,24 @@ export function CreateCharacterDialog({
             </label>
             <input
               type="text"
-              required
+              required={!nickname.trim()}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("character.create.namePlaceholder")}
+              className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-fg-muted">
+              {t("character.create.nicknameLabel")}
+            </label>
+            <input
+              type="text"
+              required={!name.trim()}
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder={t("character.create.nicknamePlaceholder")}
               className="mt-1 w-full rounded-xl tier-input focus-ring px-3 py-2 text-xs"
             />
           </div>

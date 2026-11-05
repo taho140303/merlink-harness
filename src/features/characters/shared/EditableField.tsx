@@ -5,6 +5,7 @@ import { cn } from '@/shared/utils/cn';
 interface EditableFieldProps {
   label: string;
   value: string;
+  displayValue?: string;
   onChange?: (v: string) => void;
   multiline?: boolean;
   className?: string;
@@ -13,6 +14,7 @@ interface EditableFieldProps {
 export function EditableField({
   label,
   value,
+  displayValue,
   onChange,
   multiline,
   className,
@@ -23,7 +25,7 @@ export function EditableField({
     return (
       <FieldDisplay
         label={label}
-        value={<span className="whitespace-pre-wrap">{value}</span>}
+        value={<span className="whitespace-pre-wrap">{displayValue ?? value}</span>}
         className={className}
       />
     );

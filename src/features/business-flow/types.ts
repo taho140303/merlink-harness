@@ -28,7 +28,8 @@ export type BiologicalSex = 'NONE' | 'MALE' | 'FEMALE';
 
 export interface RequireCharacter {
   code: string;
-  display_name: string;
+  display_name?: string | null;
+  nickname?: string | null;
   biological_sex: BiologicalSex;
   motif_code: string;
 }

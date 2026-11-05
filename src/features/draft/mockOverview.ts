@@ -146,6 +146,7 @@ export const DRAFT_OVERVIEW: DraftOverview = {
     { 
       id: 'c-1', 
       name: 'Phù Thanh Cơ', 
+      nickname: 'A Cơ',
       gender: 'Nữ', 
       genderBadge: 'female', 
       motif: { description: 'strong girl' },
@@ -180,8 +181,8 @@ export const DRAFT_OVERVIEW: DraftOverview = {
         narrativeEngine: { want: 'Phục hưng bộ tộc', need: 'Học cách tin tưởng người khác', conflict: 'Sự trả thù và lòng nhân từ' }
       }
     },
-    { id: 'c-2', name: 'Hạc Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
-    { id: 'c-3', name: 'Trưởng lão Hạc', gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
+    { id: 'c-2', name: 'Hạc Minh', nickname: 'A Minh', gender: 'Nam', genderBadge: 'male', motif: { description: 'loyal knight' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
+    { id: 'c-3', name: 'Trưởng lão Hạc', nickname: null, gender: 'Nam', genderBadge: 'male', motif: { description: 'blind zealot' }, appearance: null as any, competences: [], memories: [], psychological: null as any },
   ],
   sceneConfig: {
     arcs: [

@@ -1,0 +1,202 @@
+import { useEffect, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { cn } from "@/shared/utils/cn";
+import { Input } from "@/shared/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/shared/components/ui/dialog";
+import { useT } from "@/shared/i18n/useT";
+
+export const AVAILABLE_PROVIDER_MODELS = [
+  "claude-opus-4-6",
+  "claude-opus-4-6-thinking",
+  "claude-opus-5-5",
+  "claude-opus-5-5-*",
+  "claude-opus-5-5-high",
+  "claude-opus-5-5-low",
+  "claude-opus-5-5-medium",
+  "claude-sonnet-4-6",
+  "claude-sonnet-5-5",
+  "claude-sonnet-5-5-*",
+];
+
+export interface ChooseModelsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddModels: (modelIds: string[]) => void;
+  availableModels?: readonly string[];
+  initialSelectedIds?: readonly string[];
+}
+
+export function ChooseModelsDialog({
+  open,
+  onOpenChange,
+  onAddModels,
+  availableModels = AVAILABLE_PROVIDER_MODELS,
+  initialSelectedIds = [],
+}: ChooseModelsDialogProps) {
+  const t = useT();
+  const [modelSearch, setModelSearch] = useState("");
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModelSearch("");
+      setSelectedModelIds([...initialSelectedIds]);
+    }
+  }, [open, initialSelectedIds]);
+
+  const filteredAvailableModels = availableModels.filter((modelId) =>
+    modelId.toLowerCase().includes(modelSearch.trim().toLowerCase())
+  );
+
+  const allFilteredSelected =
+    filteredAvailableModels.length > 0 &&
+    filteredAvailableModels.every((id) => selectedModelIds.includes(id));
+
+  const toggleModelSelection = (modelId: string) => {
+    setSelectedModelIds((prev) =>
+      prev.includes(modelId)
+        ? prev.filter((id) => id !== modelId)
+        : [...prev, modelId]
+    );
+  };
+
+  const handleToggleSelectAllVisible = () => {
+    if (allFilteredSelected) {
+      setSelectedModelIds((prev) =>
+        prev.filter((id) => !filteredAvailableModels.includes(id))
+      );
+    } else {
+      setSelectedModelIds((prev) => {
+        const next = new Set(prev);
+        for (const id of filteredAvailableModels) {
+          next.add(id);
+        }
+        return Array.from(next);
+      });
+    }
+  };
+
+  const handleAddSelected = () => {
+    if (selectedModelIds.length === 0) return;
+    onAddModels(selectedModelIds);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content className="dialog-content tier-overlay fixed left-1/2 top-1/2 z-50 flex w-full max-w-md flex-col gap-3.5 rounded-panel p-5 text-fg focus:outline-none">
+          {/* Block 1: Header row (Title left, Close X button right) */}
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="text-base font-semibold leading-snug tracking-tight text-fg">
+              {t("settings.provider.fetchDialog.title")}
+            </DialogTitle>
+            <DialogClose
+              aria-label={t("common.close")}
+              className="focus-ring inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </DialogClose>
+          </div>
+
+          {/* Block 2: Subtitle */}
+          <DialogDescription className="text-xs leading-relaxed text-fg-muted sm:text-sm">
+            {t("settings.provider.fetchDialog.subtitle")}
+          </DialogDescription>
+
+          {/* Block 3: Realtime search input + borderless/backgroundless Select all / Deselect all button */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1">
+              <Input
+                type="text"
+                value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                placeholder={t("settings.provider.fetchDialog.searchPlaceholder")}
+                aria-label={t("settings.provider.fetchDialog.searchPlaceholder")}
+                className="h-8 text-xs"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleSelectAllVisible}
+              disabled={filteredAvailableModels.length === 0}
+              className="focus-ring shrink-0 rounded bg-transparent px-2 py-1 text-xs font-medium text-fg transition-colors hover:text-fg-muted disabled:pointer-events-none disabled:opacity-50"
+            >
+              {allFilteredSelected
+                ? t("settings.provider.fetchDialog.deselectAll")
+                : t("settings.provider.fetchDialog.selectAll")}
+            </button>
+          </div>
+
+          {/* Block 4: Vertically scrollable container of model items (left-aligned checkbox + model-id) */}
+          <div
+            role="group"
+            aria-label={t("settings.provider.fetchDialog.title")}
+            className="max-h-64 space-y-1 overflow-y-auto pr-1"
+          >
+            {filteredAvailableModels.length === 0 ? (
+              <div className="py-8 text-center text-xs text-fg-muted">
+                {t("settings.provider.fetchDialog.empty")}
+              </div>
+            ) : (
+              filteredAvailableModels.map((modelId) => {
+                const isChecked = selectedModelIds.includes(modelId);
+                return (
+                  <label
+                    key={modelId}
+                    className={cn(
+                      "flex cursor-pointer items-center justify-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-muted/60",
+                      isChecked && "bg-surface-muted/40"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleModelSelection(modelId)}
+                      className="tier-input focus-ring h-4 w-4 shrink-0 rounded accent-accent"
+                    />
+                    <span className="truncate font-mono text-xs text-fg">
+                      {modelId}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          {/* Block 5: Footer with 2 right-aligned buttons (Cancel + Add selected) */}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("settings.provider.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={selectedModelIds.length === 0}
+              onClick={handleAddSelected}
+            >
+              {t("settings.provider.fetchDialog.addSelected")}
+            </Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
+  );
+}

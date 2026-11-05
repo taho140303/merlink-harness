@@ -105,7 +105,11 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
   'require.project.genres.code': (d) =>
     Boolean(d?.require?.project?.genres?.some((g) => isValidValue(g?.code))),
   'require.character.display_name': (d) =>
-    Boolean(d?.require?.character?.some((c) => isValidValue(c?.display_name))),
+    Boolean(
+      d?.require?.character?.some(
+        (c) => isValidValue(c?.display_name) || isValidValue(c?.nickname),
+      ),
+    ),
   'require.character.biological_sex': (d) =>
     Boolean(d?.require?.character?.some((c) => isValidValue(c?.biological_sex))),
   'require.character.motif_code': (d) =>
@@ -399,7 +403,9 @@ export function getMissingRequireFields(data: BusinessFlowData): string[] {
     missing.push('require.character');
   } else {
     data.require.character.forEach((char, idx) => {
-      if (!char?.display_name || char.display_name.trim().length === 0) {
+      const hasDisplayName = Boolean(char?.display_name && char.display_name.trim().length > 0);
+      const hasNickname = Boolean(char?.nickname && char.nickname.trim().length > 0);
+      if (!hasDisplayName && !hasNickname) {
         missing.push(`require.character[${idx}].display_name`);
       }
       if (

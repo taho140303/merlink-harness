@@ -243,6 +243,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         description={t('draft.dialog.nextDesc')}
         confirmLabel={t('draft.dialog.confirmNext')}
         cancelLabel={t('common.cancel')}
+        cancelEmphasized
         onConfirm={executeNext}
       />
 
@@ -253,6 +254,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         description={t('draft.dialog.regenerateDesc')}
         confirmLabel={t('draft.dialog.confirmRegenerate')}
         cancelLabel={t('common.cancel')}
+        cancelEmphasized
         onConfirm={executeRegenerate}
       />
 

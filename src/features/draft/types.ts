@@ -124,6 +124,7 @@ export interface CharacterPsychological {
 export interface DraftCharacter {
   id: string;
   name: string;
+  nickname?: string | null;
   gender: string;
   genderBadge: string;
   motif: {

@@ -30,24 +30,28 @@ export const SAMPLE_BUSINESS_FLOW_DATA: BusinessFlowData = {
       {
         code: 'phu-thanh-co',
         display_name: 'Phù Thanh Cơ',
+        nickname: 'A Cơ',
         biological_sex: 'FEMALE',
         motif_code: 'strong_girl',
       },
       {
         code: 'ha-nam-vuong',
         display_name: 'Hạ Nam Vương',
+        nickname: null,
         biological_sex: 'MALE',
         motif_code: 'ruler_king',
       },
       {
         code: 'hac-minh',
         display_name: 'Hạc Minh',
+        nickname: 'A Minh',
         biological_sex: 'MALE',
         motif_code: 'loyal_knight',
       },
       {
         code: 'truong-lao-hac',
         display_name: 'Trưởng lão Hạc',
+        nickname: null,
         biological_sex: 'MALE',
         motif_code: 'blind_zealot',
       },

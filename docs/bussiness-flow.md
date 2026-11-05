@@ -430,7 +430,7 @@ Nội dung của dự án dùng ngôn ngữ [require.project.language], các tr�
 }
 ```
 
-## Read 
+## Read
 
 ```json
 {
