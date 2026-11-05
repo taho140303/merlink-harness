@@ -2,7 +2,7 @@
 
 > **Tài liệu này là SSOT (Single Source of Truth) của toàn bộ quy tắc nghiệp vụ Merlink Harness. Khi `tools.md`, `overview.md`, `case_newchat.md` hoặc bất kỳ tài liệu nào khác mâu thuẫn với core về nghiệp vụ, core thắng. Schema vật lý của bảng vẫn theo `docs/db.dbml`.**
 > **Tài liệu tham chiếu chuẩn cho kiến trúc nghiệp vụ và lập kế hoạch kỹ thuật (Planning)**
-> **Phiên bản:** 2.3
+> **Phiên bản:** 2.4
 > **Phạm vi áp dụng:** Luồng Chat thu thập, Trình tính toán tiến độ (Progress Engine), Trình dựng dàn ý (Draft Building), và Mô hình dữ liệu quan hệ (Domain Database).
 > **Danh mục tool:** [harness/tools.md](harness/tools.md).
 
@@ -145,7 +145,126 @@ Merlink Harness có hai luồng độc lập; không đồng nhất workflow ph�
 
 * Planning Mode và Writing Mode có điều kiện kích hoạt, context injection, prompt block khi cần, tập tool và quy tắc versioning riêng theo loại dữ liệu.
 * Không tái sử dụng workflow Phase 3-6 để tự động viết nội dung nhiều chương.
-* Tài liệu này chỉ chốt business contract và ranh giới trách nhiệm; không thiết kế toàn bộ Writing Pipeline trong lần chỉnh sửa này.
+* Chi tiết hợp đồng thực thi Writing Mode nằm tại mục 1.6; các điểm kỹ thuật và schema còn mở nằm tại Q4. Tài liệu này không thiết kế pipeline triển khai cụ thể.
+
+### 1.6 Hợp đồng Writing Mode: chương-first, cảnh là block
+
+> **Trạng thái:** APPROVED (v2.4). Đây là business contract; chi tiết giao diện và route thuộc `fe-core.md` §9. Các chi tiết kỹ thuật chưa chốt nằm tại Q4.
+
+#### Mô hình chương và cảnh
+
+* Một chương là một dãy cảnh có thứ tự. Trong FE, mỗi block nội dung đại diện đúng một scene; block không phải paragraph và không gộp nhiều scene.
+* `scenes.content` là nội dung của một scene; `chapters` không có cột nội dung chương. Nội dung đọc được của chương là các scene thuộc chương, sắp theo `scenes.position`.
+* Đọc và ghi ở cấp chương; sửa nội dung, generate, lock và version ở cấp scene.
+* Sau commit, scene identity là `scenes.id`. Thứ tự hiển thị lấy từ `scenes.position`; array index, thứ tự block trong FE và id tạm không phải identity bền vững.
+* Không có scene page riêng, không có mô hình block paragraph, không có `chapter_versions`.
+* `sceneId` tạm trong FE preview chỉ dùng cho bản xem trước; không được ghi vào DB, không được coi là `scenes.id`.
+* **[OPEN] Read-model scene identity:** backend phải trả `scenes.id` và `position` thật cho FE trước khi bỏ dữ liệu preview. Fallback `scn-{chapter}-{block}` không phải contract persistence.
+
+#### Điều kiện mở Writing Mode
+
+* Chỉ mở sau khi plan đã commit hợp lệ.
+* Một phiên Writing Mode chỉ làm việc với một chương đã chọn.
+* Không tự chuyển chương, không generate nhiều chương trong một yêu cầu, không chạy background bulk, không gọi subagent viết song song nhiều chương.
+* Phải xác định được chương thuộc project đã commit và scene thuộc chương đang chọn.
+
+#### Vòng đời sinh nội dung cảnh
+
+```text
+Generate / Regenerate
+        ↓
+Buffer tạm của scene
+        ↓
+Review inline
+        ├── Discard → giữ nguyên nội dung đã có
+        └── Accept
+                ↓
+        Working state của chương
+                ↓
+             Dirty
+                ↓
+        Save cấp chương
+                ↓
+        Dữ liệu bền vững
+```
+
+* Generate/Regenerate tác động đúng một scene.
+* Kết quả generation đi vào buffer tạm; không ghi trực tiếp `scenes.content`.
+* Accept chỉ đưa nội dung vào working state và đánh dấu dirty; Accept không persist.
+* Discard và Cancel không thay đổi nội dung đã lưu.
+* Tối đa một generation đang hoạt động trong một chương.
+* Không tự generate scene kế tiếp, không tự chuyển chương.
+* Phải review trước khi Accept.
+* **[IMPLEMENTATION PENDING]** backend generation stream/cancel và buffer contract.
+
+#### Save cấp chương
+
+* Save là hành động cấp chương; chỉ các scene dirty được đưa vào Save.
+* Backend tương lai phải thực hiện Save nguyên tử. Một Save thành công:
+  * ghi nội dung cuối cùng đã Accept của các scene dirty;
+  * ghi thay đổi `scenes.is_locked` áp dụng cho các scene dirty;
+  * cập nhật `word_count` tương ứng;
+  * tạo các bản ghi `scene_versions` cần thiết;
+  * trả về trạng thái đã persist để FE cập nhật baseline.
+* Một Save thất bại không được báo thành công, không xóa dirty, không tuyên bố đã tạo version, giữ nội dung đang sửa nếu có thể và không để chương ở trạng thái ghi một phần.
+* Với mỗi scene có nội dung thay đổi, một Save thành công tạo đúng một bản ghi `scene_versions` mới. Nhiều lần sửa trung gian trước Save không tạo nhiều version.
+* Nếu chỉ có thay đổi lock mà nội dung không đổi, Save persist `scenes.is_locked` nhưng không tạo content version. DBML hiện không có bảng audit lock; nếu sau này cần audit lock thì ghi thành `[SCHEMA FOLLOW-UP]`, không tự thêm cột/bảng.
+* Nhiều scene dirty trong cùng một Save tạo nhiều version, mỗi scene tối đa một version, trong cùng transaction. Không có version cấp chương.
+* `scene_versions` dùng `(parent_id = scene_id, version_number)` làm identity; `version_number` do handler cấp, unique `(parent_id, version_number)` của DB là hàng rào cuối.
+* **[OPEN]** idempotency của Save, optimistic concurrency/stale write, cách persist source hiện tại của scene và audit lock.
+* **[IMPLEMENTATION PENDING]** API/transaction Save và trả read-model.
+
+#### Source của nội dung cảnh
+
+* `scene_versions.scene_source` dùng enum `SceneSource`: `AI_GENERATED`, `HUMAN_EDITED`, `RESTORE`.
+* AI tạo và được Accept mà không sửa tay → `AI_GENERATED`.
+* Người dùng sửa nội dung → `HUMAN_EDITED`.
+* Khôi phục version cũ và Accept/Save mà không sửa tay → `RESTORE`.
+* Sau khi Restore, nếu người dùng sửa tay → `HUMAN_EDITED`.
+* Source của nội dung cảnh tách biệt với `source` cấp draft (`user`, `ai_generated`, `user_edited`) tại mục 1.3. Không dùng lẫn hai mô hình.
+* **[SCHEMA FOLLOW-UP]** `scenes` hiện không có cột source cho nội dung hiện tại; DBML chỉ có `scene_versions.scene_source`. Cần chốt source hiện tại được suy ra từ version mới nhất hay lưu riêng; không tự thêm cột.
+
+#### Restore nội dung cảnh
+
+* Restore là append-only: không sửa/xóa version cũ.
+* Chọn một version lịch sử → nạp nội dung vào working state; nếu khác baseline thì đánh dấu dirty.
+* Restore không persist ngay và không tạo version ngay.
+* Sau Save thành công, tạo version mới với `scene_source = RESTORE`, `version_number` kế tiếp.
+* Nếu nội dung restore trùng baseline thì không dirty và không tạo version.
+* Không có restore cấp chương.
+
+#### Khóa cảnh
+
+* `ChapterBlock.locked` của FE tương ứng `scenes.is_locked`.
+* Scene đang khóa: không sửa tay, không generate/regenerate; nội dung hiện có được giữ nguyên.
+* Khóa một scene không ảnh hưởng scene khác.
+* Lock/Unlock là thay đổi dirty và được đưa vào Save cấp chương.
+* Lock-only Save không tạo content version (xem trên).
+* **[IMPLEMENTATION PENDING]** persist lock qua backend; hiện FE chỉ giữ local.
+
+#### Dirty state và điều hướng
+
+* Dirty được theo dõi theo từng scene; gồm thay đổi nội dung và thay đổi lock.
+* Đổi focus giữa các scene phải giữ working state.
+* Mở Chat không được làm mất working state.
+* Điều hướng rời chương khi còn thay đổi chưa lưu phải yêu cầu xác nhận.
+* Không tuyên bố autosave, crash recovery hoặc durable draft nếu backend chưa có.
+* **[IMPLEMENTATION PENDING]** guard dựa trên dirty thật từ backend; preview hiện dùng local state.
+
+#### Continuity
+
+* Continuity của Writing Mode là theo scene và chỉ mang tính advisory.
+* Cảnh báo continuity không tự động chặn Save.
+* Dữ liệu Memory/Competence trùng giữa các scene không phải lỗi; chỉ mâu thuẫn logic mới là cảnh báo.
+* **[IMPLEMENTATION PENDING]** API continuity; không tự tạo luật mới.
+
+#### Ràng buộc schema hiện tại
+
+* `scenes` đã có `content`, `word_count`, `position`, `is_locked`, `chapter_id`; `chapters` không có cột nội dung.
+* `scene_versions` đã có `parent_id`, `version_number`, `scene_source`, `summary`, `content`, `word_count`, `created_at`; chưa có khóa idempotency và mã tham chiếu generation (nếu cần).
+* `scene_versions.parent_id` hiện nullable; contract nội dung cảnh yêu cầu gắn scene, nên cần validate/DBML follow-up nếu muốn cưỡng chế `NOT NULL`.
+* Không có `chapter_versions`; không thêm bảng này trong v2.4.
+* Các thay đổi schema nằm tại Q4; không sửa `docs/db.dbml` trong v2.4.
 
 ---
 
@@ -452,10 +571,16 @@ Draft Workspace hiển thị chia đôi màn hình (Split Panel có thể kéo d
 ### 3.5 Bắt đầu sáng tác (Start Action)
 
 * Nút **Start** chỉ xuất hiện duy nhất ở cuối Bước 6 (Relationship).
-* Khi người dùng nhấn nút này, hệ thống sẽ thực hiện chuyển đổi toàn bộ cây JSON nháp (`businessFlowData`) thành các bản ghi thực thể quan hệ bền vững trong cơ sở dữ liệu SQLite (`projects`, `arcs`, `chapters`, `scenes`, `characters`, `project_characters`, `world_settings`, `lore_entries`). Chi tiết validation và transaction được quy định tại mục 3.7.
+* Khi người dùng nhấn nút này, hệ thống mở **Commit Confirmation Dialog**. Dialog đồng thời là nơi review plan: tóm tắt dữ liệu sẽ ghi, validation status và pending patches. Không có màn hình/phase review riêng.
+* Commit chỉ được phép khi không còn điều kiện chặn: plan thiếu dữ liệu bắt buộc, validation thất bại hoặc còn `pending_patches`. Dialog hiển thị lỗi và không cho xác nhận khi còn điều kiện chặn.
+* `phase_confirm` và `commit` là hai thao tác khác nhau:
+  * `phase_confirm` là version xác nhận một phase planning (`draft_versions.reason = phase_confirm`), không chuyển dữ liệu sang bảng quan hệ.
+  * `commit` là chuyển toàn bộ plan đã duyệt thành dữ liệu quan hệ bền vững theo mục 3.7.
+* Khi người dùng xác nhận, hệ thống chuyển đổi toàn bộ cây JSON nháp (`businessFlowData`) thành các bản ghi thực thể quan hệ bền vững trong cơ sở dữ liệu SQLite (`projects`, `arcs`, `chapters`, `scenes`, `characters`, `project_characters`, `world_settings`, `lore_entries`). Chi tiết validation và transaction được quy định tại mục 3.7.
 
 ### 3.6 Vòng đời Draft & Version
 
+* Mục này chỉ nói về `draft_versions` của Planning. `scene_versions` của Writing Mode nằm tại mục 1.6; không trộn hai mô hình version.
 * `businessFlowData` (Super JSON gồm 6 phase) được lưu bền trong SQLite (bảng draft), không chỉ nằm trong RAM.
 * **Sở hữu State và khóa ghi:** Draft là đơn vị sở hữu State. Mỗi draft có đúng một working State trong bộ nhớ backend, khóa theo `draft_session_id`, và một khóa ghi (mutex theo draft). Cùng lúc chỉ một trong các bên sau được ghi vào draft: một lượt AI, một thao tác ghi của UI/CLI (sửa tay, confirm/reject patch, restore, confirm_phase), một vòng workflow phân đoạn, hoặc một lần commit. Bên đến sau xếp hàng chờ; quá `DRAFT_LOCK_TIMEOUT` (tham số runtime, mặc định 30 giây) thì trả lỗi "draft đang bận". Nhờ vậy không tồn tại hai bản State riêng cho cùng một draft và không có ghi đè lẫn nhau. Trong workflow phân đoạn, subagent của một vòng chạy dưới khóa của vòng đó và các tool call của chúng được tuần tự hóa ở State.
 * `DRAFT_LOCK_TIMEOUT` là thời gian tối đa chờ lấy khóa, không phải thời gian tối đa giữ khóa. Không áp giới hạn 30 giây cho thời gian thực thi workflow; một vòng có thể chạy lâu hơn.
@@ -538,9 +663,30 @@ Draft Workspace hiển thị chia đôi màn hình (Split Panel có thể kéo d
 * Nếu có lỗi ghi, rollback toàn transaction, đặt `status = editing`; draft được giữ nguyên và người dùng có thể thử lại.
 * Bấm Start khi đang `committing` hoặc đã `committed` trả kết quả hiện có, không tạo project mới.
 * Commit chạy nền, không chặn thao tác đọc UI và có hiển thị tiến độ.
-* Sau commit, plan đã commit là điều kiện mở Writing Mode (mục 1.5); không tự sinh `scenes.content` cho các chương trong plan. Việc chọn chương và điều hướng sau commit theo H2.
+* Sau commit, plan đã commit là điều kiện mở Writing Mode (mục 1.6); không tự sinh `scenes.content` cho các chương trong plan. Đóng Draft Workspace và điều hướng tới Project Detail của project vừa commit, mặc định View; người dùng chọn chương trong Creator để mở Writing Mode. Chi tiết UI và route thuộc `fe-core.md` §9.
 * `source` được giữ trong snapshot JSON của `draft_versions` trong SQLite, kể cả sau commit, để truy vết/mở lại draft; không ánh xạ thành cột của các bảng thực thể quan hệ.
 * Khả năng đảo ngược nằm ở tầng draft/version trước commit. Sau commit chỉ cho phép mở lại draft khi chưa có nội dung cảnh nào được viết.
+
+#### Luồng xác nhận commit (H2)
+
+> **Trạng thái:** APPROVED (v2.4). Triển khai FE/backend tương ứng còn `[IMPLEMENTATION PENDING]`.
+
+* Hành động xác nhận cuối Bước 6 mở **Commit Confirmation Dialog**. Dialog đồng thời là nơi review plan: tóm tắt dữ liệu sẽ ghi, validation status và pending patches. Không thêm màn hình hoặc phase review riêng.
+* Trước commit, dialog phải kiểm tra và hiển thị:
+  * dữ liệu plan bắt buộc còn thiếu;
+  * trạng thái readiness/validation của các phase;
+  * `pending_patches` và lỗi có cấu trúc.
+  Khi còn điều kiện chặn, nút xác nhận bị disable và không được gọi commit.
+* Trong lúc commit:
+  * chặn submit trùng;
+  * giữ dialog ở trạng thái pending không thể đóng;
+  * backend dùng operation idempotent;
+  * request bị gián đoạn không được tự coi là thành công.
+* Khi commit thất bại: giữ Draft Workspace và dữ liệu làm việc, hiển thị lỗi, cho phép thử lại an toàn; draft trở về `editing` theo mục 3.7.
+* Khi commit thành công: đóng Draft Workspace, điều hướng tới Project Detail của project vừa commit, mặc định View Mode. Việc chọn chương để viết diễn ra trong Creator; không tự mở Writing Mode hoặc tự generate.
+* Commit chạy nền, không chặn thao tác đọc UI và có hiển thị tiến độ.
+* `phase_confirm` (xác nhận phase planning, tạo version draft) và `commit` (chuyển plan thành dữ liệu quan hệ) là hai thao tác khác nhau; không dùng lẫn thuật ngữ hoặc trạng thái.
+* Mục này không thay đổi transaction, thứ tự ghi, validate, chống collision, rollback hoặc idempotency đã quy định ở trên.
 
 ### 3.8 Context cho AI
 
@@ -755,7 +901,7 @@ def context_range(s, e, total, margin=5):
 **Bảng ngoài phạm vi ánh xạ từ draft:**
 
 * **Danh mục tham chiếu (seed data, không sinh từ draft):** `motifs`, `genres`, `motif_applicable_genres`, `event_blocks`, `event_transitions`, `states`, `state_down_by_rules`, `state_rules`, `emotional_ranges`, `event_block_emotionals`, `components`, `motif_constraints`, `constraints`, `style_presets`, `rhetorical_devices`, `style_preset_rhetorical_devices`, `style_preset_vocab_items`, `style_preset_focus_items`, `narrator_configs`, `style_preset_narratives`, `narrative_directives`, `appearance_option_groups`, `appearance_options`, `competence_domains`, `domain_level`, `relationship_categories`.
-* **Luồng viết sau commit (hoãn, nhóm H1 đến H3):** `scene_versions`.
+* **Luồng viết sau commit (H1, xem mục 1.6):** `scene_versions`; không có `chapter_versions`. Nội dung chương đọc từ `scenes.content` theo `scenes.position`.
 * **Hạ tầng chat và prompt:** `sessions`, `messages`, `prompt_blocks`, `tools`, `prompt_block_tools`.
 
 `symbolics`, `symbolic_motifs` chưa dùng trong 7 phase (đang đánh dấu VFILL trong DBML).
@@ -793,9 +939,21 @@ def context_range(s, e, total, margin=5):
 * Đồng bộ `tools.md`, `overview.md` và `case_newchat.md` với v2.3; giữ nguyên `lookup_outline`, `outline_truncated`, `declared_sources`, `declared_source`, `pending_confirmation`.
 * Không sửa DBML, `src`, backend hoặc migration; các giới hạn schema được ghi thành `[SCHEMA FOLLOW-UP]` và câu hỏi mở.
 
+## CHANGELOG v2.4
+
+* Chốt H1 tại mục 1.6: mô hình chương-first, cảnh là block; đọc/ghi cấp chương, sửa/generate/lock/version cấp scene; scene identity là `scenes.id`, thứ tự theo `scenes.position`; không có scene page, block paragraph hoặc `chapter_versions`.
+* Chốt vòng đời Writing Mode: generation vào buffer tạm, review inline, Accept vào working state, Save cấp chương mới persist; generation không ghi thẳng `scenes.content`; tối đa một generation mỗi chương; không tự chuyển scene/chương.
+* Chốt Save và version nội dung: chỉ scene dirty; một Save thành công tạo đúng một `scene_versions` cho mỗi scene có nội dung thay đổi; lock-only Save không tạo content version; không có version cấp chương; thất bại không báo thành công, không xóa dirty, không ghi một phần.
+* Chốt source nội dung cảnh (`AI_GENERATED`, `HUMAN_EDITED`, `RESTORE`), restore append-only và dirty/lock/continuity theo scene; tách source này khỏi source cấp draft.
+* Chốt H2 tại mục 3.5 và 3.7: Commit Confirmation Dialog đồng thời là plan review; không thêm phase review; chặn commit khi validation/pending patches; pending không thể đóng; idempotent; failure giữ draft; success đóng Draft Workspace, điều hướng Project Detail mặc định View.
+* Phân biệt `phase_confirm` (version xác nhận phase planning) với `commit` (chuyển plan thành dữ liệu quan hệ bền vững); giữ nguyên transaction, validate, collision, rollback và idempotency tại mục 3.7.
+* Chốt H3 ở tầng hợp đồng: Project Detail có View/Creator; Creator chỉ chọn chương, không nhúng scene editor; Chapter Detail là Writing Mode surface; route/URL và interaction chi tiết tại `fe-core.md` §9.
+* Ghi các điểm kỹ thuật/schema còn mở tại Q4: idempotency Save, stale write, source hiện tại của scene, audit lock, read-model scene identity, generation stream/cancel, commit retry/recovery; không tự thêm cột/bảng và không sửa DBML.
+* Ghi nhận `tools.md`, `overview.md`, `case_newchat.md` cần đồng bộ ở task riêng nếu còn mô tả H1/H2/H3 là mở; v2.4 chỉ sửa `core.md` và `fe-core.md`.
+
 ## CÂU HỎI MỞ
 
-> Các câu hỏi số 1-4 của v2.2 đã được chốt và chuyển thành quy tắc tại mục 1.3, 2.6, 3.6, 3.7, 3.8 và 3.9. Q2 của nhóm câu hỏi mở rộng cũng đã được chốt; phần còn mở nằm dưới đây.
+> Các câu hỏi số 1-4 của v2.2 đã được chốt và chuyển thành quy tắc tại mục 1.3, 2.6, 3.6, 3.7, 3.8 và 3.9. Q2 của nhóm câu hỏi mở rộng cũng đã được chốt. v2.4 chốt H1/H2/H3; các chi tiết kỹ thuật/schema còn mở của H1 nằm tại Q4.
 
 ### Q1. Cascade cho các quan hệ chưa chốt
 
@@ -874,10 +1032,46 @@ Workflow orchestrator, `plan_phase`/`plan_outline_runs`, report trung gian, Stat
 
 **Trạng thái:** Chưa chốt.
 
-### Hoãn xử lý sau cùng
+### Q4. Hợp đồng lưu nội dung cảnh và schema follow-up
 
-H1. **[Đề xuất - chờ xác nhận]** Hợp đồng Planning/Writing đã được chốt tại mục 1.5. Còn mở chi tiết generation, versioning nội dung cảnh/chương và UI của Writing Mode; chưa đủ đặc tả để đánh giá độ hoàn chỉnh của vòng đời `scenes.content`.
-H2. **[Đề xuất - chờ xác nhận]** Ở cuối Phase 6, sau khi người dùng bấm xác nhận và duyệt dialog xác nhận, container plan có đóng không? Luồng ghi nhận đầy đủ vào DB rồi điều hướng người dùng tới plan nên diễn ra như thế nào? Chưa chốt hành vi UI/điều hướng sau commit; không thay đổi quy tắc transaction hiện có tại mục 3.7.
-H3. **[Đề xuất - chờ xác nhận]** Trong tab Project, có bổ sung switch **View / Creator** để xem plan đã có và cho phép người dùng viết từng chương không? Chưa triển khai giao diện hoặc coi đây là quy tắc nghiệp vụ.
+**Đã chốt (APPROVED):**
+
+* Mô hình chương-first, cảnh là block; scene identity là `scenes.id`, thứ tự theo `scenes.position`; không có scene page, block paragraph hoặc `chapter_versions` (mục 1.6).
+* Generation vào buffer tạm, review inline, Accept vào working state; Save cấp chương mới persist; tối đa một generation mỗi chương; không tự chuyển scene/chương.
+* Save chỉ gồm scene dirty; một Save thành công tạo đúng một `scene_versions` cho mỗi scene có nội dung thay đổi; lock-only Save không tạo content version.
+* Source nội dung cảnh dùng `AI_GENERATED` / `HUMAN_EDITED` / `RESTORE`; restore append-only; dirty và continuity theo scene.
+* H2 dùng Commit Confirmation Dialog, không có phase review riêng; `phase_confirm` khác `commit`; failure giữ draft, success điều hướng Project Detail mặc định View (mục 3.5, 3.7).
+* H3 dùng Project View/Creator; Creator chỉ chọn chương, Chapter Detail là Writing Mode surface; chi tiết UI tại `fe-core.md` §9.
+
+**Còn mở (OPEN):**
+
+1. Idempotency của Save nội dung cảnh: retry/double-submit không được tạo hai version hoặc ghi hai lần. Chưa chốt khóa idempotency ở tầng persistence.
+2. Optimistic concurrency/stale write: FE gửi baseline nào, backend từ chối ghi đè khi scene đã đổi ở nơi khác, và UI xử lý conflict ra sao.
+3. Source hiện tại của scene: DBML chỉ có `scene_versions.scene_source`, chưa có cột source trên `scenes`; cần chốt suy ra từ version mới nhất hay lưu riêng.
+4. Audit lock: lock-only Save không tạo content version; nếu cần lịch sử lock thì phải có schema/contract riêng.
+5. Read-model scene identity: backend trả `scenes.id`, `position`, `content`, `word_count`, `is_locked`; FE preview hiện dùng id tạm.
+6. Generation stream/cancel: contract API, buffer và cách hủy; chưa có tool sinh nội dung scene.
+7. Commit retry/recovery sau request bị gián đoạn: UI đọc trạng thái backend thay vì tự kết luận; chi tiết API còn mở.
+8. `tools.md` và prompt docs còn mô tả H1/H2/H3 là mở; cần đồng bộ ở task riêng.
+
+**SCHEMA FOLLOW-UP:**
+
+* `scene_versions` chưa có khóa idempotency hoặc mã tham chiếu generation; unique hiện tại chỉ `(parent_id, version_number)`.
+* `scene_versions.parent_id` nullable; contract nội dung cảnh cần gắn scene, nên cần validate hoặc điều chỉnh DBML nếu muốn cưỡng chế.
+* `scenes` không có `created_at`/`updated_at` và không có cột source nội dung; optimistic concurrency và source hiện tại chưa có chỗ lưu chuẩn.
+* Không có `chapter_versions`; v2.4 không thêm bảng này.
+* Không tự thêm cột/bảng trong v2.4; tên cột/index cụ thể do DBML và backend chốt sau.
+
+**IMPLEMENTATION PENDING:**
+
+* API generation/stream/cancel; API Save nguyên tử và trả read-model; API version list/restore; persist lock; continuity; commit confirmation/navigation; cập nhật `tools.md`.
+
+**Trạng thái:** Business contract của H1/H2/H3 đã chốt; các chi tiết kỹ thuật và schema nêu trên còn OPEN/SCHEMA FOLLOW-UP.
+
+### Đã chốt trong v2.4
+
+H1. **[APPROVED]** Hợp đồng Writing Mode tại mục 1.6: chương-first, cảnh là block; generation buffer/review/accept; Save cấp chương; source/restore/lock/dirty/continuity theo scene; không có `chapter_versions`. Chi tiết kỹ thuật còn mở tại Q4.
+H2. **[APPROVED]** Luồng commit sau Phase 6 tại mục 3.5 và 3.7: Commit Confirmation Dialog đồng thời là plan review; chặn khi validation/pending patches; pending không đóng được; idempotent; failure giữ draft; success đóng Draft Workspace và điều hướng Project Detail mặc định View. Triển khai FE/backend còn `[IMPLEMENTATION PENDING]`.
+H3. **[APPROVED]** Project View/Creator tại `fe-core.md` §9: Creator chỉ chọn chương, không nhúng scene editor; Chapter Detail là Writing Mode surface; route và interaction chi tiết thuộc FE contract, không phải quy tắc nghiệp vụ mới.
 
 **Tạm treo theo xác nhận:** Chưa thiết kế bảng/liên kết cho `relationship_phase.motif.event_blocks[]`.
