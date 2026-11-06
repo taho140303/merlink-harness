@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { GripVertical } from "lucide-react";
+import { useNavigate } from "react-router";
+import { MOCK_PROJECTS } from "@/features/projects/mockProjects";
+import { buildProjectPath } from "@/features/draft/commitNavigation";
 import { cn } from "@/shared/utils/cn";
 import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
 import { useIsCompact } from "@/shared/hooks/useMediaQuery";
@@ -22,7 +25,14 @@ import { useT } from "@/shared/i18n/useT";
 export default function ChatView() {
   const t = useT();
   const isCompact = useIsCompact();
+  const navigate = useNavigate();
   const [isDraftOpen, setIsDraftOpen] = useState(false);
+  const sampleProjects = useMemo(() => MOCK_PROJECTS.map((p) => ({ id: p.id, title: p.title })), []);
+  // Wave 0.3B: explicit, simulated preview transition. Not a real commit; no project is created.
+  const handleViewSampleProject = (projectId: string) => {
+    setIsDraftOpen(false);
+    navigate(buildProjectPath(projectId));
+  };
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -283,6 +293,8 @@ export default function ChatView() {
           <DraftWorkspace
             onClose={() => setIsDraftOpen(false)}
             onFeedback={(feedback) => setFeedbackContext(feedback)}
+            sampleProjects={sampleProjects}
+            onViewSampleProject={handleViewSampleProject}
           />
         </div>
       )}

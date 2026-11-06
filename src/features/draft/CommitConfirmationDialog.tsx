@@ -18,6 +18,8 @@ import {
   type CommitOpState,
   type CommitReadinessInput,
 } from './commitPreview';
+import { createOnceGuard, resolveSimulatedNavigation, type CommitResult, type NavigationBlockReason, type SampleProjectRef } from './commitNavigation';
+import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import type { DraftOverview } from './types';
 
 interface CommitConfirmationDialogProps {
@@ -26,6 +28,10 @@ interface CommitConfirmationDialogProps {
   overview: DraftOverview;
   /** Readiness from a future backend. Undefined today → validation/patches are "unknown". */
   readiness?: CommitReadinessInput;
+  /** Existing mock projects that a simulated success may preview. */
+  sampleProjects?: SampleProjectRef[];
+  /** Explicit preview transition to a sample project (closes Draft Workspace, navigates). */
+  onViewSampleProject?: (projectId: string) => void;
 }
 
 const SIMULATED_LATENCY_MS = 1200;
@@ -66,7 +72,16 @@ function SectionTitle({ children }: { children: string }) {
   return <h3 className="text-sm font-semibold uppercase tracking-wide text-fg-subtle">{children}</h3>;
 }
 
-export function CommitConfirmationDialog({ open, onOpenChange, overview, readiness }: CommitConfirmationDialogProps) {
+const MISSING_TARGET = '__missing__';
+const NAV_ERROR_KEYS: Record<NavigationBlockReason, TKey> = {
+  pending: 'commit.block.operationPending',
+  notSimulated: 'commit.nav.error.notSimulated',
+  notCommitted: 'commit.nav.error.notCommitted',
+  missingProjectId: 'commit.nav.error.invalidProject',
+  invalidProject: 'commit.nav.error.invalidProject',
+};
+
+export function CommitConfirmationDialog({ open, onOpenChange, overview, readiness, sampleProjects = [], onViewSampleProject }: CommitConfirmationDialogProps) {
   const t = useT();
   const [op, setOp] = useState<CommitOpState>({ status: 'idle' });
   const busyRef = useRef(false); // synchronous duplicate-submit guard
@@ -74,7 +89,14 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
   const [fixture, setFixture] = useState<Fixture>('none');
   const [simOpen, setSimOpen] = useState(false);
   const simActive = SHOW_DEV_SIM && fixture !== 'none';
-  const [outcome, setOutcome] = useState<'success' | 'error'>('success');
+  const [outcome, setOutcome] = useState<'success' | 'error' | 'unknown'>('success');
+  const [simTarget, setSimTarget] = useState<string>('');
+  const [result, setResult] = useState<CommitResult | null>(null);
+  const [navError, setNavError] = useState<NavigationBlockReason | null>(null);
+  const [navConfirmOpen, setNavConfirmOpen] = useState(false);
+  const navGuard = useRef(createOnceGuard());
+  const targetId = simTarget || sampleProjects[0]?.id || MISSING_TARGET;
+  const targetProject = sampleProjects.find((p) => p.id === targetId) ?? null;
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -90,19 +112,46 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
 
   const handleOpenChange = (next: boolean) => {
     if (!next && !canDismissCommitDialog(op)) return;
-    if (!next) setOp((s) => reduceCommitOp(s, 'reset'));
+    if (!next) {
+      setOp((s) => reduceCommitOp(s, 'reset'));
+      setResult(null);
+      setNavError(null);
+    }
     onOpenChange(next);
   };
 
   const handleConfirm = () => {
     if (!eligible || busyRef.current) return;
     busyRef.current = true;
+    navGuard.current = createOnceGuard();
+    setResult(null);
+    setNavError(null);
     setOp((s) => reduceCommitOp(s, 'submit'));
-    const willFail = SHOW_DEV_SIM && outcome === 'error';
+    const simOutcome = SHOW_DEV_SIM ? outcome : 'unknown';
+    const committedId = targetId;
     timer.current = setTimeout(() => {
       busyRef.current = false;
-      setOp((s) => reduceCommitOp(s, willFail ? 'fail' : 'succeed'));
+      if (simOutcome === 'error') {
+        setResult({ status: 'failed', reason: 'simulated' });
+        setOp((s) => reduceCommitOp(s, 'fail'));
+      } else if (simOutcome === 'unknown') {
+        setResult({ status: 'unknown' });
+        setOp((s) => reduceCommitOp(s, 'unknown'));
+      } else {
+        setResult({ status: 'committed', projectId: committedId });
+        setOp((s) => reduceCommitOp(s, 'succeed'));
+      }
     }, SIMULATED_LATENCY_MS);
+  };
+
+  const handleViewSample = () => {
+    const decision = resolveSimulatedNavigation({ result, pending, simulationActive: simActive, projects: sampleProjects });
+    if (!decision.ok) {
+      setNavError(decision.reason);
+      return;
+    }
+    setNavError(null);
+    navGuard.current(() => onViewSampleProject?.(decision.projectId));
   };
 
   const validationDesc: TKey =
@@ -191,10 +240,21 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
           {op.status === 'error' && (
             <p className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" role="alert">{t('commit.error')}</p>
           )}
+          {op.status === 'unknown' && (
+            <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" role="alert">{t('commit.unknownResult')}</p>
+          )}
           {op.status === 'success-preview' && (
             <div className="rounded-xl bg-emerald-100 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" role="status">
               <p className="font-semibold">{t('commit.successTitle')}</p>
               <p className="mt-0.5">{t('commit.success')}</p>
+              {simActive && onViewSampleProject && (
+                <div className="mt-2 space-y-1 border-t border-line pt-2">
+                  <p>{t('commit.nav.target')}: <span className="font-semibold">{targetProject?.title ?? t('commit.nav.targetMissing')}</span></p>
+                  <p>{t('commit.nav.sampleNotice')}</p>
+                  <p>{t('commit.nav.discardWarning')}</p>
+                  {navError && <p className="font-semibold text-rose-700 dark:text-rose-300" role="alert">{t(NAV_ERROR_KEYS[navError])}</p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -222,9 +282,17 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
                   </div>
                   <div className="flex flex-col gap-1">
                     <label htmlFor="commit-sim-outcome" className="text-sm font-medium text-fg-muted">{t('commit.sim.outcome')}</label>
-                    <Select id="commit-sim-outcome" className="text-base" value={outcome} onChange={(e) => setOutcome(e.target.value as 'success' | 'error')}>
+                    <Select id="commit-sim-outcome" className="text-base" value={outcome} onChange={(e) => setOutcome(e.target.value as 'success' | 'error' | 'unknown')}>
                       <option value="success">{t('commit.sim.outcome.success')}</option>
                       <option value="error">{t('commit.sim.outcome.error')}</option>
+                      <option value="unknown">{t('commit.sim.outcome.unknown')}</option>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="commit-sim-target" className="text-sm font-medium text-fg-muted">{t('commit.sim.target')}</label>
+                    <Select id="commit-sim-target" className="text-base" value={targetId} onChange={(e) => setSimTarget(e.target.value)}>
+                      {sampleProjects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      <option value={MISSING_TARGET}>{t('commit.sim.target.missing')}</option>
                     </Select>
                   </div>
                 </fieldset>
@@ -237,6 +305,11 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
           <Button variant="ghost" size="sm" className="h-9 px-4 text-base" disabled={pending} onClick={() => handleOpenChange(false)}>
             {op.status === 'success-preview' ? t('commit.close') : t('commit.cancel')}
           </Button>
+          {op.status === 'success-preview' && simActive && onViewSampleProject && (
+            <Button variant="primary" size="sm" className="h-9 px-4 text-base" onClick={() => setNavConfirmOpen(true)}>
+              {t('commit.nav.view')}
+            </Button>
+          )}
           {op.status !== 'success-preview' && (
             <Button variant="primary" size="sm" className="h-9 px-4 text-base" disabled={!eligible} onClick={handleConfirm}>
               {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
@@ -245,6 +318,15 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
           )}
         </div>
       </DialogContent>
+      <ConfirmDialog
+        open={navConfirmOpen}
+        onOpenChange={setNavConfirmOpen}
+        title={t('commit.nav.confirmTitle')}
+        description={t('commit.nav.confirmDesc')}
+        confirmLabel={t('commit.nav.view')}
+        cancelLabel={t('commit.cancel')}
+        onConfirm={handleViewSample}
+      />
     </Dialog>
   );
 }

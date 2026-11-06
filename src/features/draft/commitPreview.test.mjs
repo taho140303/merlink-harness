@@ -84,3 +84,11 @@ test('C12 success preview is a distinct non-persisted state', () => {
   assert.equal(m.reduceCommitOp(s, 'submit').status, 'success-preview');
   assert.deepEqual(Object.keys(s), ['status']);
 });
+
+test('unknown result is dismissable, retryable and not success', () => {
+  let s = m.reduceCommitOp({ status: 'idle' }, 'submit');
+  s = m.reduceCommitOp(s, 'unknown');
+  assert.equal(s.status, 'unknown');
+  assert.equal(m.canDismissCommitDialog(s), true);
+  assert.equal(m.reduceCommitOp(s, 'submit').status, 'pending');
+});

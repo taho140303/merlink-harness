@@ -112,17 +112,20 @@ export type CommitOpState =
   | { status: 'idle' }
   | { status: 'pending' }
   | { status: 'error' }
+  | { status: 'unknown' }
   | { status: 'success-preview' };
 
-export type CommitOpEvent = 'submit' | 'fail' | 'succeed' | 'reset';
+export type CommitOpEvent = 'submit' | 'fail' | 'unknown' | 'succeed' | 'reset';
 
 export function reduceCommitOp(state: CommitOpState, event: CommitOpEvent): CommitOpState {
   switch (event) {
     case 'submit':
       // Duplicate submissions while pending are ignored; success preview is terminal until reset.
-      return state.status === 'idle' || state.status === 'error' ? { status: 'pending' } : state;
+      return state.status === 'idle' || state.status === 'error' || state.status === 'unknown' ? { status: 'pending' } : state;
     case 'fail':
       return state.status === 'pending' ? { status: 'error' } : state;
+    case 'unknown':
+      return state.status === 'pending' ? { status: 'unknown' } : state;
     case 'succeed':
       return state.status === 'pending' ? { status: 'success-preview' } : state;
     case 'reset':

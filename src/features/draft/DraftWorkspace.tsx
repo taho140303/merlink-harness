@@ -5,6 +5,7 @@ import { DraftOverviewBlock } from './DraftOverviewBlock';
 import { DraftToolbar } from './DraftToolbar';
 import { DraftLoading } from './DraftLoading';
 import { CommitConfirmationDialog } from './CommitConfirmationDialog';
+import type { SampleProjectRef } from './commitNavigation';
 import { DRAFT_OVERVIEW } from './mockOverview';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { useT } from '@/shared/i18n/useT';
@@ -15,9 +16,13 @@ interface DraftWorkspaceProps {
   onClose: () => void;
   onFeedback: (feedback: FeedbackContext) => void;
   overview?: DraftOverview;
+  /** Wave 0.3B: existing mock projects a simulated success may preview. */
+  sampleProjects?: SampleProjectRef[];
+  /** Explicit, simulated preview transition; owner closes workspace and navigates. */
+  onViewSampleProject?: (projectId: string) => void;
 }
 
-export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW }: DraftWorkspaceProps) {
+export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW, sampleProjects, onViewSampleProject }: DraftWorkspaceProps) {
   const t = useT();
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
@@ -254,6 +259,8 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         open={commitDialogOpen}
         onOpenChange={setCommitDialogOpen}
         overview={overview}
+        sampleProjects={sampleProjects}
+        onViewSampleProject={onViewSampleProject}
       />
 
       <ConfirmDialog

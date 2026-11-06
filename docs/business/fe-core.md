@@ -1,10 +1,10 @@
 # FE CORE: CƠ CHẾ GIAO DIỆN MERLINK HARNESS
 
-> **Phiên bản:** 0.3.0
+> **Phiên bản:** 0.3.1
 > **Đối chiếu:** `docs/business/core.md` v2.4.1
 > **Vai trò:** SSOT cơ chế giao diện và hợp đồng tương tác FE của Merlink Harness. Business Core quyết định hệ thống phải làm gì; tài liệu này mô tả giao diện hiện đang làm gì và cần làm gì. `docs/design-system.md` quyết định cách thể hiện thị giác.
 > **Phạm vi kiểm tra:** `src/features/chat`, `src/features/draft`, `src/features/business-flow`, `src/features/projects` (gồm ChapterDetail, ProjectDetail, ProjectCreatorPanel, scenePreview), router, Zustand store, i18n và mock data.
-> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.3A (Commit Confirmation preview).
+> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.3B (điều hướng preview sau commit mô phỏng).
 > **Giới hạn:** tài liệu này không sửa `src/`, `docs/db.dbml`, `docs/design-system.md`, `package.json` hoặc backend.
 
 ## 0. Cách đọc và trạng thái
@@ -242,11 +242,19 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 - **Mô phỏng:** máy trạng thái `idle → pending → error | success-preview`. Pending chặn submit trùng, Escape, click ngoài, nút X và Cancel; hiển thị loading. Error giữ nguyên draft và cho retry. Success chỉ là “Kết quả xem trước (mô phỏng)”: không tạo project, không ghi dữ liệu, không điều hướng, không đóng Draft Workspace. Điều khiển “Dev simulation” (fixture readiness + outcome) chỉ render khi `import.meta.env.DEV`; fixture đi qua cùng logic eligibility, không bypass.
 - Toàn bộ chuỗi i18n dùng khóa `commit.*` (vi/en).
 
+**Wave 0.3B — thang kích thước và điều hướng preview `[MOCK]`:**
+
+- Typography của `CommitConfirmationDialog` tăng đúng +2px, chỉ trong component này (`text-xs→text-sm`, `text-sm→text-base`, `text-base→text-lg`; badge/button/label Select được override cục bộ). Không đổi token toàn cục hay `Dialog` chung. Chiều rộng tăng từ `max-w-lg` (512px) lên `max-w-[44rem]` (704px); vẫn header cố định, body cuộn, footer ghim.
+- `src/features/draft/commitNavigation.ts` định nghĩa `CommitResult` (`committed{projectId}` | `failed` | `unknown`) và `resolveSimulatedNavigation`. Chỉ kết quả **mô phỏng**, không pending, `committed` và `projectId` khớp một mock project có sẵn mới được điều hướng; không fallback sang project đầu tiên, không tạo/sinh ID.
+- Mô phỏng thành công không tự điều hướng. Dialog hiển thị dự án mẫu đích (chọn trong panel Dev simulation; có lựa chọn “không tồn tại” để thử lỗi), cảnh báo đích chứa dữ liệu mẫu chứ không phải draft vừa duyệt và bản nháp có thể bị mất. Người dùng bấm “Xem Project Detail mẫu” → hộp xác nhận (`ConfirmDialog`) → đóng Draft Workspace và `navigate('/project/:projectId')` (không có `mode` ⇒ View Mode). Bấm lặp chỉ chạy một lần (once-guard).
+- Failed / unknown / pending / thiếu target: giữ Draft Workspace và dữ liệu, không điều hướng. Chuyển sang Creator Mode và chọn chương là thao tác thủ công của người dùng trên route hiện có `/project/:projectId/chapter/:chapterId?mode=creator`; không có route mới, không tự sinh chương/cảnh.
+- Draft chỉ là state local, không persist: sau điều hướng hoặc refresh không khôi phục. Đây **không phải commit thật**; không tạo project.
+
 **Vẫn `[GAP]` / `[IMPLEMENTATION PENDING]`:**
 
 - Backend validation và nguồn `pending_patches` thật.
 - Durable commit, idempotency, transaction rollback, tạo project.
-- Điều hướng sau commit (ST-05) — **Wave 0.3B pending**.
+- Điều hướng sau commit thật tới project vừa tạo (ST-05): chỉ có preview tới project mẫu (Wave 0.3B); project thật vẫn pending.
 - Crash recovery, `phase_confirm` vs `commit` thật, read-only sau commit.
 
 ## 8. Persistence, Version và Crash Recovery
