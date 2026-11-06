@@ -26,6 +26,36 @@ export function normalizeNote(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function buildSceneRegenerationRequest(
+  sceneId: string,
+  noteInput: string,
+): SceneRegenerationRequest {
+  return { sceneId, note: normalizeNote(noteInput) };
+}
+
+export type SceneActionSource = "accept" | "edit" | "restore";
+
+/** Source attribution is determined by the final action on the working content. */
+export function sourceForSceneAction(action: SceneActionSource): SceneSource {
+  switch (action) {
+    case "accept":
+      return "AI_GENERATED";
+    case "restore":
+      return "RESTORE";
+    default:
+      return "HUMAN_EDITED";
+  }
+}
+
+/** Dirty means the working content/lock differs from the scene baseline. Source alone never counts. */
+export function isSceneDirty(
+  working: Pick<SceneBlock, "text" | "locked">,
+  baseline: Pick<SceneBlock, "text" | "locked"> | undefined,
+): boolean {
+  if (!baseline) return true;
+  return working.text !== baseline.text || working.locked !== baseline.locked;
+}
+
 const FALLBACK_BLOCK: ChapterBlock = {
   id: "blk-fallback",
   text: "Nội dung chương đang được soạn thảo...",

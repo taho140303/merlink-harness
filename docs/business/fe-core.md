@@ -1,10 +1,10 @@
 # FE CORE: CƠ CHẾ GIAO DIỆN MERLINK HARNESS
 
-> **Phiên bản:** 0.2.1
+> **Phiên bản:** 0.2.2
 > **Đối chiếu:** `docs/business/core.md` v2.4.1
 > **Vai trò:** SSOT cơ chế giao diện và hợp đồng tương tác FE của Merlink Harness. Business Core quyết định hệ thống phải làm gì; tài liệu này mô tả giao diện hiện đang làm gì và cần làm gì. `docs/design-system.md` quyết định cách thể hiện thị giác.
 > **Phạm vi kiểm tra:** `src/features/chat`, `src/features/draft`, `src/features/business-flow`, `src/features/projects` (gồm ChapterDetail, ProjectDetail, ProjectCreatorPanel, scenePreview), router, Zustand store, i18n và mock data.
-> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.1 preview.
+> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.2 hardening.
 > **Giới hạn:** tài liệu này không sửa `src/`, `docs/db.dbml`, `docs/design-system.md`, `package.json` hoặc backend.
 
 ## 0. Cách đọc và trạng thái
@@ -327,7 +327,17 @@ H1 đã `APPROVED` tại core 1.6. Wave 0/0.1 triển khai UI preview trên Chap
 - Nội dung scene chỉ đổi sau Accept; Discard/Cancel giữ nguyên nội dung.
 - AI không đọc note trong preview; tiêu thụ note thật là `[IMPLEMENTATION PENDING]`.
 
-**UI preservation của Wave 0:** không đổi sidebar/shell, navigation hierarchy, breadcrumb, title/date, cột `max-w-2xl`, card scene, `AutoResizeTextarea`, FloatingOutline, Chat split-pane/tỷ lệ, design tokens, typography hoặc breakpoint hiện có. Các phần thêm chỉ nằm trong header Project Detail, card scene và dialog version/commit; xem §12.1.
+**Interaction hardening (Wave 0.2)**
+
+- Dirty được tính lại từ `workingContent !== baselineContent || workingLocked !== baselineLocked`; source metadata không tạo dirty. Sửa rồi khôi phục đúng baseline, hoặc lock/unlock về baseline, thì scene sạch.
+- Source được quyết định bởi thao tác cuối: Accept → `AI_GENERATED`; sửa tay → `HUMAN_EDITED`; Restore → `RESTORE`; Restore rồi sửa tay → `HUMAN_EDITED`. Mở/đóng dialog, cancel, discard và lock không đổi source.
+- Generation có `requestId`; cancel/discard/unmount vô hiệu hóa callback cũ. Double Confirm bị chặn; một chapter chỉ có một generation active.
+- Trong lúc generating/review, lock của scene đang active và Lock All bị disable; lock scene khác vẫn an toàn. Accept bị chặn nếu scene đã khóa.
+- Nội dung scene dài được giới hạn chiều cao editor ở `70vh` với scroll trong editor; review sample giới hạn `50vh`. Controls và Accept/Discard vẫn tiếp cận được, không overlap, không horizontal overflow.
+- Dưới breakpoint 1279 hiện có, Chat của Chapter Detail chuyển thành overlay toàn pane (dùng `useIsCompact` hiện có), không còn split-pane hẹp.
+- Header dùng container width: ẩn label Lock All/Unlock All khi header < 510px; xếp breadcrumb + controls thành hai hàng khi < 420px. Breadcrumb được truncate, không bị ẩn toàn bộ. Không thêm breakpoint toàn cục.
+
+**UI preservation của Wave 0:** không đổi sidebar/shell, navigation hierarchy, breadcrumb, title/date, cột `max-w-2xl`, card scene, `AutoResizeTextarea`, FloatingOutline, Chat split-pane/tỷ lệ, design tokens, typography hoặc breakpoint hiện có. Các phần thêm nằm trong header Project Detail, header Chapter Detail (responsive), card scene và dialog; xem §12.1.
 
 ### 9.4 Preview và production
 
@@ -366,9 +376,37 @@ Mọi dữ liệu generation/version trong preview là fixture hoặc local stat
 
 Chi tiết dữ liệu và gap ở §13–§15; chi tiết schema follow-up ở core Q4.
 
-### 9.6 Known frontend issue — 1280px Chat/header
+### 9.6 Responsive header và compact Chat (Wave 0.2)
 
-Ở `1280px` khi mở Chat trong Chapter Detail, header hiện bị thiếu breadcrumb và overflow khoảng 11px (`scrollWidth` 464 / `clientWidth` 453). Đây là gap compact có sẵn vì `ChapterDetailView` chưa có nhánh 1279px; **không phải layout change được duyệt**. Không sửa trong Wave 0; cần task responsive riêng. Preview vẫn dùng được nhưng phải ghi nhận khi đánh giá visual.
+**Tái hiện trước khi sửa:** ở 1280px, edit mode, Chat mở: header `clientWidth` 453, controls 464, `scrollWidth` 464 (overflow 11px), breadcrumb width 0.
+
+**Nguyên nhân:** năm control trong header có tổng bề rộng cố định 464px; breadcrumb là flex item bị co về 0; Chapter Detail chưa dùng nhánh compact 1279px nên Chat vẫn chia pane ở các width nhỏ.
+
+**Đã sửa trong Chapter Detail:**
+
+- Dùng `useIsCompact` hiện có: từ 1279px trở xuống, Chat chuyển thành overlay toàn pane; separator và split ratio không còn áp dụng.
+- Header đo container width: ẩn label Lock All/Unlock All khi header < 510px (icon vẫn có `title` và `aria-label`); xếp breadcrumb + controls thành hai hàng khi < 420px.
+- Breadcrumb có `min-w-0`, `flex-1` và truncate; controls `shrink-0`; không có overflow ngang.
+
+**Đo sau khi sửa (edit mode):**
+
+| Viewport | Chat | Header width | Overflow | Breadcrumb | Ghi chú |
+| ---: | :--- | ---: | :--- | ---: | :--- |
+| 1440 | mở | 541 | Không | 76px | label hiện |
+| 1366 | mở | 500 | Không | 188px | label ẩn |
+| 1280 | mở | 453 | Không | 141px | label ẩn; trước fix overflow 11px |
+| 1279 | mở | 894 | Không | 430px | Chat overlay |
+| 1024 | mở | 639 | Không | 175px | Chat overlay |
+| 768 | đóng/mở | 383 | Không | 383px | header hai hàng |
+
+Các width 1440/1366/1280 khi Chat đóng, và 1024/768 khi Chat đóng, cũng không overflow. Không đổi global breakpoint, sidebar, design token hoặc layout ngoài Chapter Detail.
+
+### 9.7 Test coverage (Wave 0.2)
+
+- Automated: `src/features/projects/scenePreview.test.mjs` (Vite SSR + `node:test`) có 6 test cho normalize note/request, dirty content+lock, source attribution và scene identity; chạy bằng `node --test src/features/projects/scenePreview.test.mjs`.
+- `npm test` vẫn chạy 4 test settings và pass; file test projects không nằm trong glob cố định `src/features/settings/*.test.mjs` của package.json, nên được chạy riêng (không sửa package.json).
+- Manual browser checks: dirty Regenerate (discard/cancel/accept), multi-scene dirty, Save preview, navigation guard, lock/review, long scene 100/2.000/8.000 từ, Chat toggle, VI/EN, light/dark và 6 viewport.
+- Giới hạn: repo không có DOM/component test harness (không có jsdom/testing-library); các tương tác component T01-T04, T11-T18 được kiểm tra thủ công, không được tuyên bố là automated coverage.
 
 ## 10. Character Library, Memory và Competence
 
@@ -492,7 +530,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | GAP-18 | H2 Commit | Dialog, validation, pending, idempotent, navigation | Start đóng panel | `[GAP]` | chưa commit/điều hướng |
 | GAP-19 | Scene Read-model | `scenes.id`, `position`, `content`, `word_count`, `is_locked` | `sceneId` preview `scn-*` | `[GAP]` | không có identity/persistence thật |
 | GAP-20 | Scene Lock | Persist `scenes.is_locked` | Local `block.locked` | `[GAP]` | khóa không bền |
-| GAP-21 | Responsive | Chapter Detail compact 1279px | Header overflow ~11px, breadcrumb mất khi Chat mở | `[GAP]` | cần task responsive riêng, không sửa trong Wave 0 |
+| GAP-21 | Responsive | Chapter Detail compact 1279px | Chat overlay từ 1279 trở xuống; header không overflow; breadcrumb truncate; label ẩn <510, stack <420 | `[IMPLEMENTED]` | sửa trong Wave 0.2; không đổi breakpoint toàn cục |
 
 ## 15. Conflict Matrix
 
@@ -625,6 +663,16 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 
 ## 17. Changelog
 
+### v0.2.2 - 2026-11-06
+
+- Hardening dirty: tính lại từ content/lock so với baseline; source metadata không tạo dirty; sửa-rồi-hoàn-tác và lock/unlock về baseline đều sạch.
+- Hardening source: Accept → AI_GENERATED, sửa tay → HUMAN_EDITED, Restore → RESTORE, Restore rồi sửa → HUMAN_EDITED; dialog/cancel/discard/lock không đổi source.
+- Hardening generation: thêm `requestId`, cancel/discard/unmount vô hiệu hóa callback cũ; chặn double Confirm; giữ một generation/chương.
+- Hardening lock: khóa scene active và Lock All bị disable khi generating/review; lock scene khác vẫn an toàn; Accept bị chặn nếu scene khóa.
+- Long content: editor cap `70vh`, review sample cap `50vh`; internal scroll, controls và Accept/Discard vẫn tiếp cận được.
+- Responsive: Chat Chapter Detail dùng overlay từ 1279 trở xuống; header ẩn label khi <510, xếp hai hàng khi <420; breadcrumb truncate; hết overflow 11px tại 1280.
+- Thêm 6 automated test tại `scenePreview.test.mjs`; cập nhật §9.6/§9.7, GAP-21.
+
 ### v0.2.1 - 2026-11-06
 
 - Thêm Regenerate dialog tại §9: feedback tùy chọn, tối đa 2.000 ký tự, `note` rỗng/khoảng trắng chuẩn hóa `null`, note khác rỗng được trim.
@@ -673,6 +721,12 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | Creator switch/route | `src/features/projects/ProjectDetailView.tsx:23-34`, `:117`; `ProjectCreatorPanel.tsx:19-72` |
 | Scene labels/generation/version UI | `ChapterDetailView.tsx:580-690`, `:730-800` |
 | Regenerate feedback dialog | `ChapterDetailView.tsx:316-336`, `:780-840`; `scenePreview.ts:17-28`; key i18n `project.scene.regenerate*` |
+| Dirty helper | `scenePreview.ts:isSceneDirty`; `ChapterDetailView.tsx` dùng helper cho từng scene |
+| Source helper | `scenePreview.ts:sourceForSceneAction` |
+| Generation request identity | `ChapterDetailView.tsx:generationRequestId`; timer callback kiểm tra `requestId` |
+| Long content cap | `ChapterDetailView.tsx` textarea `max-h-[70vh]`, review `max-h-[50vh]` |
+| Responsive header | `ChapterDetailView.tsx` `headerRef` + `ResizeObserver`; compact Chat `useIsCompact` |
+| Automated tests | `src/features/projects/scenePreview.test.mjs` (6 test, chạy bằng `node --test`) |
 | Dirty guard | `ChapterDetailView.tsx:150-177`, `:209-230`; `useBlocker`, `beforeunload` |
 | Save preview warning | `ChapterDetailView.tsx:209-217` |
 | Không có `scene_versions` thật | Không có API/DB; fixture `buildPreviewVersions` |

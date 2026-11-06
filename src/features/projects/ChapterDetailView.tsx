@@ -16,6 +16,7 @@ import {
 import { cn } from "@/shared/utils/cn";
 import { truncate } from "@/shared/utils/string";
 import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
+import { useIsCompact } from "@/shared/hooks/useMediaQuery";
 import { ProjectChatPane } from "./ProjectChatPane";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { Badge } from "@/shared/components/ui/badge";
@@ -33,7 +34,9 @@ import { FloatingOutline } from "@/shared/components/ui/floating-outline";
 import {
   buildPreviewVersions,
   buildSceneBlocks,
-  normalizeNote,
+  buildSceneRegenerationRequest,
+  isSceneDirty,
+  sourceForSceneAction,
   type SceneBlock,
   type SceneRegenerationRequest,
   type SceneSource,
@@ -55,6 +58,7 @@ interface ChapterDetailViewProps {
 }
 
 interface PreviewGeneration {
+  requestId: number;
   sceneId: string;
   status: "generating" | "review";
   attempt: number;
@@ -107,7 +111,7 @@ function AutoResizeTextarea({
       onChange={(e) => onChange(e.target.value)}
       rows={1}
       className={cn(
-        "w-full resize-none overflow-hidden bg-transparent text-sm leading-relaxed focus-ring",
+        "w-full max-h-[70vh] resize-none overflow-y-auto bg-transparent text-sm leading-relaxed focus-ring",
         disabled
           ? "cursor-not-allowed text-fg-subtle select-none -subtle"
           : "text-fg ",
@@ -123,9 +127,13 @@ export function ChapterDetailView({
   creatorEntry = false,
 }: ChapterDetailViewProps) {
   const t = useT();
+  const isCompact = useIsCompact();
   const [isEditing, setIsEditing] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [compactHeader, setCompactHeader] = useState(false);
+  const [stackHeader, setStackHeader] = useState(false);
   const [blocks, setBlocks] = useState<SceneBlock[]>(() => buildSceneBlocks(chapter));
   const [savedBlocks] = useState<SceneBlock[]>(() => buildSceneBlocks(chapter));
   const [sources, setSources] = useState<Record<string, SceneSource>>({});
@@ -134,6 +142,7 @@ export function ChapterDetailView({
     useState<RegenerateDialogState | null>(null);
   const [versionSceneId, setVersionSceneId] = useState<string | null>(null);
   const generationTimer = useRef<number | null>(null);
+  const generationRequestId = useRef(0);
   const regenerateSubmitting = useRef(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -141,6 +150,22 @@ export function ChapterDetailView({
     initialRatio: 45,
     minPx: 340,
   });
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const update = () => {
+      const width = header.clientWidth;
+      setCompactHeader(width > 0 && width < 510);
+      setStackHeader(width > 0 && width < 420);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const savedByScene = useMemo(
     () => new Map(savedBlocks.map((block) => [block.sceneId, block])),
@@ -151,10 +176,7 @@ export function ChapterDetailView({
     const dirty = new Map<string, boolean>();
     for (const block of blocks) {
       const saved = savedByScene.get(block.sceneId);
-      dirty.set(
-        block.sceneId,
-        !saved || saved.text !== block.text || saved.locked !== block.locked,
-      );
+      dirty.set(block.sceneId, isSceneDirty(block, saved));
     }
     return dirty;
   }, [blocks, savedByScene]);
@@ -190,6 +212,7 @@ export function ChapterDetailView({
 
   useEffect(
     () => () => {
+      generationRequestId.current += 1;
       if (generationTimer.current !== null) {
         window.clearTimeout(generationTimer.current);
       }
@@ -198,6 +221,7 @@ export function ChapterDetailView({
   );
 
   const clearGenerationTimer = () => {
+    generationRequestId.current += 1;
     if (generationTimer.current !== null) {
       window.clearTimeout(generationTimer.current);
       generationTimer.current = null;
@@ -205,8 +229,7 @@ export function ChapterDetailView({
   };
 
   const handleLockAll = () => {
-    clearGenerationTimer();
-    setGeneration(null);
+    if (generation) return;
     setRegenerateDialog(null);
     setBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
   };
@@ -256,12 +279,7 @@ export function ChapterDetailView({
   };
 
   const toggleLock = (sceneId: string) => {
-    const target = blocks.find((block) => block.sceneId === sceneId);
-
-    if (target && !target.locked && generation?.sceneId === sceneId) {
-      clearGenerationTimer();
-      setGeneration(null);
-    }
+    if (generation?.sceneId === sceneId) return;
 
     setBlocks((prev) =>
       prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: !b.locked } : b)),
@@ -272,7 +290,10 @@ export function ChapterDetailView({
     setBlocks((prev) =>
       prev.map((b) => (b.sceneId === sceneId ? { ...b, text: newText } : b)),
     );
-    setSources((prev) => ({ ...prev, [sceneId]: "HUMAN_EDITED" }));
+    setSources((prev) => ({
+      ...prev,
+      [sceneId]: sourceForSceneAction("edit"),
+    }));
   };
 
   const startPreviewGeneration = (
@@ -285,10 +306,12 @@ export function ChapterDetailView({
     if (generation?.status === "generating") return;
 
     clearGenerationTimer();
+    const requestId = ++generationRequestId.current;
     const attempt = attemptBase + 1;
     const sceneNumber = (sceneIndexById.get(block.sceneId) ?? 0) + 1;
 
     setGeneration({
+      requestId,
       sceneId: block.sceneId,
       status: "generating",
       attempt,
@@ -298,7 +321,7 @@ export function ChapterDetailView({
 
     generationTimer.current = window.setTimeout(() => {
       setGeneration((prev) =>
-        prev && prev.sceneId === block.sceneId
+        prev && prev.requestId === requestId
           ? {
               ...prev,
               status: "review",
@@ -333,10 +356,10 @@ export function ChapterDetailView({
       return;
     }
 
-    const request: SceneRegenerationRequest = {
-      sceneId: block.sceneId,
-      note: normalizeNote(regenerateDialog.noteInput),
-    };
+    const request: SceneRegenerationRequest = buildSceneRegenerationRequest(
+      block.sceneId,
+      regenerateDialog.noteInput,
+    );
 
     setRegenerateDialog(null);
     startPreviewGeneration(block, 0, request.note);
@@ -349,13 +372,19 @@ export function ChapterDetailView({
 
   const acceptGeneration = () => {
     if (!generation || generation.status !== "review") return;
+    const target = blocks.find((block) => block.sceneId === generation.sceneId);
+    if (!target || target.locked) return;
 
+    generationRequestId.current += 1;
     setBlocks((prev) =>
       prev.map((b) =>
         b.sceneId === generation.sceneId ? { ...b, text: generation.text } : b,
       ),
     );
-    setSources((prev) => ({ ...prev, [generation.sceneId]: "AI_GENERATED" }));
+    setSources((prev) => ({
+      ...prev,
+      [generation.sceneId]: sourceForSceneAction("accept"),
+    }));
     setGeneration(null);
   };
 
@@ -372,7 +401,10 @@ export function ChapterDetailView({
         b.sceneId === versionSceneId ? { ...b, text: version.content } : b,
       ),
     );
-    setSources((prev) => ({ ...prev, [versionSceneId]: "RESTORE" }));
+    setSources((prev) => ({
+      ...prev,
+      [versionSceneId]: sourceForSceneAction("restore"),
+    }));
     setVersionSceneId(null);
     toast({
       title: t("project.scene.versionRestored"),
@@ -420,7 +452,13 @@ export function ChapterDetailView({
       )}
     >
       {isChatOpen && (
-        <div style={{ width: `${leftRatio}%` }} className="h-full overflow-hidden">
+        <div
+          style={isCompact ? undefined : { width: `${leftRatio}%` }}
+          className={cn(
+            "h-full overflow-hidden",
+            isCompact && "absolute inset-0 z-40 w-full bg-surface-panel",
+          )}
+        >
           <ProjectChatPane
             projectName={project.title}
             subContext={fullChapterTitle}
@@ -429,7 +467,7 @@ export function ChapterDetailView({
         </div>
       )}
 
-      {isChatOpen && (
+      {isChatOpen && !isCompact && (
         <div
           onMouseDown={startDragging}
           className="group relative flex w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition-colors hover:bg-blue-500/10 dark:hover:bg-blue-500/20"
@@ -448,11 +486,24 @@ export function ChapterDetailView({
 
       <div
         ref={scrollContainerRef}
-        style={{ width: isChatOpen ? `${100 - leftRatio}%` : "100%" }}
+        style={{
+          width: isChatOpen && !isCompact ? `${100 - leftRatio}%` : "100%",
+        }}
         className="relative flex h-full flex-col overflow-y-auto bg-transparent p-6 dark:bg-transparent sm:p-8"
       >
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-line pb-4 ">
-          <div className="flex items-center gap-2 truncate text-xs font-semibold text-fg-muted">
+        <div
+          ref={headerRef}
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-y-2 border-b border-line pb-4",
+            stackHeader ? "min-h-12 flex-wrap" : "h-12",
+          )}
+        >
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2 truncate text-xs font-semibold text-fg-muted",
+              stackHeader ? "w-full" : "flex-1",
+            )}
+          >
             <Link to="/project" className="shrink-0 hover:text-fg ">
               {t("project.title")}
             </Link>
@@ -473,26 +524,39 @@ export function ChapterDetailView({
             </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-end gap-2",
+              stackHeader && "ml-auto",
+              compactHeader && "flex-wrap",
+            )}
+          >
             {isEditing && (
               <div className="mr-2 flex items-center gap-1 border-r border-line pr-3 ">
                 <button
                   type="button"
                   onClick={handleLockAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors duration-100 hover:bg-rose-50 active:scale-95 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                  disabled={!!generation}
+                  aria-label={t("project.lockAll")}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors duration-100 hover:bg-rose-50 active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
                   title={t("project.lockAll")}
                 >
                   <Lock className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("project.lockAll")}</span>
+                  {!compactHeader && (
+                    <span className="hidden sm:inline">{t("project.lockAll")}</span>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleUnlockAll}
+                  aria-label={t("project.unlockAll")}
                   className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-colors duration-100 hover:bg-emerald-50 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   title={t("project.unlockAll")}
                 >
                   <Unlock className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("project.unlockAll")}</span>
+                  {!compactHeader && (
+                    <span className="hidden sm:inline">{t("project.unlockAll")}</span>
+                  )}
                 </button>
               </div>
             )}
@@ -598,7 +662,7 @@ export function ChapterDetailView({
                         <button
                           type="button"
                           onClick={() => toggleLock(block.sceneId)}
-                          disabled={activeGeneration?.status === "generating"}
+                          disabled={!!activeGeneration}
                           aria-label={
                             block.locked
                               ? t("project.scene.unlock")
@@ -696,11 +760,16 @@ export function ChapterDetailView({
                               </span>
                             </div>
                           )}
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-fg">
+                          <p className="mt-2 max-h-[50vh] overflow-y-auto whitespace-pre-wrap pr-1 text-sm leading-relaxed text-fg">
                             {activeGeneration.text}
                           </p>
                           <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Button size="sm" variant="primary" onClick={acceptGeneration}>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={block.locked}
+                              onClick={acceptGeneration}
+                            >
                               {t("project.scene.accept")}
                             </Button>
                             <Button size="sm" variant="ghost" onClick={discardGeneration}>
