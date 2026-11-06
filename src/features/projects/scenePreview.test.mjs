@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 
 const vite = await createServer({
   configFile: false,
-  server: { middlewareMode: true, hmr: false },
+  server: { middlewareMode: true, hmr: false, ws: false },
   appType: 'custom',
 });
 after(async () => { await vite.close(); });
@@ -15,6 +15,8 @@ const {
   isSceneDirty,
   normalizeNote,
   sourceForSceneAction,
+  canBulkChangeLocks,
+  applyBulkLock,
 } = await vite.ssrLoadModule('/src/features/projects/scenePreview.ts');
 
 test('T09/T10: normalizes empty, whitespace-only, and non-empty notes', () => {
@@ -82,4 +84,35 @@ test('scene identity follows block id, not array position', () => {
     'scn-c-1-blk-2',
     'scn-c-1-blk-1',
   ]);
+});
+
+test('F03: bulk lock changes are blocked while generating or reviewing', () => {
+  assert.equal(canBulkChangeLocks(null), true);
+  assert.equal(canBulkChangeLocks({ status: 'generating' }), false);
+  assert.equal(canBulkChangeLocks({ status: 'review' }), false);
+});
+
+test('F03: Unlock All during active generation/review leaves blocks untouched', () => {
+  const blocks = [
+    { sceneId: 's1', text: 'a edited', locked: true },
+    { sceneId: 's2', text: 'b', locked: false },
+  ];
+  for (const status of ['generating', 'review']) {
+    const out = applyBulkLock(blocks, false, { status });
+    assert.equal(out, blocks);
+    assert.deepEqual(out.map((b) => b.locked), [true, false]);
+    assert.equal(out[0].text, 'a edited');
+  }
+});
+
+test('F03: Unlock All when idle unlocks every scene and preserves content', () => {
+  const blocks = [
+    { sceneId: 's1', text: 'a edited', locked: true },
+    { sceneId: 's2', text: 'b', locked: true },
+  ];
+  const out = applyBulkLock(blocks, false, null);
+  assert.deepEqual(out.map((b) => b.locked), [false, false]);
+  assert.deepEqual(out.map((b) => b.text), ['a edited', 'b']);
+  assert.deepEqual(blocks.map((b) => b.locked), [true, true]);
+  assert.equal(isSceneDirty(out[0], blocks[0]), true);
 });

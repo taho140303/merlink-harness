@@ -169,7 +169,12 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="flex max-h-[85vh] max-w-[44rem] flex-col gap-0 overflow-hidden p-0"
+        className={cn(
+          "flex max-h-[85vh] max-w-[44rem] flex-col gap-0 overflow-hidden p-0",
+          // Hide the shared top-right close (X) while a commit is pending; dismissal is blocked anyway.
+          pending && "[&>button:last-child]:hidden",
+        )}
+        aria-busy={pending}
         onEscapeKeyDown={(e) => { if (pending) e.preventDefault(); }}
         onPointerDownOutside={(e) => { if (pending) e.preventDefault(); }}
         onInteractOutside={(e) => { if (pending) e.preventDefault(); }}

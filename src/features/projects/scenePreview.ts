@@ -56,6 +56,26 @@ export function isSceneDirty(
   return working.text !== baseline.text || working.locked !== baseline.locked;
 }
 
+/**
+ * Bulk lock changes (Lock All / Unlock All) are only safe while no scene
+ * generation or review is active. Per-scene lock rules are handled separately.
+ */
+export function canBulkChangeLocks(
+  generation: { status: "generating" | "review" } | null,
+): boolean {
+  return generation === null;
+}
+
+/** Applies a bulk lock state, or returns the blocks untouched when blocked. */
+export function applyBulkLock<T extends Pick<SceneBlock, "locked">>(
+  blocks: readonly T[],
+  locked: boolean,
+  generation: { status: "generating" | "review" } | null,
+): T[] {
+  if (!canBulkChangeLocks(generation)) return blocks as T[];
+  return blocks.map((block) => ({ ...block, locked }));
+}
+
 const FALLBACK_BLOCK: ChapterBlock = {
   id: "blk-fallback",
   text: "Nội dung chương đang được soạn thảo...",

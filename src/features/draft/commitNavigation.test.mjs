@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
-const vite = await createServer({ configFile: false, resolve: { alias: { '@': new URL('../../', import.meta.url).pathname } }, server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+const vite = await createServer({ configFile: false, resolve: { alias: { '@': new URL('../../', import.meta.url).pathname } }, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' });
 after(async () => { await vite.close(); });
 
 const n = await vite.ssrLoadModule('/src/features/draft/commitNavigation.ts');
@@ -57,4 +58,17 @@ test('N10 valid navigation targets the View Mode route', () => {
 });
 test('N11 creator chapter selection uses the existing chapter route', () => {
   assert.equal(n.buildCreatorChapterPath('proj-1', 'c-1'), '/project/proj-1/chapter/c-1?mode=creator');
+});
+test('N12 ProjectCreatorPanel navigates through the tested creator route builder', () => {
+  const src = readFileSync(new URL('../projects/ProjectCreatorPanel.tsx', import.meta.url), 'utf8');
+  assert.match(src, /import \{ buildCreatorChapterPath \} from "@\/features\/draft\/commitNavigation"/);
+  assert.match(src, /navigate\(buildCreatorChapterPath\(project\.id, chapter\.id\)\)/);
+  assert.ok(!src.includes('?mode=creator'), 'no inline creator route template');
+});
+test('N13 commit dialog hides the close affordance and blocks dismissal while pending', () => {
+  const src = readFileSync(new URL('./CommitConfirmationDialog.tsx', import.meta.url), 'utf8');
+  assert.match(src, /pending && "\[&>button:last-child\]:hidden"/);
+  assert.match(src, /onEscapeKeyDown=\{\(e\) => \{ if \(pending\) e\.preventDefault\(\); \}\}/);
+  assert.match(src, /onInteractOutside=\{\(e\) => \{ if \(pending\) e\.preventDefault\(\); \}\}/);
+  assert.match(src, /disabled=\{pending\} onClick=\{\(\) => handleOpenChange\(false\)\}/);
 });

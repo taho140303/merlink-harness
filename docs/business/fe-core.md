@@ -1,10 +1,10 @@
 # FE CORE: CƠ CHẾ GIAO DIỆN MERLINK HARNESS
 
-> **Phiên bản:** 0.3.1
+> **Phiên bản:** 0.3.2
 > **Đối chiếu:** `docs/business/core.md` v2.4.1
 > **Vai trò:** SSOT cơ chế giao diện và hợp đồng tương tác FE của Merlink Harness. Business Core quyết định hệ thống phải làm gì; tài liệu này mô tả giao diện hiện đang làm gì và cần làm gì. `docs/design-system.md` quyết định cách thể hiện thị giác.
 > **Phạm vi kiểm tra:** `src/features/chat`, `src/features/draft`, `src/features/business-flow`, `src/features/projects` (gồm ChapterDetail, ProjectDetail, ProjectCreatorPanel, scenePreview), router, Zustand store, i18n và mock data.
-> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.3B (điều hướng preview sau commit mô phỏng).
+> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.3B (điều hướng preview sau commit mô phỏng) và cleanup tiền-merge Stage B.
 > **Giới hạn:** tài liệu này không sửa `src/`, `docs/db.dbml`, `docs/design-system.md`, `package.json` hoặc backend.
 
 ## 0. Cách đọc và trạng thái
@@ -143,7 +143,7 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 | DR-06 | `[MOCK]` | Version dropdown hiển thị v.03/v.02/v.01 | chọn chỉ đổi label `currentVersion`; không restore dữ liệu | 3.6 | `DraftToolbar.tsx:53-97`, `DraftWorkspace.tsx:227-229` | xem C6 |
 | DR-07 | `[MOCK]` | Regenerate mở ConfirmDialog rồi chạy transition | `executeRegenerate` không đổi dữ liệu | 3.6 | `DraftWorkspace.tsx:108-116`, `DraftWorkspace.tsx:250-259` | chỉ là shell |
 | DR-08 | `[IMPLEMENTED]` | Feedback Mode bật từ toolbar; click phần tử để gắn context; tắt khi rời panel | custom cursor; `{id, tag, title}`; không content | 3.4 | `DraftWorkspace.tsx:27-42`, `DraftWorkspace.tsx:118-121`, `DraftWorkspace.tsx:184-193` | xem C4 |
-| DR-09 | `[MOCK]` | Start/“Xác nhận” chỉ xuất hiện ở bước 6; bấm mở Commit Confirmation Dialog preview (§7.2) | `handleStart = setCommitDialogOpen(true)` | 3.5, 3.7 | `DraftWorkspace.tsx:104-106`, `DraftToolbar.tsx:43-48` | không commit; xem C7 |
+| DR-09 | `[MOCK]` | Start/“Xác nhận” chỉ xuất hiện ở bước 6; bấm mở Commit Confirmation Dialog preview (§7.2) | `handleStart = setCommitDialogOpen(true)` | 3.5, 3.7 | `DraftWorkspace.tsx:112` (`handleStart`), `DraftToolbar.tsx` | không commit; xem C7 |
 | DR-10 | `[IMPLEMENTED]` | Character detail dialog 5.1/5.2/5.3; tab chưa có dữ liệu hiển thị khóa | lock dựa trên mock `appearance`, `psychological`, `competences`, `memories` | 2.6 | `CharacterDetailDialog.tsx:22-37`, `CharacterDetailDialog.tsx:92-130` | lock UI, không phải quyền backend |
 | DR-11 | `[GAP]` | Cần Working State, phase/subphase, source, patch, version, lock, commit thật | không có các state trên | 1.3, 3.6, 3.7 | không có trong `src/features/draft` | xem GAP matrix |
 | DR-12 | `[CONFLICT]` | Dữ liệu Draft dùng schema camelCase UI, không phải `BusinessFlowData` | `DRAFT_OVERVIEW` khác `SAMPLE_BUSINESS_FLOW_DATA` | 1.2, 2.2-2.7, 3.6 | `draft/types.ts:250`, `business-flow/types.ts:364` | xem C11 |
@@ -249,6 +249,13 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 - Mô phỏng thành công không tự điều hướng. Dialog hiển thị dự án mẫu đích (chọn trong panel Dev simulation; có lựa chọn “không tồn tại” để thử lỗi), cảnh báo đích chứa dữ liệu mẫu chứ không phải draft vừa duyệt và bản nháp có thể bị mất. Người dùng bấm “Xem Project Detail mẫu” → hộp xác nhận (`ConfirmDialog`) → đóng Draft Workspace và `navigate('/project/:projectId')` (không có `mode` ⇒ View Mode). Bấm lặp chỉ chạy một lần (once-guard).
 - Failed / unknown / pending / thiếu target: giữ Draft Workspace và dữ liệu, không điều hướng. Chuyển sang Creator Mode và chọn chương là thao tác thủ công của người dùng trên route hiện có `/project/:projectId/chapter/:chapterId?mode=creator`; không có route mới, không tự sinh chương/cảnh.
 - Draft chỉ là state local, không persist: sau điều hướng hoặc refresh không khôi phục. Đây **không phải commit thật**; không tạo project.
+- `ProjectCreatorPanel` điều hướng chọn chương qua `buildCreatorChapterPath` của `commitNavigation.ts` (test N11/N12), nên component và test dùng chung một hợp đồng route; URL không đổi.
+
+**Cleanup tiền-merge Stage B `[MOCK]`:**
+
+- Khi pending, `CommitConfirmationDialog` ẩn nút X dùng chung (class cục bộ `[&>button:last-child]:hidden`, không đổi `Dialog` chung), chặn Escape/click ngoài, disable Cancel và `handleOpenChange` từ chối đóng (`canDismissCommitDialog`). Test N13 chỉ kiểm tra wiring ở mức source; tương tác DOM vẫn kiểm tra thủ công.
+- Điều khiển “Dev simulation” chỉ render khi `import.meta.env.DEV`; production build không có panel này và kết quả luôn là `unknown` (không success, không điều hướng).
+- Phân biệt: dialog, máy trạng thái, validation/patch presentation và điều hướng mẫu là **UI implementation `[MOCK]`**; validation thật, pending patches thật, commit bền vững, idempotency, tạo project và điều hướng tới project thật là **phụ thuộc backend `[GAP]`**.
 
 **Vẫn `[GAP]` / `[IMPLEMENTATION PENDING]`:**
 
@@ -351,7 +358,7 @@ H1 đã `APPROVED` tại core 1.6. Wave 0/0.1 triển khai UI preview trên Chap
 - Dirty được tính lại từ `workingContent !== baselineContent || workingLocked !== baselineLocked`; source metadata không tạo dirty. Sửa rồi khôi phục đúng baseline, hoặc lock/unlock về baseline, thì scene sạch.
 - Source được quyết định bởi thao tác cuối: Accept → `AI_GENERATED`; sửa tay → `HUMAN_EDITED`; Restore → `RESTORE`; Restore rồi sửa tay → `HUMAN_EDITED`. Mở/đóng dialog, cancel, discard và lock không đổi source.
 - Generation có `requestId`; cancel/discard/unmount vô hiệu hóa callback cũ. Double Confirm bị chặn; một chapter chỉ có một generation active.
-- Trong lúc generating/review, lock của scene đang active và Lock All bị disable; lock scene khác vẫn an toàn. Accept bị chặn nếu scene đã khóa.
+- Trong lúc generating/review, lock của scene đang active, Lock All và Unlock All đều bị disable (handler cũng chặn qua `canBulkChangeLocks`/`applyBulkLock` trong `scenePreview.ts`); lock scene khác vẫn an toàn. Accept bị chặn nếu scene đã khóa.
 - Nội dung scene dài được giới hạn chiều cao editor ở `70vh` với scroll trong editor; review sample giới hạn `50vh`. Controls và Accept/Discard vẫn tiếp cận được, không overlap, không horizontal overflow.
 - Dưới breakpoint 1279 hiện có, Chat của Chapter Detail chuyển thành overlay toàn pane (dùng `useIsCompact` hiện có), không còn split-pane hẹp.
 - Header dùng container width: ẩn label Lock All/Unlock All khi header < 510px; xếp breadcrumb + controls thành hai hàng khi < 420px. Breadcrumb được truncate, không bị ẩn toàn bộ. Không thêm breakpoint toàn cục.
@@ -422,8 +429,8 @@ Các width 1440/1366/1280 khi Chat đóng, và 1024/768 khi Chat đóng, cũng k
 
 ### 9.7 Test coverage (Wave 0.2)
 
-- Automated: `src/features/projects/scenePreview.test.mjs` (Vite SSR + `node:test`) có 6 test cho normalize note/request, dirty content+lock, source attribution và scene identity; chạy bằng `node --test src/features/projects/scenePreview.test.mjs`.
-- `npm test` vẫn chạy 4 test settings và pass; file test projects không nằm trong glob cố định `src/features/settings/*.test.mjs` của package.json, nên được chạy riêng (không sửa package.json).
+- Automated: `npm test` chạy glob `src/features/**/*.test.mjs` (Vite SSR + `node:test`). Trước cleanup Stage B: 34 test; sau cleanup: 39 test (`settings` 4, `commitPreview` C01–C12+, `commitNavigation` N01–N13, `scenePreview` 6 + 3 test F03 cho Unlock All khi generating/review). Đều là test logic thuần/source-wiring, không phải DOM test.
+- Các SSR harness test đặt `server.ws: false`: Vite 8 vẫn tạo WebSocket server ở middleware mode dù `hmr: false`, khiến các file chạy song song tranh cổng 24678 (cảnh báo “Port 24678 is already in use”). Test không cần WebSocket nên tắt hẳn; không đổi isolation.
 - Manual browser checks: dirty Regenerate (discard/cancel/accept), multi-scene dirty, Save preview, navigation guard, lock/review, long scene 100/2.000/8.000 từ, Chat toggle, VI/EN, light/dark và 6 viewport.
 - Giới hạn: repo không có DOM/component test harness (không có jsdom/testing-library); các tương tác component T01-T04, T11-T18 được kiểm tra thủ công, không được tuyên bố là automated coverage.
 
@@ -522,7 +529,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | Save cấp chương: content + lock + word_count + `scene_versions` | Save, dirty baseline, version head | chưa có; Save chỉ cảnh báo |
 | danh sách version scene và restore | version dialog, restore | fixture `buildPreviewVersions`; không persist |
 | dirty/navigation contract từ backend | guard, refresh/close | local state + `useBlocker`/`beforeunload` |
-| commit confirmation/status/navigation | H2 commit dialog và post-commit View | không có; Start đóng panel |
+| commit confirmation/status/navigation | H2 commit dialog và post-commit View | chỉ UI preview: Start mở Commit Confirmation Dialog, kết quả và điều hướng là mô phỏng DEV-only tới project mẫu; không có backend |
 | `system_language` và `project.language` tách biệt | chat và nội dung | chỉ locale UI, mock language |
 
 ## 14. Gap Matrix
@@ -534,7 +541,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | GAP-03 | Patch | Preview/confirm/reject/apply all/expired | Không có | `[GAP]` | không thể xử lý `pending_confirmation` |
 | GAP-04 | Lock | Draft busy, read-only snapshot | Không có | `[GAP]` | không có phản hồi khi workflow giữ khóa |
 | GAP-05 | Cancel | Hủy có kiểm soát | Không có | `[GAP]` | người dùng không thể dừng workflow |
-| GAP-06 | Commit | Start transaction, progress, rollback, read-only | Start đóng panel | `[GAP]` | không commit được |
+| GAP-06 | Commit | Start transaction, progress, rollback, read-only | Start mở dialog preview; pending/error/success chỉ mô phỏng | `[GAP]` | không commit được |
 | GAP-07 | Version | Restore sealed version, phase/subphase | Dropdown mock | `[GAP]` | không quay lại được version |
 | GAP-08 | Crash | Phát hiện gián đoạn, phục hồi sealed | Không có | `[GAP]` | refresh mất dữ liệu |
 | GAP-09 | Writing | Một chương, context, continuity, version | UI preview Chapter Detail; chưa có committed gate/backend/continuity | `[GAP]` | UI có nhưng chưa dùng được với plan thật |
@@ -546,7 +553,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | GAP-15 | Process detail | Render từ toàn bộ `businessFlowData` | Chỉ require | `[GAP]` | thiếu ngữ cảnh tiến độ |
 | GAP-16 | Scene Save | Atomic content + lock + word_count + `scene_versions` | Save chỉ cảnh báo, giữ local | `[GAP]` | không persist nội dung scene |
 | GAP-17 | Scene Generation | Stream/cancel, buffer, lỗi, note tùy chọn | Preview sample text; note local không được AI đọc | `[GAP]` | không sinh nội dung thật theo note |
-| GAP-18 | H2 Commit | Dialog, validation, pending, idempotent, navigation | Start đóng panel | `[GAP]` | chưa commit/điều hướng |
+| GAP-18 | H2 Commit | Dialog, validation, pending, idempotent, navigation | Dialog UI `[MOCK]`; validation/patch từ fixture; điều hướng mô phỏng tới project mẫu; idempotency/commit thật chưa có | `[GAP]` | chưa commit/điều hướng |
 | GAP-19 | Scene Read-model | `scenes.id`, `position`, `content`, `word_count`, `is_locked` | `sceneId` preview `scn-*` | `[GAP]` | không có identity/persistence thật |
 | GAP-20 | Scene Lock | Persist `scenes.is_locked` | Local `block.locked` | `[GAP]` | khóa không bền |
 | GAP-21 | Responsive | Chapter Detail compact 1279px | Chat overlay từ 1279 trở xuống; header không overflow; breadcrumb truncate; label ẩn <510, stack <420 | `[IMPLEMENTED]` | sửa trong Wave 0.2; không đổi breakpoint toàn cục |
@@ -563,7 +570,7 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | C4 | `feedbackContext {code, tag, title, content}` (core 3.4) | `{id, tag, title}`, không `content` | `draft/types.ts:11-16`, `DraftWorkspace.tsx:118-121` | Cao: AI không nhận đúng scope/payload | FE đổi sang `code` ổn định và bổ sung `content`; giữ tag/title | `[CONFLICT]` |
 | C5 | Không hiển thị `code` trên UI (core 3.8) | Hiển thị slug/code ở ChapterBlock, WorldSettingsBlock, SceneConfigBlock | `ChapterBlock.tsx:116`, `WorldSettingsBlock.tsx:89`, `SceneConfigBlock.tsx:144` | Cao: trái quy tắc định danh | Sửa FE để ẩn code; giữ code trong data/tool | `[CONFLICT]` |
 | C6 | Restore version thật, phase/subphase (core 3.6) | Dropdown mock, chỉ đổi label | `DraftToolbar.tsx:53-97` | Cao: không quay lại được | Implement restore sau khi có backend | `[GAP]` |
-| C7 | Commit transaction + H2 dialog/navigation (core 3.5, 3.7) | Start mở dialog preview (0.3A); không commit thật | `DraftWorkspace.tsx:104-106` | Cao: không commit/điều hướng thật | Commit backend + Wave 0.3B; không coi đóng panel là commit | `[GAP]` |
+| C7 | Commit transaction + H2 dialog/navigation (core 3.5, 3.7) | Start mở dialog preview (0.3A); không commit thật | `DraftWorkspace.tsx:112`, `CommitConfirmationDialog.tsx`, `commitNavigation.ts` | Cao: không commit/điều hướng thật | Wave 0.3B đã có điều hướng **mô phỏng** tới project mẫu; còn cần commit backend + điều hướng tới project thật; không coi đóng panel hay success-preview là commit | `[GAP]` |
 | C8 | Pending patches chặn Start (core 3.7) | Không có patch UI | không có | Cao: Start có thể bỏ qua dữ liệu chờ | Implement patch UI và block Start | `[GAP]` |
 | C9 | Workflow lock/cancel (core 3.6, 3.9) | Không có UI | không có | Cao: không kiểm soát được workflow | Implement trạng thái và cancel | `[GAP]` |
 | C10 | Writing Mode chapter-first (core 1.6, H1 APPROVED) | Preview surface đã có; backend/committed gate chưa | `ChapterDetailView.tsx`, `ProjectCreatorPanel.tsx` | Cao: UI có nhưng chưa dùng được với plan thật | Hoàn thiện backend/gate; không coi preview là production | `[GAP]` |
@@ -682,6 +689,21 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 
 ## 17. Changelog
 
+### v0.3.2 - 2026-11-06
+
+- Cleanup tiền-merge Stage B: Unlock All bị chặn khi generating/review (`canBulkChangeLocks`, `applyBulkLock`); nhãn Chat Chapter Detail dùng i18n `project.chat.label` và có `focus-ring`.
+- Commit dialog: ẩn nút X khi pending (cục bộ), ghi rõ DEV-only simulation và ranh giới UI `[MOCK]` vs backend `[GAP]`.
+- `ProjectCreatorPanel` dùng `buildCreatorChapterPath`; thêm test N12/N13 và 3 test F03; `npm test` 39 test.
+- Sửa mô tả lỗi thời “Start đóng panel” ở §13/§14/§15 và tham chiếu `DraftWorkspace.tsx`.
+
+### v0.3.1 - 2026-11-06
+
+- Wave 0.3B: dialog +2px typography, `max-w-[44rem]`; điều hướng mô phỏng sau commit tới project mẫu (`commitNavigation.ts`, N01–N11).
+
+### v0.3 - 2026-11-06
+
+- Wave 0.3A: nút “Xác nhận” bước 6 mở Commit Confirmation Dialog preview (`commitPreview.ts`, C01–C12); test mặc định gộp mọi feature.
+
 ### v0.2.2 - 2026-11-06
 
 - Hardening dirty: tính lại từ content/lock so với baseline; source metadata không tạo dirty; sửa-rồi-hoàn-tác và lock/unlock về baseline đều sạch.
@@ -731,7 +753,7 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | 50 attributes | `src/features/business-flow/progressEngine.ts:11-79` |
 | Draft data mock camelCase | `src/features/draft/mockOverview.ts:3`, `draft/types.ts:250` |
 | Draft 6 bước | `src/features/draft/DraftHeader.tsx:19-37` |
-| Start mở dialog preview | `src/features/draft/DraftWorkspace.tsx:104-106` |
+| Start mở dialog preview | `src/features/draft/DraftWorkspace.tsx:112` (`handleStart`) |
 | Version dropdown mock | `src/features/draft/DraftToolbar.tsx:53-97` |
 | Feedback context id/tag/title | `src/features/draft/types.ts:11-16` |
 | Code hiển thị trên UI | `ChapterBlock.tsx:116`, `WorldSettingsBlock.tsx:89`, `SceneConfigBlock.tsx:144` |
@@ -745,7 +767,7 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | Generation request identity | `ChapterDetailView.tsx:generationRequestId`; timer callback kiểm tra `requestId` |
 | Long content cap | `ChapterDetailView.tsx` textarea `max-h-[70vh]`, review `max-h-[50vh]` |
 | Responsive header | `ChapterDetailView.tsx` `headerRef` + `ResizeObserver`; compact Chat `useIsCompact` |
-| Automated tests | `src/features/projects/scenePreview.test.mjs` (6 test, chạy bằng `node --test`) |
+| Automated tests | `npm test` → `src/features/**/*.test.mjs` (39 test sau cleanup Stage B) |
 | Dirty guard | `ChapterDetailView.tsx:150-177`, `:209-230`; `useBlocker`, `beforeunload` |
 | Save preview warning | `ChapterDetailView.tsx:209-217` |
 | Không có `scene_versions` thật | Không có API/DB; fixture `buildPreviewVersions` |

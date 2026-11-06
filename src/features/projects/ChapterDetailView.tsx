@@ -32,6 +32,8 @@ import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
 import { FloatingOutline } from "@/shared/components/ui/floating-outline";
 import {
+  applyBulkLock,
+  canBulkChangeLocks,
   buildPreviewVersions,
   buildSceneBlocks,
   buildSceneRegenerationRequest,
@@ -235,7 +237,8 @@ export function ChapterDetailView({
   };
 
   const handleUnlockAll = () => {
-    setBlocks((prev) => prev.map((b) => ({ ...b, locked: false })));
+    if (!canBulkChangeLocks(generation)) return;
+    setBlocks((prev) => applyBulkLock(prev, false, generation));
   };
 
   const handleStartEdit = () => {
@@ -549,8 +552,9 @@ export function ChapterDetailView({
                 <button
                   type="button"
                   onClick={handleUnlockAll}
+                  disabled={!canBulkChangeLocks(generation)}
                   aria-label={t("project.unlockAll")}
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-colors duration-100 hover:bg-emerald-50 active:scale-95 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-600 transition-colors duration-100 hover:bg-emerald-50 active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   title={t("project.unlockAll")}
                 >
                   <Unlock className="h-3.5 w-3.5" />
@@ -606,14 +610,14 @@ export function ChapterDetailView({
               type="button"
               onClick={() => setIsChatOpen(!isChatOpen)}
               className={cn(
-                "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors",
+                "focus-ring flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium  transition-colors",
                 isChatOpen
                   ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
                   : "border-line bg-surface-card text-fg-muted hover:bg-surface-muted   ",
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              <span>Chat</span>
+              <span>{t("project.chat.label")}</span>
             </button>
           </div>
         </div>

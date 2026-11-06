@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/shared/components/ui/badge";
 import { useT } from "@/shared/i18n/useT";
+import { buildCreatorChapterPath } from "@/features/draft/commitNavigation";
 import type { ProjectItem } from "./types";
 
 interface ProjectCreatorPanelProps {
@@ -55,9 +56,7 @@ export function ProjectCreatorPanel({ project }: ProjectCreatorPanelProps) {
                       key={chapter.id}
                       type="button"
                       onClick={() =>
-                        navigate(
-                          `/project/${project.id}/chapter/${chapter.id}?mode=creator`,
-                        )
+                        navigate(buildCreatorChapterPath(project.id, chapter.id))
                       }
                       className="focus-ring flex w-full items-center justify-between gap-3 rounded-xl border-b border-line px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-surface-muted"
                     >
