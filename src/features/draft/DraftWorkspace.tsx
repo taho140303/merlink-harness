@@ -4,6 +4,7 @@ import { DraftHeader } from './DraftHeader';
 import { DraftOverviewBlock } from './DraftOverviewBlock';
 import { DraftToolbar } from './DraftToolbar';
 import { DraftLoading } from './DraftLoading';
+import { CommitConfirmationDialog } from './CommitConfirmationDialog';
 import { DRAFT_OVERVIEW } from './mockOverview';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { useT } from '@/shared/i18n/useT';
@@ -23,6 +24,7 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
   const [currentVersion, setCurrentVersion] = useState(overview.version);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   
   // Feedback Mode State & Custom Cursor
   const [isFeedbackMode, setIsFeedbackMode] = useState(false);
@@ -101,8 +103,9 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
     });
   };
 
+  // Wave 0.3A: Phase 6 confirm opens the commit confirmation preview; it does not close the workspace.
   const handleStart = () => {
-    onClose();
+    setCommitDialogOpen(true);
   };
 
   const handleRegenerate = () => {
@@ -245,6 +248,12 @@ export function DraftWorkspace({ onClose, onFeedback, overview = DRAFT_OVERVIEW 
         cancelLabel={t('common.cancel')}
         cancelEmphasized
         onConfirm={executeNext}
+      />
+
+      <CommitConfirmationDialog
+        open={commitDialogOpen}
+        onOpenChange={setCommitDialogOpen}
+        overview={overview}
       />
 
       <ConfirmDialog
