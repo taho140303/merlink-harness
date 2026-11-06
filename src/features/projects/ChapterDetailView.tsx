@@ -26,13 +26,16 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
+import { Textarea } from "@/shared/components/ui/textarea";
 import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
 import { FloatingOutline } from "@/shared/components/ui/floating-outline";
 import {
   buildPreviewVersions,
   buildSceneBlocks,
+  normalizeNote,
   type SceneBlock,
+  type SceneRegenerationRequest,
   type SceneSource,
   type SceneVersionPreview,
 } from "./scenePreview";
@@ -56,6 +59,12 @@ interface PreviewGeneration {
   status: "generating" | "review";
   attempt: number;
   text: string;
+  note: string | null;
+}
+
+interface RegenerateDialogState {
+  sceneId: string;
+  noteInput: string;
 }
 
 function AutoResizeTextarea({
@@ -121,8 +130,11 @@ export function ChapterDetailView({
   const [savedBlocks] = useState<SceneBlock[]>(() => buildSceneBlocks(chapter));
   const [sources, setSources] = useState<Record<string, SceneSource>>({});
   const [generation, setGeneration] = useState<PreviewGeneration | null>(null);
+  const [regenerateDialog, setRegenerateDialog] =
+    useState<RegenerateDialogState | null>(null);
   const [versionSceneId, setVersionSceneId] = useState<string | null>(null);
   const generationTimer = useRef<number | null>(null);
+  const regenerateSubmitting = useRef(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
@@ -195,6 +207,7 @@ export function ChapterDetailView({
   const handleLockAll = () => {
     clearGenerationTimer();
     setGeneration(null);
+    setRegenerateDialog(null);
     setBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
   };
 
@@ -226,6 +239,7 @@ export function ChapterDetailView({
 
     clearGenerationTimer();
     setGeneration(null);
+    setRegenerateDialog(null);
     setVersionSceneId(null);
     setIsEditing(false);
   };
@@ -235,6 +249,7 @@ export function ChapterDetailView({
     setSources({});
     clearGenerationTimer();
     setGeneration(null);
+    setRegenerateDialog(null);
     setVersionSceneId(null);
     setIsEditing(false);
     setDiscardOpen(false);
@@ -260,7 +275,11 @@ export function ChapterDetailView({
     setSources((prev) => ({ ...prev, [sceneId]: "HUMAN_EDITED" }));
   };
 
-  const startPreviewGeneration = (block: SceneBlock, attemptBase: number) => {
+  const startPreviewGeneration = (
+    block: SceneBlock,
+    attemptBase: number,
+    note: string | null = null,
+  ) => {
     if (block.locked) return;
     if (generation && generation.sceneId !== block.sceneId) return;
     if (generation?.status === "generating") return;
@@ -274,6 +293,7 @@ export function ChapterDetailView({
       status: "generating",
       attempt,
       text: "",
+      note,
     });
 
     generationTimer.current = window.setTimeout(() => {
@@ -291,6 +311,35 @@ export function ChapterDetailView({
       );
       generationTimer.current = null;
     }, 900);
+  };
+
+  const openRegenerateDialog = (block: SceneBlock) => {
+    if (block.locked || generation) return;
+    regenerateSubmitting.current = false;
+    setRegenerateDialog({ sceneId: block.sceneId, noteInput: "" });
+  };
+
+  const closeRegenerateDialog = () => {
+    setRegenerateDialog(null);
+  };
+
+  const confirmRegeneration = () => {
+    if (!regenerateDialog || generation || regenerateSubmitting.current) return;
+    regenerateSubmitting.current = true;
+
+    const block = blocks.find((item) => item.sceneId === regenerateDialog.sceneId);
+    if (!block || block.locked) {
+      setRegenerateDialog(null);
+      return;
+    }
+
+    const request: SceneRegenerationRequest = {
+      sceneId: block.sceneId,
+      note: normalizeNote(regenerateDialog.noteInput),
+    };
+
+    setRegenerateDialog(null);
+    startPreviewGeneration(block, 0, request.note);
   };
 
   const cancelGeneration = () => {
@@ -637,6 +686,16 @@ export function ChapterDetailView({
                               {t("project.scene.previewNote")}
                             </p>
                           </div>
+                          {activeGeneration.note && (
+                            <div className="mt-2 max-h-24 overflow-y-auto rounded-lg border border-line bg-surface-card/70 px-2.5 py-2 text-xs text-fg-muted">
+                              <span className="font-semibold text-fg">
+                                {t("project.scene.regenerateNotePreview")}
+                              </span>{" "}
+                              <span className="whitespace-pre-wrap break-words">
+                                {activeGeneration.note}
+                              </span>
+                            </div>
+                          )}
                           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-fg">
                             {activeGeneration.text}
                           </p>
@@ -665,9 +724,7 @@ export function ChapterDetailView({
                           size="sm"
                           variant="secondary"
                           disabled={block.locked || !hasContent || !!generation}
-                          onClick={() =>
-                            startPreviewGeneration(block, activeGeneration?.attempt ?? 0)
-                          }
+                          onClick={() => openRegenerateDialog(block)}
                         >
                           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t("project.scene.regenerate")}</span>
@@ -731,6 +788,52 @@ export function ChapterDetailView({
         variant="danger"
         onConfirm={() => blocker.proceed?.()}
       />
+
+      <Dialog
+        open={!!regenerateDialog}
+        onOpenChange={(open) => {
+          if (!open) closeRegenerateDialog();
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <div>
+            <DialogTitle className="text-base">
+              {t("project.scene.regenerateTitle")}
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-xs">
+              {t("project.scene.regenerateDescription")}
+            </DialogDescription>
+          </div>
+
+          <Textarea
+            label={t("project.scene.regenerateNoteLabel")}
+            hint={t("project.scene.regenerateMaxHint")}
+            value={regenerateDialog?.noteInput ?? ""}
+            onChange={(event) =>
+              setRegenerateDialog((prev) =>
+                prev ? { ...prev, noteInput: event.target.value } : prev,
+              )
+            }
+            placeholder={t("project.scene.regeneratePlaceholder")}
+            maxLength={2000}
+            rows={4}
+          />
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={closeRegenerateDialog}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={!!generation}
+              onClick={confirmRegeneration}
+            >
+              {t("project.scene.regenerateConfirm")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {versionBlock && (
         <Dialog

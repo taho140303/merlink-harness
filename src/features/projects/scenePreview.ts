@@ -14,6 +14,18 @@ export interface SceneVersionPreview {
   content: string;
 }
 
+/** Frontend-only request model for one scene regeneration. Never persisted. */
+export interface SceneRegenerationRequest {
+  sceneId: string;
+  note: string | null;
+}
+
+/** Empty or whitespace-only feedback means "no additional guidance". */
+export function normalizeNote(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 const FALLBACK_BLOCK: ChapterBlock = {
   id: "blk-fallback",
   text: "Nội dung chương đang được soạn thảo...",

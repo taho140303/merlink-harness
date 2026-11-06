@@ -2,7 +2,7 @@
 
 > **Tài liệu này là SSOT (Single Source of Truth) của toàn bộ quy tắc nghiệp vụ Merlink Harness. Khi `tools.md`, `overview.md`, `case_newchat.md` hoặc bất kỳ tài liệu nào khác mâu thuẫn với core về nghiệp vụ, core thắng. Schema vật lý của bảng vẫn theo `docs/db.dbml`.**
 > **Tài liệu tham chiếu chuẩn cho kiến trúc nghiệp vụ và lập kế hoạch kỹ thuật (Planning)**
-> **Phiên bản:** 2.4
+> **Phiên bản:** 2.4.1
 > **Phạm vi áp dụng:** Luồng Chat thu thập, Trình tính toán tiến độ (Progress Engine), Trình dựng dàn ý (Draft Building), và Mô hình dữ liệu quan hệ (Domain Database).
 > **Danh mục tool:** [harness/tools.md](harness/tools.md).
 
@@ -149,7 +149,7 @@ Merlink Harness có hai luồng độc lập; không đồng nhất workflow ph�
 
 ### 1.6 Hợp đồng Writing Mode: chương-first, cảnh là block
 
-> **Trạng thái:** APPROVED (v2.4). Đây là business contract; chi tiết giao diện và route thuộc `fe-core.md` §9. Các chi tiết kỹ thuật chưa chốt nằm tại Q4.
+> **Trạng thái:** APPROVED (v2.4; bổ sung v2.4.1). Đây là business contract; chi tiết giao diện và route thuộc `fe-core.md` §9. Các chi tiết kỹ thuật chưa chốt nằm tại Q4.
 
 #### Mô hình chương và cảnh
 
@@ -195,6 +195,7 @@ Review inline
 * Tối đa một generation đang hoạt động trong một chương.
 * Không tự generate scene kế tiếp, không tự chuyển chương.
 * Phải review trước khi Accept.
+* **Regenerate note (APPROVED v2.4.1):** Regenerate hỗ trợ ghi chú tùy chọn từ người dùng. Ghi chú rỗng hoặc chỉ khoảng trắng được chuẩn hóa thành `null`. Ghi chú khác `null` chỉ áp dụng cho regeneration request hiện tại, cung cấp hướng dẫn về thay đổi mong muốn ở scene đã chọn. Ghi chú không trực tiếp sửa nội dung scene, không được persist như ràng buộc dự án vĩnh viễn và không bỏ qua vòng Review → Accept → Save.
 * **[IMPLEMENTATION PENDING]** backend generation stream/cancel và buffer contract.
 
 #### Save cấp chương
@@ -950,6 +951,11 @@ def context_range(s, e, total, margin=5):
 * Chốt H3 ở tầng hợp đồng: Project Detail có View/Creator; Creator chỉ chọn chương, không nhúng scene editor; Chapter Detail là Writing Mode surface; route/URL và interaction chi tiết tại `fe-core.md` §9.
 * Ghi các điểm kỹ thuật/schema còn mở tại Q4: idempotency Save, stale write, source hiện tại của scene, audit lock, read-model scene identity, generation stream/cancel, commit retry/recovery; không tự thêm cột/bảng và không sửa DBML.
 * Ghi nhận `tools.md`, `overview.md`, `case_newchat.md` cần đồng bộ ở task riêng nếu còn mô tả H1/H2/H3 là mở; v2.4 chỉ sửa `core.md` và `fe-core.md`.
+
+## CHANGELOG v2.4.1
+
+* Bổ sung quy tắc Regenerate note tại mục 1.6: ghi chú tùy chọn, rỗng/khoảng trắng chuẩn hóa `null`, chỉ áp dụng cho request hiện tại, không sửa trực tiếp nội dung scene, không persist như ràng buộc dự án, không bỏ qua Review → Accept → Save.
+* Không thay đổi versioning, Save, source, lock hoặc continuity của v2.4; không sửa DBML/backend.
 
 ## CÂU HỎI MỞ
 

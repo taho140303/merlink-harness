@@ -1,10 +1,10 @@
 # FE CORE: CƠ CHẾ GIAO DIỆN MERLINK HARNESS
 
-> **Phiên bản:** 0.2
-> **Đối chiếu:** `docs/business/core.md` v2.4
+> **Phiên bản:** 0.2.1
+> **Đối chiếu:** `docs/business/core.md` v2.4.1
 > **Vai trò:** SSOT cơ chế giao diện và hợp đồng tương tác FE của Merlink Harness. Business Core quyết định hệ thống phải làm gì; tài liệu này mô tả giao diện hiện đang làm gì và cần làm gì. `docs/design-system.md` quyết định cách thể hiện thị giác.
 > **Phạm vi kiểm tra:** `src/features/chat`, `src/features/draft`, `src/features/business-flow`, `src/features/projects` (gồm ChapterDetail, ProjectDetail, ProjectCreatorPanel, scenePreview), router, Zustand store, i18n và mock data.
-> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0 preview.
+> **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.1 preview.
 > **Giới hạn:** tài liệu này không sửa `src/`, `docs/db.dbml`, `docs/design-system.md`, `package.json` hoặc backend.
 
 ## 0. Cách đọc và trạng thái
@@ -266,7 +266,7 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 
 ### 9.1 Trạng thái hợp đồng
 
-H1 đã `APPROVED` tại core 1.6. Wave 0 triển khai UI preview trên Chapter Detail; backend, persistence và committed-plan gate chưa có.
+H1 đã `APPROVED` tại core 1.6. Wave 0/0.1 triển khai UI preview trên Chapter Detail; backend, persistence và committed-plan gate chưa có.
 
 | ID | Trạng thái | Quy tắc UI | Dữ liệu/hành vi | Nguồn Core | Nguồn FE | Ghi chú |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -281,6 +281,7 @@ H1 đã `APPROVED` tại core 1.6. Wave 0 triển khai UI preview trên Chapter 
 | WR-09 | `[GAP]` | Continuity theo scene, advisory | Không có API | 1.6 | không có | |
 | WR-10 | `[GAP]` | Generation stream/cancel thật | Không có tool sinh nội dung scene | 1.6 | không có | `[IMPLEMENTATION PENDING]` |
 | WR-11 | `[IMPLEMENTED]` | Không tự generate scene/chương kế, không bulk | UI không có hành vi tự động | 1.6 | `ChapterDetailView.tsx` | chỉ là UI preview |
+| WR-12 | `[IMPLEMENTED]` | Regenerate mở dialog feedback tùy chọn; note rỗng/khoảng trắng thành `null`; note chỉ thuộc scene đã chọn | Request local `{sceneId, note}`; note hiện trong review; AI không đọc | 1.6 | `ChapterDetailView.tsx:274-340`, `scenePreview.ts:17-28` | UI preview; AI consumption `[IMPLEMENTATION PENDING]` |
 
 ### 9.2 Mô hình chương-first, cảnh là block
 
@@ -307,7 +308,7 @@ H1 đã `APPROVED` tại core 1.6. Wave 0 triển khai UI preview trên Chapter 
 
 - View mode giữ nguyên cột đọc `max-w-2xl`, title/date, breadcrumb, Chat, FloatingOutline.
 - Edit mode giữ card scene và `AutoResizeTextarea`; thêm label `Cảnh N`, badge source/dirty, hàng control.
-- Generate chỉ bật khi scene rỗng và không khóa; Regenerate khi có nội dung; Cancel khi đang chạy; Versions khi có nội dung và không khóa.
+- Generate chỉ bật khi scene rỗng và không khóa; Regenerate khi có nội dung mở dialog feedback; Cancel khi đang chạy; Versions khi có nội dung và không khóa.
 - Buffer generation hiện trong card, có badge “Bản xem trước” và ghi chú không phải AI thật, không lưu. Accept đưa text vào working state và dirty; Discard bỏ buffer.
 - Version dialog hiển thị fixture có nhãn “Dữ liệu mẫu”; Restore cập nhật working state và dirty, không persist.
 - Save vẫn là nút hiện có; khi dirty hiện toast “Chưa thể lưu trong bản xem trước”, giữ buffer và dirty; khi sạch hiện “Không có thay đổi chưa lưu.”
@@ -315,21 +316,34 @@ H1 đã `APPROVED` tại core 1.6. Wave 0 triển khai UI preview trên Chapter 
 - Dirty guard dùng `useBlocker` cho điều hướng nội bộ và `beforeunload` cho refresh/close; ConfirmDialog `Rời chương này?`.
 - Mở/đóng Chat không reset buffer; `AutoResizeTextarea` tính lại chiều cao khi pane đổi width để tránh cắt nội dung.
 
+**Regenerate dialog (Wave 0.1)**
+
+- Chỉ Regenerate mở dialog; Generate cho scene rỗng giữ nguyên hành vi cũ.
+- Dialog dùng `Dialog`/`Textarea`/`Button` hiện có, title “Tạo lại cảnh”, description và placeholder theo i18n; textarea tùy chọn, tối đa 2.000 ký tự.
+- Hủy, nút X và Escape đóng dialog, không sinh generation, không đánh dirty.
+- Note rỗng hoặc chỉ khoảng trắng được chuẩn hóa thành `null`; note khác rỗng được trim; không yêu cầu độ dài tối thiểu.
+- Confirm tạo request local `SceneRegenerationRequest {sceneId, note}` và bắt đầu preview cho đúng scene đã chọn; chặn submit trùng; scene khóa hoặc đang có generation không mở/không confirm.
+- Note không được append vào scene text hay sample text, không gửi sang scene khác, không persist; review hiển thị “Ghi chú đã gửi (chỉ xem trước)”.
+- Nội dung scene chỉ đổi sau Accept; Discard/Cancel giữ nguyên nội dung.
+- AI không đọc note trong preview; tiêu thụ note thật là `[IMPLEMENTATION PENDING]`.
+
 **UI preservation của Wave 0:** không đổi sidebar/shell, navigation hierarchy, breadcrumb, title/date, cột `max-w-2xl`, card scene, `AutoResizeTextarea`, FloatingOutline, Chat split-pane/tỷ lệ, design tokens, typography hoặc breakpoint hiện có. Các phần thêm chỉ nằm trong header Project Detail, card scene và dialog version/commit; xem §12.1.
 
 ### 9.4 Preview và production
 
-**Đã có trong Wave 0 (UI/local):**
+**Đã có trong Wave 0/0.1 (UI/local):**
 
 - Project View/Creator switch và chapter selection.
 - Chapter Detail scene blocks, scene labels, edit/save local.
 - Scene generation controls, preview buffer, review/accept/discard.
+- Regenerate dialog với feedback tùy chọn; note được giữ trong request local và hiện ở review.
 - Sample version history và local restore.
 - Dirty tracking, lock tracking, dirty navigation guard, Chat preservation.
 
 **Chưa có (không được mô tả là production):**
 
 - AI generation thật, stream/cancel.
+- AI đọc/hiểu note regeneration; preview chỉ lưu note để kiểm tra.
 - Durable Save và `scene_versions` thật.
 - Backend lock/unlock và `scenes.is_locked`.
 - Committed-plan gate.
@@ -337,12 +351,12 @@ H1 đã `APPROVED` tại core 1.6. Wave 0 triển khai UI preview trên Chapter 
 - Continuity API.
 - Crash recovery/autosave.
 
-Mọi dữ liệu generation/version trong preview là fixture hoặc local state; không phải bản ghi DB, không tạo `scene_versions`, không được dùng làm bằng chứng backend đã hoạt động.
+Mọi dữ liệu generation/version trong preview là fixture hoặc local state; không phải bản ghi DB, không tạo `scene_versions`, không được dùng làm bằng chứng backend đã hoạt động. Note regeneration cũng chỉ là local state; sample generation không phản ánh nội dung note.
 
 ### 9.5 Hợp đồng backend cần
 
 - Read-model scene: `scenes.id`, `chapter_id`, `position`, `content`, `word_count`, `is_locked`, quyền truy cập theo project đã commit.
-- Generation một scene: stream/cancel, không ghi DB; buffer contract.
+- Generation một scene: stream/cancel, không ghi DB; nhận nội dung scene hiện tại + note tùy chọn; buffer contract.
 - Save cấp chương: atomic content + lock + word_count + `scene_versions`; trả baseline/version head.
 - Version list/restore: append-only; restore tạo version `RESTORE` sau Save.
 - Lock/unlock persist.
@@ -447,6 +461,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | committed-plan gate và `project_id` sau commit | Creator/Writing entry, H2 navigation | không có; mock project luôn mở |
 | scene read-model: `id`, `chapter_id`, `position`, `content`, `word_count`, `is_locked` | Creator chapter/scene list, Writing surface | block local; `sceneId` preview `scn-*` |
 | generation một scene: stream, cancel, buffer, lỗi | Generate/Regenerate/Cancel/Retry | chưa có; preview dùng sample text |
+| regeneration request note: `{sceneId, note}` với `note` nullable | Regenerate feedback và review | local state; AI không đọc, không persist |
 | Save cấp chương: content + lock + word_count + `scene_versions` | Save, dirty baseline, version head | chưa có; Save chỉ cảnh báo |
 | danh sách version scene và restore | version dialog, restore | fixture `buildPreviewVersions`; không persist |
 | dirty/navigation contract từ backend | guard, refresh/close | local state + `useBlocker`/`beforeunload` |
@@ -473,7 +488,7 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | GAP-14 | Identifiers | `draft_session_id`, `turn_id`, `head_version_seq` | Local state | `[GAP]` | không có persistence/version |
 | GAP-15 | Process detail | Render từ toàn bộ `businessFlowData` | Chỉ require | `[GAP]` | thiếu ngữ cảnh tiến độ |
 | GAP-16 | Scene Save | Atomic content + lock + word_count + `scene_versions` | Save chỉ cảnh báo, giữ local | `[GAP]` | không persist nội dung scene |
-| GAP-17 | Scene Generation | Stream/cancel, buffer, lỗi | Preview sample text; không AI | `[GAP]` | không sinh nội dung thật |
+| GAP-17 | Scene Generation | Stream/cancel, buffer, lỗi, note tùy chọn | Preview sample text; note local không được AI đọc | `[GAP]` | không sinh nội dung thật theo note |
 | GAP-18 | H2 Commit | Dialog, validation, pending, idempotent, navigation | Start đóng panel | `[GAP]` | chưa commit/điều hướng |
 | GAP-19 | Scene Read-model | `scenes.id`, `position`, `content`, `word_count`, `is_locked` | `sceneId` preview `scn-*` | `[GAP]` | không có identity/persistence thật |
 | GAP-20 | Scene Lock | Persist `scenes.is_locked` | Local `block.locked` | `[GAP]` | khóa không bền |
@@ -603,12 +618,20 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 - **Mô tả:** Core 1.6 chốt Save cấp chương chỉ gồm scene dirty, một `scene_versions` cho mỗi scene có nội dung thay đổi, lock-only Save không tạo content version. Backend contract chưa có.
 - **Nguồn Core:** 1.6, Q4; DBML `scenes`, `scene_versions`.
 - **Nguồn FE:** `ChapterDetailView.tsx` (Save chỉ cảnh báo), `scenePreview.ts` (fixture).
-- **Cần chốt:** idempotency của Save; optimistic concurrency/stale write; source hiện tại của scene; audit lock; read-model `scenes.id`/`position`; generation stream/cancel.
+- **Cần chốt:** idempotency của Save; optimistic concurrency/stale write; source hiện tại của scene; audit lock; read-model `scenes.id`/`position`; generation stream/cancel; cách generation nhận nội dung scene + note tùy chọn.
 - **SCHEMA FOLLOW-UP:** `scene_versions` chưa có khóa idempotency, `parent_id` nullable; `scenes` chưa có timestamp/source.
 - **Đề xuất:** backend chốt API/schema cùng core Q4; FE chỉ hiển thị trạng thái thật, không tự tạo version.
 - **Trạng thái:** `OPEN` / `SCHEMA FOLLOW-UP` / `IMPLEMENTATION PENDING`.
 
 ## 17. Changelog
+
+### v0.2.1 - 2026-11-06
+
+- Thêm Regenerate dialog tại §9: feedback tùy chọn, tối đa 2.000 ký tự, `note` rỗng/khoảng trắng chuẩn hóa `null`, note khác rỗng được trim.
+- Confirm tạo request local `{sceneId, note}` cho đúng scene; Hủy/X/Escape không sinh generation; note không persist, không append vào scene/sample, không gửi sang scene khác.
+- Review preview hiển thị “Ghi chú đã gửi (chỉ xem trước)”; AI không đọc note trong preview, tiêu thụ note thật là `[IMPLEMENTATION PENDING]`.
+- Giữ nguyên Generate cho scene rỗng, Save cấp chương, version, lock, dirty/guard, layout và UI Preservation Invariant.
+- Thêm key i18n VI/EN; cập nhật §13, GAP-17 và Q-C10.
 
 ### v0.2 - 2026-11-06
 
@@ -649,6 +672,7 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | Scene identity preview | `src/features/projects/scenePreview.ts:30-36`, `types.ts:6` |
 | Creator switch/route | `src/features/projects/ProjectDetailView.tsx:23-34`, `:117`; `ProjectCreatorPanel.tsx:19-72` |
 | Scene labels/generation/version UI | `ChapterDetailView.tsx:580-690`, `:730-800` |
+| Regenerate feedback dialog | `ChapterDetailView.tsx:316-336`, `:780-840`; `scenePreview.ts:17-28`; key i18n `project.scene.regenerate*` |
 | Dirty guard | `ChapterDetailView.tsx:150-177`, `:209-230`; `useBlocker`, `beforeunload` |
 | Save preview warning | `ChapterDetailView.tsx:209-217` |
 | Không có `scene_versions` thật | Không có API/DB; fixture `buildPreviewVersions` |
