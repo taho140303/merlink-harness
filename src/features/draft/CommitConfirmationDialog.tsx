@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, FlaskConical, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
+import { Badge, type BadgeVariant } from '@/shared/components/ui/badge';
+import { Select } from '@/shared/components/ui/select';
+import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import type { TKey } from '@/shared/i18n/dict';
 import {
@@ -44,13 +47,23 @@ const BLOCK_KEYS: Record<CommitBlockReason, TKey> = {
   operationPending: 'commit.block.operationPending',
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-xs">
-      <dt className="text-fg-muted">{label}</dt>
-      <dd className="min-w-0 break-words text-right font-medium">{value}</dd>
+    <div className="min-w-0 rounded-xl bg-surface-muted/60 px-3 py-2">
+      <dt className="text-xs text-fg-subtle">{label}</dt>
+      <dd className={cn('mt-0.5 truncate text-sm font-semibold', muted ? 'text-fg-muted' : 'text-fg')}>{value}</dd>
     </div>
   );
+}
+
+const VALIDATION_BADGE: Record<'ready' | 'blocked' | 'unknown', BadgeVariant> = {
+  ready: 'success',
+  blocked: 'danger',
+  unknown: 'warning',
+};
+
+function SectionTitle({ children }: { children: string }) {
+  return <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">{children}</h3>;
 }
 
 export function CommitConfirmationDialog({ open, onOpenChange, overview, readiness }: CommitConfirmationDialogProps) {
@@ -59,6 +72,8 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
   const busyRef = useRef(false); // synchronous duplicate-submit guard
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fixture, setFixture] = useState<Fixture>('none');
+  const [simOpen, setSimOpen] = useState(false);
+  const simActive = SHOW_DEV_SIM && fixture !== 'none';
   const [outcome, setOutcome] = useState<'success' | 'error'>('success');
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -72,7 +87,6 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
   const blockReasons = getCommitBlockReasons(validation, patches, pending);
   const eligible = blockReasons.length === 0;
 
-  const num = (v: number | null) => (v === null ? t('commit.unavailable') : String(v));
 
   const handleOpenChange = (next: boolean) => {
     if (!next && !canDismissCommitDialog(op)) return;
@@ -100,48 +114,66 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
     : patches.count === 0 ? t('commit.patches.zero')
     : t('commit.patches.known', { n: patches.count });
 
+  const unavailable = t('commit.unavailable');
+  const patchVariant: BadgeVariant = patches.status === 'unknown' ? 'warning' : patches.count === 0 ? 'success' : 'danger';
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="flex max-h-[85vh] max-w-lg flex-col overflow-hidden p-0"
+        className="flex max-h-[85vh] max-w-lg flex-col gap-0 overflow-hidden p-0"
         onEscapeKeyDown={(e) => { if (pending) e.preventDefault(); }}
         onPointerDownOutside={(e) => { if (pending) e.preventDefault(); }}
         onInteractOutside={(e) => { if (pending) e.preventDefault(); }}
       >
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6 pr-12">
-          <div>
-            <DialogTitle className="text-base">{t('commit.title')}</DialogTitle>
-            <DialogDescription className="mt-1 text-xs">{t('commit.desc')}</DialogDescription>
-          </div>
+        <div className="shrink-0 border-b border-line px-6 py-5 pr-14">
+          <DialogTitle className="text-base">{t('commit.title')}</DialogTitle>
+          <DialogDescription className="mt-1 text-xs">{t('commit.desc')}</DialogDescription>
+        </div>
 
-          <p className="rounded-control border border-border px-3 py-2 text-xs text-fg-muted">
-            <span className="mr-1 font-semibold">{t('commit.previewBadge')}.</span>
-            {t('commit.backendUnavailable')}
-          </p>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          {simActive ? (
+            <div className="flex items-start gap-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" role="alert">
+              <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('commit.sim.banner')}
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 text-xs text-fg-muted">
+              <Badge variant="neutral" className="shrink-0">{t('commit.previewBadge')}</Badge>
+              <span>{t('commit.backendUnavailable')}</span>
+            </div>
+          )}
 
-          <section aria-label={t('commit.planSummary')} className="space-y-1.5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{t('commit.planSummary')}</h3>
-            <dl className="space-y-1">
-              <Row label={t('commit.project')} value={plan.projectName ?? t('commit.unavailable')} />
-              {plan.description && <Row label={t('commit.description')} value={plan.description} />}
-              <Row label={t('commit.arcs')} value={num(plan.arcs)} />
-              <Row label={t('commit.chapters')} value={num(plan.chapters)} />
-              <Row label={t('commit.scenes')} value={num(plan.scenes)} />
-              <Row label={t('commit.characters')} value={num(plan.characters)} />
-              <Row label={t('commit.worldbuilding')} value={plan.worldbuildingAvailable ? t('commit.available') : t('commit.unavailable')} />
-              <Row label={t('commit.relationships')} value={plan.relationships === null ? t('commit.notEvaluated') : String(plan.relationships)} />
+          <section aria-label={t('commit.planSummary')} className="tier-card space-y-3 rounded-card p-4">
+            <SectionTitle>{t('commit.planSummary')}</SectionTitle>
+            <div className="min-w-0">
+              <p className="break-words text-sm font-semibold text-fg">{plan.projectName ?? unavailable}</p>
+              {plan.description && <p className="mt-1 line-clamp-3 text-xs text-fg-muted">{plan.description}</p>}
+            </div>
+            <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Stat label={t('commit.arcs')} value={plan.arcs === null ? unavailable : String(plan.arcs)} muted={plan.arcs === null} />
+              <Stat label={t('commit.chapters')} value={plan.chapters === null ? unavailable : String(plan.chapters)} muted={plan.chapters === null} />
+              <Stat label={t('commit.scenes')} value={plan.scenes === null ? unavailable : String(plan.scenes)} muted={plan.scenes === null} />
+              <Stat label={t('commit.characters')} value={plan.characters === null ? unavailable : String(plan.characters)} muted={plan.characters === null} />
+              <Stat label={t('commit.worldbuilding')} value={plan.worldbuildingAvailable ? t('commit.available') : unavailable} muted={!plan.worldbuildingAvailable} />
+              <Stat label={t('commit.relationships')} value={plan.relationships === null ? t('commit.notEvaluated') : String(plan.relationships)} muted={plan.relationships === null} />
             </dl>
           </section>
 
-          <section className="space-y-1.5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{t('commit.validation')}</h3>
-            <dl><Row label={t(`commit.validation.${validation.status}` as TKey)} value="" /></dl>
+          <section className="tier-card space-y-2 rounded-card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <SectionTitle>{t('commit.validation')}</SectionTitle>
+              <Badge variant={VALIDATION_BADGE[validation.status]}>{t(`commit.validation.${validation.status}` as TKey)}</Badge>
+            </div>
             <p className="text-xs text-fg-muted">{t(validationDesc)}</p>
           </section>
 
-          <section className="space-y-1.5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{t('commit.patches')}</h3>
-            <dl><Row label={patchValue} value="" /></dl>
+          <section className="tier-card space-y-2 rounded-card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <SectionTitle>{t('commit.patches')}</SectionTitle>
+              <Badge variant={patchVariant}>{patchValue}</Badge>
+            </div>
+            {patches.status === 'unknown' && <p className="text-xs text-fg-muted">{t('commit.patches.unknownDesc')}</p>}
+            {patches.status === 'known' && patches.count > 0 && <p className="text-xs text-fg-muted">{t('commit.patches.pendingDesc')}</p>}
           </section>
 
           {!eligible && !pending && op.status === 'idle' && (
@@ -151,48 +183,57 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
           )}
 
           {pending && (
-            <p className="flex items-center gap-2 text-xs" role="status">
+            <p className="flex items-center gap-2 text-xs text-fg-muted" role="status">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               {t('commit.pending')}
             </p>
           )}
-          {op.status === 'error' && <p className="text-xs text-red-600 dark:text-red-400" role="alert">{t('commit.error')}</p>}
+          {op.status === 'error' && (
+            <p className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" role="alert">{t('commit.error')}</p>
+          )}
           {op.status === 'success-preview' && (
-            <div className="rounded-control border border-border px-3 py-2 text-xs" role="status">
+            <div className="rounded-xl bg-emerald-100 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" role="status">
               <p className="font-semibold">{t('commit.successTitle')}</p>
-              <p className="mt-0.5 text-fg-muted">{t('commit.success')}</p>
+              <p className="mt-0.5">{t('commit.success')}</p>
             </div>
           )}
 
           {SHOW_DEV_SIM && (
-            <fieldset disabled={pending} className="space-y-1.5 rounded-control border border-dashed border-border p-3 text-xs">
-              <legend className="px-1 text-fg-muted">{t('commit.sim.title')}</legend>
-              <label className="flex items-center justify-between gap-2">
-                {t('commit.sim.readiness')}
-                <select className="rounded border border-border bg-transparent px-1 py-0.5" value={fixture} onChange={(e) => setFixture(e.target.value as Fixture)}>
-                  {(Object.keys(FIXTURES) as Fixture[]).map((f) => (
-                    <option key={f} value={f}>{t(`commit.sim.fixture.${f}` as TKey)}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center justify-between gap-2">
-                {t('commit.sim.outcome')}
-                <select className="rounded border border-border bg-transparent px-1 py-0.5" value={outcome} onChange={(e) => setOutcome(e.target.value as 'success' | 'error')}>
-                  <option value="success">{t('commit.sim.outcome.success')}</option>
-                  <option value="error">{t('commit.sim.outcome.error')}</option>
-                </select>
-              </label>
-            </fieldset>
+            <div className="rounded-card border border-dashed border-amber-400/70 bg-amber-100/30 dark:bg-amber-950/20">
+              <button
+                type="button"
+                aria-expanded={simOpen}
+                onClick={() => setSimOpen((v) => !v)}
+                className="focus-ring flex w-full items-center gap-2 rounded-card px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-300"
+              >
+                <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                <span className="flex-1 text-left">{t('commit.sim.title')}</span>
+                <ChevronDown className={cn('h-4 w-4 transition-transform', simOpen && 'rotate-180')} aria-hidden="true" />
+              </button>
+              {simOpen && (
+                <fieldset disabled={pending} className="grid gap-3 px-3 pb-3">
+                  <Select label={t('commit.sim.readiness')} value={fixture} onChange={(e) => setFixture(e.target.value as Fixture)}>
+                    {(Object.keys(FIXTURES) as Fixture[]).map((f) => (
+                      <option key={f} value={f}>{t(`commit.sim.fixture.${f}` as TKey)}</option>
+                    ))}
+                  </Select>
+                  <Select label={t('commit.sim.outcome')} value={outcome} onChange={(e) => setOutcome(e.target.value as 'success' | 'error')}>
+                    <option value="success">{t('commit.sim.outcome.success')}</option>
+                    <option value="error">{t('commit.sim.outcome.error')}</option>
+                  </Select>
+                </fieldset>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-3">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-line px-6 py-4">
           <Button variant="ghost" size="sm" disabled={pending} onClick={() => handleOpenChange(false)}>
             {op.status === 'success-preview' ? t('commit.close') : t('commit.cancel')}
           </Button>
           {op.status !== 'success-preview' && (
             <Button variant="primary" size="sm" disabled={!eligible} onClick={handleConfirm}>
-              {pending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
               {op.status === 'error' ? t('commit.retry') : t('commit.confirm')}
             </Button>
           )}
