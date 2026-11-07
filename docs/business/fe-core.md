@@ -1,7 +1,7 @@
 # FE CORE: CƠ CHẾ GIAO DIỆN MERLINK HARNESS
 
-> **Phiên bản:** 0.3.2
-> **Đối chiếu:** `docs/business/core.md` v2.4.1
+> **Phiên bản:** 0.3.6
+> **Đối chiếu:** `docs/business/core.md` v2.4.5
 > **Vai trò:** SSOT cơ chế giao diện và hợp đồng tương tác FE của Merlink Harness. Business Core quyết định hệ thống phải làm gì; tài liệu này mô tả giao diện hiện đang làm gì và cần làm gì. `docs/design-system.md` quyết định cách thể hiện thị giác.
 > **Phạm vi kiểm tra:** `src/features/chat`, `src/features/draft`, `src/features/business-flow`, `src/features/projects` (gồm ChapterDetail, ProjectDetail, ProjectCreatorPanel, scenePreview), router, Zustand store, i18n và mock data.
 > **Thời điểm kiểm tra:** 2026-11-06, sau Stage B / Wave 0.3B (điều hướng preview sau commit mô phỏng) và cleanup tiền-merge Stage B.
@@ -275,7 +275,10 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 | VER-03 | `[GAP]` | Hiển thị head version, version history, lý do version | Không có | 3.6 | không có | |
 | VER-04 | `[GAP]` | Restore làm patch pending thành expired; hiển thị patch hết hiệu lực | Không có | 3.6 | không có | |
 | VER-05 | `[GAP]` | Seal pending, seal failed (`VersionSealFailed`), interrupted turn, crash recovery | Không có | 3.6 | không có | |
-| VER-06 | `[GAP]` | Workflow resume từ sealed version cuối; task đã seal không chạy lại | Không có | 3.9 | không có | Q3 còn mở |
+| VER-06 | `[GAP]` | Resume từ sealed baseline; chỉ skip khi historical evidence B+ verified, attestation được tin cậy và fingerprint input S(i−1)/output Si cùng lineage/scope của head hiện tại chứng minh applicability; Restore không dựa seq | Không có | 3.9, Q3; SF-06 B+ | không có | `[IMPLEMENTATION PENDING]` |
+| VER-07 | `[GAP]` | Hiển thị riêng historical `Verified`/`Corrupt`/`Indeterminate`/`UnsupportedCodec`, attestation và applicability; thiếu evidence/legacy ⇒ RequiresReplan, không báo đã hoàn tất | Không có | 3.9 SF-06 B+ | không có | `[IMPLEMENTATION PENDING]` |
+| VER-08 | `[GAP]` | Proposal TX-08 có thể hiện sau commit dù round fail; workflow được trì hoãn hiển thị đến cuối vòng nhưng không nói đã seal; preview/confirm revalidate data và eligibility (batch trên candidate tích lũy); nếu thiếu dependency proof báo `ProposalEligibilityIndeterminate` thay vì báo xác nhận thành công; Restore expired | Không có | 1.3, 3.9 D10-B | không có | `[IMPLEMENTATION PENDING]` |
+| VER-09 | `[GAP]` | Draft ready thiếu sealed baseline ⇒ `WorkflowBaselineUnavailable`, chỉ cho inspect khả thi và hướng dẫn phục hồi thủ công; không tự sinh version; artifact output `world_probe`/input `world_write` thiếu hoặc vượt budget ⇒ replan/error, không dùng report tạm làm proof | Không có | 3.9 OC-1B/OC-3A | không có | `[IMPLEMENTATION PENDING]` |
 
 ### 8.2 Hiện trạng
 
@@ -284,7 +287,7 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 - Không có head version, sealed version, version hash, `turn_id`, `chat_message_id`, `reason` hoặc `parent_seq` trong FE.
 - Refresh làm mất toàn bộ chat/draft state.
 - FE không có Working State hay tool result `applied`; vì vậy không thể hiển thị hoặc kiểm chứng khác biệt giữa `applied` và sealed version. Theo core 3.6, `applied` không phải durable và `VersionSealFailed` không được báo thành công giả.
-- Core 3.6 có `[SCHEMA FOLLOW-UP]` cho idempotent sealing; FE hiện không có schema hoặc persistence để kiểm chứng.
+- Schema SF-01/SF-06 tối thiểu đã được duyệt trong DBML; mở rộng B+ ở DBML là đặc tả đích, **không** là migration/app runtime đã chạy. FE hiện chưa có persistence để kiểm chứng.
 - Scene version dialog ở §9 dùng fixture local; không phải `scene_versions`, không ghi DB và không liên quan `draft_versions`.
 - Save nội dung cảnh chưa có backend; FE chỉ hiển thị cảnh báo và giữ working state trong bộ nhớ.
 
@@ -301,13 +304,14 @@ H1 đã `APPROVED` tại core 1.6. Wave 0/0.1 triển khai UI preview trên Chap
 | WR-03 | `[IMPLEMENTED]` | Chapter Detail đọc/sửa từng scene; một block = một scene; label cảnh trong edit mode | `SceneBlock[]` local; `buildSceneBlocks` | 1.6 | `ChapterDetailView.tsx:120-121`, `scenePreview.ts:30-36` | dữ liệu mock |
 | WR-04 | `[IMPLEMENTED]` | Generation controls theo scene; buffer; tối đa một generation/chương; review/accept/discard | Preview buffer local, không gọi AI | 1.6 | `ChapterDetailView.tsx:263-330` | preview, không phải AI thật |
 | WR-05 | `[IMPLEMENTED]` | Version dialog theo scene; source/timestamp/content; restore local | Fixture `buildPreviewVersions` | 1.6 | `ChapterDetailView.tsx:730-800`, `scenePreview.ts:42-62` | dữ liệu mẫu, không persist |
-| WR-06 | `[IMPLEMENTED]` | Dirty theo scene; lock change tính dirty; Save cảnh báo; guard điều hướng; Chat giữ buffer | Local state + `useBlocker` + `beforeunload` | 1.6 | `ChapterDetailView.tsx:150-177`, `:209-230` | không có persistence |
-| WR-07 | `[IMPLEMENTED]` | Khóa scene chặn sửa/generate/versions; Lock All/Unlock All | `block.locked` local | 1.6 | `ChapterDetailView.tsx:520-560`, `:650-690` | chưa gắn `scenes.is_locked` |
-| WR-08 | `[GAP]` | Save cấp chương persist content + lock + word_count + `scene_versions` | Backend chưa có | 1.6 | không có | `[IMPLEMENTATION PENDING]` |
+| WR-06 | `[IMPLEMENTED]` | Dirty theo scene; Save cảnh báo; guard điều hướng; Chat giữ buffer (Preview đang tính cả lock vào dirty; contract đích `LOCK-01` persist lock ngay) | Local state + `useBlocker` + `beforeunload` | 1.6 | `ChapterDetailView.tsx:150-177`, `:209-230` | không có persistence |
+| WR-07 | `[IMPLEMENTED]` | Khóa scene chặn sửa/generate/versions; Lock All/Unlock All | `block.locked` local | 1.6 | `ChapterDetailView.tsx:520-560`, `:650-690` | chưa nối IPC persist lock tức thời (`LOCK-01`) |
+| WR-08 | `[GAP]` | Save cấp chương nguyên tử: persist các scene có nội dung dirty + `word_count` + `scene_versions`; từ chối toàn bộ Save nếu bất kỳ scene có nội dung dirty đang khóa (`LOCK-05`); scene khóa nhưng clean không chặn Save | Backend chưa có | 1.6 | không có | `[IMPLEMENTATION PENDING]` |
 | WR-09 | `[GAP]` | Continuity theo scene, advisory | Không có API | 1.6 | không có | |
-| WR-10 | `[GAP]` | Generation stream/cancel thật | Không có tool sinh nội dung scene | 1.6 | không có | `[IMPLEMENTATION PENDING]` |
+| WR-10 | `[GAP]` | Generation stream/cancel thật (gồm tự động hủy stream khi người dùng bấm Lock cảnh đang chạy theo `LOCK-04`) | Không có tool sinh nội dung scene | 1.6 | không có | `[IMPLEMENTATION PENDING]` |
 | WR-11 | `[IMPLEMENTED]` | Không tự generate scene/chương kế, không bulk | UI không có hành vi tự động | 1.6 | `ChapterDetailView.tsx` | chỉ là UI preview |
 | WR-12 | `[IMPLEMENTED]` | Regenerate mở dialog feedback tùy chọn; note rỗng/khoảng trắng thành `null`; note chỉ thuộc scene đã chọn | Request local `{sceneId, note}`; note hiện trong review; AI không đọc | 1.6 | `ChapterDetailView.tsx:274-340`, `scenePreview.ts:17-28` | UI preview; AI consumption `[IMPLEMENTATION PENDING]` |
+| WR-13 | `[GAP]` | Scene Lock tức thời (`LOCK-01..07`) & `EditScope` theo request (`SCOPE-01..06`): Lock/Unlock gọi IPC persist ngay và giữ nguyên nội dung dirty/buffer tạm; nếu persist lock lỗi thì UI không được báo đã khóa/mở khóa thành công; nội dung đã sinh hợp lệ vẫn Review/Accept/Save được sau khi AI request kết thúc (miễn là scene đang mở khóa); hiển thị yêu cầu mở rộng `EditScope` với phê duyệt/từ chối tường minh | UI đã có nút khóa/mở khóa thủ công, buffer tạm (giữ được sau khi preview kết thúc) và dirty state local; trong Wave 0.2 nút khóa đang bị disable khi scene active generating/review và chưa có IPC lock tức thời hay UI phê duyệt mở rộng `EditScope` | 1.6 (`SL-01..12`, `LOCK-01..07`, `SCOPE-01..06`) | `ChapterDetailView.tsx:520-560` | `[GAP]` / `[IMPLEMENTATION PENDING]` |
 
 ### 9.2 Mô hình chương-first, cảnh là block
 
@@ -392,10 +396,11 @@ Mọi dữ liệu generation/version trong preview là fixture hoặc local stat
 ### 9.5 Hợp đồng backend cần
 
 - Read-model scene: `scenes.id`, `chapter_id`, `position`, `content`, `word_count`, `is_locked`, quyền truy cập theo project đã commit.
-- Generation một scene: stream/cancel, không ghi DB; nhận nội dung scene hiện tại + note tùy chọn; buffer contract.
-- Save cấp chương: atomic content + lock + word_count + `scene_versions`; trả baseline/version head.
+- Generation một scene: stream/cancel, không ghi DB; nhận nội dung scene hiện tại + note tùy chọn; buffer contract. Giữ provenance tối thiểu của kết quả sinh hợp lệ (`SCOPE-06`) để người dùng Review/Accept/Discard ngay cả sau khi AI request đã kết thúc (`SCOPE-02..04`).
+- Lock/unlock persist tức thời (`LOCK-01..07`): thao tác độc quyền của người dùng cập nhật ngay `scenes.is_locked` trong SQLite (không chờ `Save Chapter`, không tạo `scene_versions`); trả về trạng thái khóa bền vững đã xác nhận; nếu persist thất bại thì UI không được đổi sang trạng thái khóa mới. Khóa cảnh bảo toàn nguyên vẹn nội dung dirty và buffer tạm (`LOCK-03`); nếu khóa cảnh khi đang streaming generation thì hủy stream ngay nhưng giữ phần text tạm đã hiển thị (`LOCK-04`, Case A).
+- Save cấp chương nguyên tử (`LOCK-05`, `SCOPE-05`): không yêu cầu còn AI request/EditScope đang mở; chỉ xét các scene có nội dung thay đổi (dirty content); nếu bất kỳ scene có nội dung dirty nào đang `is_locked == true` thì từ chối toàn bộ Save nguyên tử và giữ nguyên toàn bộ dirty buffer (Case B, Case E); scene đang khóa nhưng clean không chặn Save các scene mở khóa khác (Case F); trả baseline/version head mới khi thành công.
 - Version list/restore: append-only; restore tạo version `RESTORE` sau Save.
-- Lock/unlock persist.
+- Request-scoped `EditScope` và phê duyệt mở rộng scope (`SL-07..12`, `SCOPE-01..06`): kiểm tra đồng thời `is_locked == false` và `scene_id ∈ EditScope` khi AI generate; trả tín hiệu có cấu trúc khi AI xin mở rộng scope hoặc khi scene đích đang khóa để UI hiển thị lý do, cho phép duyệt/từ chối và yêu cầu người dùng tự mở khóa thủ công (Case G, Case H).
 - Continuity advisory.
 - Committed-plan gate cho Creator/Writing.
 - Commit Confirmation Dialog/transaction/navigation (H2).
@@ -526,7 +531,8 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | scene read-model: `id`, `chapter_id`, `position`, `content`, `word_count`, `is_locked` | Creator chapter/scene list, Writing surface | block local; `sceneId` preview `scn-*` |
 | generation một scene: stream, cancel, buffer, lỗi | Generate/Regenerate/Cancel/Retry | chưa có; preview dùng sample text |
 | regeneration request note: `{sceneId, note}` với `note` nullable | Regenerate feedback và review | local state; AI không đọc, không persist |
-| Save cấp chương: content + lock + word_count + `scene_versions` | Save, dirty baseline, version head | chưa có; Save chỉ cảnh báo |
+| Lock/Unlock IPC tức thời (`LOCK-01`): `{sceneId, desiredLockState}`, xác thực quyền người dùng, persist ngay `scenes.is_locked` trong SQLite | Lock/Unlock từng cảnh, Lock All / Unlock All (không chờ Save Chapter, không tạo `scene_versions`) | chỉ đổi `block.locked` local; chưa có IPC |
+| Save cấp chương nguyên tử (`LOCK-05`, `SCOPE-05`): `{chapterId, dirtyScenes[]}` gồm content + `word_count` + `scene_versions` + content/OCC validation | Save các scene có nội dung dirty, dirty baseline, version head (từ chối nguyên tử nếu có scene dirty đang khóa) | chưa có; Save chỉ cảnh báo |
 | danh sách version scene và restore | version dialog, restore | fixture `buildPreviewVersions`; không persist |
 | dirty/navigation contract từ backend | guard, refresh/close | local state + `useBlocker`/`beforeunload` |
 | commit confirmation/status/navigation | H2 commit dialog và post-commit View | chỉ UI preview: Start mở Commit Confirmation Dialog, kết quả và điều hướng là mô phỏng DEV-only tới project mẫu; không có backend |
@@ -551,11 +557,11 @@ Quy tắc này áp dụng cho mọi task có thay đổi FE, kể cả task mà 
 | GAP-13 | Cascade | Preview, source protection, atomic | Không có draft cascade UI | `[GAP]` | không xóa cha an toàn |
 | GAP-14 | Identifiers | `draft_session_id`, `turn_id`, `head_version_seq` | Local state | `[GAP]` | không có persistence/version |
 | GAP-15 | Process detail | Render từ toàn bộ `businessFlowData` | Chỉ require | `[GAP]` | thiếu ngữ cảnh tiến độ |
-| GAP-16 | Scene Save | Atomic content + lock + word_count + `scene_versions` | Save chỉ cảnh báo, giữ local | `[GAP]` | không persist nội dung scene |
-| GAP-17 | Scene Generation | Stream/cancel, buffer, lỗi, note tùy chọn | Preview sample text; note local không được AI đọc | `[GAP]` | không sinh nội dung thật theo note |
+| GAP-16 | Scene Save | Atomic content + `word_count` + `scene_versions` cho các scene có nội dung dirty; từ chối toàn bộ Save nếu có scene dirty đang khóa (`LOCK-05`); giữ nguyên dirty khi lỗi | Save chỉ cảnh báo, giữ local | `[GAP]` | không persist nội dung scene |
+| GAP-17 | Scene Generation | Stream/cancel, buffer, lỗi, note tùy chọn, giữ hiệu lực kết quả sinh hợp lệ sau khi request kết thúc (`SCOPE-02..06`) | Preview sample text; note local không được AI đọc | `[GAP]` | không sinh nội dung thật theo note |
 | GAP-18 | H2 Commit | Dialog, validation, pending, idempotent, navigation | Dialog UI `[MOCK]`; validation/patch từ fixture; điều hướng mô phỏng tới project mẫu; idempotency/commit thật chưa có | `[GAP]` | chưa commit/điều hướng |
 | GAP-19 | Scene Read-model | `scenes.id`, `position`, `content`, `word_count`, `is_locked` | `sceneId` preview `scn-*` | `[GAP]` | không có identity/persistence thật |
-| GAP-20 | Scene Lock | Persist `scenes.is_locked` | Local `block.locked` | `[GAP]` | khóa không bền |
+| GAP-20 | Scene Lock & Scope | IPC persist `scenes.is_locked` tức thời (`LOCK-01`), không báo thành công giả khi lỗi, bảo toàn dirty (`LOCK-03`), hủy stream khi khóa lúc đang chạy (`LOCK-04`), và UI duyệt mở rộng `EditScope` (`SL-09`) | Local `block.locked` (đang tính vào dirty và đang disable nút khóa khi generating/review ở Wave 0.2); chưa có UI mở rộng `EditScope` | `[GAP]` | khóa không bền và chưa hỗ trợ đầy đủ Case A / mở rộng scope |
 | GAP-21 | Responsive | Chapter Detail compact 1279px | Chat overlay từ 1279 trở xuống; header không overflow; breadcrumb truncate; label ẩn <510, stack <420 | `[IMPLEMENTED]` | sửa trong Wave 0.2; không đổi breakpoint toàn cục |
 
 ## 15. Conflict Matrix
@@ -564,7 +570,7 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 
 | ID | Business Core | FE | File/dòng | Mức ảnh hưởng | Đề xuất | Trạng thái |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| C1 | 46 thuộc tính Master list (core 3.1) | 50 thuộc tính (progressEngine) | `src/features/business-flow/progressEngine.ts:11-79`, core 3.1 | Cao: sai mẫu số progress | Người dùng xác nhận danh sách chuẩn; nếu FE đúng thì core cần cập nhật 46 → 50, nếu core đúng thì FE phải bỏ 4 thuộc tính | `[CONFLICT]` |
+| C1 | 46 thuộc tính Master list (core 3.1 — chuẩn thẩm quyền) | 50 thuộc tính (progressEngine; có lỗi path/schema) | `src/features/business-flow/progressEngine.ts:11-79`, core 3.1 | Cao: sai mẫu số progress và lệch path schema | Giữ `core.md` (46) làm chuẩn; bỏ 4 mục không persist (`arc_tolerance`, `chapter_tolerance`, `word_per_chapter_tolerance`, `relationship.motif.event_blocks`) và sửa các path/evaluator lỗi trong `progressEngine.ts` (xem Q-C1) | `[CONFLICT]` |
 | C2 | Hai progress: Đã xác nhận / AI đề xuất (core 3.1) | Một progress duy nhất | `ChatHeader.tsx:50-61`, `progressEngine.ts:430-453` | Cao: thiếu thông tin provenance | Ưu tiên implement hai progress theo core; cần dữ liệu `source` | `[CONFLICT]` |
 | C3 | Project Overview card ở Phase 0 (core 2.1) | Không có card; header DraftOverviewBlock là Phase 1 | `DraftOverviewBlock.tsx:89-155`, core 2.1 | Trung bình: thiếu UI mapping Phase 0 | Thêm card Phase 0 hoặc chốt lại core nếu không còn cần | `[GAP]` |
 | C4 | `feedbackContext {code, tag, title, content}` (core 3.4) | `{id, tag, title}`, không `content` | `draft/types.ts:11-16`, `DraftWorkspace.tsx:118-121` | Cao: AI không nhận đúng scope/payload | FE đổi sang `code` ổn định và bổ sung `content`; giữ tag/title | `[CONFLICT]` |
@@ -577,117 +583,99 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | C11 | State có `source` từng trường (core 1.3) | Mock draft không có source | `business-flow/types.ts:364`, `draft/types.ts:250` | Cao: không tính được progress/patch | Bổ sung source vào schema FE khi có backend | `[GAP]` |
 | C12 | `draft_session_id`, `turn_id`, `head_version_seq` (core 3.6) | Local state, không id | `ChatView.tsx:25-28`, `DraftWorkspace.tsx:21-25` | Cao: không persistence/version | Bổ sung contract dữ liệu, không tự tạo schema | `[GAP]` |
 
-## 16. Xung đột và câu hỏi cần người dùng chốt
+## 16. Trạng thái quyết định cho các xung đột và câu hỏi đối chiếu (`Q-C1..Q-C10`)
 
-### Q-C1. Danh sách Master attributes chuẩn là 46 hay 50?
+### Q-C1. Danh sách Master attributes chuẩn là 46 hay 50? — `[RESOLVED: CORE 46 WINS]`
 
-- **Mô tả:** Core 3.1 ghi 46; FE `MASTER_ATTRIBUTES_LIST` có 50. Cần xác định đâu là danh sách chuẩn.
-- **Nguồn Core:** 3.1.
-- **Nguồn FE:** `src/features/business-flow/progressEngine.ts:11-79`.
-- **Phương án A:** Core đúng 46; FE phải rà và bỏ 4 thuộc tính thừa.
-- **Phương án B:** FE đúng 50; core cập nhật 46 → 50 và giải thích 4 thuộc tính bổ sung.
-- **Tác động:** mẫu số progress, điều kiện readiness, tài liệu test.
-- **Đề xuất:** chưa chốt; cần đối chiếu danh sách nghiệp vụ gốc. Không tự sửa core hoặc FE.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt (`core.md` v2.4.5):** **Business Core thắng (`46 thuộc tính Master list` tại `core.md` §3.1 là chuẩn thẩm quyền).** Không đổi `core.md` sang 50 theo `progressEngine.ts`, và không xóa bất kỳ cột nào trong `docs/db.dbml`.
+- **Đối soát chính xác 50 → 46 trên `progressEngine.ts:11-79`:**
+  1. **Loại bỏ đúng 4 mục không có bảng/cột lưu trữ trong `docs/db.dbml` (`50 - 4 = 46`):**
+     - `optional.overview_phase.project.target.arc_tolerance` (dung sai gợi ý runtime tại `core.md` §2.2/§2.8, không phải cột trong bảng `projects`).
+     - `optional.overview_phase.project.target.chapter_tolerance` (dung sai gợi ý runtime, không phải cột trong bảng `projects`).
+     - `optional.overview_phase.project.target.word_per_chapter_tolerance` (dung sai gợi ý runtime, không phải cột trong bảng `projects`).
+     - `optional.relationship_phase.relationship.motif.event_blocks` (tính năng đã bị tạm treo chính thức tại `core.md` §2.7 / §4, không có bảng trong `docs/db.dbml`).
+     *(Lưu ý: 3 trường `*_tolerance` vẫn được giữ trong kiểu dữ liệu runtime cho gợi ý quy mô của AI, và mục motif event-blocks vẫn giữ trạng thái tạm treo; không xóa khỏi runtime types để tránh phá vỡ mã hiện tại, chỉ loại khỏi mẫu số 46 của `MASTER_ATTRIBUTES_LIST`).*
+  2. **Các lỗi đường dẫn, quy tắc provenance tổng hợp và evaluator trong 46 mục còn lại cần sửa khi thực thi (`[IMPLEMENTATION PENDING]`):**
+     - Sửa lỗi chính tả đường dẫn ở 4 mục Phase 5.2: `optional.charactar_psychological_phase.*` → `optional.character_psychological_phase.*`.
+     - Sửa cấu trúc `world_settings` ở Phase 3 để hỗ trợ duyệt mảng/cây phân cấp thay vì chỉ kiểm tra 1 object đơn lẻ.
+     - Sửa `optional.scene_config_phase.arcs.chapters.scenes.lore_entries_code` (scalar) sang kiểm tra mảng liên kết `lore_entries[]` (`lore_entry_code`).
+     - Sửa evaluator `optional.scene_config_phase.arcs.chapters.scenes.characters.is_pov` (hiện `typeof ch?.is_pov === 'boolean'` luôn trả về `true` cả khi `false`) sang kiểm tra quy tắc POV theo `narrator_config_code` và `character_code` hợp lệ.
+     - **`world_setting_code`:** Giữ ngoài mẫu số 46 thuộc tính tiến độ, nhưng bắt buộc kiểm tra hợp lệ trong điều kiện hoàn thiện cấu hình cảnh và chặn trước khi `commit_draft` (vì `scenes.world_setting_id` là `NOT NULL` trong `docs/db.dbml`) theo `core.md` §2.3, §2.5, §2.8, §3.1.
+     - **Quy tắc Provenance cho thuộc tính tổng hợp (Composite/Array Provenance Precedence — `confirmed > ai_suggested > incomplete`):** Mỗi thuộc tính trong 46 thuộc tính chỉ rơi vào đúng 1 trong 3 trạng thái loại trừ lẫn nhau (không tính điểm trọng số, không chia trung bình, không bao giờ cộng vào cả 2 chỉ số cùng lúc):
+       1. Một phần tử (element) đạt `confirmed` khi đầy đủ và mọi trường bắt buộc đóng góp vào thuộc tính đó có `source = user | user_edited`; đạt `ai_suggested` khi đầy đủ nhưng có ít nhất 1 trường bắt buộc mang `source = ai_generated`; ngược lại là `incomplete`.
+       2. Một thuộc tính mảng/tập hợp đạt `confirmed` nếu có ít nhất 1 phần tử hợp lệ đạt `confirmed`; nếu không có phần tử nào `confirmed` nhưng có ít nhất 1 phần tử hợp lệ đạt `ai_suggested` thì toàn thuộc tính tính vào `ai_suggested`; ngược lại là `incomplete`.
+- **Trạng thái:** **`APPROVED` (Giữ chuẩn 46 thuộc tính của Core + Composite Provenance + `world_setting_code` pre-commit check)**; việc sửa `progressEngine.ts` và `types.ts` là **`[IMPLEMENTATION PENDING]`** khi nối backend.
 
-### Q-C2. Progress hiển thị một hay hai phần trăm?
+### Q-C2. Progress hiển thị một hay hai phần trăm? — `[RESOLVED: 2 PERCENTAGES PER CORE]`
 
-- **Mô tả:** Core 3.1 yêu cầu hai progress (đã xác nhận/AI đề xuất); FE đang một progress.
-- **Nguồn Core:** 3.1.
-- **Nguồn FE:** `ChatHeader.tsx:50-61`, `progressEngine.ts:430-453`.
-- **Phương án A:** Implement hai progress theo core; cần `source` trong State.
-- **Phương án B:** Giữ một progress và sửa core; cần quyết định nghiệp vụ.
-- **Tác động:** UI header, ProcessDetailDialog, logic tính progress.
-- **Đề xuất:** ưu tiên A vì core đã chốt provenance.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** Thực thi đúng `core.md` §3.1: hiển thị hai phần trăm riêng biệt (**Đã xác nhận** = `user | user_edited` / 46 và **AI đề xuất** = `ai_generated` / 46).
+- **Trạng thái:** **`APPROVED`**; sửa UI/logic FE là **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C3. Project Overview Phase 0 có cần card riêng?
+### Q-C3. Project Overview Phase 0 có cần card riêng? — `[RESOLVED: RENDER PHASE 0 CARD PER CORE]`
 
-- **Mô tả:** Core 2.1 mô tả Card Project Overview; FE không có card này, header DraftOverviewBlock là Phase 1.
-- **Nguồn Core:** 2.1, 3.4.
-- **Nguồn FE:** `DraftOverviewBlock.tsx:89-155`.
-- **Phương án A:** Thêm card Phase 0 và attach `feedbackContext.code = require.project`.
-- **Phương án B:** Bỏ card khỏi core nếu UI không cần.
-- **Tác động:** feedback mode, Phase 0 mapping, điều hướng.
-- **Đề xuất:** giữ core, bổ sung UI khi làm Phase 0.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** Giữ đúng `core.md` §2.1 & §3.4: hiển thị Card Project Overview ở Phase 0 và gắn `feedbackContext.code = "require.project"`, `tag = "project"`.
+- **Trạng thái:** **`APPROVED`**; bổ sung UI card là **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C4. `feedbackContext` dùng `code` hay `id`?
+### Q-C4. `feedbackContext` dùng `code` hay `id`? — `[RESOLVED: USE STABLE CODE & CONTENT PER CORE]`
 
-- **Mô tả:** Core yêu cầu `{code, tag, title, content}`; FE dùng `{id, tag, title}`, không content.
-- **Nguồn Core:** 3.4.
-- **Nguồn FE:** `draft/types.ts:11-16`, `DraftWorkspace.tsx:118-121`.
-- **Phương án A:** FE đổi sang `code` ổn định và gửi `content` JSON.
-- **Phương án B:** Core đổi sang `id`; không nên vì `id` có thể là UI id không ổn định.
-- **Tác động:** scope tool call, bảo vệ source, Project Overview attach.
-- **Đề xuất:** A.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** Thực thi đúng `core.md` §3.4: `{code, tag, title, content}` dùng `code` ổn định.
+- **Trạng thái:** **`APPROVED`**; cập nhật FE adapter/state là **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C5. Có tiếp tục hiển thị `code` trên UI không?
+### Q-C5. Có tiếp tục hiển thị `code` trên UI không? — `[RESOLVED: HIDE CODE FROM UI PER CORE]`
 
-- **Mô tả:** Core 3.8 cấm; FE hiển thị scene code, lore code, parent code, style/narrator code.
-- **Nguồn Core:** 3.8.
-- **Nguồn FE:** `ChapterBlock.tsx:116`, `WorldSettingsBlock.tsx:89`, `SceneConfigBlock.tsx:144`.
-- **Phương án A:** Ẩn toàn bộ code; dùng display name/vị trí.
-- **Phương án B:** Chỉ cho phép code ở chế độ debug, không cho người dùng thường.
-- **Tác động:** UI draft, copy/feedback, debugging.
-- **Đề xuất:** A; đây là quy tắc đã chốt, không cần mở lại.
-- **Trạng thái:** Đề xuất xử lý, không chờ quyết định nghiệp vụ.
+- **Quyết định đã chốt:** Thực thi đúng `core.md` §3.8: ẩn toàn bộ slug `code` khỏi giao diện người dùng (chỉ giữ trong dữ liệu/thuộc tính nội bộ).
+- **Trạng thái:** **`APPROVED`**; sửa các block FE là **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C6. Writing Mode: H1 đã chốt, còn backend contract
+### Q-C6. Writing Mode: H1 và hợp đồng thực thi — `[RESOLVED / APPROVED]`
 
-- **Mô tả:** Core 1.6 đã `APPROVED` mô hình chương-first, cảnh là block; generation buffer/review/accept; Save cấp chương; source/restore/lock/dirty/continuity theo scene. Wave 0 đã có UI preview tại §9.
-- **Nguồn Core:** 1.6, Q4.
-- **Nguồn FE:** `ChapterDetailView.tsx`, `ProjectCreatorPanel.tsx`, `scenePreview.ts`.
-- **Đã chốt:** H1 business contract; không mở lại scene page/paragraph model/chapter_versions.
-- **Còn mở:** idempotency Save, stale write, source hiện tại của scene, audit lock, read-model scene identity, generation stream/cancel, commit retry/recovery.
-- **Đề xuất:** giữ preview là UI-only; backend làm theo Q4; không coi fixture là `scene_versions`.
-- **Trạng thái:** `APPROVED` cho business; `OPEN` cho chi tiết kỹ thuật.
+- **Quyết định đã chốt:** H1 cùng toàn bộ quy tắc `Q4.1..Q4.9` đã được chốt trong `core.md` §1.6 (v2.4.5): read-model trả `scenes.id` thật, `head_version_number`, `current_scene_source` suy ra từ `scene_versions` mới nhất (`scene_versions.parent_id NOT NULL` — `SF-07`); streaming `started -> delta* -> completed | cancelled | failed` với quy tắc Lock hủy vĩnh viễn generation đang chạy; OCC dùng `MAX(scene_versions.version_number)` + `scenes.is_locked == false`; idempotency bền vững theo `client_save_id` qua bảng `chapter_save_receipts` (`SF-02`).
+- **Trạng thái:** **`APPROVED`** cho toàn bộ quy tắc nghiệp vụ và schema (`SF-02`, `SF-07` đã áp dụng vào `docs/db.dbml`); **`[IMPLEMENTATION PENDING]`** cho nối IPC.
 
-### Q-C7. Schema follow-up cho idempotent sealing
+### Q-C7. Schema follow-up cho idempotent sealing (`draft_versions.seal_key`) — `[SCHEMA APPROVED & APPLIED: SF-01]`
 
-- **Mô tả:** Core 3.6 ghi `[SCHEMA FOLLOW-UP]` cho `draft_versions`; FE không có persistence nên chưa thể xác minh.
-- **Nguồn Core:** 3.6.
-- **Nguồn FE:** không có.
-- **Phương án A:** Chốt `seal_key` + unique `(draft_session_id, seal_key)` ở DBML sau.
-- **Phương án B:** Dùng unique `(draft_session_id, turn_id)` và cột workflow/round riêng.
-- **Tác động:** chống version trùng, migration, backend.
-- **Đề xuất:** để backend chốt cùng Q3; chưa sửa DBML.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** Quy tắc nghiệp vụ Idempotent Sealing tại `core.md` §3.6 và thay đổi schema `SF-01` (thêm cột `seal_key varchar` + unique index `(draft_session_id, seal_key)` trên bảng `draft_versions`) đã được Project Owner phê duyệt và áp dụng vào `docs/db.dbml`.
+- **Trạng thái:** **`APPROVED & APPLIED IN docs/db.dbml (`SF-01`)`** / **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C8. Task identity/checkpoint lưu ở đâu?
+### Q-C8. Task identity/checkpoint lưu ở đâu? — `[RESOLVED IN CORE Q3 / SCHEMA APPROVED & APPLIED: SF-06]`
 
-- **Mô tả:** Core 3.9 đã chốt nguyên tắc resume nhưng chưa chốt cấu trúc task/checkpoint.
-- **Nguồn Core:** 3.9, Q3.
-- **Nguồn FE:** không có.
-- **Phương án A:** Dùng report + State + sealed version, không thêm bảng.
-- **Phương án B:** Thêm task ledger/checkpoint schema tối thiểu.
-- **Tác động:** resume, duplicate prevention, schema.
-- **Đề xuất:** giữ Q3 mở; không tự thêm task ledger.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** `core.md` §3.9 & `Q3` (v2.4.5) đã chốt định danh task ổn định `(workflow_run_id, plan_generation, phase, subphase, task_kind, assigned_scope)`, tách biệt 5 tầng lưu trữ, kiểm tra retry trước khi tạo version mới, tính nguyên tử giữa mutation và completion receipt (ghi bất biến `INSERT ... ON CONFLICT DO NOTHING` + verify), và kiểm tra hiệu lực theo `input_scope_fingerprint` khi Restore/Resume. Bảng biên nhận `workflow_task_receipts` (`SF-06`) đã được Project Owner phê duyệt và áp dụng vào `docs/db.dbml`.
+- **Trạng thái:** **`APPROVED & APPLIED IN docs/db.dbml (`SF-06`)`** / **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C9. Đồng bộ schema dữ liệu FE với `BusinessFlowData`
+### Q-C9. Đồng bộ schema dữ liệu FE với `BusinessFlowData` — `[RESOLVED: ADAPTER LAYER FIRST]`
 
-- **Mô tả:** FE draft dùng camelCase/`DRAFT_OVERVIEW`; core dùng `BusinessFlowData` snake_case, source, patch, version.
-- **Nguồn Core:** 1.2, 2.2-2.7, 3.6.
-- **Nguồn FE:** `draft/types.ts`, `business-flow/types.ts`.
-- **Phương án A:** Tạo adapter FE → `BusinessFlowData` trước khi nối backend.
-- **Phương án B:** Đổi toàn bộ component draft sang schema core.
-- **Tác động:** lớn cho component, test, mapping.
-- **Đề xuất:** A trước, B sau khi backend ổn định.
-- **Trạng thái:** Chưa chốt.
+- **Quyết định đã chốt:** Sử dụng tầng adapter thuần (`snake_case` $\leftrightarrow$ `camelCase`) tại biên IPC để bảo toàn 100% giao diện hiện có theo `fe-core.md` §12.1.
+- **Trạng thái:** **`APPROVED`** / **`[IMPLEMENTATION PENDING]`**.
 
-### Q-C10. Backend contract cho Save và version nội dung cảnh
+### Q-C10. Backend contract cho Save và version nội dung cảnh — `[RESOLVED IN CORE Q4 / SCHEMA APPROVED & APPLIED: SF-02, SF-07]`
 
-- **Mô tả:** Core 1.6 chốt Save cấp chương chỉ gồm scene dirty, một `scene_versions` cho mỗi scene có nội dung thay đổi, lock-only Save không tạo content version. Backend contract chưa có.
-- **Nguồn Core:** 1.6, Q4; DBML `scenes`, `scene_versions`.
-- **Nguồn FE:** `ChapterDetailView.tsx` (Save chỉ cảnh báo), `scenePreview.ts` (fixture).
-- **Cần chốt:** idempotency của Save; optimistic concurrency/stale write; source hiện tại của scene; audit lock; read-model `scenes.id`/`position`; generation stream/cancel; cách generation nhận nội dung scene + note tùy chọn.
-- **SCHEMA FOLLOW-UP:** `scene_versions` chưa có khóa idempotency, `parent_id` nullable; `scenes` chưa có timestamp/source.
-- **Đề xuất:** backend chốt API/schema cùng core Q4; FE chỉ hiển thị trạng thái thật, không tự tạo version.
-- **Trạng thái:** `OPEN` / `SCHEMA FOLLOW-UP` / `IMPLEMENTATION PENDING`.
+- **Quyết định đã chốt:** Toàn bộ 9 mục `Q4.1..Q4.9` đã được chốt tại `core.md` §1.6 (v2.4.5):
+  1. Save idempotency bền vững theo `client_save_id` qua bảng `chapter_save_receipts` (`Q4.1`, `SF-02` đã áp dụng vào `docs/db.dbml`).
+  2. OCC dựa trên `expected_version_number == COALESCE(MAX(scene_versions.version_number), 0)` và `scenes.is_locked == false` trong một SQLite transaction nguyên tử, không cần `scenes.revision` (`Q4.2`), kèm ràng buộc `scene_versions.parent_id NOT NULL` (`SF-07` đã áp dụng vào `docs/db.dbml`).
+  3. `current_scene_source` suy ra từ bản ghi `scene_versions` mới nhất, không cần `scenes.current_source` (`Q4.3`).
+  4. Không tạo lịch sử audit lock cho V1 (`Q4.4`).
+  5. Read-model trả `scenes.id`, `position`, `content`, `word_count`, `is_locked`, `head_version_number`, `current_scene_source` (`Q4.5`).
+  6. Streaming lifecycle `started -> delta* -> completed | cancelled | failed`; Lock khi đang stream làm vô hiệu hóa generation vĩnh viễn (`Q4.6`).
+  7. Retry/recovery giữ nguyên `client_save_id` và dirty state khi kết quả mập mờ (`Q4.7`).
+  8. Hợp đồng UX tối thiểu cho `EditScope`: gợi ý cảnh đang chọn, bắt buộc người dùng ủy quyền tường minh, không có scope thì chạy chế độ tư vấn (advisory-only), duyệt mở rộng scope không tự mở khóa cảnh (`Q4.9`).
+- **Trạng thái:** **`APPROVED & APPLIED IN docs/db.dbml (`SF-02`, `SF-07`)`** / **`[IMPLEMENTATION PENDING]`**.
 
 ## 17. Changelog
+
+### v0.3.6 - 2026-11-06
+
+- Đồng bộ với `core.md` v2.4.5 và `docs/db.dbml`: chốt quy tắc ưu tiên Provenance cho thuộc tính tổng hợp (`confirmed > ai_suggested > incomplete`) và quy tắc `world_setting_code` (nằm ngoài 46 thuộc tính tiến độ nhưng bắt buộc hợp lệ trước khi `commit_draft`) tại `Q-C1`; cập nhật `Q-C6`, `Q-C7`, `Q-C8`, `Q-C10` sau khi 4 thay đổi schema tối thiểu (`SF-01`, `SF-02`, `SF-06`, `SF-07`) được phê duyệt và áp dụng vào `docs/db.dbml`. Không sửa mã nguồn FE.
+
+### v0.3.5 - 2026-11-06
+
+- Đồng bộ với `core.md` v2.4.4: đóng toàn bộ các câu hỏi nghiệp vụ `Q-C1..Q-C10` và cập nhật `VER-06` theo các quyết định đã chốt của Owner (`Q1` Cascade Delete, `Q3` Workflow Recovery & Completion Receipts, `Q4` Writing Mode Save Idempotency / OCC / Streaming / `EditScope` UX, và chuẩn 46 Master Attributes). Tách bạch rõ `APPROVED` business rules với `[IMPLEMENTATION PENDING]` và `[SCHEMA FOLLOW-UP]`. Không sửa mã nguồn FE hay `docs/db.dbml`.
+
+### v0.3.4 - 2026-11-06
+
+- Đồng bộ với `core.md` v2.4.3 (**Decision 1B** `LOCK-01..07` và **Decision 2A** `SCOPE-01..06`): cập nhật `WR-06`, `WR-07`, `WR-08`, `WR-10`, `WR-13`, `§9.5`, `§13` (tách riêng IPC Lock/Unlock tức thời khỏi `Save Chapter`), `GAP-16`, `GAP-17`, `GAP-20` và `Q-C10` về IPC Lock/Unlock tức thời, xử lý lỗi persist lock, bảo toàn dirty state khi khóa, từ chối nguyên tử `Save Chapter` khi có scene dirty đang khóa, và cho phép Review/Accept/Save nội dung hợp lệ sau khi `EditScope` của AI request đã hết hạn. Cập nhật `C1` và `Q-C1` theo kết quả kiểm toán 50 thuộc tính trong `progressEngine.ts` đối chiếu với chuẩn thẩm quyền `core.md` (46 thuộc tính) và `db.dbml`. Không sửa mã nguồn FE.
+
+### v0.3.3 - 2026-11-06
+
+- Đồng bộ với `core.md` v2.4.2 (SL-01..SL-12): bổ sung `WR-13` tại §9.1, cập nhật §9.5 và `Q-C10` về quyền độc quyền `is_locked` của người dùng, kiểm tra kép (`is_locked == false` và `EditScope` theo request), yêu cầu mở khóa thủ công và UI phê duyệt mở rộng scope. Không sửa mã nguồn FE hoặc layout.
 
 ### v0.3.2 - 2026-11-06
 

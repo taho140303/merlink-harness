@@ -2,7 +2,7 @@
 
 > **Tài liệu này là SSOT (Single Source of Truth) của toàn bộ quy tắc nghiệp vụ Merlink Harness. Khi `tools.md`, `overview.md`, `case_newchat.md` hoặc bất kỳ tài liệu nào khác mâu thuẫn với core về nghiệp vụ, core thắng. Schema vật lý của bảng vẫn theo `docs/db.dbml`.**
 > **Tài liệu tham chiếu chuẩn cho kiến trúc nghiệp vụ và lập kế hoạch kỹ thuật (Planning)**
-> **Phiên bản:** 2.4.1
+> **Phiên bản:** 2.4.5
 > **Phạm vi áp dụng:** Luồng Chat thu thập, Trình tính toán tiến độ (Progress Engine), Trình dựng dàn ý (Draft Building), và Mô hình dữ liệu quan hệ (Domain Database).
 > **Danh mục tool:** [harness/tools.md](harness/tools.md).
 
@@ -45,12 +45,12 @@ Thay vì cho phép AI sinh thẳng văn bản thô từ vài câu lệnh mông l
 
 * Nếu người dùng cung cấp giá trị mới cho trường hiện có `source = ai_generated`, có thể ghi trực tiếp theo hàng đầu tiên của bảng; giá trị mới nhận `source = user_edited` vì người dùng đã sửa nội dung AI sinh.
 * Quy tắc bảo vệ `user`/`user_edited` áp dụng cho cả **ghi đè** lẫn **xóa phần tử** (nhân vật, chương, cảnh, arc, lore...) trên mọi đường thực thi, kể cả khi người dùng nói trong chat; không có ngoại lệ tự áp dụng chỉ vì câu lệnh rõ ràng.
-* Thông tin chat mới về trường `user`/`user_edited` được bóc tách và ghi ngay vào `businessFlowData.pending_patches`; giá trị đang có trong State chưa đổi cho đến khi người dùng duyệt.
+* Thông tin chat mới về trường `user`/`user_edited` được bóc tách và ghi ngay vào `businessFlowData.pending_patches` (góc nhìn nghiệp vụ; nơi lưu vật lý là bảng SQLite `pending_patches`, **không** nằm trong JSON sealed `BusinessFlowData`); giá trị đang có trong State chưa đổi cho đến khi người dùng duyệt.
 * Patch hỗn hợp được tách theo từng trường: trường chạm `ai_generated` áp dụng ngay; mỗi trường chạm `user`/`user_edited` tạo đúng một patch `pending_confirmation` và chưa tạo version. Khi người dùng xác nhận, áp dụng patch và trường được xác nhận chuyển thành `user_edited`; mỗi thao tác xác nhận tạo đúng một version `ai_patch` nếu có ít nhất một patch được áp dụng. Khi người dùng từ chối, bỏ patch và ghi sự kiện từ chối vào event log, không tạo version.
 * Patch hết hiệu lực khi `target_code` không còn tồn tại hoặc giá trị hiện tại của `field_name` khác `previous_value`; với `operation = delete`, patch hết hiệu lực khi phần tử đích không còn hoặc tập hậu duệ bị ảnh hưởng đã khác lúc đề xuất. Kiểm tra lười tại thời điểm hiển thị preview và lúc confirm; `base_version_seq` chỉ dùng cho event log. Restore làm mọi patch `pending` thành `expired` theo quy tắc hiện có. Khi target đã bị xóa hoặc đổi cấu trúc, patch chuyển `expired` (không phải `rejected`); UI hiển thị "patch hết hiệu lực"; AI chỉ tạo preview mới khi người dùng nhắc lại ý định đó.
 * Tại một thời điểm chỉ tồn tại tối đa một patch `pending` cho mỗi `(draft_session_id, target_code, field_name)`. Khi có patch mới cùng đích và `field_name` với `new_value` khác, patch cũ chuyển `expired` và patch mới được tạo trong cùng một bước dưới khóa ghi draft; handler cưỡng chế, không thêm ràng buộc unique.
-* Khi có nhiều patch chờ duyệt, UI hỗ trợ xác nhận từng patch và nút **Áp dụng tất cả**. Mỗi thao tác chạy dưới khóa ghi draft; **Áp dụng tất cả** duyệt patch `pending` theo `created_at` tăng dần, revalidate từng patch, bỏ qua patch lỗi (không rollback cả batch), trả danh sách `applied` và `skipped`, và chỉ tạo một version `ai_patch` khi có ít nhất một patch được áp dụng.
-* Khi xóa cha, kiểm tra toàn bộ hậu duệ bị ảnh hưởng theo ma trận Cascade Delete bên dưới. Chỉ một hậu duệ có `source = user` hoặc `user_edited` cũng khiến tool trả `pending_confirmation`. Các quan hệ chưa có trong ma trận, ví dụ xóa Character đang được relationship hoặc theme argument tham chiếu, giữ ở Q1 và không tự cascade.
+* Khi có nhiều patch chờ duyệt, UI hỗ trợ xác nhận từng patch và nút **Áp dụng tất cả**. Mỗi thao tác chạy dưới khóa ghi draft; **Áp dụng tất cả** duyệt patch `pending` theo `created_at` tăng dần, revalidate dữ liệu và điều kiện đủ tư cách của từng patch trên candidate tích lũy sau các patch trước đó, bỏ qua patch lỗi (không rollback cả batch), trả danh sách `applied` và `skipped`, và chỉ tạo một version `ai_patch` khi có ít nhất một patch được áp dụng.
+* Khi xóa cha, kiểm tra toàn bộ hậu duệ bị ảnh hưởng theo ma trận Cascade Delete bên dưới. Chỉ một hậu duệ có `source = user` hoặc `user_edited` cũng khiến tool trả `pending_confirmation`. Các quan hệ tham chiếu còn lại (`world_setting`, `lore_entry`, `character`, `relationship_states`) tuân thủ đầy đủ ma trận đã chốt bên dưới (v2.4.4).
 * Preview patch xóa liệt kê toàn bộ phần tử bị ảnh hưởng. Không lưu danh sách này kèm patch; tính lại từ State tại thời điểm hiển thị. Patch `pending` được kiểm tra lại theo điều kiện hết hiệu lực ở trên; nếu không còn hợp lệ, chuyển `expired` và tạo preview mới.
 * Regenerate phase chỉ thay các trường `ai_generated`, giữ nguyên `user` và `user_edited`.
 * Phase đã Confirm không bị khóa; chat và sửa tay vẫn cập nhật JSON theo các quy tắc nguồn dữ liệu trên.
@@ -77,24 +77,36 @@ Thay vì cho phép AI sinh thẳng văn bản thô từ vài câu lệnh mông l
 * Phân biệt hai loại quan hệ:
   * **Quan hệ sở hữu:** thực thể con thuộc vòng đời thực thể cha; xóa cha có thể xóa con theo cascade.
   * **Quan hệ tham chiếu:** thực thể chỉ dùng hoặc tham chiếu thực thể khác; xóa thực thể được tham chiếu không đồng nghĩa xóa thực thể tham chiếu.
-* Ma trận đã chốt cho Working State:
+* Ma trận đã chốt cho Working State (gồm cả `Q1` — APPROVED v2.4.4):
 
 | Thực thể bị xóa | Dữ liệu liên quan | Hành vi |
 | :--- | :--- | :--- |
-| Arc | Chapters thuộc Arc | Cascade |
-| Chapter | Scenes thuộc Chapter | Cascade |
+| Arc | Chapters thuộc Arc | Cascade (bắc cầu xuống Scenes và các phụ thuộc của Scene) |
+| Chapter | Scenes thuộc Chapter | Cascade (bắc cầu xuống các phụ thuộc của Scene) |
 | Scene | `scene_characters` | Cascade xóa liên kết |
 | Scene | `scene_lore_entries` | Cascade xóa liên kết |
 | Scene | `character_competences` có `scene_id` trỏ đến scene | Cascade xóa bản ghi năng lực |
 | Scene | `character_memories` có `source_scene_id` trỏ đến scene | Giữ bản ghi, đặt `source_scene_id = null` |
-| Scene | Characters được tham chiếu | Giữ nguyên |
-| Scene | Lore entries được tham chiếu | Giữ nguyên |
-| Scene | World settings được tham chiếu | Giữ nguyên |
+| Scene | `relationship_states` có `scene_id` trỏ đến scene | Cascade xóa bản ghi trạng thái quan hệ thuộc cảnh đó; giữ nguyên thực thể `relationships` cha |
+| Scene | Characters, Lore entries, World settings được tham chiếu | Giữ nguyên |
+| World Setting (hoặc cây con World Setting) | Scenes đang tham chiếu qua `scenes.world_setting_id` (`world_setting_code`) tới nút đó hoặc bất kỳ hậu duệ nào trong cây con | **Chặn xóa:** trả `status = rejected`, `error = referenced_entity_in_use` (kèm danh sách `scene_code` đang tham chiếu). Không tự xóa hoặc tự gán lại địa điểm cho cảnh; người dùng phải chuyển địa điểm cho cảnh trước. Nếu không có cảnh nào tham chiếu, cho phép xóa cây con và cascade các `lore_entries` gắn trực tiếp vào cây con đó (sau khi kiểm tra provenance). |
+| Lore Entry | Liên kết `scene_lore_entries` trỏ đến Lore Entry | Cho phép cascade xóa các liên kết `scene_lore_entries` phụ thuộc (không xóa Scene). Phải liệt kê toàn bộ liên kết bị ảnh hưởng trong preview và kiểm tra `source` bảo vệ của cả Lore Entry lẫn từng liên kết trước khi áp dụng nguyên tử. |
+| Character | Thực thể `relationships` (`from_character_id` / `to_character_id`) | **Chặn xóa:** trả `status = rejected`, `error = referenced_entity_in_use`. Không tự động xóa quan hệ; người dùng phải dọn dẹp quan hệ trước. |
+| Character | Liên kết `theme_arguments` trỏ đến Character | Chỉ cho phép xóa kèm liên kết `theme_arguments` sau khi phân tích phụ thuộc, kiểm tra `source` bảo vệ và kiểm tra bất biến của `themes` (ví dụ không làm mất luận điểm bắt buộc khiến chủ đề không hợp lệ); nếu vi phạm bất biến thì trả `rejected` yêu cầu xử lý chủ đề trước. Tuyệt đối không tự sửa nội dung triết lý hoặc tự gán nhân vật thay thế. |
+| Thực thể dùng chung (Shared Entities) | Nhân vật thư viện (`project_characters` ở project khác), template `world_settings` (`project_id IS NULL`), `lore_entries` đang dùng ở project khác | **Cấm cascade xuyên ranh giới project.** Xóa trong một project/draft chỉ gỡ liên kết trong phạm vi project/draft đó; bảo toàn nguyên vẹn thực thể gốc nếu còn được project khác tham chiếu. *(Lưu ý schema: trong `docs/db.dbml`, `lore_entries` hiện gắn qua `world_setting_id` mà chưa có `project_id` hay bảng nối `project_lore_entries` riêng, nên chia sẻ lore liên dự án chỉ thực hiện khi đi qua template `world_settings` dùng chung).* |
 
-* Cascade có tính bắc cầu. Xóa Arc xóa Chapters và Scenes thuộc Arc, sau đó áp dụng các quy tắc phụ thuộc của Scene.
-* Trước khi cascade, handler phải xác định toàn bộ dữ liệu bị ảnh hưởng. Nếu bất kỳ dữ liệu bị xóa hoặc trường bị thay đổi nào có `source = user` hoặc `source = user_edited`, AI không được tự thực hiện thay đổi; tool trả `pending_confirmation`. Quy tắc áp dụng cả khi thực thể cha có `source = ai_generated`. Ví dụ Scene do AI tạo nhưng chứa bản ghi năng lực do người dùng cung cấp: không tự xóa năng lực, không tự xóa Scene; trả `pending_confirmation` và preview liệt kê thực thể/trường bị ảnh hưởng. Việc đặt `character_memories.source_scene_id = null` cũng là mutation phải kiểm tra `source`.
-* Một cascade được chấp thuận là một thao tác nghiệp vụ nguyên tử: revalidate trước khi áp dụng; nếu điều kiện không còn hợp lệ, patch chuyển `expired`; khi xác nhận và có thay đổi thực sự, tạo đúng một version `ai_patch` theo mục 3.6; không tạo version riêng cho từng hậu duệ; không bỏ qua quy tắc xác nhận patch.
-* Không suy rộng ma trận này thành quyền cascade mọi foreign key. Các quan hệ chưa có quy tắc xử lý rõ ràng giữ trong CÂU HỎI MỞ Q1; không tự xóa dây chuyền, không tự đặt null nếu schema không cho phép, không tự xóa thực thể dùng chung.
+* **Mô hình xóa trong Draft (Draft Deletion Model — APPROVED v2.4.4):** Xóa phần tử trong draft là **xóa vật lý (physical removal)** khỏi `WorkingState` (`BusinessFlowData`). Không dùng tombstone hoặc soft-delete trong JSON nháp cho V1; việc khôi phục lịch sử đã được bảo đảm đầy đủ qua các snapshot bất biến trong `draft_versions`. Khi phần tử bị xóa, mọi `pending_patches` đang chờ trên phần tử đó hoặc hậu duệ của nó tự động chuyển sang `expired`.
+* **Thời điểm kiểm tra bất biến (Invariant Validation Timing — APPROVED v2.4.4):** Kiểm tra kiểu, khóa tham chiếu tồn tại trong draft và bất biến cấp thực thể/liên kết trực tiếp ngay tại mỗi tool call (trả `rejected` nếu vi phạm); kiểm tra lại toàn bộ bất biến xuyên thực thể và định lượng toàn truyện trước khi `phase_confirm` và bắt buộc trước khi `commit` (mục 2.8, 3.7).
+* **9 bước bảo vệ bắt buộc trước mọi thao tác xóa (Required Safeguards — APPROVED v2.4.4):**
+  1. Dựng tập phụ thuộc đầy đủ (complete dependency set), bao gồm toàn bộ cây con và liên kết bắc cầu.
+  2. Phân biệt rõ quan hệ sở hữu (ownership — được phép cascade) và quan hệ tham chiếu bắt buộc (reference — phải chặn `referenced_entity_in_use`).
+  3. Kiểm tra `source` của mọi bản ghi bị xóa và mọi trường bị sửa đổi (kể cả thao tác đặt `character_memories.source_scene_id = null` hay gỡ liên kết `scene_lore_entries`, `relationship_states`, `theme_arguments`).
+  4. Kiểm tra hệ quả khóa ngoại (foreign-key implications) đối chiếu với `docs/db.dbml`.
+  5. Kiểm tra các bất biến nghiệp vụ bị ảnh hưởng.
+  6. Nếu bất kỳ phần tử đích, hậu duệ hoặc liên kết bị ảnh hưởng nào có `source = user` hoặc `user_edited` (hoặc AI đề xuất xóa thực thể do người dùng tạo), trả `pending_confirmation` kèm preview liệt kê đầy đủ (tính động từ State hiện tại).
+  7. Revalidate toàn bộ điều kiện ngay trước thời điểm áp dụng thực tế (nếu tập phụ thuộc hoặc trạng thái đã đổi, chuyển patch sang `expired`).
+  8. Áp dụng toàn bộ thao tác xóa được duyệt một cách nguyên tử (atomic) dưới khóa ghi draft.
+  9. Niêm phong version theo đúng quy tắc tại mục 3.6 (tạo đúng một version `ai_patch` khi xác nhận patch hoặc cuối lượt AI có thay đổi `applied`, không tạo version rời rạc cho từng hậu duệ).
 
 ### 1.4 Triết lý Harness: CLI-first, Tool-call-only
 
@@ -145,21 +157,21 @@ Merlink Harness có hai luồng độc lập; không đồng nhất workflow ph�
 
 * Planning Mode và Writing Mode có điều kiện kích hoạt, context injection, prompt block khi cần, tập tool và quy tắc versioning riêng theo loại dữ liệu.
 * Không tái sử dụng workflow Phase 3-6 để tự động viết nội dung nhiều chương.
-* Chi tiết hợp đồng thực thi Writing Mode nằm tại mục 1.6; các điểm kỹ thuật và schema còn mở nằm tại Q4. Tài liệu này không thiết kế pipeline triển khai cụ thể.
+* Chi tiết hợp đồng thực thi Writing Mode nằm tại mục 1.6 và mục Q4 (đã chốt toàn bộ quy tắc nghiệp vụ ở v2.4.4). Tài liệu này không thiết kế pipeline triển khai cụ thể.
 
 ### 1.6 Hợp đồng Writing Mode: chương-first, cảnh là block
 
-> **Trạng thái:** APPROVED (v2.4; bổ sung v2.4.1). Đây là business contract; chi tiết giao diện và route thuộc `fe-core.md` §9. Các chi tiết kỹ thuật chưa chốt nằm tại Q4.
+> **Trạng thái:** APPROVED (v2.4..v2.4.4). Đây là business contract đã chốt đầy đủ; chi tiết giao diện và route thuộc `fe-core.md` §9; các đề xuất bổ sung cột schema tối thiểu nằm tại `[SCHEMA FOLLOW-UP]` (chờ phê duyệt riêng trước khi sửa `docs/db.dbml`).
 
-#### Mô hình chương và cảnh
+#### Mô hình chương và cảnh và Read-Model Identity (`Q4.5` — APPROVED v2.4.4)
 
 * Một chương là một dãy cảnh có thứ tự. Trong FE, mỗi block nội dung đại diện đúng một scene; block không phải paragraph và không gộp nhiều scene.
 * `scenes.content` là nội dung của một scene; `chapters` không có cột nội dung chương. Nội dung đọc được của chương là các scene thuộc chương, sắp theo `scenes.position`.
 * Đọc và ghi ở cấp chương; sửa nội dung, generate, lock và version ở cấp scene.
-* Sau commit, scene identity là `scenes.id`. Thứ tự hiển thị lấy từ `scenes.position`; array index, thứ tự block trong FE và id tạm không phải identity bền vững.
+* Sau commit, scene identity là `scenes.id` (UUIDv7 thật trong cơ sở dữ liệu). Thứ tự hiển thị lấy từ `scenes.position`; array index, thứ tự block trong FE và id tạm không phải identity bền vững.
 * Không có scene page riêng, không có mô hình block paragraph, không có `chapter_versions`.
-* `sceneId` tạm trong FE preview chỉ dùng cho bản xem trước; không được ghi vào DB, không được coi là `scenes.id`.
-* **[OPEN] Read-model scene identity:** backend phải trả `scenes.id` và `position` thật cho FE trước khi bỏ dữ liệu preview. Fallback `scn-{chapter}-{block}` không phải contract persistence.
+* `sceneId` tạm trong FE preview (`scn-{chapter}-{block}`) chỉ dùng cho bản xem trước; không được ghi vào DB, không được coi là `scenes.id`.
+* **Read-model scene identity (`Q4.5` — APPROVED v2.4.4):** Backend read-model bắt buộc trả về định danh và trạng thái thực từ cơ sở dữ liệu cho từng cảnh thuộc chương đang mở, bao gồm tối thiểu: `id` (`scenes.id`), `chapter_id`, `position`, `display_name`, `summary`, `content` (baseline), `word_count`, `is_locked` (trạng thái khóa bền vững hiện tại), `head_version_number` (`COALESCE(MAX(scene_versions.version_number), 0)` dùng làm baseline OCC và hiển thị version), và `current_scene_source` (suy ra từ bản ghi `scene_versions` mới nhất theo `Q4.3`, hoặc `null` nếu cảnh chưa có version nào). Tập trường này cung cấp đủ thông tin cho: hiển thị (rendering), trạng thái khóa, so sánh dirty baseline, kiểm tra OCC, hiển thị nguồn gốc (source badge), lịch sử version và Save. (**[IMPLEMENTATION PENDING]** IPC endpoint đọc chương cho FE).
 
 #### Điều kiện mở Writing Mode
 
@@ -168,16 +180,18 @@ Merlink Harness có hai luồng độc lập; không đồng nhất workflow ph�
 * Không tự chuyển chương, không generate nhiều chương trong một yêu cầu, không chạy background bulk, không gọi subagent viết song song nhiều chương.
 * Phải xác định được chương thuộc project đã commit và scene thuộc chương đang chọn.
 
-#### Vòng đời sinh nội dung cảnh
+#### Vòng đời sinh nội dung cảnh và Streaming Contract (`Q4.6` — APPROVED v2.4.4)
 
 ```text
 Generate / Regenerate
         ↓
-Buffer tạm của scene
+started → delta* → completed | cancelled | failed
+        ↓
+Buffer tạm của scene (kèm generation metadata)
         ↓
 Review inline
         ├── Discard → giữ nguyên nội dung đã có
-        └── Accept
+        └── Accept (chỉ khi generation hợp lệ & scene đang mở khóa)
                 ↓
         Working state của chương
                 ↓
@@ -190,7 +204,16 @@ Review inline
 
 * Generate/Regenerate tác động đúng một scene.
 * Kết quả generation đi vào buffer tạm; không ghi trực tiếp `scenes.content`.
-* Accept chỉ đưa nội dung vào working state và đánh dấu dirty; Accept không persist.
+* **Chu trình streaming khái niệm (`Q4.6` — APPROVED v2.4.4):** Một lần sinh nội dung cảnh đi qua các trạng thái `started -> delta* -> completed | cancelled | failed`. Đầu ra chỉ là tạm thời trong buffer cho đến khi người dùng bấm Accept.
+* **Generation metadata bắt buộc (`Q4.6` — APPROVED v2.4.4):** Mỗi phiên sinh nội dung cảnh phải gắn metadata phân biệt rõ:
+  1. `request_id`: định danh AI request (gắn với `EditScope`).
+  2. `generation_id`: định danh duy nhất của lần sinh cảnh đó.
+  3. `scene_id`: định danh `scenes.id` đích.
+  4. `baseline_version_number`: số version nội dung cơ sở của cảnh lúc bắt đầu sinh.
+  5. `authorization_valid`: cờ xác nhận cảnh đang mở khóa và thuộc `EditScope` hợp lệ trong suốt quá trình sinh.
+  6. `status`: `streaming | completed | cancelled | invalidated_by_lock | failed`.
+* **Vô hiệu hóa khi Lock giữa chừng (`LOCK-04`, `Q4.6`):** Nếu người dùng bấm Lock cảnh trong khi đang streaming (`started`/`delta*`), thao tác khóa có hiệu lực ngay lập tức và luồng sinh bị hủy/đánh dấu `invalidated_by_lock` (`authorization_valid = false`). Phần văn bản tạm đã hiển thị vẫn được giữ trên màn hình để người dùng xem tham khảo, nhưng **tuyệt đối không thể bấm Accept** — kể cả sau đó người dùng có bấm Unlock lại cảnh đó (một generation đã bị vô hiệu hóa bởi Lock vẫn giữ trạng thái không thể Accept sau khi Unlock; muốn có nội dung AI mới phải bấm Generate/Regenerate lại). Ngược lại, một generation đã hoàn tất hợp lệ (`completed` và `authorization_valid = true`) không bị vô hiệu hóa chỉ vì `EditScope` của request hết hạn (`SCOPE-02`).
+* Accept chỉ đưa nội dung từ một generation hợp lệ (`completed` và `authorization_valid == true`) vào working state khi cảnh hiện đang mở khóa (`is_locked == false`), và đánh dấu dirty; Accept không persist.
 * Discard và Cancel không thay đổi nội dung đã lưu.
 * Tối đa một generation đang hoạt động trong một chương.
 * Không tự generate scene kế tiếp, không tự chuyển chương.
@@ -198,24 +221,42 @@ Review inline
 * **Regenerate note (APPROVED v2.4.1):** Regenerate hỗ trợ ghi chú tùy chọn từ người dùng. Ghi chú rỗng hoặc chỉ khoảng trắng được chuẩn hóa thành `null`. Ghi chú khác `null` chỉ áp dụng cho regeneration request hiện tại, cung cấp hướng dẫn về thay đổi mong muốn ở scene đã chọn. Ghi chú không trực tiếp sửa nội dung scene, không được persist như ràng buộc dự án vĩnh viễn và không bỏ qua vòng Review → Accept → Save.
 * **[IMPLEMENTATION PENDING]** backend generation stream/cancel và buffer contract.
 
-#### Save cấp chương
+#### Save cấp chương, OCC, Idempotency và Retry Recovery (`Q4.1`, `Q4.2`, `Q4.4`, `Q4.7` — APPROVED v2.4.4)
 
-* Save là hành động cấp chương; chỉ các scene dirty được đưa vào Save.
-* Backend tương lai phải thực hiện Save nguyên tử. Một Save thành công:
-  * ghi nội dung cuối cùng đã Accept của các scene dirty;
-  * ghi thay đổi `scenes.is_locked` áp dụng cho các scene dirty;
-  * cập nhật `word_count` tương ứng;
-  * tạo các bản ghi `scene_versions` cần thiết;
-  * trả về trạng thái đã persist để FE cập nhật baseline.
-* Một Save thất bại không được báo thành công, không xóa dirty, không tuyên bố đã tạo version, giữ nội dung đang sửa nếu có thể và không để chương ở trạng thái ghi một phần.
-* Với mỗi scene có nội dung thay đổi, một Save thành công tạo đúng một bản ghi `scene_versions` mới. Nhiều lần sửa trung gian trước Save không tạo nhiều version.
-* Nếu chỉ có thay đổi lock mà nội dung không đổi, Save persist `scenes.is_locked` nhưng không tạo content version. DBML hiện không có bảng audit lock; nếu sau này cần audit lock thì ghi thành `[SCHEMA FOLLOW-UP]`, không tự thêm cột/bảng.
+* Save là hành động cấp chương do người dùng điều khiển; chỉ các scene có thay đổi nội dung chưa lưu (dirty content) được đưa vào Save. (Trạng thái khóa `scenes.is_locked` đã được persist ngay khi bấm Lock/Unlock theo `LOCK-01`, không chờ Save chương).
+* Backend tương lai phải thực hiện Save nguyên tử trong một SQLite transaction (`BEGIN IMMEDIATE`) (`LOCK-05`, `SCOPE-05`, `Q4.2`). Save không yêu cầu còn một AI request đang hoạt động và không yêu cầu kích hoạt lại `EditScope` đã hết hạn.
+* **Kiểm tra Optimistic Concurrency (OCC) trên lịch sử version hiện có (`Q4.2` — APPROVED v2.4.4):** Sử dụng lịch sử `scene_versions` hiện có làm chuẩn OCC mà không cần thêm cột `scenes.revision` cho V1. Với mỗi scene có nội dung dirty trong yêu cầu Save, bên trong cùng một transaction nguyên tử, backend bắt buộc xác minh:
+  1. Danh tính thực `scenes.id` và quyền sở hữu đúng `chapter_id` thuộc project đã commit.
+  2. Quyền thực thi hợp lệ của người dùng (user authorization).
+  3. Trạng thái khóa bền vững hiện tại trong DB phải đang mở (`scenes.is_locked == false`).
+  4. Phiên bản nội dung kỳ vọng khớp với DB: `expected_version_number == COALESCE(MAX(scene_versions.version_number), 0)`. (Vì `scene_versions` là append-only, mọi lần lưu nội dung — kể cả sửa từ A sang B rồi sửa ngược về A — đều làm tăng `MAX(version_number)` thêm 1, nên chống ghi đè cũ chính xác mà không bị lỗi ABA nội dung. Việc người dùng bấm `Lock -> Unlock` thuần túy không đổi nội dung nên không tạo xung đột OCC nội dung; riêng generation bị hủy bởi Lock đã bị chặn từ bước Accept theo `Q4.6`).
+  5. Tính hợp lệ của nội dung và `word_count`.
+* Một Save thành công:
+  * ghi nội dung cuối cùng đã Accept/chỉnh sửa của các scene có nội dung dirty vào `scenes.content`;
+  * cập nhật `scenes.word_count` tương ứng;
+  * tạo đúng một bản ghi `scene_versions` mới (`version_number = MAX + 1`) cho mỗi scene có nội dung thay đổi;
+  * ghi nhận kết quả bền vững gắn với `client_save_id` của yêu cầu Save;
+  * trả về trạng thái đã persist (`head_version_number`, `word_count`, `current_scene_source`, `is_locked`) để FE cập nhật baseline.
+* Nếu bất kỳ scene nào có thay đổi nội dung đang ở trạng thái `is_locked == true`, hoặc không khớp `expected_version_number` (stale write / OCC conflict), hoặc không hợp lệ: toàn bộ Save cấp chương bị từ chối nguyên tử (`LOCK-05`, `Q4.2`) — rollback toàn bộ transaction, không ghi một phần, không xóa dirty, không tạo version, và bảo toàn nguyên vẹn toàn bộ nội dung dirty để người dùng xử lý.
+* Một scene đang `is_locked == true` nhưng không có thay đổi nội dung chờ lưu (clean) **không** chặn việc Save các scene đang mở khóa khác trong cùng chương (`LOCK-05`) và không tạo `scene_versions`.
+* **Idempotency bền vững ở cấp request cho Save Chapter (`Q4.1` — APPROVED v2.4.4):** Mỗi thao tác bấm Save của người dùng mang một định danh ổn định `client_save_id` (tạo mới cho mỗi lần người dùng chủ động lưu một tập thay đổi mới; giữ nguyên khi retry cùng một lần lưu đó). Hệ thống bắt buộc bảo đảm 5 tính chất bền vững (kể cả khi ứng dụng crash ngay sau khi SQLite commit nhưng trước khi trả phản hồi cho UI):
+  1. *Cùng `client_save_id`, cùng payload:* trả về nguyên vẹn kết quả đã commit ban đầu, tuyệt đối không tạo thêm `scene_versions` lần thứ hai.
+  2. *Cùng `client_save_id`, khác payload:* từ chối với lỗi `idempotency_conflict`.
+  3. *Khác `client_save_id`, Save mới hợp lệ:* xử lý bình thường dưới kiểm tra OCC (`expected_version_number`).
+  4. *Crash sau khi DB commit nhưng trước khi trả response:* khi retry với cùng `client_save_id`, phát hiện bản ghi đã commit và trả lại kết quả đó mà không nhân đôi version.
+  5. *Retry của một Save cũ đến trễ sau khi đã có một Save khác thành công:* nếu Save cũ chưa từng được commit trước đó thì `expected_version_number` đã cũ nên bị từ chối bởi OCC (không bao giờ ghi đè làm mất nội dung mới hơn); nếu Save cũ thực chất đã commit trước đó thì trả lại biên nhận lịch sử của lần commit đó kèm trạng thái hiện hành mà không ghi đè ngược vào `scenes.content`.
+  * *Lưu trữ Schema đã phê duyệt (`[SCHEMA APPROVED: SF-02]` — v2.4.5):* Bảng `chapter_save_receipts` trong `docs/db.dbml` (`id`, `chapter_id`, `client_save_id`, `payload_hash`, `response_json`, `created_at`, unique `(chapter_id, client_save_id)`) lưu biên nhận bất biến (insert-once: `ON CONFLICT DO NOTHING` + verify `payload_hash`) trong cùng một SQLite transaction `BEGIN IMMEDIATE` với việc cập nhật `scenes` và tạo `scene_versions`. Đồng thời `scene_versions.parent_id` được siết `NOT NULL` (`SF-07`).
+* **Khôi phục và Retry sau kết quả Save mập mờ (`Q4.7` — APPROVED v2.4.4):** Khi một yêu cầu Save gặp lỗi mạng IPC, timeout hoặc gián đoạn có kết quả mập mờ:
+  1. FE **không** được xóa trạng thái dirty và **không** được âm thầm tự sinh một `client_save_id` mới.
+  2. FE truy vấn kết quả bền vững của `client_save_id` ban đầu từ backend (hoặc gửi lại yêu cầu retry mang nguyên `client_save_id` và `expected_version_number` ban đầu).
+  3. Nếu backend xác nhận `client_save_id` đó đã commit, FE đồng bộ baseline theo kết quả đã commit; nếu chưa commit và baseline DB vẫn khớp `expected_version_number`, retry được phép thực thi; nếu DB đã tiến sang version khác do tác động khác, backend trả lỗi conflict để người dùng quyết định, không tự ghi đè.
+  4. Hợp đồng không hứa hẹn tự khôi phục các buffer/dirty state chỉ nằm trong RAM của FE nếu người dùng tắt hẳn ứng dụng khi chưa Save (vì V1 chưa có tính năng durable draft/autosave cho Writing Mode).
+* **Không tạo lịch sử Audit Lock riêng cho V1 (`Q4.4` — APPROVED v2.4.4):** Thao tác Lock/Unlock chỉ cập nhật trạng thái hiện hành `scenes.is_locked` và tuyệt đối không tạo `scene_versions` (`LOCK-01`, `LOCK-07`). V1 không thêm bảng hay cột lịch sử khóa cảnh.
 * Nhiều scene dirty trong cùng một Save tạo nhiều version, mỗi scene tối đa một version, trong cùng transaction. Không có version cấp chương.
 * `scene_versions` dùng `(parent_id = scene_id, version_number)` làm identity; `version_number` do handler cấp, unique `(parent_id, version_number)` của DB là hàng rào cuối.
-* **[OPEN]** idempotency của Save, optimistic concurrency/stale write, cách persist source hiện tại của scene và audit lock.
 * **[IMPLEMENTATION PENDING]** API/transaction Save và trả read-model.
 
-#### Source của nội dung cảnh
+#### Source của nội dung cảnh (`Q4.3` — APPROVED v2.4.4)
 
 * `scene_versions.scene_source` dùng enum `SceneSource`: `AI_GENERATED`, `HUMAN_EDITED`, `RESTORE`.
 * AI tạo và được Accept mà không sửa tay → `AI_GENERATED`.
@@ -223,7 +264,7 @@ Review inline
 * Khôi phục version cũ và Accept/Save mà không sửa tay → `RESTORE`.
 * Sau khi Restore, nếu người dùng sửa tay → `HUMAN_EDITED`.
 * Source của nội dung cảnh tách biệt với `source` cấp draft (`user`, `ai_generated`, `user_edited`) tại mục 1.3. Không dùng lẫn hai mô hình.
-* **[SCHEMA FOLLOW-UP]** `scenes` hiện không có cột source cho nội dung hiện tại; DBML chỉ có `scene_versions.scene_source`. Cần chốt source hiện tại được suy ra từ version mới nhất hay lưu riêng; không tự thêm cột.
+* **Cách lấy `scene_source` hiện tại (`Q4.3` — APPROVED v2.4.4):** Không thêm cột `scenes.current_source` cho V1. Nguồn gốc của nội dung cảnh đã lưu hiện tại luôn được suy ra trực tiếp từ bản ghi `scene_versions` có `version_number` lớn nhất của cảnh đó (`ORDER BY version_number DESC LIMIT 1`, tận dụng unique index `(parent_id, version_number)` sẵn có trong `docs/db.dbml`). Nếu cảnh chưa có bản ghi `scene_versions` nào (`content IS NULL`), `current_scene_source` là `null`.
 
 #### Restore nội dung cảnh
 
@@ -239,13 +280,39 @@ Review inline
 * `ChapterBlock.locked` của FE tương ứng `scenes.is_locked`.
 * Scene đang khóa: không sửa tay, không generate/regenerate; nội dung hiện có được giữ nguyên.
 * Khóa một scene không ảnh hưởng scene khác.
-* Lock/Unlock là thay đổi dirty và được đưa vào Save cấp chương.
-* Lock-only Save không tạo content version (xem trên).
-* **[IMPLEMENTATION PENDING]** persist lock qua backend; hiện FE chỉ giữ local.
+* **[APPROVED v2.4.2 & v2.4.3 — Decision 1B] Ý nghĩa và hiệu lực tức thời của Scene Lock (`SL-01..SL-06`, `LOCK-01..LOCK-07`):** `scenes.is_locked` là ràng buộc sửa do người dùng độc quyền điều khiển, nhằm ngăn AI sửa cảnh mà người dùng chưa mở cho phép sửa. Khóa không phải khóa đồng thời của database, không phải token optimistic concurrency, không phải bất biến vĩnh viễn: người dùng khóa/mở khóa bất cứ lúc nào. Các quy tắc dưới đây tích hợp với vòng đời Generate → Buffer → Review → Accept/Discard → Dirty → Save cấp chương:
+  * **LOCK-01 / SL-01 — Người dùng độc quyền & Persist tức thời:** chỉ người dùng, qua tương tác frontend được ủy quyền, mới được đổi `is_locked`. Khi người dùng bật/tắt khóa cảnh: (1) FE gọi thao tác backend chuyên biệt dành riêng cho người dùng, (2) backend xác thực caller và danh tính scene, (3) backend cập nhật `scenes.is_locked` ngay lập tức vào SQLite (không chờ `Save Chapter`), (4) backend trả về trạng thái khóa bền vững đã xác nhận, và (5) FE chỉ hiển thị trạng thái khóa mới sau khi backend xác nhận (nếu lỗi, FE không được báo đã khóa/mở khóa thành công giả).
+  * **LOCK-02 / SL-02 — Cấm AI truy cập hoặc vượt khóa:** AI không được gọi thao tác Lock/Unlock, không được đổi `is_locked` qua tool sửa scene hay tác dụng phụ, không có `force_unlock`/`override_locked`. Khi `is_locked == true`, AI bị cấm sửa scene đó kể cả khi người dùng nêu tên cảnh trong chat, AI cho là cần thiết, người dùng đồng ý bằng lời, AI từng sửa cảnh đó, hoặc cảnh từng mở khóa trước đó trong cùng hội thoại.
+  * **SL-03 & SL-04 — Mở khóa thủ công tách biệt với đồng ý sửa:** khi AI cần sửa cảnh đang khóa, AI không sửa mà giải thích lý do và xin phép; người dùng phải tự mở khóa thủ công trên UI; backend kiểm tra lại trạng thái khóa đã persist trước khi cho sửa. Tin nhắn "đồng ý" hoặc duyệt mở rộng scope không tự mở khóa cảnh.
+  * **LOCK-03 — Bảo toàn nội dung chưa lưu khi khóa:** việc khóa một scene **không** tự động lưu nội dung dirty, **không** hủy nội dung dirty, **không** xóa buffer generation tạm, **không** xóa nội dung đã Accept, **không** reset dirty state của chương và **không** tạo `scene_versions`. Người dùng được phép khóa một scene đang có chỉnh sửa chưa lưu.
+  * **LOCK-04 & SL-05 — Hạn chế mutation khi đang khóa & Kiểm tra lại tại mọi ranh giới:** khi `is_locked == true`, cấm AI Generate, cấm AI Regenerate, cấm Accept nội dung AI mới vào scene đó, và cấm persist mọi thay đổi nội dung (cả AI lẫn sửa tay chưa lưu) vào scene đó khi Save. Nếu người dùng khóa cảnh trong lúc AI đang streaming generation (**Case A**): thao tác khóa thành công ngay lập tức; backend hủy luồng generation đang chạy (và đánh dấu kết quả `invalidated_by_lock` không thể Accept kể cả khi mở khóa lại sau đó); phần văn bản tạm đã hiện trên UI không bị tự động xóa để người dùng vẫn xem được, nhưng không thể Accept hoặc Save chừng nào cảnh còn khóa.
+  * **LOCK-05 & SL-06 — Giữ nguyên vòng đời & Save cấp chương nguyên tử:** Accept không persist; sinh văn bản vào buffer tạm không phải quyền persist. Khi bấm `Save Chapter`, nếu bất kỳ scene nào có thay đổi nội dung đang bị khóa (`is_locked == true`), toàn bộ Save bị từ chối nguyên tử và giữ nguyên mọi buffer dirty (**Case B, Case E**); ngược lại, các scene đang khóa nhưng không có thay đổi nội dung (clean) không chặn việc Save các scene mở khóa khác (**Case F**).
+  * **LOCK-06 — Hành vi khi Unlock:** mở khóa có hiệu lực ngay sau khi backend xác nhận persist, không tự động Save, không tự động Generate, không tự động Accept, và không tự cấp quyền cho AI sửa ngoài `EditScope` đang hoạt động (nhưng cho phép người dùng Accept một generation đã hoàn tất hợp lệ trước đó hoặc Save nội dung dirty hợp lệ đang có của cảnh đó; các generation từng bị hủy do Lock vẫn không được Accept).
+  * **LOCK-07 — Lịch sử phiên bản:** thao tác chỉ đổi khóa (Lock/Unlock) không tạo bản ghi `scene_versions`.
+* **[IMPLEMENTATION PENDING]** IPC persist lock tức thời và kiểm tra khóa tại backend; hiện FE preview chỉ giữ local.
+
+#### Phạm vi sửa của AI trong một request (EditScope) và vòng đời nội dung
+
+> **Trạng thái:** APPROVED v2.4.2..v2.4.4 (**Decision 2A**: `SL-07..SL-12`, `SCOPE-01..SCOPE-06`, và UX contract `Q4.9`). Vòng đời ủy quyền của AI tách biệt với vòng đời của nội dung đã sinh hợp lệ. Dạng dữ liệu của `EditScope` và provenance là hợp đồng khái niệm, không thêm bảng phân quyền vĩnh viễn trong DBML.
+
+* **SCOPE-01 / SL-07 & SL-08 — Ủy quyền theo request và hai điều kiện độc lập:** mỗi request sửa nội dung của AI có một `EditScope` tường minh (`request_id`, `chapter_id`, `allowed_scene_ids`) xuất phát từ hành động/ủy quyền của người dùng. AI chỉ được phép bắt đầu hoặc tiếp tục generate/regenerate cho một scene khi thỏa đồng thời: `scene.is_locked == false` **VÀ** `scene.id ∈ active_request.EditScope`. Scene đang mở khóa nhưng nằm ngoài `EditScope` vẫn bị cấm (**Case G**); scene nằm trong `EditScope` nhưng đang khóa vẫn bị cấm (**Case H**).
+* **SL-09 & SL-10 — Mở rộng scope cần người dùng duyệt và không vượt khóa:** nếu AI cần sửa scene ngoài `EditScope` hiện tại, AI phải nêu lý do, chỉ rõ scene đích, mô tả thay đổi dự kiến và xin phép mở rộng scope; người dùng phải duyệt tường minh. Backend không tự suy ra phê duyệt từ lập luận của model. Ngay cả khi đã duyệt mở rộng scope, nếu scene đích đang khóa thì người dùng vẫn phải tự mở khóa thủ công (**Case H**).
+* **SCOPE-02 / SL-11 & SL-12 — Hết hạn quyền khi kết thúc request nhưng bảo toàn nội dung hợp lệ:** khi AI request kết thúc (hoàn tất hoặc dừng), quyền sửa của AI theo `EditScope` đó hết hạn ngay lập tức, không chuyển sang request kế tiếp, và không có quyền sửa toàn cục ngầm từ lịch sử chat hay context. Tuy nhiên, việc request kết thúc **không** làm vô hiệu hóa nội dung đã được sinh hợp lệ trước đó, buffer generation tạm, trạng thái chờ người dùng review, nội dung đã Accept trước đó, hay trạng thái dirty chưa lưu của chương.
+* **SCOPE-03 — Review sau khi request kết thúc:** sau khi AI request kết thúc, người dùng vẫn có toàn quyền xem lại (review) nội dung đã sinh, bấm Accept hoặc Discard, tiếp tục xem các thay đổi đã Accept, và bấm Save chương vào bất kỳ thời điểm nào sau đó mà **không** cần mở AI request mới, **không** cần cấp lại `EditScope` đã hết hạn, và **không** phải regenerate lại nội dung (**Case C, Case D**).
+* **SCOPE-04 — Quyền thực hiện Accept:** bấm Accept một kết quả đã sinh sau khi request kết thúc là **hành động của người dùng**, không phải một mutation mới của AI. Hệ thống phân biệt rõ: (1) nội dung có được sinh hoàn tất hợp lệ (`status == completed` và `authorization_valid == true`) dưới một `EditScope` và trạng thái mở khóa hợp lệ tại thời điểm sinh hay không (nếu từng bị hủy giữa chừng bởi Lock thì bị vô hiệu vĩnh viễn, không được Accept kể cả sau khi Unlock), (2) người dùng hiện đang chủ động bấm Accept, và (3) scene đích hiện tại có đang mở khóa (`is_locked == false`) hay không. Request hết hạn không làm hỏng kết quả hợp lệ, nhưng người dùng **không** được Accept nội dung vào một scene hiện đang khóa (`LOCK-04`).
+* **SCOPE-05 — Quyền thực hiện Save:** `Save Chapter` là thao tác do người dùng điều khiển, không cần AI request đang hoạt động và không cần kích hoạt lại `EditScope` cũ (**Case D**). Save chỉ kiểm tra: hành động hợp lệ của người dùng, danh tính scene, trạng thái khóa bền vững hiện tại (`is_locked == false` cho mọi scene có thay đổi nội dung), tính hợp lệ của nội dung, điều kiện optimistic concurrency và tính nguyên tử cấp chương.
+* **SCOPE-06 — Provenance tối thiểu của kết quả sinh:** kết quả generation trong buffer tạm giữ metadata nguồn gốc tối thiểu trong phiên làm việc (`request_id`, `generation_id`, `scene_id`, `baseline_version_number`, `authorization_valid`, `status`, và `scene_source = AI_GENERATED`) để cho phép Accept về sau mà không cần bảng ledger phân quyền bền vững trong SQLite. Vì buffer generation và dirty state của Writing Mode vốn là trạng thái làm việc trong phiên (chưa có autosave/durable draft theo mục Dirty state), metadata này sống cùng vòng đời buffer trong phiên và chuyển thành `scene_versions.scene_source = AI_GENERATED` khi Save thành công.
+* **Hợp đồng UX tối thiểu cho `EditScope` (`Q4.9` — APPROVED v2.4.4):**
+  1. Khi người dùng bấm nút `Generate` hoặc `Regenerate` trực tiếp trên một cảnh đang mở khóa, hành động đó chính là sự ủy quyền tường minh khởi tạo `EditScope = {scene_id}` cho request đó.
+  2. Khi người dùng gửi yêu cầu trong khung Chat của chương: cảnh đang được chọn/focus (hoặc cảnh được đính kèm) có thể được gợi ý làm `EditScope` đề xuất, nhưng **người dùng phải xác nhận/ủy quyền tường minh phạm vi cảnh được phép sửa** trước khi AI thực thi sinh nội dung cảnh.
+  3. Nếu tin nhắn Chat không có `EditScope` nào được xác định/ủy quyền, yêu cầu đó chỉ được chạy ở chế độ **tư vấn/trò chuyện thuần túy (advisory-only)** — AI trả lời, gợi ý hoặc kiểm tra continuity trong khung chat nhưng không được ghi vào buffer generation của bất kỳ cảnh nào.
+  4. Khi AI đề xuất mở rộng `EditScope` sang cảnh khác, UI hiển thị lời nhắc xác nhận tường minh (nêu rõ cảnh đích, lý do, thay đổi dự kiến và nút Đồng ý / Từ chối). Việc bấm Đồng ý mở rộng scope chỉ áp dụng cho request hiện tại và **không** tự động mở khóa các cảnh đang bị khóa (`SL-10`). Chi tiết bố cục giao diện thuộc `fe-core.md` §9.
+* **Tách bạch khái niệm:** `is_locked` (hạn chế sửa, chỉ người dùng, persist tức thời theo `LOCK-01`) ≠ `EditScope` (cảnh AI được sửa trong lúc request đang chạy, do người dùng ủy quyền) ≠ token optimistic concurrency (phát hiện stale write khi Save dựa trên `MAX(scene_versions.version_number)`, do backend kiểm soát; không dùng `is_locked` làm token này) ≠ draft operation lease (tuần tự hóa thao tác draft ở Planning Mode) ≠ Save cấp chương (persist nguyên tử các thay đổi nội dung đã duyệt kèm `client_save_id`).
+* **[IMPLEMENTATION PENDING]** Giao diện chọn/duyệt mở rộng `EditScope` và nối IPC backend (xem `fe-core.md` §9).
 
 #### Dirty state và điều hướng
 
-* Dirty được theo dõi theo từng scene; gồm thay đổi nội dung và thay đổi lock.
+* Dirty được theo dõi theo từng scene dựa trên sự khác biệt giữa nội dung working state và nội dung baseline đã lưu. (Theo `LOCK-01` và `LOCK-03`, thao tác Lock/Unlock được persist ngay lập tức xuống SQLite, không làm mất dirty content hiện có và không tạo content version).
 * Đổi focus giữa các scene phải giữ working state.
 * Mở Chat không được làm mất working state.
 * Điều hướng rời chương khi còn thay đổi chưa lưu phải yêu cầu xác nhận.
@@ -528,8 +595,21 @@ Các quy tắc bất biến và validate chéo:
 
 ### 3.1 Trình đo lường tiến độ (Progress Engine)
 
-* Hệ thống duyệt qua **46 thuộc tính Master list** (`MASTER_ATTRIBUTES_LIST`).
-* Hiển thị hai phần trăm riêng trên thanh Header, mỗi phần chia cho tổng 46 thuộc tính và mỗi thuộc tính đóng góp 0 hoặc 1 theo evaluator (giữ nguyên cách tính mảng): **Đã xác nhận** = số thuộc tính có `source = user` hoặc `user_edited` / 46; **AI đề xuất** = số thuộc tính có `source = ai_generated` / 46. Dữ liệu thuộc phase chưa mở vẫn được tính nếu có trong JSON. Thay cho một `progressPercent` tổng duy nhất.
+* Hệ thống duyệt qua **46 thuộc tính Master list** (`MASTER_ATTRIBUTES_LIST` — chuẩn thẩm quyền của Business Core; không tự đổi thành 50 theo mã nguồn FE prototype).
+* Hiển thị hai phần trăm riêng trên thanh Header, mỗi phần chia cho tổng 46 thuộc tính và mỗi thuộc tính đóng góp 0 hoặc 1 theo evaluator (giữ nguyên cách tính mảng: một thuộc tính mảng đạt 1 khi có ít nhất một phần tử hợp lệ trong mảng tương ứng, và phân loại theo `source` của giá trị đã điền): **Đã xác nhận** = số thuộc tính đạt có `source = user` hoặc `user_edited` / 46; **AI đề xuất** = số thuộc tính đạt có `source = ai_generated` / 46. Dữ liệu thuộc phase chưa mở vẫn được tính nếu có trong JSON. Thay cho một `progressPercent` tổng duy nhất.
+* **Quy tắc đối chiếu 46 thuộc tính chuẩn, Composite Provenance và `world_setting_code` (`APPROVED v2.4.4..v2.4.5`):**
+  1. Một thuộc tính tiến độ (progress attribute) là chỉ báo hoàn thiện dàn ý ở tầng Business Flow, **không đồng nhất 1:1 với cột vật lý trong DBML** (không xóa cột DBML và không xóa trường khỏi kiểu dữ liệu runtime chỉ vì không nằm trong 46 thuộc tính tiến độ).
+  2. **Loại trừ chính xác 4 mục khỏi danh sách 50 của FE prototype (`50 - 4 = 46`):**
+     * Ba trường dung sai gợi ý runtime: `optional.overview_phase.project.target.arc_tolerance`, `optional.overview_phase.project.target.chapter_tolerance`, `optional.overview_phase.project.target.word_per_chapter_tolerance` (vẫn giữ trong cấu hình runtime/gợi ý cho AI, không tính vào mẫu số 46).
+     * Một trường đang tạm treo: `optional.relationship_phase.relationship.motif.event_blocks` (chưa thiết kế bảng trong `docs/db.dbml`, giữ trạng thái tạm treo và không tính vào mẫu số 46).
+  3. **Quy tắc Provenance cho thuộc tính tổng hợp / mảng (`Composite Provenance — APPROVED v2.4.5`):**
+     * Một phần tử (element) chỉ đạt hoàn chỉnh khi thỏa mãn đầy đủ `completion_rule` của thuộc tính đó (thiếu hoặc sai trường bắt buộc thì phần tử đó là `incomplete`).
+     * Một phần tử hoàn chỉnh được phân loại là **confirmed (`Đã xác nhận`)** khi và chỉ khi **tất cả** các trường bắt buộc đóng góp vào điều kiện hoàn thành của phần tử đó đều có `source = user` hoặc `source = user_edited`.
+     * Một phần tử hoàn chỉnh nhưng có **bất kỳ** trường bắt buộc nào mang `source = ai_generated` thì được phân loại là **AI suggested (`AI đề xuất`)**.
+     * Với thuộc tính dạng mảng: thuộc tính đạt hoàn chỉnh khi có ít nhất một phần tử hợp lệ thỏa mãn `completion_rule`. Nếu có ít nhất một phần tử hợp lệ đạt mức `confirmed` thì toàn bộ thuộc tính Master đó được tính vào **Đã xác nhận**; ngược lại, nếu có ít nhất một phần tử hợp lệ đạt mức `ai_suggested` thì tính vào **AI đề xuất**; ngược lại là chưa hoàn thành (`incomplete`).
+     * Mỗi thuộc tính Master đóng góp tối đa 1 đơn vị vào mẫu số 46 và không bao giờ được tính đồng thời vào cả hai chỉ số. Thứ tự ưu tiên phân loại tiến độ là tất định: `confirmed > ai_suggested > incomplete` (chỉ áp dụng cho phân loại tiến độ hiển thị, không thay đổi quyền ghi đè hay quy tắc bảo vệ trường tại mục 1.3).
+  4. **Quy tắc cho `world_setting_code` (`APPROVED v2.4.5`):** `world_setting_code` là trường bắt buộc cho tính hợp lệ của cấu hình cảnh và bắt buộc phải có trước khi `commit_draft` (`scenes.world_setting_id NOT NULL` theo mục 2.3, 2.5, 2.8), nhưng **không** phải là thuộc tính thứ 47 và **không** thay thế bất kỳ thuộc tính nào trong 46 thuộc tính Master của Progress Engine.
+  5. Các lỗi đường dẫn/kiểu dữ liệu còn lại trong `src/features/business-flow/progressEngine.ts` (sai chính tả `charactar_psychological_phase`, cấu trúc `world_settings` đơn lẻ thay vì mảng cây, `lore_entries_code` scalar thay vì mảng `lore_entries[]`, biểu thức `typeof ch?.is_pov === 'boolean'` luôn đúng) là sai lệch của tầng triển khai FE (`[IMPLEMENTATION PENDING]`), sẽ được đồng bộ theo đúng 46 thuộc tính chuẩn khi nối backend.
 
 * Người dùng có thể mở icon **(i)** trên thanh tiến độ để tự kiểm tra các trường đã có/đang thiếu và nội dung hiện ghi trong draft.
 * `get_field_null()` là tool đọc (tên ví dụ, chưa chốt; backend xử lý, xem [harness/tools.md](harness/tools.md)) đọc toàn bộ `businessFlowData`, trả tối đa 3 trường `null`, mỗi trường kèm `field` và câu hỏi cố định `question` theo `system_language`. Kho câu hỏi là tập cố định theo từng ngôn ngữ do backend giữ (resource i18n theo quy ước DBML); ngôn ngữ chưa có trong kho dùng `en`. Backend tự biết ngôn ngữ, AI không truyền; không thêm tool `get_questions_by_language` để tránh một lượt gọi thừa hoặc AI truyền sai ngôn ngữ.
@@ -613,7 +693,7 @@ Draft Workspace hiển thị chia đôi màn hình (Split Panel có thể kéo d
 * Một lượt chat thông thường chỉ được tạo tối đa một sealed version cho cùng cặp `(draft_session_id, turn_id)`.
 * Với workflow phân đoạn, mỗi vòng có thể tạo một version riêng; phải phân biệt định danh lượt AI, định danh workflow và định danh vòng workflow. Không dùng một `turn_id` chung cho nhiều vòng nếu điều đó làm các version hợp lệ bị coi là trùng.
 * Retry không tạo version thứ hai cho cùng một đơn vị niêm phong; nếu version đã tồn tại, trả lại kết quả version hiện có; không tạo hai snapshot khác nhau cho cùng một idempotency key.
-* Kiểm tra và ghi phải có bảo đảm nguyên tử ở tầng persistence. Schema hiện tại chỉ có unique `(draft_session_id, seq)`; xem `[SCHEMA FOLLOW-UP]` bên dưới.
+* Kiểm tra và ghi phải có bảo đảm nguyên tử ở tầng persistence qua cột `draft_versions.seal_key` và unique index `(draft_session_id, seal_key)` (`[SCHEMA APPROVED: SF-01]`).
 
 #### Phục hồi sau crash
 
@@ -624,13 +704,11 @@ Draft Workspace hiển thị chia đôi màn hình (Split Panel có thể kéo d
 5. Có thể phát hiện lượt bị gián đoạn từ audit đã lưu; nếu audit chưa được lưu trước crash, chấp nhận giới hạn không thể phát hiện đầy đủ.
 6. Không vì thiếu audit mà tự tạo dữ liệu hoặc tự suy luận mutation đã thành công.
 
-#### `[SCHEMA FOLLOW-UP]` Idempotent sealing
+#### `[SCHEMA APPROVED: SF-01]` Idempotent sealing trên `draft_versions`
 
-* **Bảng:** `draft_versions`.
-* **Trường/index liên quan:** hiện có `turn_id` (index thường, không unique), `seq`, `draft_session_id`; chưa có khóa idempotency cho workflow round.
-* **Bất biến cần bảo đảm:** không có hai version cho cùng một lượt hoặc cùng một vòng workflow.
-* **Đề xuất tối thiểu (chưa áp dụng):** thêm một cột khóa idempotency, ví dụ `seal_key varchar`, và unique index `(draft_session_id, seal_key)`; giá trị là `turn:<turn_id>` cho lượt chat và `workflow:<workflow_id>:<round_id>` cho vòng workflow. Tên cột và cách biểu diễn workflow/round cần chốt cùng Q3.
-* **Vì sao chưa sửa:** nhiệm vụ này không sửa DBML; schema hiện tại chưa đủ để bảo đảm idempotency ở tầng database.
+* **Bảng:** `draft_versions` (`docs/db.dbml`).
+* **Trường & Unique Index đã bổ sung (`v2.4.5`):** cột `seal_key varchar` (nullable cho các bản ghi legacy trước khi có `seal_key`; bắt buộc khác null cho mọi thao tác niêm phong mới) và unique index `(draft_session_id, seal_key)`.
+* **Giao thức kiểm tra & niêm phong nguyên tử:** Trong transaction `BEGIN IMMEDIATE`, backend kiểm tra `(draft_session_id, seal_key)` trước khi tạo dòng mới. Nếu đã tồn tại dòng có cùng `(draft_session_id, seal_key)`: đối chiếu ngữ nghĩa thao tác và payload thông qua bộ cột đã lưu (`data_hash`, `reason`, `phase`, `subphase`, `parent_seq`, `turn_id`, `chat_message_id`) — nếu khớp hoàn toàn thì trả lại kết quả version gốc mà không tạo dòng thứ hai; nếu bất kỳ thông tin ngữ nghĩa hoặc `data_hash` nào không khớp thì từ chối với lỗi conflict có cấu trúc (`seal_key_payload_mismatch`).
 * Các sự kiện tạo version:
 
 | Sự kiện | Tạo version? | reason |
@@ -695,7 +773,7 @@ Draft Workspace hiển thị chia đôi màn hình (Split Panel có thể kéo d
 * State do hệ thống bơm vào mỗi lượt; AI không tự đọc file/DB để lấy State. Khi cần dữ liệu ngoài phần đã bơm, AI gọi tool đọc (`get_field_null()`, `get_array_element_fields` cho mảng, hoặc tool lấy State theo thực thể; xem [harness/tools.md](harness/tools.md)).
 * Không bơm toàn bộ lịch sử chat; chat vẫn được lưu đầy đủ trong DB để hiển thị UI và truy vết.
 * Mỗi lượt AI phải bóc tách mọi thông tin mới từ tin nhắn người dùng theo mục 1.3; system prompt nêu rõ các quy tắc thu thập, ghi đè theo `source` và ba mức sinh dữ liệu tại mục 1.3 để không bỏ sót dữ liệu phase chưa mở hoặc ghi đè trường bị bảo vệ.
-* Patch đang chờ xác nhận được đưa vào State (ví dụ `pending_patches`) để AI biết người dùng chưa trả lời và không đề xuất trùng.
+* Patch đang chờ xác nhận được chiếu từ bảng SQLite `pending_patches` vào **context prompt** cạnh State (không ghi vào sealed Business State) để AI biết người dùng chưa trả lời và không đề xuất trùng.
 * Event log không có bảng riêng; do code sinh từ `draft_versions` và `pending_patches`, không do AI viết; log bao gồm cả thay đổi bị hủy/bác bỏ (ví dụ: `[v.06] Khôi phục về v.02, hủy thay đổi v.03–v.05`).
 * Nếu State mâu thuẫn với event log hoặc chat thì ưu tiên State.
 * Thông tin sống lâu phải nằm trong State: `user_constraints`, `decision_log`. `pending_question` chỉ là trạng thái hội thoại đang chờ; nếu người dùng đổi chủ đề thì không nhắc lại câu cũ, mà ở lượt sau dùng `get_field_null()` hoặc `get_array_element_fields` cho mảng và hỏi đúng tối đa 3 câu hỏi cố định theo `system_language` do tool trả về. AI không thêm câu khác khi hỏi bổ sung trường thiếu; quy tắc này không cản việc hỏi làm rõ tham chiếu hoặc mâu thuẫn ở mục 1.3.
@@ -866,18 +944,48 @@ def context_range(s, e, total, margin=5):
 * **Phase 5:** Chạy tuần tự theo sub-phase 5.1, 5.2, 5.3; mỗi vòng thuộc đúng một sub-phase, không trộn nhiều sub-phase trong cùng vòng. Version `workflow_round` của vòng có thay đổi State ghi `phase = 5` và `subphase` tương ứng.
 * **Report trung gian:** Backend tạo thư mục `./merlink-harness/tmp/<draft_session_id>/<phase>/` sau khi phase trước hoàn thành và trước khi phase này bắt đầu. Dùng `draft_session_id` để tách report giữa các draft trước commit, không lấy địa chỉ cố định `require.project` làm `project_code`. Chỉ backend đọc/ghi report qua tool (ví dụ `write_phase_report`, `read_phase_reports`, tên ví dụ chưa chốt; xem [harness/tools.md](harness/tools.md)); subagent không đụng file trực tiếp, đúng mục 1.4.2. Report là dữ liệu trung gian, **không phải State**, xóa khi workflow hoàn tất.
 * **Version:** Mỗi vòng có thay đổi State chốt đúng **một** version `reason = workflow_round`, không gộp với version của lượt chat; subagent không tạo version riêng. Vòng không có thay đổi hoặc JSON trùng hash không tạo version theo mục 3.6. `workflow_round` đã có trong enum `DraftVersionReason` của DBML.
-* **Sinh `code`:** Handler cấp `code` bằng bộ đếm theo từng cha phải tuần tự hóa ở backend (mutex theo cha) để hai subagent không nhận trùng số. Định dạng `code` theo quy tắc đã chốt tại mục 3.8.
+* **Sinh `code` và bảo toàn bộ đếm `_counters` (`Q3.6` — APPROVED v2.4.4):** Handler cấp `code` bằng bộ đếm đơn điệu tăng dần theo từng cha phải tuần tự hóa ở backend (mutex theo cha) để hai subagent không nhận trùng số. Định dạng `code` theo quy tắc đã chốt tại mục 3.8. Bộ đếm theo cha (`_counters: { "<parent_code>": <next_int> }`) được lưu trực tiếp trong snapshot của `BusinessFlowData` (`draft_versions.data_json`) và bắt buộc nhất quán với các thực thể đã tạo; khi `restore` một version cũ, `_counters` được khôi phục nguyên tử cùng với State của version đó (và luôn kiểm tra chống đụng độ với các `code` hiện có). Không tạo bảng cơ sở dữ liệu riêng cho bộ đếm.
+* **Điều phối đồng thời giữa các subagent (`Q3.5` — APPROVED v2.4.4):** Các subagent trong một vòng được phép tính toán/gọi LLM song song (không giữ khóa cơ sở dữ liệu hay khóa ghi trong lúc chờ mạng LLM), nhưng mọi mutation ghi vào `WorkingState` dùng chung phải có phạm vi ghi tường minh (explicit write scope) và được áp dụng theo **thứ tự tất định (deterministic application order)** theo thứ tự chỉ mục task trong kế hoạch vòng (`task_index`), tuyệt đối không phụ thuộc vào thứ tự trả kết quả mạng ngẫu nhiên (network completion order) để giải quyết xung đột.
+* **Ngăn chặn trùng lặp kỹ thuật và ngữ nghĩa (`Q3.4` — APPROVED v2.4.4):** Phân biệt rõ hai loại trùng lặp:
+  1. *Trùng lặp kỹ thuật (Technical duplicates):* trùng `code`, trùng vị trí `(parent, position)` hoặc vi phạm ràng buộc định danh/khóa ngoại — bị từ chối ngay tại handler (`status = rejected`).
+  2. *Trùng lặp ngữ nghĩa (Semantic duplicates):* hai subagent đề xuất hai thực thể tương đương về ý nghĩa nhưng khác `code` (ví dụ cùng một địa danh hoặc lore) — được xử lý bằng bước gộp/đối chiếu tường minh (như giai đoạn 2 của Phase 3) trước khi ghi. Tuyệt đối **không** tự động gộp (auto-merge) hoặc ghi đè dữ liệu của người dùng đã được bảo vệ (`source = user | user_edited`) chỉ dựa trên sự tương đồng về tên gọi.
 * **Bảo vệ `source`:** Giữ nguyên mục 1.3. Patch `pending_confirmation` trong workflow không dừng workflow; gom lại và hiển thị cho người dùng sau khi hết vòng.
 * **Giới hạn lỗi:** `consecutive_rejected_count` tính riêng cho từng subagent và chỉ tăng khi `status` tổng của tool call là `rejected`. Subagent vượt ngưỡng chỉ khiến task đó được đánh dấu failed; các trường `applied` trước đó của task vẫn góp vào version cuối vòng.
-##### Resume workflow
 
-* Resume dựa trên sealed version cuối cùng; không coi tool result `applied` chưa seal là dữ liệu bền vững.
-* Workflow, mỗi vòng và mỗi task phải có định danh ổn định để phân biệt task đã hoàn thành và task cần chạy lại.
-* Task hoàn thành trong vòng đã seal không tự chạy lại khi resume. Vòng chưa seal được xem là chưa hoàn thành.
-* Không phát lại mutation từ audit để khôi phục State; resume phải revalidate State và điều kiện thực thi.
-* Không tự coi việc có cùng tên thực thể là bằng chứng task đã hoàn thành; không tự tạo bản ghi trùng chỉ vì một task được thực thi lại.
-* Các subagent có thể xử lý nội dung song song, nhưng mutation vào cùng draft vẫn phải tuân thủ khóa ghi. Không coi khóa ghi là giải pháp tự động ngăn trùng lặp ngữ nghĩa.
-* Cấu trúc lưu task/checkpoint chưa được chốt; giữ trong Q3. Không tự thêm task ledger hoặc checkpoint schema.
+##### Resume workflow, Định danh Task và Biên nhận Hoàn tất Bền vững (`Q3.1..Q3.5` — APPROVED v2.4.4)
+
+* **Tách biệt 5 khái niệm lưu trữ (`Q3.2`):**
+  1. *Business State (`WorkingState`):* trạng thái nghiệp vụ đang làm việc trong bộ nhớ.
+  2. *Sealed Draft Version (`draft_versions`):* nguồn sự thật duy nhất để khôi phục Business State.
+  3. *Workflow Completion Receipt (Biên nhận hoàn tất):* bằng chứng bền vững ghi nhận một round/task đã hoàn tất hợp lệ trên một trạng thái đầu vào xác định; dùng để điều phối resume, không bao giờ thay thế Sealed Draft Version.
+  4. *Temporary Task Report (`./merlink-harness/tmp/<draft_session_id>/<phase>/`):* báo cáo trung gian tạm thời.
+  5. *Runtime Execution Status:* trạng thái đang chạy trong RAM.
+* **Định danh Task ổn định và Thế hệ kế hoạch (`Q3.1` — APPROVED v2.4.4..v2.4.5):**
+  * Mỗi lần chạy workflow có một `workflow_run_id` duy nhất; mỗi khi kế hoạch phân đoạn được tính lại do thay đổi cấu trúc đầu vào (số Arc/chương...) hoặc khi chạy lại một task đã bị stale sau Restore/chỉnh sửa, hệ thống tạo một `plan_generation` mới và đối chiếu tường minh phần việc đã hoàn tất.
+  * Danh tính đầy đủ của một biên nhận hoàn tất gồm 4 thành phần: `(draft_session_id, workflow_run_id, plan_generation, task_identity)`, trong đó `task_identity` là định danh chuẩn hóa của `(phase, subphase, task_kind, assigned_scope)` (không nhúng lặp `workflow_run_id` vào bên trong `task_identity`). Định danh của một task không được âm thầm thay đổi khi task đó được retry. Tuyệt đối không dùng `display_name` hoặc array index làm định danh bền vững.
+* **Tính nguyên tử, Biên nhận bất biến (Insert-Once) và Kiểm tra trước khi tạo Version (`Q3.2`, `Q3.3` — APPROVED v2.4.5):**
+  * *Bất biến bắt buộc:* **Một workflow task không bao giờ được coi là đã hoàn tất bền vững nếu các thay đổi Business State bắt buộc của nó không thể khôi phục được từ Sealed Draft Version.**
+  * *Kiểm tra biên nhận trước khi tạo Draft Version (Retry Before Version Creation):* Khi thực thi hoặc retry một workflow task/round trong `BEGIN IMMEDIATE`, backend bắt buộc truy vấn biên nhận hiện có trong `workflow_task_receipts` theo `(draft_session_id, workflow_run_id, plan_generation, task_identity)` **trước khi** tạo `draft_versions` mới. Nếu biên nhận đã tồn tại và còn hiệu lực (khớp `plan_generation`, `input_scope_fingerprint`, `output_scope_fingerprint` và phả hệ snapshot hiện tại), trả về ngay kết quả hoàn tất trước đó và **tạo 0 `draft_versions` mới**. Nếu biên nhận đã tồn tại nhưng không khớp ngữ nghĩa hoặc đã stale, không được âm thầm ghi đè biên nhận cũ mà trả về trạng thái `stale`/`conflict` có cấu trúc để kích hoạt chính sách chạy lại với `plan_generation` (hoặc `workflow_run_id`) mới.
+  * *Biên nhận bất biến (Insert-Once Semantics):* Bảng `workflow_task_receipts` chỉ dùng cơ chế chèn một lần (`INSERT ... ON CONFLICT DO NOTHING` kèm truy vấn xác minh), **tuyệt đối cấm dùng `INSERT OR REPLACE`**.
+  * *Với vòng có thay đổi State (mutation-producing round):* việc niêm phong `draft_versions` (`reason = workflow_round`, `had_mutations = true`, `resulting_version_seq = new_seq`) và việc chèn biên nhận vào `workflow_task_receipts` **bắt buộc nằm trong cùng một ranh giới SQLite transaction nguyên tử (`BEGIN IMMEDIATE`)**. Nếu xảy ra xung đột hoặc lỗi ở bất kỳ bước nào, rollback toàn bộ transaction (không bao giờ để lọt `draft_versions` mồ côi).
+  * *Với vòng hoàn tất hợp lệ nhưng không có thay đổi State (zero-mutation / no-op round):* **không** tạo bản ghi `draft_versions` giả (tuân thủ quy tắc chống trùng `data_hash == head_hash` tại mục 3.6); thay vào đó, ghi bền vững một Completion Receipt với `had_mutations = false`, `resulting_version_seq = NULL`, `base_version_seq = head_version_seq`, gắn chặt với `input_scope_fingerprint` và `output_scope_fingerprint` đã xác thực.
+* **Kiểm tra hiệu lực khi Restore và Resume (`Q3.4`):**
+  * **Cấm** kiểm tra hiệu lực của Completion Receipt chỉ bằng phép so sánh số thứ tự version (`current_seq >= receipt_seq`). Ví dụ: chuỗi `V1 -> V2 -> V3 -> V4` (task hoàn tất ở `V4`), sau đó người dùng Restore `V2` tạo ra `V5` (`V5 > V4` nhưng nội dung quay về `V2`) — việc `5 > 4` không chứng minh task ở `V4` còn hiệu lực trên `V5`.
+  * Một Completion Receipt chỉ còn hiệu lực khi kiểm tra đồng thời: `task_identity`, `plan_generation`, `assigned_scope`, dấu vân tay đầu vào lịch sử của task trên S(i−1), dấu vân tay đầu ra lịch sử trên Si ngay sau task, và khả năng áp dụng độc lập trên head hiện tại theo lineage/phụ thuộc/phạm vi; không được đồng nhất Si với snapshot cuối vòng Sn. Các fingerprint lịch sử không tự chứng minh hiệu lực hiện tại. Khi người dùng Restore hoặc sửa dữ liệu làm thay đổi đầu vào/đầu ra của một task, biên nhận cũ được giữ nguyên trong lịch sử nhưng được suy dẫn là hết hiệu lực (stale) đối với trạng thái hiện tại và task đó phải được chạy lại dưới `plan_generation` / lần chạy mới; ngược lại, các task không liên quan có đầu vào và kết quả trong snapshot hiện tại vẫn khớp nguyên vẹn fingerprint thì được bảo toàn, không bắt chạy lại vô ích.
+* **Ưu tiên khi Report và State lệch nhau (`Q3.3`):**
+  * **Sealed Business State trong `draft_versions` luôn thắng tuyệt đối** so với các file report tạm trong `./merlink-harness/tmp/`.
+  * Report tạm chỉ được tái sử dụng khi cả `task_identity`, `plan_generation` và `input_scope_fingerprint` của report khớp với checkpoint hợp lệ hiện tại; report bị thiếu hoặc cũ (stale) bị bỏ qua/tạo lại và tuyệt đối không được làm hỏng State.
+* **Lưu trữ Schema cho Completion Receipt (`[SCHEMA APPROVED: SF-06]` — v2.4.5):** Bảng `workflow_task_receipts` đã được bổ sung vào `docs/db.dbml` với unique index `(draft_session_id, workflow_run_id, plan_generation, task_identity)`. Phê duyệt SF-06 tối thiểu này không đồng nghĩa B+ đã được triển khai.
+
+##### SF-06 B+ — hợp đồng bổ sung theo quyết định owner (đặc tả, chưa kiểm chứng triển khai)
+
+* **Identity và niêm phong:** Mỗi round hợp lệ có header `workflow_round_receipts` bất biến theo giao thức backend, định danh `(draft_session_id, workflow_run_id, plan_generation, round_index)` và `round_seal_key` backend sinh cả với zero-net. Trong một TX-04, ghi header, đủ biên nhận task và evidence; nếu canonical State cuối vòng khác baseline thì ghi đúng một Draft Version và cập nhật head; nếu bằng nhau, vẫn ghi header/receipts nhưng không tạo version. `had_mutations` ở biên nhận legacy là bit ghép `effectiveStateChanged && resulting_version_seq != NULL`, **không** phải số lần tool ghi; evidence mới ghi riêng `hadAppliedWrites` và `effectiveStateChanged` kể cả hai task triệt tiêu nhau. Không thay đổi các biên nhận cũ.
+* **Ranh giới task:** Với task thứ i, fingerprint đầu vào tính trên S(i−1), đầu ra trên Si; evidence có pure state patch để phục hồi S0→…→Sn; fingerprint mới dùng phiên bản `sf06:v2:`, không diễn giải lại v1. Hash/bytes canonical của State loại `meta.updated_at`, nhưng bao gồm provenance, `_counters` và thứ tự mảng có nghĩa. Patch không chứa proposal đang chờ duyệt. Codec không hỗ trợ transition hợp lệ thì từ chối seal, không tái gọi tool/LLM để lấp evidence.
+* **Tin cậy D09-A:** Backend là writer ứng dụng đã kiểm quyền khi thực thi/seal; SQLite cục bộ tin cậy trong V1. Receipt đã commit là attestation lịch sử, không phải bằng chứng mật mã chống người có quyền ghi trực tiếp DB hay yêu cầu chạy lại evaluator chính sách cũ. Tồn tại lịch sử, nhất quán nội tại, attestation ủy quyền, cùng intent request và khả năng áp dụng hiện tại là năm phép kiểm riêng. Restore giữ nguyên lịch sử nhưng không cho skip chỉ vì `seq` tăng; thiếu/không hỗ trợ evidence ⇒ `Indeterminate`/`RequiresReplan`, không tự sửa và không suy hoàn tất từ audit/report tạm. Chỉ round đã commit được phục hồi từ SQLite; không hứa exactly-once với hiệu ứng mạng/filesystem ngoài DB.
+* **Độc lập D10-B:** Proposal được commit ngay trong TX-08 của tool executor dưới khóa draft, trước khi trả `patch_id`; không stage vào TX-04 và có thể còn sau khi workflow fail. UI có thể đọc proposal đã commit ngay, còn workflow vẫn có thể trì hoãn trình bày tới cuối vòng. Dedupe cùng giá trị trả ID của đề xuất cũ còn hợp lệ nhưng không tự nhận origin/dependency mới; nếu origin mới là prerequisite thì phải báo conflict thay vì chứng nhận sai. Proposal không chứng minh round hoàn tất và không được replay như Working State. Khi confirm, ngoài tính còn tồn tại/giá trị trước/provenance/expiry, phải kiểm quyền người duyệt, đúng draft, không bị Restore vô hiệu, không phụ thuộc state chưa seal đã biến mất và các dependency nghiệp vụ thực tế; không tự expire mọi proposal chỉ vì round fail. TX-03 Restore tiếp tục expire mọi pending; thay thế và expiry tuân thủ §1.3; confirm dùng TX-02.
+* **Artifact tối thiểu (OC-1B):** Chỉ persist output có nội dung thực sự được task downstream tiêu thụ mà không thể dựng lại thuần từ State/evidence (từng output report Phase 3 `world_probe` được bước gộp tiêu thụ, và exact merged input mà `world_write` tiêu thụ nếu có; mỗi artifact gắn với evidence của round tạo/tiêu thụ nó). Trước khi vòng write seal, backend có thể gộp thuần các probe artifact đã seal hoặc replan nếu thiếu; sau khi write seal, verifier dùng input artifact bền thay vì report tạm/merger lịch sử. Không lưu mọi LLM response; artifact có schema/codec version, bytes canonical, hash và giới hạn kích thước bằng cấu hình runtime; ghi nguyên tử với evidence TX-04. Nếu thiếu/quá budget, không seal completion cần artifact hoặc trả `RequiresReplan` cho lịch sử; report tạm không thay thế được.
+* **Baseline legacy (OC-3A):** `isRequireComplete=false, head_version_seq=NULL` là draft chưa ready bình thường. `isRequireComplete=true, head_version_seq=NULL` là baseline workflow không hợp lệ: trả `WorkflowBaselineUnavailable`, không sinh version `seq=0`, không dựng genesis từ RAM và không backfill tự động. Cho phép xem dữ liệu còn đọc được; sửa thủ công riêng chỉ sau khi xác định dữ liệu nguồn tin cậy, quyền owner, snapshot nhất quán và kế hoạch bảo toàn lịch sử. Không đưa `client_request_id` vào workflow V1 khi chưa có phản ví dụ correctness cụ thể.
+
 
 ---
 
@@ -886,7 +994,8 @@ def context_range(s, e, total, margin=5):
 | Khối dữ liệu trong Business Flow          | Bảng lưu trữ chính thức trong SQLite (`db.dbml`)            | Ghi chú chuyển đổi                                        |
 | :------------------------------------------- | :----------------------------------------------------------------- | :------------------------------------------------------------ |
 | Phiên quản lý bản nháp | `draft_sessions` | Quản lý `session_id` (1:1 với chat session trước commit), head version, trạng thái `editing`/`committing`/`committed` và liên kết project sau commit; không phải thực thể nghiệp vụ được tạo khi commit. |
-| Snapshot bản nháp | `draft_versions` | Lưu toàn bộ JSON/source, phase và subphase theo version; không phải thực thể nghiệp vụ được tạo khi commit. |
+| Snapshot bản nháp | `draft_versions` | Lưu toàn bộ JSON/source, phase, subphase và `seal_key` (`SF-01`) theo version; không phải thực thể nghiệp vụ được tạo khi commit. |
+| Biên nhận hoàn tất workflow | `workflow_task_receipts` | Lưu bền biên nhận hoàn tất bất biến của từng task/round trong workflow phân đoạn (`SF-06`); không phải thực thể nghiệp vụ được tạo khi commit. |
 | Đề xuất chờ xác nhận | `pending_patches` | Lưu bền patch và trạng thái xử lý; không phải thực thể nghiệp vụ được tạo khi commit. |
 | `require.project`                          | `projects`, `project_genres`                                   | Khởi tạo dự án, lưu thể loại chính/phụ; `target`/`tolerance` là yêu cầu tương đối/runtime cho LLM, không phải dữ liệu cần lưu bền; không ánh xạ thành cột của `projects`.               |
 | `require.character`                        | `characters`, `project_characters`, `character_motifs`                             | Quan hệ N-N, gắn nhân vật vào dự án qua bảng nối     |
@@ -902,7 +1011,7 @@ def context_range(s, e, total, margin=5):
 **Bảng ngoài phạm vi ánh xạ từ draft:**
 
 * **Danh mục tham chiếu (seed data, không sinh từ draft):** `motifs`, `genres`, `motif_applicable_genres`, `event_blocks`, `event_transitions`, `states`, `state_down_by_rules`, `state_rules`, `emotional_ranges`, `event_block_emotionals`, `components`, `motif_constraints`, `constraints`, `style_presets`, `rhetorical_devices`, `style_preset_rhetorical_devices`, `style_preset_vocab_items`, `style_preset_focus_items`, `narrator_configs`, `style_preset_narratives`, `narrative_directives`, `appearance_option_groups`, `appearance_options`, `competence_domains`, `domain_level`, `relationship_categories`.
-* **Luồng viết sau commit (H1, xem mục 1.6):** `scene_versions`; không có `chapter_versions`. Nội dung chương đọc từ `scenes.content` theo `scenes.position`.
+* **Luồng viết sau commit (H1, xem mục 1.6):** `scene_versions` (`parent_id NOT NULL` theo `SF-07`), `chapter_save_receipts` (`SF-02`); không có `chapter_versions`. Nội dung chương đọc từ `scenes.content` theo `scenes.position`.
 * **Hạ tầng chat và prompt:** `sessions`, `messages`, `prompt_blocks`, `tools`, `prompt_block_tools`.
 
 `symbolics`, `symbolic_motifs` chưa dùng trong 7 phase (đang đánh dấu VFILL trong DBML).
@@ -957,127 +1066,83 @@ def context_range(s, e, total, margin=5):
 * Bổ sung quy tắc Regenerate note tại mục 1.6: ghi chú tùy chọn, rỗng/khoảng trắng chuẩn hóa `null`, chỉ áp dụng cho request hiện tại, không sửa trực tiếp nội dung scene, không persist như ràng buộc dự án, không bỏ qua Review → Accept → Save.
 * Không thay đổi versioning, Save, source, lock hoặc continuity của v2.4; không sửa DBML/backend.
 
-## CÂU HỎI MỞ
+## CHANGELOG v2.4.2
 
-> Các câu hỏi số 1-4 của v2.2 đã được chốt và chuyển thành quy tắc tại mục 1.3, 2.6, 3.6, 3.7, 3.8 và 3.9. Q2 của nhóm câu hỏi mở rộng cũng đã được chốt. v2.4 chốt H1/H2/H3; các chi tiết kỹ thuật/schema còn mở của H1 nằm tại Q4.
+* Chốt quy tắc Scene Lock và phân quyền sửa theo request (SL-01..SL-12) tại mục 1.6: `scenes.is_locked` là hạn chế sửa do người dùng độc quyền điều khiển; AI không đổi `is_locked`, không vượt khóa và phải chờ người dùng tự mở khóa thủ công trên frontend; backend kiểm tra lại trạng thái khóa tại ranh giới mutation.
+* Bổ sung `EditScope` theo từng request sửa của AI: AI chỉ được sửa scene khi đồng thời đang mở khóa và nằm trong `EditScope`; mở rộng scope cần người dùng duyệt tường minh và không thay thế việc mở khóa thủ công; quyền sửa hết hạn theo request.
+* Tách biệt rõ `is_locked`, `EditScope`, token optimistic concurrency, draft operation lease và Save cấp chương; ghi nhận các điểm còn mở về hiệu lực Unlock và UI mở rộng scope tại Q4 (mục 9, 10).
 
-### Q1. Cascade cho các quan hệ chưa chốt
+## CHANGELOG v2.4.3
 
-**Bối cảnh hiện tại:**
+* Chốt **Decision 1B (`LOCK-01..LOCK-07`)** tại mục 1.6: thao tác Lock/Unlock của người dùng persist `scenes.is_locked` ngay lập tức xuống SQLite (không chờ `Save Chapter`), chỉ cập nhật trạng thái xác nhận trên UI khi persist thành công, không tạo `scene_versions`, và bảo toàn nguyên vẹn mọi buffer generation / nội dung dirty chưa lưu. Khi `is_locked == true`, chặn AI Generate/Regenerate, chặn Accept nội dung mới và chặn Save nội dung dirty của scene đó (nếu một scene có nội dung dirty bị khóa thì toàn bộ `Save Chapter` bị từ chối nguyên tử và giữ nguyên dirty; scene khóa nhưng clean không chặn Save các scene khác).
+* Chốt **Decision 2A (`SCOPE-01..SCOPE-06`)** tại mục 1.6: tách biệt thời hạn ủy quyền của `EditScope` (hết hạn ngay khi AI request kết thúc) với vòng đời của nội dung đã sinh hợp lệ (vẫn xem lại, Accept, Discard và Save được sau khi request đã kết thúc mà không cần mở request mới hay cấp lại `EditScope`, miễn là scene đang mở khóa tại thời điểm Accept/Save).
+* Đóng mục Q4.10 (hiệu lực của Unlock đã được giải quyết bằng `LOCK-01`/`LOCK-06`) và cập nhật Q4.8, Q4.9.
 
-`core.md` mục 1.3 đã chốt ma trận Cascade Delete cho các quan hệ sở hữu và tham chiếu trực tiếp của Arc, Chapter, Scene, `scene_characters`, `scene_lore_entries`, `character_competences` và `character_memories`. Mục 2.8 quy định một số bất biến và validate chéo; mục 3.7 validate toàn bộ JSON trước khi commit. DBML vẫn có các ràng buộc chưa được ma trận tại mục 1.3 bao phủ: `scenes.world_setting_id` là `not null`; `scene_lore_entries` tham chiếu `lore_entries`; `relationship_states.scene_id` tham chiếu cảnh; `theme_arguments.character_id` tham chiếu nhân vật; một số thực thể có thể dùng chung giữa nhiều project.
+## CHANGELOG v2.4.4
 
-**Đã chốt:**
+* **Đóng toàn bộ câu hỏi nghiệp vụ còn mở (`Q1`, `Q3`, `Q4`) theo chỉ thị Option B (Correctness First, Minimal Schema Changes When Necessary):**
+  * **Chốt Q1 (Cascade Delete — mục 1.3):** Hoàn thiện ma trận xóa cho toàn bộ quan hệ tham chiếu và sở hữu: chặn xóa `world_setting` (và cây con) khi đang được `scenes.world_setting_id` tham chiếu (`referenced_entity_in_use`); cho phép xóa `lore_entry` kèm các liên kết `scene_lore_entries` phụ thuộc sau khi phân tích phụ thuộc, tạo preview đầy đủ và kiểm tra provenance bảo vệ; chặn xóa `character` đang được `relationships` tham chiếu (`referenced_entity_in_use`); chỉ cho phép xóa `character` kèm `theme_arguments` khi vượt qua kiểm tra provenance và không vi phạm bất biến chủ đề; xóa `scene` thì cascade xóa các bản ghi `relationship_states` thuộc cảnh đó nhưng giữ nguyên thực thể `relationships`; cấm cascade thực thể dùng chung xuyên project; chốt xóa vật lý (physical removal) khỏi `WorkingState` (không dùng tombstone cho V1); chuẩn hóa 9 bước bảo vệ bắt buộc trước khi xóa.
+  * **Chốt Q3 (Workflow Recovery & Resume — mục 3.9):** Chốt định danh task ổn định suy ra từ `(workflow_run_id, plan_generation, phase, subphase, task_kind, assigned_scope)`; tách biệt 5 tầng lưu trữ (`Business State`, `Sealed Draft Version`, `Workflow Completion Receipt`, `Temporary Task Report`, `Runtime Execution Status`); bắt buộc tính nguyên tử giữa mutation và completion receipt; không tạo version giả cho vòng có 0 mutation nhưng phải ghi biên nhận hoàn tất bền vững; kiểm tra hiệu lực receipt khi Restore/Resume dựa trên `input_scope_fingerprint`, `plan_generation` và `task_identity` (cấm chỉ so sánh `V_current > V_receipt`); Sealed Business State luôn thắng report tạm; phân biệt trùng lặp kỹ thuật và trùng lặp ngữ nghĩa (cấm tự gộp dữ liệu người dùng được bảo vệ); áp dụng mutation của subagent theo thứ tự tất định (không phụ thuộc thứ tự hoàn tất mạng); bảo toàn `_counters` trong snapshot.
+  * **Chốt Q4 (Writing Mode — mục 1.6):** Chốt idempotency bền vững ở cấp request cho `Save Chapter` theo `client_save_id` (`Q4.1`); chốt OCC dựa trên lịch sử `scene_versions` (`expected_version_number == COALESCE(MAX(version_number), 0)`) kết hợp kiểm tra `scenes.is_locked == false` trong một transaction nguyên tử mà không cần `scenes.revision` (`Q4.2`); chốt suy xuất `current_scene_source` từ bản ghi `scene_versions` mới nhất mà không cần `scenes.current_source` (`Q4.3`); chốt không tạo bảng lịch sử audit lock cho V1 (`Q4.4`); chốt hợp đồng read-model cảnh trả `scenes.id` thật và đủ thông tin baseline/OCC/source (`Q4.5`); chốt chu trình streaming `started -> delta* -> completed | cancelled | failed` và quy tắc vô hiệu hóa vĩnh viễn generation bị hủy bởi Lock ngay cả sau khi Unlock (`Q4.6`); chốt giao thức retry/khôi phục khi kết quả Save mập mờ (`Q4.7`); đồng bộ tài liệu dẫn xuất (`Q4.8`); và chốt hợp đồng UX tối thiểu cho `EditScope` (`Q4.9`).
+  * **Chuẩn hóa danh mục `[SCHEMA FOLLOW-UP]`:** Phân tách rõ các quy tắc nghiệp vụ đã chốt (`APPROVED`) với 3 đề xuất bổ sung schema tối thiểu cần phê duyệt riêng trước khi sửa `docs/db.dbml` (`draft_versions.seal_key`, bảng biên nhận hoàn tất workflow `workflow_task_receipts`, và bảng/cột idempotency cho Save Chapter). Không tự ý sửa `docs/db.dbml`.
 
-* Phân biệt quan hệ sở hữu và quan hệ tham chiếu.
-* Ma trận tại mục 1.3 cho Arc → Chapter → Scene, liên kết scene, competence và memory.
-* Cascade có tính bắc cầu; kiểm tra source; bảo vệ `user`/`user_edited`; preview đầy đủ; revalidate; áp dụng nguyên tử; một version `ai_patch` cho toàn cascade.
-* Không tự suy rộng ma trận sang mọi foreign key.
+## CHANGELOG v2.4.5
 
-**Vấn đề chưa chốt:**
+* **Chốt các làm rõ nghiệp vụ cuối cùng và áp dụng 4 bổ sung Schema tối thiểu (`SF-01`, `SF-02`, `SF-06`, `SF-07`) vào `docs/db.dbml` sau khi vượt qua toàn bộ cổng kiểm chứng:**
+  * **Chuẩn hóa 46 Master Attributes, Composite Provenance và `world_setting_code` (mục 3.1):** Loại trừ chính xác 4 mục khỏi danh sách 50 của FE (`arc_tolerance`, `chapter_tolerance`, `word_per_chapter_tolerance`, và `relationship.motif.event_blocks` đang tạm treo); chốt quy tắc `Composite Provenance` tất định (`confirmed > ai_suggested > incomplete`, không tính điểm trọng số, không tính đồng thời vào cả hai chỉ số); chốt giữ `world_setting_code` làm yêu cầu bắt buộc trước `commit_draft` mà không làm tăng mẫu số 46.
+  * **Áp dụng `SF-01` (`draft_versions.seal_key`):** Bổ sung cột `seal_key varchar` (nullable cho dữ liệu legacy) và unique index `(draft_session_id, seal_key)` trong `docs/db.dbml`, đối chiếu ngữ nghĩa thao tác và `data_hash` khi retry.
+  * **Áp dụng `SF-02` (`chapter_save_receipts`):** Bổ sung bảng biên nhận `chapter_save_receipts` với unique index `(chapter_id, client_save_id)`, lưu cùng transaction với `scenes` và `scene_versions` theo cơ chế insert-once.
+  * **Áp dụng `SF-06` (`workflow_task_receipts`):** Bổ sung bảng biên nhận hoàn tất bất biến `workflow_task_receipts` với unique index `(draft_session_id, workflow_run_id, plan_generation, task_identity)` (không lặp `workflow_run_id` bên trong `task_identity`), cơ chế insert-once (`ON CONFLICT DO NOTHING` + verify), bắt buộc kiểm tra biên nhận trước khi tạo `draft_versions` mới, và xác thực an toàn qua Restore bằng `input_scope_fingerprint` + `output_scope_fingerprint`.
+  * **Áp dụng `SF-07` (`scene_versions.parent_id NOT NULL`):** Siết ràng buộc `not null` cho `scene_versions.parent_id` trong `docs/db.dbml`.
 
-1. Xóa `world_setting` đang được Scene tham chiếu qua `scenes.world_setting_id NOT NULL`: trả `rejected`, `pending_confirmation`, hay yêu cầu gán địa điểm khác trước?
-2. Xóa `lore_entry` đang có trong `scene_lore_entries`: xóa liên kết, trả `pending_confirmation`, hay chặn?
-3. Xóa Character đang được `theme_arguments` hoặc `relationships` tham chiếu: xử lý ra sao?
-4. Xóa Scene đang được `relationship_states.scene_id` tham chiếu: cascade state, đặt null, hay chặn?
-5. Xóa thực thể đang được nhiều project dùng chung: có cascade theo project hay giữ lại?
-6. Xóa trong draft là xóa khỏi JSON, tombstone hay soft delete; ảnh hưởng thế nào đến version và `pending_patches`?
-7. Các bất biến xuyên thực thể được kiểm tra ở cấp tool call, cuối lượt, cuối vòng workflow hay chỉ khi commit?
+## CÁC QUYẾT ĐỊNH NGHIỆP VỤ ĐÃ CHỐT (`Q1..Q4`) & TRẠNG THÁI SCHEMA ĐÃ PHÊ DUYỆT
 
-**Tình huống phát sinh:**
+> **Trạng thái tổng thể (v2.4.5):** Toàn bộ các câu hỏi nghiệp vụ (`Q1`, `Q2`, `Q3`, `Q4`, `H1..H3`) và 4 hạng mục schema tối thiểu (`SF-01`, `SF-02`, `SF-06`, `SF-07`) đã được phê duyệt và cập nhật đồng bộ vào `docs/business/core.md` cùng `docs/db.dbml`. Các phần việc còn lại thuộc tầng đặc tả và triển khai kỹ thuật (`[IMPLEMENTATION PENDING]`).
 
-Người dùng xóa một `world_setting` ở Phase 3. Trong draft, Scene ở Phase 4 đang trỏ tới nó. Nếu handler cho xóa, đến commit `scenes.world_setting_id` là `NOT NULL` và transaction thất bại. Hoặc người dùng xóa một `lore_entry` đang được Scene dùng; nếu cascade xóa liên kết mà không có preview, dữ liệu người dùng có thể mất. Với `relationship_states`, xóa Scene có thể làm mất trạng thái quan hệ theo cảnh nếu không có quy tắc rõ ràng.
+### Q1. Cascade Delete cho toàn bộ quan hệ trong Working State — `[RESOLVED / APPROVED v2.4.4]`
 
-**Câu hỏi cần quyết định:**
+* **Quyết định nghiệp vụ đã chốt (đã tích hợp vào mục 1.3):**
+  1. **`world_setting` đang được Scene tham chiếu (`scenes.world_setting_id NOT NULL`):** Không tự xóa và không tự gán lại địa điểm cho cảnh. Trả `status = rejected`, `error = referenced_entity_in_use`. Với cây con `world_settings`, kiểm tra tham chiếu trên toàn bộ các nút hậu duệ trong cây con.
+  2. **`lore_entry` đang được `scene_lore_entries` tham chiếu:** Cho phép xóa kèm các liên kết `scene_lore_entries` phụ thuộc (không xóa Scene). Phải liệt kê toàn bộ liên kết bị ảnh hưởng, kiểm tra provenance bảo vệ (`user`/`user_edited`), tạo preview đầy đủ, yêu cầu xác nhận khi chạm dữ liệu được bảo vệ, và áp dụng nguyên tử.
+  3. **`character` đang được `theme_arguments` tham chiếu:** Chỉ cho phép gỡ liên kết `theme_arguments` phụ thuộc sau khi phân tích phụ thuộc, kiểm tra provenance bảo vệ và xác minh không vi phạm bất biến nghiệp vụ của `themes`; nếu vi phạm bất biến, trả `rejected` yêu cầu người dùng xử lý chủ đề trước. Không tự ý sửa nội dung luận điểm hay gán nhân vật thay thế.
+  4. **`character` đang được `relationships` tham chiếu:** Không tự xóa thực thể quan hệ. Trả `status = rejected`, `error = referenced_entity_in_use` và yêu cầu dọn dẹp quan hệ trước.
+  5. **`scene` đang được `relationship_states.scene_id` tham chiếu:** Cascade xóa các bản ghi `relationship_states` thuộc cảnh đó (sau khi kiểm tra provenance của mọi bản ghi bị ảnh hưởng); giữ nguyên thực thể `relationships` cha.
+  6. **Thực thể dùng chung (Shared entities):** Không cascade xuyên ranh giới project; bảo toàn thực thể còn được project khác tham chiếu.
+  7. **Mô hình xóa trong Draft & Kiểm tra bất biến:** Xóa vật lý (physical removal) khỏi `WorkingState` (không dùng tombstone cho V1; khôi phục qua `draft_versions`). Áp dụng đầy đủ 9 bước bảo vệ bắt buộc tại mục 1.3.
+* **Trạng thái triển khai:** `[IMPLEMENTATION PENDING]` trong các tool handler `delete_*` của backend. Không yêu cầu sửa `docs/db.dbml`.
 
-1. Ma trận xử lý cho các quan hệ còn lại là gì, theo thứ tự nào?
-2. Trường hợp nào `rejected`, trường hợp nào `pending_confirmation`, trường hợp nào cascade tự động?
-3. Xóa trong draft là xóa khỏi JSON, tombstone hay soft delete?
-4. Các bất biến xuyên thực thể được kiểm tra ở đâu và khi nào?
+### Q3. Resume workflow, định danh task, biên nhận hoàn tất và bộ đếm `_counters` — `[RESOLVED / APPROVED v2.4.4..v2.4.5]`
 
-Các hướng như khai báo ma trận tham chiếu, validate tại handler, hay chỉ validate trước commit kèm preview đầy đủ chỉ là **phương án tham khảo, chưa được phê duyệt**.
+* **Quyết định nghiệp vụ đã chốt (đã tích hợp vào mục 3.9):**
+  1. **Định danh Task ổn định (`5.1`):** Mỗi lần chạy có `workflow_run_id`; danh tính biên nhận gồm `(draft_session_id, workflow_run_id, plan_generation, task_identity)` với `task_identity` chuẩn hóa từ `(phase, subphase, task_kind, assigned_scope)` (không nhúng lặp `workflow_run_id` vào `task_identity`). Không đổi định danh khi retry; khi kế hoạch phân đoạn tính lại hoặc chạy lại task stale thì tạo `plan_generation` mới; không dùng `display_name` hay array index làm định danh bền vững.
+  2. **Biên nhận hoàn tất bền vững & Tách biệt 5 tầng (`5.2`):** Tách biệt `Business State`, `Draft Version`, `Workflow Completion Receipt`, `Temporary Task Report`, và `Runtime Execution Status`. Nguồn sự thật để khôi phục Business State luôn là `draft_versions`.
+  3. **Tính nguyên tử, Insert-Once & Kiểm tra trước khi tạo Version (`5.3`):** Kiểm tra biên nhận hiện có trong `workflow_task_receipts` trước khi tạo `draft_versions` mới; dùng insert-once (`ON CONFLICT DO NOTHING` + verify, cấm `INSERT OR REPLACE`). Với vòng có mutation: niêm phong `draft_versions` và ghi Completion Receipt có chung ranh giới commit nguyên tử. Với vòng có 0 mutation: không tạo `draft_versions` giả, nhưng ghi bền vững Completion Receipt (`had_mutations = false`, `resulting_version_seq = NULL`).
+  4. **Kiểm tra hiệu lực khi Restore và Resume (`5.4`):** Không dùng phép so sánh `V_current > V_receipt` đơn thuần. Xác thực biên nhận dựa trên `assigned_scope`, `input_scope_fingerprint`, `output_scope_fingerprint`, `plan_generation` và `task_identity`.
+  5. **Ưu tiên khi Report và State lệch nhau (`5.5`):** Sealed Business State trong `draft_versions` thắng tuyệt đối; report tạm chỉ dùng lại khi khớp định danh và fingerprint đầu vào.
+  6. **Chống trùng lặp & Đồng thời (`5.6`, `5.7`, `5.8`):** Từ chối trùng lặp kỹ thuật bằng `code` và ràng buộc hiện có; xử lý trùng lặp ngữ nghĩa bằng bước gộp tường minh (không tự gộp dữ liệu người dùng được bảo vệ); áp dụng mutation của các subagent theo thứ tự tất định (không phụ thuộc thứ tự hoàn tất mạng; không giữ khóa DB qua lệnh chờ mạng LLM); lưu `_counters` trực tiếp trong snapshot `BusinessFlowData` và khôi phục cùng State khi Restore.
+* **Trạng thái Schema (`[SCHEMA APPROVED & APPLIED v2.4.5]`):** Đã bổ sung `draft_versions.seal_key` (`SF-01`) và bảng `workflow_task_receipts` (`SF-06`) vào `docs/db.dbml`.
 
-**Phạm vi ảnh hưởng:**
+### Q4. Hợp đồng thực thi Writing Mode — `[RESOLVED / APPROVED v2.4.4..v2.4.5]`
 
-Tool `delete_*`, handler, validate mục 2.8, commit tại mục 3.7, `pending_patches`, version/restore, DBML foreign key và `tools.md`.
+* **Quyết định nghiệp vụ đã chốt (đã tích hợp vào mục 1.6):**
+  1. **Idempotency bền vững ở cấp request cho Save Chapter (`Q4.1`):** Gắn mỗi lần Save của người dùng với `client_save_id` ổn định; bảo đảm 5 tính chất bền vững (cùng ID cùng payload trả kết quả gốc; cùng ID khác payload trả `idempotency_conflict`; khác ID xử lý theo OCC; crash sau commit trước response khi retry không tạo trùng version; retry trễ sau một Save khác không bao giờ ghi đè nội dung mới hơn).
+  2. **Optimistic Concurrency Control (`Q4.2`):** Dùng lịch sử `scene_versions` hiện có (`expected_version_number == COALESCE(MAX(version_number), 0)`) kết hợp kiểm tra `scenes.is_locked == false`, danh tính `scenes.id`, quyền sở hữu chương và quyền người dùng trong một SQLite transaction nguyên tử. Từ chối toàn bộ Save cấp chương và giữ nguyên dirty content nếu bất kỳ cảnh dirty nào không đạt. `Lock -> Unlock` thuần túy không tạo xung đột nội dung; generation từng bị hủy bởi Lock giữ nguyên trạng thái vô hiệu hóa sau khi Unlock. Không cần thêm `scenes.revision` cho V1.
+  3. **Nguồn gốc cảnh hiện tại (`Q4.3`):** Suy ra `current_scene_source` trực tiếp từ bản ghi `scene_versions` mới nhất của cảnh; không thêm `scenes.current_source` cho V1.
+  4. **Audit Lock (`Q4.4`):** Không tạo bảng/lịch sử audit lock cho V1; chỉ lưu `scenes.is_locked` hiện hành; thao tác khóa không tạo `scene_versions`.
+  5. **Read-model Scene Identity (`Q4.5`):** Trả `scenes.id` và `position` thật cùng `content`, `word_count`, `is_locked`, `head_version_number` và `current_scene_source`.
+  6. **Generation Streaming (`Q4.6`):** Chu trình `started -> delta* -> completed | cancelled | failed`; metadata phân biệt rõ `request_id`, `generation_id`, `scene_id`, `baseline_version_number`, `authorization_valid` và `status`; Lock khi đang stream làm vô hiệu hóa generation đó vĩnh viễn (giữ text tạm để xem nhưng cấm Accept kể cả sau khi Unlock); hết hạn `EditScope` không làm hỏng kết quả đã hoàn tất hợp lệ.
+  7. **Save Retry & Recovery (`Q4.7`):** Khi kết quả Save mập mờ, giữ nguyên dirty state, không tự sinh `client_save_id` mới, truy vấn kết quả bền vững của ID gốc trước khi retry; trả conflict nếu không còn an toàn; không hứa hẹn khôi phục buffer RAM qua tắt/mở app khi chưa có durable draft/autosave.
+  8. **Đồng bộ tài liệu (`Q4.8`):** `core.md`, `fe-core.md`, `tools.md`, `overview.md`, `case_newchat.md` đã đồng bộ hoàn toàn với `H1..H3`, `Decision 1B` và `Decision 2A`.
+  9. **Hợp đồng UX tối thiểu cho `EditScope` (`Q4.9`):** Cảnh đang chọn có thể được gợi ý làm scope nhưng người dùng phải ủy quyền tường minh; không có scope thì chỉ chạy chế độ tư vấn (advisory-only); mở rộng scope cần xác nhận tường minh; duyệt scope không mở khóa cảnh; quyền chỉ có hiệu lực trong request hiện tại.
+* **Trạng thái Schema (`[SCHEMA APPROVED & APPLIED v2.4.5]`):**
+  * **`SF-02` (`chapter_save_receipts`):** Đã bổ sung bảng `chapter_save_receipts` với unique index `(chapter_id, client_save_id)` vào `docs/db.dbml`.
+  * **`SF-07` (`scene_versions.parent_id NOT NULL`):** Đã siết `not null` cho `scene_versions.parent_id` trong `docs/db.dbml`.
+* **Trạng thái triển khai (`[IMPLEMENTATION PENDING]`):** Các IPC command/channel của Writing Mode, H2 Commit transaction và continuity API sẽ được đặc tả kỹ thuật chi tiết trong `docs/business/be-core.md`.
 
-**Trạng thái:** Chưa chốt.
+### Đã chốt trong v2.4..v2.4.4
 
-### Q3. Resume workflow, task identity và checkpoint
-
-**Bối cảnh hiện tại:**
-
-`core.md` mục 3.9 đã chốt các nguyên tắc resume: dựa trên sealed version cuối cùng; workflow/round/task có định danh ổn định; task trong round đã seal không chạy lại; round chưa seal chưa hoàn thành; không phát lại mutation từ audit; revalidate State; không dựa vào trùng tên; không tạo bản ghi trùng; subagent chạy song song nhưng mutation tuân thủ khóa ghi. Mục 3.6 chốt idempotent sealing; mục 3.8 chốt bộ đếm `code` thuộc Working State.
-
-**Đã chốt một phần:**
-
-State là một bản duy nhất theo draft; các subagent của một vòng chạy dưới khóa của vòng và tool call của chúng được tuần tự hóa ở State. Các ý còn lại dưới đây vẫn chưa chốt.
-
-**Vấn đề chưa chốt:**
-
-Chưa xác định task được định danh bằng gì và trạng thái hoàn thành được lưu ở đâu; kế hoạch task được tính lại từ `plan_phase`/`plan_outline_runs` nên ranh giới task có thể thay đổi sau khi State thay đổi. Chưa có cơ chế chống tạo thực thể tương đương khi resume cho Arc, chương, cảnh, nhân vật, world_setting và lore; các khóa vị trí như `(parent, position)` chỉ phát hiện xung đột vị trí, không xác định được hai thực thể cùng ý nghĩa. Chưa rõ report và State lệch nhau thì ưu tiên bên nào. Hai subagent trong cùng vòng có thể cùng tạo world_setting hoặc lore trùng. Thứ tự áp dụng và xử lý xung đột khi các subagent cùng ghi vào State chung vẫn chưa xác định; cũng chưa rõ bộ đếm `code` theo cha nằm ở đâu trong snapshot để restore khôi phục đúng.
-
-**Tình huống phát sinh:**
-
-Subagent tạo nhân vật `code = char_001`, tool trả `applied`, rồi task lỗi trước khi hoàn tất. Khi resume, model tạo một nhân vật tương đương với `code = char_002`. Cả hai đều hợp lệ về schema; không có khóa tự nhiên nào nhận ra chúng là cùng một nhân vật. Tương tự, hai subagent trong cùng vòng có thể cùng tạo một `world_setting` hoặc `lore_entry` trùng nghĩa nhưng khác `code`.
-
-**Câu hỏi cần quyết định:**
-
-1. Task được định danh và đánh dấu hoàn thành bằng gì khi kế hoạch được tính lại sau thay đổi State?
-2. Trạng thái task/checkpoint được lưu ở đâu nếu không thêm task ledger? Có cần schema tối thiểu hay chỉ dùng report/State?
-3. Khi report và State lệch nhau, bên nào được ưu tiên để resume?
-4. Hai subagent cùng tạo world_setting hoặc lore trùng trong một vòng được phát hiện và xử lý thế nào?
-5. Thứ tự áp dụng và xử lý xung đột khi các subagent cùng ghi vào State chung do đâu quy định?
-6. Cấu trúc serialization của bộ đếm cấp `code` trong `BusinessFlowData` được đặc tả ở đâu để bảo đảm snapshot, restore và resume sử dụng cùng một trạng thái cấp phát?
-
-Các hướng như khóa task suy ra từ kế hoạch, report có schema cố định, hay đối chiếu State trước khi chạy lại chỉ là **phương án tham khảo, chưa được phê duyệt**.
-
-**Phạm vi ảnh hưởng:**
-
-Workflow orchestrator, `plan_phase`/`plan_outline_runs`, report trung gian, State store, version `workflow_round`, handler cấp `code`, restore, `tools.md`, và quy tắc resume tại mục 3.9.
-
-**Trạng thái:** Chưa chốt.
-
-### Q4. Hợp đồng lưu nội dung cảnh và schema follow-up
-
-**Đã chốt (APPROVED):**
-
-* Mô hình chương-first, cảnh là block; scene identity là `scenes.id`, thứ tự theo `scenes.position`; không có scene page, block paragraph hoặc `chapter_versions` (mục 1.6).
-* Generation vào buffer tạm, review inline, Accept vào working state; Save cấp chương mới persist; tối đa một generation mỗi chương; không tự chuyển scene/chương.
-* Save chỉ gồm scene dirty; một Save thành công tạo đúng một `scene_versions` cho mỗi scene có nội dung thay đổi; lock-only Save không tạo content version.
-* Source nội dung cảnh dùng `AI_GENERATED` / `HUMAN_EDITED` / `RESTORE`; restore append-only; dirty và continuity theo scene.
-* H2 dùng Commit Confirmation Dialog, không có phase review riêng; `phase_confirm` khác `commit`; failure giữ draft, success điều hướng Project Detail mặc định View (mục 3.5, 3.7).
-* H3 dùng Project View/Creator; Creator chỉ chọn chương, Chapter Detail là Writing Mode surface; chi tiết UI tại `fe-core.md` §9.
-
-**Còn mở (OPEN):**
-
-1. Idempotency của Save nội dung cảnh: retry/double-submit không được tạo hai version hoặc ghi hai lần. Chưa chốt khóa idempotency ở tầng persistence.
-2. Optimistic concurrency/stale write: FE gửi baseline nào, backend từ chối ghi đè khi scene đã đổi ở nơi khác, và UI xử lý conflict ra sao.
-3. Source hiện tại của scene: DBML chỉ có `scene_versions.scene_source`, chưa có cột source trên `scenes`; cần chốt suy ra từ version mới nhất hay lưu riêng.
-4. Audit lock: lock-only Save không tạo content version; nếu cần lịch sử lock thì phải có schema/contract riêng.
-5. Read-model scene identity: backend trả `scenes.id`, `position`, `content`, `word_count`, `is_locked`; FE preview hiện dùng id tạm.
-6. Generation stream/cancel: contract API, buffer và cách hủy; chưa có tool sinh nội dung scene.
-7. Commit retry/recovery sau request bị gián đoạn: UI đọc trạng thái backend thay vì tự kết luận; chi tiết API còn mở.
-8. `tools.md` và prompt docs còn mô tả H1/H2/H3 là mở; cần đồng bộ ở task riêng.
-
-**SCHEMA FOLLOW-UP:**
-
-* `scene_versions` chưa có khóa idempotency hoặc mã tham chiếu generation; unique hiện tại chỉ `(parent_id, version_number)`.
-* `scene_versions.parent_id` nullable; contract nội dung cảnh cần gắn scene, nên cần validate hoặc điều chỉnh DBML nếu muốn cưỡng chế.
-* `scenes` không có `created_at`/`updated_at` và không có cột source nội dung; optimistic concurrency và source hiện tại chưa có chỗ lưu chuẩn.
-* Không có `chapter_versions`; v2.4 không thêm bảng này.
-* Không tự thêm cột/bảng trong v2.4; tên cột/index cụ thể do DBML và backend chốt sau.
-
-**IMPLEMENTATION PENDING:**
-
-* API generation/stream/cancel; API Save nguyên tử và trả read-model; API version list/restore; persist lock; continuity; commit confirmation/navigation; cập nhật `tools.md`.
-
-**Trạng thái:** Business contract của H1/H2/H3 đã chốt; các chi tiết kỹ thuật và schema nêu trên còn OPEN/SCHEMA FOLLOW-UP.
-
-### Đã chốt trong v2.4
-
-H1. **[APPROVED]** Hợp đồng Writing Mode tại mục 1.6: chương-first, cảnh là block; generation buffer/review/accept; Save cấp chương; source/restore/lock/dirty/continuity theo scene; không có `chapter_versions`. Chi tiết kỹ thuật còn mở tại Q4.
+H1. **[APPROVED]** Hợp đồng Writing Mode tại mục 1.6 (bao gồm đầy đủ `SL-01..12`, `LOCK-01..07`, `SCOPE-01..06`, và `Q4.1..Q4.9`).
 H2. **[APPROVED]** Luồng commit sau Phase 6 tại mục 3.5 và 3.7: Commit Confirmation Dialog đồng thời là plan review; chặn khi validation/pending patches; pending không đóng được; idempotent; failure giữ draft; success đóng Draft Workspace và điều hướng Project Detail mặc định View. Triển khai FE/backend còn `[IMPLEMENTATION PENDING]`.
 H3. **[APPROVED]** Project View/Creator tại `fe-core.md` §9: Creator chỉ chọn chương, không nhúng scene editor; Chapter Detail là Writing Mode surface; route và interaction chi tiết thuộc FE contract, không phải quy tắc nghiệp vụ mới.
 
-**Tạm treo theo xác nhận:** Chưa thiết kế bảng/liên kết cho `relationship_phase.motif.event_blocks[]`.
+**Tạm treo theo xác nhận:** Chưa thiết kế bảng/liên kết cho `relationship_phase.motif.event_blocks[]` (không tính vào 46 thuộc tính Master list của Progress Engine).

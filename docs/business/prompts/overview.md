@@ -10,7 +10,7 @@ Cơ chế: mỗi **prompt block** nạp được `0..N` tool — block nào khô
 * Sealed Draft Version là snapshot đã ghi bền vững trong `draft_versions`; đây là nguồn phục hồi Draft State.
 * `messages.payload_json` là audit phục vụ lịch sử và phát hiện gián đoạn, không phải nguồn phục hồi State.
 * Cuối lượt có mutation `applied`, backend phải niêm phong version; seal lỗi thì thử lại đúng một lần, cả hai lần lỗi trả `VersionSealFailed` và không trả kết quả thành công giả.
-* Một lượt chat chỉ có tối đa một sealed version cho `(draft_session_id, turn_id)`; workflow round có đơn vị niêm phong riêng. Retry không tạo version trùng.
+* Một lượt chat chỉ có tối đa một sealed version cho `(draft_session_id, turn_id)`; workflow round có đơn vị niêm phong riêng. Retry không tạo version trùng. Với SF-06 B+, chỉ header/receipts/evidence trong TX-04 chứng minh round đã commit (zero-net vẫn có header, không có Draft Version); `messages.payload_json`, prompt bytes, tool response hay report tạm không thay thế evidence. Artifact typed chỉ bền khi cùng TX-04 và thực sự cần cho downstream, không lưu mọi LLM response. Proposal protected-field ghi bền riêng TX-08 trước khi trả `patch_id`, không chứng minh round completed và không ở pure state patch. Resume chỉ skip sau khi historical verification và current-head applicability đều đạt; không chạy lại LLM/tool để vá evidence thiếu.
 
 ## Schema
 
@@ -259,14 +259,17 @@ Tool impl ký kiểu `async fn execute(&self, call: &ToolCall, ctx: &ToolContext
 
 ### Phân loại tool ghi Draft State
 
-Tool Registry giữ metadata `writes_draft_state` cho từng tool; pipeline dùng metadata này để quyết định `has_applied_write`, không dùng tiền tố `add_`, `set_`, `delete_`, cũng không dùng tên tool làm quy tắc. Các tool Writing Mode như `write_scene_content`, `lock_scene`, `unlock_scene`, `add_scene_version` có metadata này là `false`; tool đọc cũng `false`. Các tool Planning ghi State nháp của thực thể project/arc/chapter/scene/character/world/lore/relationship có metadata `true`. Việc đăng ký metadata là một phần của Tool Registry; không thêm cột DBML cho metadata này.
+Tool Registry giữ metadata `writes_draft_state` cho từng tool; pipeline dùng metadata này để quyết định `has_applied_write`, không dùng tiền tố `add_`, `set_`, `delete_`, cũng không dùng tên tool làm quy tắc. Các thao tác Writing Mode (`write_scene_content`, `lock_scene`, `unlock_scene`, `add_scene_version`) có metadata này là `false` và **không được cấp cho AI** (theo `core.md` §1.6 `SL-01..12`, `LOCK-01..07`, `SCOPE-01..06`: chỉ người dùng mới được thao tác Lock/Unlock — được persist tức thời xuống SQLite qua IPC độc quyền của người dùng theo `LOCK-01`, không chờ `Save Chapter` — trong khi nội dung scene được persist nguyên tử qua `Save Chapter` theo `LOCK-05`); tool đọc cũng `false`. Các tool Planning ghi State nháp của thực thể project/arc/chapter/scene/character/world/lore/relationship có metadata `true`. Việc đăng ký metadata là một phần của Tool Registry; không thêm cột DBML cho metadata này.
 
 ### Ranh giới Planning/Writing
 
 * Planning Pipeline chạy đến bước commit plan; không tự động sinh nội dung chương. Việc lập kế hoạch 500 chương không phải yêu cầu viết 500 chương.
 * Writing Pipeline chỉ chạy sau khi plan đã commit; một phiên chỉ tập trung một chương, không tự chuyển chương và không chạy hàng loạt.
+* Trong Writing Mode (`core.md` §1.6 v2.4.4):
+  - **Lock/Unlock tức thời (`LOCK-01..04`):** Chỉ người dùng mới được Lock/Unlock scene; thao tác này persist `scenes.is_locked` tức thời xuống SQLite qua IPC chuyên biệt (không qua `Save Chapter`, không xóa dirty content/buffer, và không tạo `scene_versions`).
+  - **Generation & Content Save (`SCOPE-01..06`, `LOCK-05`, `Q4.1..Q4.9`):** AI chỉ được sinh nội dung khi `scene.is_locked == false` **và** `scene.id ∈ active_request.EditScope`; kết quả sinh đi vào buffer tạm (`started -> delta* -> completed | cancelled | failed`). Nếu bị Lock giữa chừng khi đang stream, generation đó bị vô hiệu hóa vĩnh viễn (giữ text tạm để xem nhưng cấm Accept kể cả sau khi Unlock). Khi AI request kết thúc, `EditScope` hết hạn đối với các lần sinh mới nhưng nội dung đã hoàn tất hợp lệ vẫn giữ nguyên hiệu lực để người dùng Review/Accept/Save mà không cần AI request đang chạy (`SCOPE-02..05`), miễn là scene đang mở khóa tại thời điểm Accept/Save. AI không có tool đổi `is_locked` hay ghi trực tiếp vào `scenes.content` / `scene_versions`.
 * Hai pipeline có prompt block, context injection, tập tool và quy tắc versioning riêng. Không tái sử dụng workflow Phase 3-6 để viết nội dung.
-* Tài liệu này chỉ mô tả ranh giới; không triển khai đầy đủ Writing Pipeline trong lần chỉnh sửa này (H1 còn mở chi tiết).
+* Toàn bộ quy tắc nghiệp vụ của Writing Mode (`Q4.1..Q4.9`) đã được chốt tại `core.md` §1.6 và mục Q4 (v2.4.4).
 
 Khi nạp lại vài lượt chat cuối, mỗi `tool_call` phải đi kèm `tool_result` tương ứng. Nếu vượt ngưỡng giữa một phản hồi có nhiều call, các call còn lại nhận kết quả `rejected` với `error = turn_aborted` trước khi gửi lịch sử vào lượt model cuối không cấp tool. Lượt cuối tạo lời mời nhắc lại theo `{{system_language}}` do pipeline bơm từ cài đặt giao diện, không hardcode tiếng Việt và không dùng ngôn ngữ sáng tác `project.language` cho lời mời.
 

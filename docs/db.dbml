@@ -601,7 +601,7 @@ Table scene_characters {
 
 Table scene_versions {
     id uuid [pk, note: 'UUIDv7']
-    parent_id uuid [ref: > scenes.id]
+    parent_id uuid [ref: > scenes.id, not null]
     version_number int [note: 'Số phiên bản']
     scene_source SceneSource [note: 'Ghi nhận phiên bản đó do ai sửa']
     summary text
@@ -613,6 +613,22 @@ Table scene_versions {
         (parent_id, version_number) [unique]
         created_at
     }
+}
+
+Table chapter_save_receipts {
+    id uuid [pk, note: 'UUIDv7']
+    chapter_id uuid [ref: > chapters.id, not null, note: 'Chương thực hiện Save']
+    client_save_id varchar [not null, note: 'Định danh idempotency ổn định do client tạo cho mỗi thao tác Save Chapter']
+    payload_hash varchar [not null, note: 'Hash chuẩn hóa của danh sách (scene_id, expected_version_number, content, scene_source) trong request']
+    response_json json [not null, note: 'Kết quả đã commit cho thao tác Save này (bất biến, insert-once)']
+    created_at timestamp
+
+    indexes {
+        (chapter_id, client_save_id) [unique]
+        chapter_id
+    }
+
+    Note: 'Biên nhận idempotency bền vững cho Save Chapter (SF-02); cùng transaction với cập nhật scenes và tạo scene_versions; insert-once (ON CONFLICT DO NOTHING + verify payload_hash)'
 }
 
 // Table
@@ -1258,6 +1274,7 @@ Table draft_versions {
     id uuid [pk, note: 'UUIDv7']
     draft_session_id uuid [ref: > draft_sessions.id, not null]
     seq int [not null, note: 'Số thứ tự version, hiển thị dạng v.03']
+    seal_key varchar [note: 'Nullable cho dòng legacy; khóa idempotency xác định của thao tác niêm phong trong phạm vi draft_session_id (SF-01)']
     phase int [note: 'Phase tại thời điểm tạo version']
     subphase int [null, note: 'Chỉ 1, 2, 3 khi phase = 5; null ở phase khác']
     data_json json [not null, note: 'Snapshot toàn bộ businessFlowData kèm source từng trường']
@@ -1270,13 +1287,72 @@ Table draft_versions {
 
     indexes {
         (draft_session_id, seq) [unique]
+        (draft_session_id, seal_key) [unique]
         draft_session_id
         turn_id
         chat_message_id
     }
 
-    Note: 'Snapshot bất biến của bản nháp; phase/subphase xác định bước restore; CHECK ((phase = 5 AND subphase IN (1, 2, 3)) OR (phase <> 5 AND subphase IS NULL)); cùng pending_patches dùng để sinh event log'
+    Note: 'Snapshot bất biến; phase/subphase xác định restore. Legacy phase nullable: SQLite CHECK ((phase = 5 AND subphase IN (1,2,3)) OR (phase <> 5 AND subphase IS NULL)) cho phép UNKNOWN khi phase NULL; backend bắt buộc phase NOT NULL cho version B+ mới, recovery kiểm lại; không sửa legacy. Cùng pending_patches dùng để sinh event log.'
 }
+
+// B+ SF-06: hợp đồng vật lý đích; chưa phải migration đã chạy. Header bất biến theo protocol trusted backend.
+Table workflow_round_receipts {
+    id uuid [pk, note: 'UUIDv7; commit identity kể cả zero-net']
+    draft_session_id uuid [ref: > draft_sessions.id, not null]
+    workflow_run_id uuid [not null]
+    plan_generation int [not null]
+    round_index int [not null]
+    round_seal_key varchar [not null, note: 'Backend derived từ round identity; không phụ thuộc Draft Version']
+    task_count int [not null, note: 'N >= 1; exact membership kiểm trong backend và recovery']
+    parallel_limit int [not null, note: 'P đóng băng trong kế hoạch; runtime default không hardcode trong SQLite']
+    plan_digest varchar [not null, note: 'Digest manifest task có thứ tự, version tags từ child evidence; P trong header']
+    request_digest varchar [not null, note: 'Domain-separated JCS hash của các input bền vững trong header; không phải client/outcome ID']
+    base_version_seq int [not null, note: 'Composite FK (draft_session_id,base_version_seq) -> draft_versions(draft_session_id,seq)']
+    base_data_hash varchar [not null]
+    final_data_hash varchar [not null]
+    resulting_version_seq int [null, note: 'Nullable composite FK (draft_session_id,resulting_version_seq) -> draft_versions(draft_session_id,seq)']
+    created_at timestamp [not null]
+
+    indexes {
+        (draft_session_id, workflow_run_id, plan_generation, round_index) [unique]
+        (draft_session_id, round_seal_key) [unique]
+        (id, draft_session_id, workflow_run_id, plan_generation, base_version_seq) [unique, note: 'Parent key cho composite child FK']
+    }
+
+    Note: 'SQLite TEXT cho uuid/varchar/timestamp; INTEGER cho int; CHECK plan_generation>0, round_index>=0, task_count>=1, parallel_limit>=1, nonempty keys/digests/hashes; CHECK ((resulting_version_seq IS NULL AND base_data_hash=final_data_hash) OR (resulting_version_seq IS NOT NULL AND base_data_hash<>final_data_hash)); composite FKs cho base/result, PRAGMA foreign_keys=ON. N<=P, hash correctness, exact membership và immutability do backend/recovery kiểm, không do CHECK.'
+}
+
+Table workflow_task_receipts {
+    id uuid [pk, note: 'UUIDv7']
+    draft_session_id uuid [ref: > draft_sessions.id, not null]
+    workflow_run_id uuid [not null, note: 'Định danh lần chạy workflow']
+    plan_generation int [not null, note: 'Thế hệ kế hoạch phân đoạn; tăng lên khi tính lại kế hoạch hoặc chạy lại task sau khi stale']
+    task_identity varchar [not null, note: 'Định danh chuẩn hóa của (phase, subphase, task_kind, assigned_scope); không lặp lại workflow_run_id']
+    input_scope_fingerprint varchar [not null, note: 'Hash chuẩn hóa của dữ liệu đầu vào và phụ thuộc thuộc phạm vi task']
+    output_scope_fingerprint varchar [not null, note: 'Legacy v1 giữ nguyên; receipt B+ sf06:v2 là fp phạm vi ngay sau task Si, không mặc định Sn cuối vòng']
+    base_version_seq int [not null, note: 'Legacy giữ nguyên; B+ là sealed S0 đầu vòng cho mọi task, không phải S(i−1)']
+    resulting_version_seq int [note: 'Nullable; draft_versions.seq được tạo bởi vòng/task này, hoặc null nếu had_mutations = false']
+    had_mutations boolean [not null, default: false, note: 'Legacy CHECK giữ nguyên: effective task state change AND resulting_version_seq nonnull; flags write/effective riêng trong evidence B+']
+    round_receipt_id uuid [null, note: 'NULL cho receipt legacy; B+ composite FK cùng draft/run/generation/base tới round header']
+    task_index int [null, note: 'NULL legacy; B+ không âm; upper bound < parent.task_count do backend/recovery kiểm']
+    evidence_json json [null, note: 'NULL legacy; B+ canonical JSON typed/versioned taskSpec, pure patch, hash chain, telemetry, optional artifact']
+    created_at timestamp
+
+    indexes {
+        (draft_session_id, workflow_run_id, plan_generation, task_identity) [unique]
+        (round_receipt_id, task_index) [unique]
+        (draft_session_id, plan_generation, task_identity)
+        draft_session_id
+    }
+
+    Note: 'Giữ mọi trường/unique/CHECK legacy và insert-once. SQLite CHECK ((had_mutations=1 AND resulting_version_seq IS NOT NULL) OR (had_mutations=0 AND resulting_version_seq IS NULL)); CHECK ((round_receipt_id IS NULL AND task_index IS NULL AND evidence_json IS NULL) OR (round_receipt_id IS NOT NULL AND task_index IS NOT NULL AND task_index>=0 AND evidence_json IS NOT NULL AND json_valid(evidence_json)=1)); composite FK (round_receipt_id,draft_session_id,workflow_run_id,plan_generation,base_version_seq) -> workflow_round_receipts(id,draft_session_id,workflow_run_id,plan_generation,base_version_seq). SQLite CHECK KHÔNG cưỡng chế task_index < parent.task_count hay đủ {0..N-1}; backend trước commit và recovery kiểm lại. Receipt legacy để ba cột mới NULL, không suy diễn/backfill evidence.'
+}
+
+// Composite FK vật lý B+; target draft_versions có UNIQUE(draft_session_id,seq).
+Ref: workflow_round_receipts.(draft_session_id, base_version_seq) > draft_versions.(draft_session_id, seq)
+Ref: workflow_round_receipts.(draft_session_id, resulting_version_seq) > draft_versions.(draft_session_id, seq)
+Ref: workflow_task_receipts.(round_receipt_id, draft_session_id, workflow_run_id, plan_generation, base_version_seq) > workflow_round_receipts.(id, draft_session_id, workflow_run_id, plan_generation, base_version_seq)
 
 Table pending_patches {
     id uuid [pk, note: 'UUIDv7']
@@ -1289,6 +1365,7 @@ Table pending_patches {
     previous_value json [note: 'Nullable; giá trị trước khi thay đổi']
     new_value json [note: 'Nullable; giá trị đề xuất mới']
     target_source varchar [note: 'Nguồn hiện có của chính phần tử đích; CHECK (target_source IN (\'user\', \'user_edited\', \'ai_generated\'))']
+    eligibility_json json [null, note: 'NULL legacy hoặc proposal không dựa transient state; proposal workflow/transient mới: backend-authored versioned dependency/target fingerprint TX-08; CHECK nullable JSON syntax']
     status PendingPatchStatus [default: 'pending', note: 'Trạng thái xử lý patch']
     created_at timestamp
     resolved_at timestamp [note: 'Nullable; thời điểm xác nhận/từ chối/hết hạn']
@@ -1297,7 +1374,7 @@ Table pending_patches {
         (draft_session_id, status)
     }
 
-    Note: 'Patch chờ xác nhận khi ghi đè/xóa đích được bảo vệ hoặc xóa cha ai_generated có hậu duệ được bảo vệ; CHECK (target_source IN (\'user\', \'user_edited\', \'ai_generated\')); tối đa một patch status = pending cho mỗi (draft_session_id, target_code, field_name), cưỡng chế ở handler; patch mới cùng đích và field_name với new_value khác làm patch cũ chuyển expired; chống trùng theo từng trường (target_code, field_name, new_value) thì trả patch_id cũ; không thêm ràng buộc unique'
+    Note: 'Đề xuất độc lập TX-08, không thuộc TX-04/Working State patch. CHECK (target_source IN (\'user\', \'user_edited\', \'ai_generated\')); tối đa một patch pending cho mỗi (draft_session_id,target_code,field_name) do handler cưỡng chế; khác new_value: expire cũ + insert mới trong TX-08; cùng giá trị: trả patch_id cũ; không thêm unique. CHECK (eligibility_json IS NULL OR json_valid(eligibility_json)=1); proposal mới dựa vào transient state bắt buộc nonnull bằng backend gate, legacy/independent chat nullable. Restore expire mọi pending; confirm TX-02 kiểm cả data validity lẫn eligibility.'
 }
 
 
