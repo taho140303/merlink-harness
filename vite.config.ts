@@ -10,4 +10,7 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  server: {
+    watch: { ignored: ["**/src-tauri/**", "**/target/**"] },
+  },
 });
