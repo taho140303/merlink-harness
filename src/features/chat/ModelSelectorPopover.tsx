@@ -4,6 +4,7 @@ import { cn } from "@/shared/utils/cn";
 import { Popover } from "@/shared/components/ui/popover";
 import { useT } from "@/shared/i18n/useT";
 import { useModelCatalogStore } from "@/features/settings/modelCatalogStore";
+import { backendClient } from "@/shared/backend/client";
 
 interface ModelOption {
   id: string;
@@ -11,44 +12,65 @@ interface ModelOption {
   provider: string;
 }
 
-const AVAILABLE_MODELS: Record<string, ModelOption[]> = {
-  Anthropic: [
-    { id: "claude-3-7-sonnet", name: "Claude 3.7 Sonnet", provider: "Anthropic" },
-    { id: "claude-3-5-haiku", name: "Claude 3.5 Haiku", provider: "Anthropic" },
-  ],
-  OpenAI: [
-    { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI" },
-    { id: "gpt-4o-mini", name: "GPT-4o mini", provider: "OpenAI" },
-    { id: "o3-mini", name: "o3-mini", provider: "OpenAI" },
-  ],
-  DeepSeek: [
-    { id: "deepseek-chat", name: "DeepSeek-V3", provider: "DeepSeek" },
-    { id: "deepseek-reasoner", name: "DeepSeek-R1", provider: "DeepSeek" },
-  ],
-};
-
 export function ModelSelectorPopover() {
   const t = useT();
   const catalog = useModelCatalogStore((s) => s.providers);
   const selectedRef = useModelCatalogStore((s) => s.selected);
   const select = useModelCatalogStore((s) => s.select);
   const hydrate = useModelCatalogStore((s) => s.hydrate);
-  const [fallbackModel, setFallbackModel] = useState<ModelOption>(
-    AVAILABLE_MODELS.Anthropic[0]
-  );
 
   useEffect(() => {
     hydrate();
+
+    // Synchronize catalog with live backend providers to remove stale test leftovers
+    if (backendClient && backendClient.status !== "unavailable") {
+      backendClient
+        .getRuntimeAndProviderConfig({})
+        .then((res) => {
+          if (!res || !Array.isArray(res.providers)) return;
+          const liveIds = new Set(res.providers.map((p) => p.providerId));
+          const currentStore = useModelCatalogStore.getState();
+          const cleanProviders = currentStore.providers.filter((p) => liveIds.has(p.id));
+          if (cleanProviders.length !== currentStore.providers.length) {
+            useModelCatalogStore.setState({ providers: cleanProviders });
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(
+                  "merlink.modelCatalog",
+                  JSON.stringify({
+                    providers: cleanProviders,
+                    selected: currentStore.selected,
+                  })
+                );
+              }
+            } catch {
+              /* ignore storage write failures */
+            }
+          }
+        })
+        .catch(() => {});
+    }
   }, [hydrate]);
 
-  // Configured providers (from Settings) take precedence over the built-in demo list.
+  // Only show configured providers with non-empty model IDs
   const groups = useMemo<Record<string, ModelOption[]>>(() => {
-    const configured = catalog.filter((p) => p.models.length > 0);
-    if (configured.length === 0) return AVAILABLE_MODELS;
+    const validProviders = catalog
+      .map((p) => ({
+        ...p,
+        models: (p.models ?? []).filter(
+          (m) => m && m.id && m.id.trim().length > 0
+        ),
+      }))
+      .filter((p) => p.models.length > 0);
+
     return Object.fromEntries(
-      configured.map((p) => [
-        p.name,
-        p.models.map((m) => ({ id: `${p.id}::${m.id}`, name: m.name, provider: p.name })),
+      validProviders.map((p) => [
+        p.name || p.id,
+        p.models.map((m) => ({
+          id: `${p.id}::${m.id}`,
+          name: m.name?.trim() || m.id,
+          provider: p.name || p.id,
+        })),
       ])
     );
   }, [catalog]);
@@ -56,18 +78,47 @@ export function ModelSelectorPopover() {
   const allOptions = Object.values(groups).flat();
   const selectedId = selectedRef
     ? `${selectedRef.providerId}::${selectedRef.modelId}`
-    : fallbackModel.id;
+    : allOptions[0]?.id;
   const selectedModel =
-    allOptions.find((o) => o.id === selectedId) ?? allOptions[0] ?? fallbackModel;
+    allOptions.find((o) => o.id === selectedId) ?? allOptions[0] ?? null;
 
-  const handlePick = (m: ModelOption) => {
+  const handlePick = async (m: ModelOption) => {
     const [providerId, ...rest] = m.id.split("::");
-    if (rest.length > 0) {
-      select({ providerId, modelId: rest.join("::") });
-    } else {
-      setFallbackModel(m);
+    const modelId = rest.join("::");
+    if (providerId && modelId) {
+      select({ providerId, modelId });
+      try {
+        await backendClient.updateRuntimeAndProviderConfig({
+          activeProviderId: providerId,
+          modelName: modelId,
+        });
+      } catch (err) {
+        console.error("Failed to sync active provider with backend:", err);
+      }
     }
   };
+
+  if (!selectedModel || allOptions.length === 0) {
+    return (
+      <Popover
+        label={t("chat.selectModel")}
+        align="end"
+        trigger={
+          <span className="flex items-center gap-1.5 rounded-xl tier-input px-2.5 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-muted transition-colors">
+            <span className="max-w-[110px] truncate">{t("chat.selectModel")}</span>
+            <ChevronDown aria-hidden="true" className="h-3 w-3 text-fg-subtle" />
+          </span>
+        }
+        triggerClassName="rounded-xl"
+        contentClassName="no-scrollbar max-h-72 w-60 overflow-y-auto p-3 text-center"
+      >
+        <p className="text-xs font-medium text-fg">{"Chưa có mô hình nào"}</p>
+        <p className="mt-1 text-[11px] text-fg-subtle leading-relaxed">
+          Vào mục Cài đặt &gt; AI Providers để thêm model của bạn.
+        </p>
+      </Popover>
+    );
+  }
 
   return (
     <Popover
@@ -80,7 +131,7 @@ export function ModelSelectorPopover() {
         </span>
       }
       triggerClassName="rounded-xl"
-      contentClassName="no-scrollbar max-h-72 w-56 overflow-y-auto p-1.5"
+      contentClassName="no-scrollbar max-h-72 w-60 overflow-y-auto p-1.5"
     >
       {Object.entries(groups).map(([provider, models]) => (
         <div key={provider} className="py-1">

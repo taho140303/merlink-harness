@@ -195,10 +195,14 @@ export function AIProvidersTab({
       apiKey: undefined,
     };
 
+    const cleanModels = (safeItem.models ?? [])
+      .filter((m) => m && m.id && m.id.trim().length > 0)
+      .map((m) => ({ id: m.id.trim(), name: m.name?.trim() || m.id.trim() }));
+
     useModelCatalogStore.getState().upsertProvider({
       id: safeItem.id,
       name: safeItem.name,
-      models: (safeItem.models ?? []).map((m) => ({ id: m.id, name: m.name || m.id })),
+      models: cleanModels,
     });
 
     if (editingProvider) {
