@@ -387,12 +387,15 @@ export function ProviderForm({
   credentialStorage = "KEYCHAIN",
 }: ProviderFormProps) {
   const t = useT();
+  const activeClient = client ?? backendClient;
   const isEditing = Boolean(initialData);
 
   const [providerMode, setProviderMode] = useState<"third-party" | "custom">(
     initialData?.isCustom ? "custom" : "third-party"
   );
   const [providerType, setProviderType] = useState(initialData?.providerType || "anthropic");
+  // Saved providers store their key under their own id; unsaved ones use the form type.
+  const probeProviderId = initialData?.id ?? providerType;
 
   // Transient state for raw API key - cleared immediately after submit (P5S6-N)
   const [apiKey, setApiKey] = useState("");
@@ -464,13 +467,13 @@ export function ProviderForm({
     try {
       const res = await testProviderConnection(
         {
-          providerId: providerType,
+          providerId: probeProviderId,
           apiKey: apiKey.trim() || undefined,
           endpointUrl: baseUrl,
           modelName: models[0]?.name,
           protocol: toProtocolId(apiProtocol),
         },
-        client
+        activeClient
       );
 
       if (res.ok) {
@@ -501,7 +504,7 @@ export function ProviderForm({
       displayName || (providerMode === "custom" ? "Custom Provider" : providerType);
 
     try {
-      if (client && client.status === "available") {
+      if (activeClient.status === "available") {
         await updateProviderConfig(
           {
             providerId: targetId,
@@ -509,7 +512,7 @@ export function ProviderForm({
             endpointUrl: baseUrl,
             modelName: models[0]?.name,
           },
-          client
+          activeClient
         );
       }
     } catch (err: any) {
@@ -953,10 +956,10 @@ export function ProviderForm({
         open={fetchDialogOpen}
         onOpenChange={setFetchDialogOpen}
         onAddModels={handleAddSelectedModels}
-        client={client}
-        providerId={providerType}
+        client={activeClient}
+        providerId={probeProviderId}
         fetchParams={{
-          providerId: providerType,
+          providerId: probeProviderId,
           endpointUrl: baseUrl,
           protocol: toProtocolId(apiProtocol),
           apiKey: apiKey.trim() || undefined,

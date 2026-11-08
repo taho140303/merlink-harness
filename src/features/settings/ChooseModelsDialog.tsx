@@ -28,6 +28,8 @@ export const AVAILABLE_PROVIDER_MODELS = [
   "claude-sonnet-5-5-*",
 ];
 
+const EMPTY_IDS: readonly string[] = [];
+
 export interface ChooseModelsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,7 +52,7 @@ export function ChooseModelsDialog({
   onOpenChange,
   onAddModels,
   availableModels = AVAILABLE_PROVIDER_MODELS,
-  initialSelectedIds = [],
+  initialSelectedIds = EMPTY_IDS,
   client,
   providerId,
   fetchParams,

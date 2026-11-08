@@ -19,6 +19,7 @@ import { DeleteConfirmDialog } from "@/shared/components/ui/delete-confirm-dialo
 import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
 import type { AIProviderItem } from "./types";
+import { useModelCatalogStore } from "./modelCatalogStore";
 import { backendClient, type BackendClient } from "@/shared/backend/client";
 import type { RuntimeAndProviderConfigDto } from "@/shared/backend/generated";
 
@@ -199,6 +200,12 @@ export function AIProvidersTab({
       apiKey: undefined,
     };
 
+    useModelCatalogStore.getState().upsertProvider({
+      id: safeItem.id,
+      name: safeItem.name,
+      models: (safeItem.models ?? []).map((m) => ({ id: m.id, name: m.name || m.id })),
+    });
+
     if (editingProvider) {
       setProviders(providers.map((p) => (p.id === safeItem.id ? safeItem : p)));
     } else {
@@ -216,6 +223,7 @@ export function AIProvidersTab({
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
+    useModelCatalogStore.getState().removeProvider(deleteTarget.id);
     setProviders((prev) => prev.filter((p) => p.id !== deleteTarget.id));
     toast({ title: t("common.deleted"), variant: "success" });
     setDeleteTarget(null);

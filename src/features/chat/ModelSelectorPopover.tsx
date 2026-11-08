@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { Popover } from "@/shared/components/ui/popover";
 import { useT } from "@/shared/i18n/useT";
+import { useModelCatalogStore } from "@/features/settings/modelCatalogStore";
 
 interface ModelOption {
   id: string;
@@ -28,9 +29,45 @@ const AVAILABLE_MODELS: Record<string, ModelOption[]> = {
 
 export function ModelSelectorPopover() {
   const t = useT();
-  const [selectedModel, setSelectedModel] = useState<ModelOption>(
+  const catalog = useModelCatalogStore((s) => s.providers);
+  const selectedRef = useModelCatalogStore((s) => s.selected);
+  const select = useModelCatalogStore((s) => s.select);
+  const hydrate = useModelCatalogStore((s) => s.hydrate);
+  const [fallbackModel, setFallbackModel] = useState<ModelOption>(
     AVAILABLE_MODELS.Anthropic[0]
   );
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  // Configured providers (from Settings) take precedence over the built-in demo list.
+  const groups = useMemo<Record<string, ModelOption[]>>(() => {
+    const configured = catalog.filter((p) => p.models.length > 0);
+    if (configured.length === 0) return AVAILABLE_MODELS;
+    return Object.fromEntries(
+      configured.map((p) => [
+        p.name,
+        p.models.map((m) => ({ id: `${p.id}::${m.id}`, name: m.name, provider: p.name })),
+      ])
+    );
+  }, [catalog]);
+
+  const allOptions = Object.values(groups).flat();
+  const selectedId = selectedRef
+    ? `${selectedRef.providerId}::${selectedRef.modelId}`
+    : fallbackModel.id;
+  const selectedModel =
+    allOptions.find((o) => o.id === selectedId) ?? allOptions[0] ?? fallbackModel;
+
+  const handlePick = (m: ModelOption) => {
+    const [providerId, ...rest] = m.id.split("::");
+    if (rest.length > 0) {
+      select({ providerId, modelId: rest.join("::") });
+    } else {
+      setFallbackModel(m);
+    }
+  };
 
   return (
     <Popover
@@ -45,7 +82,7 @@ export function ModelSelectorPopover() {
       triggerClassName="rounded-xl"
       contentClassName="no-scrollbar max-h-72 w-56 overflow-y-auto p-1.5"
     >
-      {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
+      {Object.entries(groups).map(([provider, models]) => (
         <div key={provider} className="py-1">
           <div className="px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-fg-subtle">
             {provider}
@@ -57,7 +94,7 @@ export function ModelSelectorPopover() {
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setSelectedModel(m)}
+                  onClick={() => handlePick(m)}
                   className={cn(
                     "focus-ring flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left",
                     isSelected
