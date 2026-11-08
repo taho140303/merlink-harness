@@ -15,6 +15,9 @@ use crate::providers::redaction::Redactor;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::providers::traits::{LlmProvider, ProviderChatRequest, ProviderChatResponse, ProviderError, ProviderStreamChunk, ProviderStreamRequest, ProviderStreamSummary};
+use tokio_util::sync::CancellationToken;
+use tokio::sync::mpsc;
 
 /// In-memory runtime state for provider settings and runtime subagent options (`CI-10`).
 #[derive(Debug, Clone)]
@@ -72,6 +75,31 @@ impl RuntimeConfigState {
         }
     }
 
+    /// Resolve the selected provider for both chat and scene generation.
+    pub fn selected_provider(&self) -> Result<Arc<dyn crate::providers::traits::LlmProvider>, IpcError> {
+        let id = self.active_provider_id.read().clone();
+        let settings = self.providers.read().get(&id).cloned().ok_or_else(|| {
+            IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")
+        })?;
+        let endpoint = settings.endpoint_url.filter(|s| !s.trim().is_empty()).ok_or_else(|| {
+            IpcError::new(ErrorCode::ValidationFailed, "Selected provider endpoint is missing")
+        })?;
+        let model = settings.model_name.filter(|s| !s.trim().is_empty()).ok_or_else(|| {
+            IpcError::new(ErrorCode::ValidationFailed, "Selected provider model is missing")
+        })?;
+        let adapter: Arc<dyn crate::providers::traits::LlmProvider> = match id.as_str() {
+            "ollama" => Arc::new(crate::providers::ollama::OllamaProvider::new(
+                normalize_provider_endpoint(&endpoint, "api/chat")?, false,
+            )),
+            "opencode" => Arc::new(crate::providers::opencode::OpenCodeProvider::new(
+                normalize_provider_endpoint(&endpoint, "chat/completions")?,
+                self.credential_manager.get_api_key(&id),
+            )),
+            _ => return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")),
+        };
+        Ok(Arc::new(SelectedModelProvider { adapter, model }))
+    }
+
     /// Build current provider status list.
     pub fn build_provider_statuses(&self) -> Vec<ProviderStatusDto> {
         let active_id = self.active_provider_id.read().clone();
@@ -102,6 +130,60 @@ impl RuntimeConfigState {
         } else {
             CredentialStorageMode::SessionOnlyFallback.as_str()
         }
+    }
+}
+
+fn normalize_provider_endpoint(raw: &str, route: &str) -> Result<String, IpcError> {
+    let url = url::Url::parse(raw.trim()).map_err(|_| IpcError::new(ErrorCode::ValidationFailed, "Invalid provider endpoint URL"))?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Invalid provider endpoint URL"));
+    }
+    let base = raw.trim().trim_end_matches('/');
+    if base.ends_with(&format!("/{route}")) { return Ok(base.to_string()); }
+    let prefix = if route == "api/chat" { "api" } else { "v1" };
+    if base.ends_with(&format!("/{prefix}")) {
+        return Ok(format!("{base}/{}", route.strip_prefix(&format!("{prefix}/")).unwrap_or(route)));
+    }
+    Ok(format!("{base}/{route}"))
+}
+
+struct SelectedModelProvider {
+    adapter: Arc<dyn LlmProvider>,
+    model: String,
+}
+
+#[async_trait::async_trait]
+impl LlmProvider for SelectedModelProvider {
+    fn provider_id(&self) -> &'static str { self.adapter.provider_id() }
+
+    async fn chat_with_tools(&self, req: &ProviderChatRequest, cancel: CancellationToken) -> Result<ProviderChatResponse, ProviderError> {
+        let mut req = req.clone();
+        req.model = self.model.clone();
+        self.adapter.chat_with_tools(&req, cancel).await
+    }
+
+    async fn stream_completion(&self, req: &ProviderStreamRequest, tx: mpsc::Sender<ProviderStreamChunk>, cancel: CancellationToken) -> Result<ProviderStreamSummary, ProviderError> {
+        let mut req = req.clone();
+        req.model = self.model.clone();
+        self.adapter.stream_completion(&req, tx, cancel).await
+    }
+}
+
+#[cfg(test)]
+mod provider_selection_tests {
+    use super::*;
+
+    #[test]
+    fn test_selected_provider_uses_configured_model_and_endpoint() {
+        let state = RuntimeConfigState::default();
+        let provider = state.selected_provider().unwrap();
+        assert_eq!(provider.provider_id(), "ollama");
+        *state.active_provider_id.write() = "opencode".into();
+        assert_eq!(state.selected_provider().unwrap().provider_id(), "opencode");
+        *state.active_provider_id.write() = "unsupported".into();
+        assert!(state.selected_provider().is_err());
+        assert_eq!(normalize_provider_endpoint("http://127.0.0.1:11434", "api/chat").unwrap(), "http://127.0.0.1:11434/api/chat");
+        assert_eq!(normalize_provider_endpoint("https://example.com/v1/chat/completions", "chat/completions").unwrap(), "https://example.com/v1/chat/completions");
     }
 }
 
@@ -170,6 +252,9 @@ pub fn exec_update_runtime_and_provider_config(
                 "activeProviderId cannot be empty",
             ));
         }
+        if !matches!(trimmed, "ollama" | "opencode") {
+            return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider"));
+        }
         *state.active_provider_id.write() = trimmed.to_string();
     }
 
@@ -177,14 +262,9 @@ pub fn exec_update_runtime_and_provider_config(
 
     if req.model_name.is_some() || req.endpoint_url.is_some() {
         let mut providers_guard = state.providers.write();
-        let entry = providers_guard.entry(active_id.clone()).or_insert_with(|| {
-            ProviderRuntimeSettings {
-                provider_id: active_id.clone(),
-                name: active_id.clone(),
-                endpoint_url: None,
-                model_name: None,
-            }
-        });
+        let entry = providers_guard.get_mut(&active_id).ok_or_else(|| {
+            IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")
+        })?;
 
         if let Some(model) = &req.model_name {
             entry.model_name = Some(model.clone());

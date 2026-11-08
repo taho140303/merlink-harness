@@ -48,10 +48,19 @@ pub mod storage {
 pub mod traits;
 #[path = "../src/providers/redaction.rs"]
 pub mod redaction;
+#[path = "../src/providers/credentials.rs"]
+pub mod credentials;
+#[path = "../src/providers/ollama.rs"]
+pub mod ollama;
+#[path = "../src/providers/opencode.rs"]
+pub mod opencode;
 
 pub mod providers {
     pub use crate::redaction;
     pub use crate::traits;
+    pub use crate::credentials;
+    pub use crate::ollama;
+    pub use crate::opencode;
 }
 
 #[path = "../src/service/writing_persistence.rs"]
@@ -70,8 +79,11 @@ pub mod dto;
 pub mod writing_persistence_commands;
 #[path = "../src/ipc/writing_generation_commands.rs"]
 pub mod writing_generation_commands;
+#[path = "../src/ipc/config_commands.rs"]
+pub mod config_commands;
 
 pub mod ipc {
+    pub use crate::config_commands;
     pub use crate::dto;
     pub use crate::writing_generation_commands;
     pub use crate::writing_persistence_commands;

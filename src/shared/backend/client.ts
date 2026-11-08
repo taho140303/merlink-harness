@@ -9,6 +9,8 @@
  * - Redacts secrets and protects sensitive data from unauthorized serialization/logging.
  */
 
+import { Channel } from "@tauri-apps/api/core";
+
 import type {
   IpcCommandName,
   // Group 1
@@ -181,22 +183,22 @@ class DefaultTauriTransport implements BackendTransport {
 
   public createChannel<T = unknown>(
     onEvent: (event: T) => void
-  ): ChannelAdapter<T> | any {
+  ): Channel<T> {
     if (!isTauriEnvironment()) {
       throw new BackendUnavailableError(
         "Cannot create streaming channel: Tauri desktop runtime bridge unavailable"
       );
     }
 
-    const win = window as any;
-    if (win.__TAURI_INTERNALS__?.Channel) {
-      return new win.__TAURI_INTERNALS__.Channel((raw: T) => onEvent(raw));
+    // The official API constructs and serializes the Channel<T> accepted by Rust.
+    // A synthetic callback or ID cannot cross the native IPC boundary.
+    try {
+      const channel = new Channel<T>();
+      channel.onmessage = onEvent;
+      return channel;
+    } catch {
+      throw new BackendUnavailableError("Native Tauri Channel unavailable");
     }
-
-    return {
-      onEvent,
-      channelId: Date.now(),
-    };
   }
 }
 
@@ -222,7 +224,7 @@ export function getBackendTransport(): BackendTransport {
 export function createStreamChannel<T>(
   onEvent: (event: T) => void,
   transport: BackendTransport = getBackendTransport()
-): ChannelAdapter<T> | any {
+): Channel<T> | ChannelAdapter<T> | string | number | ((event: T) => void) {
   return transport.createChannel(onEvent);
 }
 
@@ -289,9 +291,7 @@ export class BackendClient {
     onEvent?: (event: ChatStreamEvent) => void
   ): Promise<SendChatTurnResponseDto> {
     const payload: any = { ...req };
-    if (onEvent) {
-      payload.channel = this.transport.createChannel(onEvent);
-    }
+    payload.channel = this.transport.createChannel(onEvent ?? (() => {}));
     return this.execute("send_chat_message", payload);
   }
 
@@ -388,9 +388,7 @@ export class BackendClient {
     onProgress?: (event: WorkflowProgressEvent) => void
   ): Promise<WorkflowExecutionSummaryDto> {
     const payload: any = { ...req };
-    if (onProgress) {
-      payload.channel = this.transport.createChannel(onProgress);
-    }
+    payload.channel = this.transport.createChannel(onProgress ?? (() => {}));
     return this.execute("start_or_resume_workflow", payload);
   }
 
@@ -505,9 +503,7 @@ export class BackendClient {
     onEvent?: (event: SceneGenerationStreamEvent) => void
   ): Promise<SceneGenerationResultDto> {
     const payload: any = { ...req };
-    if (onEvent) {
-      payload.channel = this.transport.createChannel(onEvent);
-    }
+    payload.channel = this.transport.createChannel(onEvent ?? (() => {}));
     return this.execute("start_scene_generation", payload);
   }
 

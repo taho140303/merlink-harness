@@ -470,7 +470,7 @@ export function ProviderForm({
           providerId: probeProviderId,
           apiKey: apiKey.trim() || undefined,
           endpointUrl: baseUrl,
-          modelName: models[0]?.name,
+          modelName: models[0]?.id || models[0]?.name,
           protocol: toProtocolId(apiProtocol),
         },
         activeClient
@@ -510,7 +510,7 @@ export function ProviderForm({
             providerId: targetId,
             apiKey: enteredKey || undefined,
             endpointUrl: baseUrl,
-            modelName: models[0]?.name,
+            modelName: models[0]?.id || models[0]?.name,
           },
           activeClient
         );
@@ -790,50 +790,77 @@ export function ProviderForm({
               <div className="space-y-2.5">
                 {models.map((model, idx) => (
                   <div
-                    key={idx}
-                    className="space-y-2 rounded-xl border border-line bg-surface-card p-3"
+                    key={model.id || idx}
+                    className="space-y-3 rounded-xl border border-line bg-surface-card p-3.5"
                   >
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        aria-label={t("settings.provider.models")}
-                        value={model.id}
-                        onChange={(e) => {
-                          const updated = [...models];
-                          updated[idx].id = e.target.value;
-                          setModels(updated);
-                        }}
-                        className="flex-1 text-xs"
-                      />
-                      <Input
-                        type="text"
-                        aria-label={t("settings.provider.displayName")}
-                        value={model.name}
-                        onChange={(e) => {
-                          const updated = [...models];
-                          updated[idx].name = e.target.value;
-                          setModels(updated);
-                        }}
-                        className="flex-1 text-xs"
-                      />
+                    <div className="flex items-end gap-2.5">
+                      <div className="grid min-w-0 flex-1 grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label
+                            htmlFor={`model-id-${idx}`}
+                            className="block text-xs font-medium text-fg-muted mb-1"
+                          >
+                            {t("settings.provider.modelId")}
+                          </label>
+                          <Input
+                            id={`model-id-${idx}`}
+                            type="text"
+                            aria-label={t("settings.provider.modelId")}
+                            value={model.id}
+                            onChange={(e) => {
+                              const updated = [...models];
+                              updated[idx].id = e.target.value;
+                              setModels(updated);
+                            }}
+                            placeholder="gpt-6-luna"
+                            className="w-full text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor={`model-display-name-${idx}`}
+                            className="block text-xs font-medium text-fg-muted mb-1"
+                          >
+                            {t("settings.provider.displayName")}
+                          </label>
+                          <Input
+                            id={`model-display-name-${idx}`}
+                            type="text"
+                            aria-label={t("settings.provider.displayName")}
+                            value={model.name}
+                            onChange={(e) => {
+                              const updated = [...models];
+                              updated[idx].name = e.target.value;
+                              setModels(updated);
+                            }}
+                            placeholder={model.id || "Display name"}
+                            className="w-full text-xs"
+                          />
+                        </div>
+                      </div>
                       <Button
                         type="button"
                         aria-label={t("common.remove")}
+                        title={t("common.remove")}
                         variant="ghost"
                         size="icon"
                         onClick={() => removeModel(idx)}
-                        className="text-fg-subtle hover:text-rose-500"
+                        className="h-9 w-9 shrink-0 text-fg-subtle hover:text-rose-500 mb-0.5"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <div>
-                        <label className="text-xs text-fg-muted">
+                        <label
+                          htmlFor={`model-context-${idx}`}
+                          className="block text-xs font-medium text-fg-muted mb-1"
+                        >
                           {t("settings.provider.contextWindow")}
                         </label>
                         <Input
+                          id={`model-context-${idx}`}
                           type="text"
                           aria-label={t("settings.provider.contextWindow")}
                           value={model.contextWindow}
@@ -846,10 +873,14 @@ export function ProviderForm({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-fg-muted">
+                        <label
+                          htmlFor={`model-max-tokens-${idx}`}
+                          className="block text-xs font-medium text-fg-muted mb-1"
+                        >
                           {t("settings.provider.maxOutputTokens")}
                         </label>
                         <Input
+                          id={`model-max-tokens-${idx}`}
                           type="text"
                           aria-label={t("settings.provider.maxOutputTokens")}
                           value={model.maxOutputTokens}

@@ -10,12 +10,14 @@ interface ChatInputBarProps {
   feedbackContext?: FeedbackContext | null;
   onClearFeedback?: () => void;
   onSend?: (text: string) => void;
+  disabled?: boolean;
 }
 
 export function ChatInputBar({
   feedbackContext,
   onClearFeedback,
   onSend,
+  disabled = false,
 }: ChatInputBarProps) {
   const t = useT();
   const [prompt, setPrompt] = useState("");
@@ -39,7 +41,7 @@ export function ChatInputBar({
   }, [feedbackContext]);
 
   const handleSend = () => {
-    if (!prompt.trim()) return;
+    if (disabled || !prompt.trim()) return;
     onSend?.(prompt);
     setPrompt("");
     if (inputRef.current) {
@@ -75,6 +77,7 @@ export function ChatInputBar({
         <Sparkles className="mt-2 h-4 w-4" />
         <textarea
           ref={inputRef}
+          disabled={disabled}
           aria-label={t("chat.message")}
           rows={1}
           value={prompt}
@@ -129,7 +132,7 @@ export function ChatInputBar({
         <div className="flex items-center gap-2">
           <ModelSelectorPopover />
           <ContextUsagePopover />
-          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={!prompt.trim()} aria-label={t("chat.send")} title={t("chat.send")}>
+          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={disabled || !prompt.trim()} aria-label={t("chat.send")} title={t("chat.send")}>
             <ArrowUp aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>

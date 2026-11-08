@@ -14,13 +14,11 @@ import { DraftWorkspace } from "@/features/draft/DraftWorkspace";
 import { FloatingOutline } from "@/shared/components/ui/floating-outline";
 import { PreDraftSuggestionDialog } from "./PreDraftSuggestionDialog";
 import {
-  SAMPLE_BUSINESS_FLOW_DATA,
   fromDraftProgressDto,
   reconcileDraftProgress,
-  computeDraftProgress,
   resolveSystemLanguage,
+  type BusinessFlowData,
   type DraftProgressState,
-  type DraftProgressDto,
 } from "@/features/business-flow";
 import {
   BackendClient,
@@ -47,6 +45,7 @@ import { useLocale } from "@/shared/i18n/store";
 
 export interface ChatBackendState {
   backendStatus: "available" | "unavailable";
+  initialized: boolean;
   sessionId: string;
   draftSessionId: string | null;
   headVersionSeq: number | null;
@@ -56,6 +55,7 @@ export interface ChatBackendState {
   isStreaming: boolean;
   activeTurnId: string | null;
   progress: DraftProgressState;
+  workingState: BusinessFlowData | null;
   messages: ChatMessage[];
   lastError: string | null;
 }
@@ -88,6 +88,8 @@ export class ChatBackendController {
   private client: BackendClient;
   private state: ChatBackendState;
   private listeners: Set<(state: ChatBackendState) => void> = new Set();
+  private initGeneration = 0;
+  private turnGeneration = 0;
 
   constructor(client?: BackendClient, initialConfig?: Partial<ChatBackendState>) {
     this.client = client ?? new BackendClient();
@@ -95,7 +97,8 @@ export class ChatBackendController {
 
     this.state = {
       backendStatus: isAvail ? "available" : "unavailable",
-      sessionId: initialConfig?.sessionId ?? `sess-${Date.now()}`,
+      initialized: initialConfig?.initialized ?? Boolean(initialConfig?.sessionId),
+      sessionId: initialConfig?.sessionId ?? "",
       draftSessionId: initialConfig?.draftSessionId ?? null,
       headVersionSeq: initialConfig?.headVersionSeq ?? null,
       sealedVersion: initialConfig?.sealedVersion ?? null,
@@ -103,7 +106,8 @@ export class ChatBackendController {
       interruptedTurnAlert: initialConfig?.interruptedTurnAlert ?? null,
       isStreaming: false,
       activeTurnId: null,
-      progress: initialConfig?.progress ?? computeDraftProgress(SAMPLE_BUSINESS_FLOW_DATA),
+      progress: initialConfig?.progress ?? fromDraftProgressDto(null),
+      workingState: initialConfig?.workingState ?? null,
       messages: initialConfig?.messages ?? [],
       lastError: null,
     };
@@ -144,46 +148,57 @@ export class ChatBackendController {
     projectId?: string;
     trustedLanguage?: string;
   }): Promise<ChatBackendState> {
+    const generation = ++this.initGeneration;
+    ++this.turnGeneration;
+    this.updateState({
+      initialized: false,
+      sessionId: "",
+      draftSessionId: null,
+      headVersionSeq: null,
+      sealedVersion: null,
+      pendingPatchCount: 0,
+      interruptedTurnAlert: null,
+      isStreaming: false,
+      activeTurnId: null,
+      progress: fromDraftProgressDto(null),
+      workingState: null,
+      messages: [],
+      lastError: null,
+    });
     if (!isTauriEnvironment() && this.client.status === "unavailable") {
-      this.updateState({
-        backendStatus: "unavailable",
-        lastError: "BACKEND_UNAVAILABLE",
-      });
+      this.updateState({ backendStatus: "unavailable", lastError: "BACKEND_UNAVAILABLE" });
       return this.getState();
     }
 
     try {
+      // Only an explicit route ID resumes a session; the backend allocates new IDs.
       const initDto = await this.client.createOrLoadChatSession({
-        sessionId: options?.sessionId ?? this.state.sessionId,
-        projectId: options?.projectId,
+        ...(options?.sessionId ? { sessionId: options.sessionId } : {}),
+        ...(options?.projectId ? { projectId: options.projectId } : {}),
       });
-
-      const loadedMessages = (initDto.messages || []).map(mapDtoToChatMessage);
-      const reconciledProgress = fromDraftProgressDto(initDto.progress);
-
+      if (generation !== this.initGeneration) return this.getState();
+      if (!initDto.sessionId || !initDto.draftSessionId) {
+        throw new Error("Backend returned an invalid chat/draft session ID");
+      }
       this.updateState({
         backendStatus: "available",
+        initialized: true,
         sessionId: initDto.sessionId,
         draftSessionId: initDto.draftSessionId,
         headVersionSeq: initDto.headVersionSeq ?? null,
-        messages: loadedMessages.length > 0 ? loadedMessages : this.state.messages,
-        progress: reconciledProgress,
+        messages: (initDto.messages ?? []).map(mapDtoToChatMessage),
+        workingState: initDto.workingState as BusinessFlowData,
+        progress: fromDraftProgressDto(initDto.progress),
         interruptedTurnAlert: initDto.interruptedTurnAlert ?? null,
         lastError: null,
       });
-
       return this.getState();
     } catch (err: any) {
-      if (err instanceof BackendUnavailableError || err?.code === "provider_unreachable") {
-        this.updateState({
-          backendStatus: "unavailable",
-          lastError: "BACKEND_UNAVAILABLE",
-        });
-      } else {
-        this.updateState({
-          lastError: err?.message ?? "Failed to initialize chat session",
-        });
-      }
+      if (generation !== this.initGeneration) return this.getState();
+      this.updateState({
+        backendStatus: err instanceof BackendUnavailableError ? "unavailable" : this.state.backendStatus,
+        lastError: err instanceof BackendUnavailableError ? "BACKEND_UNAVAILABLE" : err?.message ?? "Failed to initialize chat session",
+      });
       return this.getState();
     }
   }
@@ -207,6 +222,12 @@ export class ChatBackendController {
       this.updateState({ lastError: errorMsg });
       throw new BackendUnavailableError(errorMsg);
     }
+    if (!this.state.initialized || !this.state.sessionId || this.state.isStreaming) {
+      const errorMsg = "Chat session is not ready or a turn is already in progress";
+      this.updateState({ lastError: errorMsg });
+      throw new Error(errorMsg);
+    }
+    const generation = this.turnGeneration;
 
     // CI-09: Trusted UI settings language strictly takes precedence
     const systemLanguage = resolveSystemLanguage(
@@ -258,10 +279,11 @@ export class ChatBackendController {
           feedbackContext: feedbackPayload,
         },
         (event: ChatStreamEvent) => {
-          this.handleStreamEvent(event, assistantMsgId);
+          if (generation === this.turnGeneration) this.handleStreamEvent(event, assistantMsgId);
         },
       );
 
+      if (generation !== this.turnGeneration) return response;
       this.updateState({
         isStreaming: false,
         activeTurnId: null,
@@ -282,8 +304,10 @@ export class ChatBackendController {
           : this.state.pendingPatchCount,
       });
 
+      await this.refreshDurableChat();
       return response;
     } catch (err: any) {
+      if (generation !== this.turnGeneration) throw err;
       // P5S2-N: Provider failure NEVER marks chat turn saved or sealed!
       const errMsg = err?.message ?? "Chat turn execution failed";
       this.updateState({
@@ -303,7 +327,27 @@ export class ChatBackendController {
         ),
         // Notice: sealedVersion remains unchanged/null; never fabricate a sealed version on failure!
       });
+      // A lost IPC response may have persisted a turn: reload before claiming durable state.
+      await this.refreshDurableChat();
       throw err;
+    }
+  }
+
+  private async refreshDurableChat(): Promise<void> {
+    if (!this.state.initialized || !this.state.sessionId) return;
+    const generation = this.initGeneration;
+    try {
+      const dto = await this.client.createOrLoadChatSession({ sessionId: this.state.sessionId });
+      if (generation !== this.initGeneration || dto.sessionId !== this.state.sessionId) return;
+      this.updateState({
+        messages: dto.messages.map(mapDtoToChatMessage),
+        workingState: dto.workingState as BusinessFlowData,
+        progress: fromDraftProgressDto(dto.progress),
+        headVersionSeq: dto.headVersionSeq ?? null,
+        interruptedTurnAlert: dto.interruptedTurnAlert ?? this.state.interruptedTurnAlert,
+      });
+    } catch {
+      // Keep the explicit turn error; stream content is provisional until reload succeeds.
     }
   }
 
@@ -458,7 +502,9 @@ export class ChatBackendController {
   public async reconcileDurableState(): Promise<DraftWorkspaceStateDto | null> {
     const draftSessionId = this.state.draftSessionId;
     if (!draftSessionId) {
-      await this.initSession({ sessionId: this.state.sessionId });
+      if (this.state.sessionId) {
+        await this.initSession({ sessionId: this.state.sessionId });
+      }
       return null;
     }
 
@@ -470,7 +516,8 @@ export class ChatBackendController {
 
       this.updateState({
         headVersionSeq: wsState.headVersionSeq ?? null,
-        progress: reconcileDraftProgress(this.state.progress, wsState.progress),
+        progress: fromDraftProgressDto(wsState.progress),
+        workingState: wsState.businessFlowData as BusinessFlowData,
         pendingPatchCount: pendingCount,
         isStreaming: false,
         activeTurnId: null,
@@ -505,8 +552,6 @@ export interface ChatViewProps {
 export function ChatView({
   client,
   sessionId,
-  draftSessionId,
-  initialMessages,
   systemLanguage,
   onToggleDraft: propOnToggleDraft,
   onProgressUpdate,
@@ -517,15 +562,12 @@ export function ChatView({
   const { locale: currentLocale } = useLocale();
   const isCompact = useIsCompact();
   const navigate = useNavigate();
+  const backendClient = useMemo(() => client ?? new BackendClient(), [client]);
 
   // Pure controller instance
   const controllerRef = useRef<ChatBackendController | null>(null);
   if (!controllerRef.current) {
-    controllerRef.current = new ChatBackendController(client, {
-      sessionId,
-      draftSessionId,
-      messages: initialMessages,
-    });
+    controllerRef.current = new ChatBackendController(backendClient);
   }
   const controller = controllerRef.current;
 
@@ -542,13 +584,24 @@ export function ChatView({
     });
   }, [controller, onProgressUpdate, onVersionSealed, onPendingPatchesChange]);
 
-  // Load session on mount
+  // Route ID is the only resume authority. Locale changes must not create sessions.
   useEffect(() => {
-    controller.initSession({
-      sessionId,
-      trustedLanguage: systemLanguage ?? currentLocale,
+    controller.initSession({ sessionId }).then((state) => {
+      if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
     });
-  }, [controller, sessionId, systemLanguage, currentLocale]);
+  }, [controller, sessionId]);
+
+  useEffect(() => {
+    if (sessionId) return;
+    const newChat = () => {
+      setIsDraftOpen(false);
+      controller.initSession().then((state) => {
+        if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
+      });
+    };
+    window.addEventListener("merlink:new-chat", newChat);
+    return () => window.removeEventListener("merlink:new-chat", newChat);
+  }, [controller, sessionId]);
 
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const sampleProjects = useMemo(
@@ -567,9 +620,11 @@ export function ChatView({
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const businessFlowData = SAMPLE_BUSINESS_FLOW_DATA;
+  const businessFlowData = controllerState.initialized ? controllerState.workingState : null;
+  const draftReady = controllerState.initialized && Boolean(controllerState.draftSessionId);
 
   const handleToggleDraft = () => {
+    if (!draftReady) return;
     if (propOnToggleDraft) {
       propOnToggleDraft();
       return;
@@ -583,6 +638,7 @@ export function ChatView({
 
   const handleSuggestionConfirm = (suggestion?: string) => {
     setIsSuggestionOpen(false);
+    if (!draftReady) return;
     setIsDraftOpen(true);
     if (suggestion && suggestion.trim()) {
       handleSendMessage(suggestion.trim());
@@ -608,6 +664,7 @@ export function ChatView({
           feedbackContext,
           trustedLanguage: systemLanguage ?? currentLocale,
         });
+        window.dispatchEvent(new Event("merlink:chat-history-changed"));
       } catch {
         // Error state already recorded in controllerState.lastError
       } finally {
@@ -659,24 +716,30 @@ export function ChatView({
           confirmedCount={controllerState.progress.confirmedCount}
           aiInferredCount={controllerState.progress.aiInferredCount}
           totalAttributes={controllerState.progress.totalAttributes}
-          readinessGatePassed={controllerState.progress.readinessGatePassed}
-          isRequireComplete={controllerState.progress.isRequireComplete}
+          readinessGatePassed={draftReady && controllerState.progress.readinessGatePassed}
+          isRequireComplete={draftReady && controllerState.progress.isRequireComplete}
           backendStatus={controllerState.backendStatus}
           interruptedTurnAlert={controllerState.interruptedTurnAlert}
           onDismissAlert={() => controller.dismissAlert()}
-          businessFlowData={businessFlowData}
+          businessFlowData={businessFlowData ?? undefined}
         />
 
-        {controllerState.backendStatus === "unavailable" && (
+        {!controllerState.initialized && (
           <div
             role="status"
             className="mx-6 mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-700 dark:text-amber-300"
           >
             <span>
               {currentLocale === "vi"
-                ? "Backend Tauri chưa khả dụng. Dữ liệu thử nghiệm hiện tại không được lưu trữ vào cơ sở dữ liệu thật."
-                : "Backend runtime bridge is unavailable. Running in preview mode without durable storage."}
+                ? "Chat chưa kết nối backend. Chế độ xem trước không lưu dữ liệu."
+                : "Chat is not connected. Offline preview is non-durable; messages and drafts cannot be saved."}
             </span>
+          </div>
+        )}
+
+        {controllerState.lastError && (
+          <div role="alert" className="mx-6 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            {controllerState.lastError}
           </div>
         )}
 
@@ -738,6 +801,7 @@ export function ChatView({
             feedbackContext={feedbackContext}
             onClearFeedback={() => setFeedbackContext(null)}
             onSend={handleSendMessage}
+            disabled={!controllerState.initialized || controllerState.isStreaming}
           />
         </div>
       </div>
@@ -778,7 +842,7 @@ export function ChatView({
       )}
 
       {/* Cột phải: Draft Building Workspace */}
-      {isDraftOpen && (
+      {isDraftOpen && draftReady && (
         <div
           style={isCompact ? undefined : { width: `${100 - splitRatio}%` }}
           className={cn(
@@ -787,6 +851,9 @@ export function ChatView({
           )}
         >
           <DraftWorkspace
+            key={controllerState.draftSessionId}
+            client={backendClient}
+            draftSessionId={controllerState.draftSessionId!}
             onClose={() => setIsDraftOpen(false)}
             onFeedback={(feedback) => setFeedbackContext(feedback)}
             sampleProjects={sampleProjects}

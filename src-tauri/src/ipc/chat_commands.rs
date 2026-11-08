@@ -266,9 +266,7 @@ pub fn exec_list_chat_sessions(
     {
         let sid: String = row.get(0).unwrap_or_default();
         let did_str: Option<String> = row.get(1).unwrap_or(None);
-        let draft_session_id = did_str
-            .and_then(|s| Uuid::parse_str(&s).ok())
-            .unwrap_or_else(Uuid::new_v4);
+        let draft_session_id = parse_listed_draft_id(&sid, did_str)?;
         let pid_str: Option<String> = row.get(2).unwrap_or(None);
         let project_id = pid_str.and_then(|s| Uuid::parse_str(&s).ok());
         let status: String = row.get(3).unwrap_or_else(|_| "editing".to_string());
@@ -290,6 +288,30 @@ pub fn exec_list_chat_sessions(
     }
 
     Ok(ChatSessionListDto { items, next_cursor })
+}
+
+fn parse_listed_draft_id(session_id: &str, draft_id: Option<String>) -> Result<Uuid, IpcError> {
+    let draft_id = draft_id.ok_or_else(|| IpcError::new(
+        ErrorCode::DatabaseError,
+        format!("Session '{}' has no linked draft session", session_id),
+    ))?;
+    Uuid::parse_str(&draft_id).map_err(|_| IpcError::new(
+        ErrorCode::DatabaseError,
+        format!("Session '{}' has an invalid linked draft session ID", session_id),
+    ))
+}
+
+#[cfg(test)]
+mod list_sessions_tests {
+    use super::*;
+
+    #[test]
+    fn test_listed_draft_id_missing_link_fails_closed() {
+        assert!(parse_listed_draft_id("session", None).is_err());
+        assert!(parse_listed_draft_id("session", Some("corrupt".into())).is_err());
+        let id = Uuid::new_v4();
+        assert_eq!(parse_listed_draft_id("session", Some(id.to_string())).unwrap(), id);
+    }
 }
 
 #[tauri::command]

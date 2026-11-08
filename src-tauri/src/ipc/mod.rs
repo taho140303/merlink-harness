@@ -20,7 +20,6 @@ use uuid::Uuid;
 
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{ChatStreamEvent, SendChatMessageReq, SendChatTurnResponseDto};
-use crate::providers::traits::LlmProvider;
 use crate::service::chat_orchestrator::ChatOrchestrator;
 
 /// Master inventory of all 40 typed IPC commands in Merlink Harness (§10.2).
@@ -119,10 +118,11 @@ pub use writing_persistence_commands::{
 #[tauri::command]
 pub async fn send_chat_message(
     orchestrator: tauri::State<'_, Arc<ChatOrchestrator>>,
-    provider: tauri::State<'_, Arc<dyn LlmProvider>>,
+    config: tauri::State<'_, Arc<crate::ipc::config_commands::RuntimeConfigState>>,
     req: SendChatMessageReq,
     on_event: tauri::ipc::Channel<ChatStreamEvent>,
 ) -> Result<SendChatTurnResponseDto, IpcError> {
+    let provider = config.selected_provider()?;
     let (tx, mut rx) = mpsc::channel(100);
     let channel_clone = on_event.clone();
     tokio::spawn(async move {
@@ -181,7 +181,7 @@ pub async fn send_chat_message(
             turn_id,
             &req.content,
             &req.system_language,
-            provider.inner().clone(),
+            provider,
             Some(tx),
             tokio_util::sync::CancellationToken::new(),
         )

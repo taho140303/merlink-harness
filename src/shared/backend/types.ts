@@ -6,6 +6,8 @@
  * and error types that consume generated bindings.
  */
 
+import type { Channel } from "@tauri-apps/api/core";
+
 import type {
   ErrorCode,
   IpcError,
@@ -45,7 +47,7 @@ export interface BackendTransport {
   invoke<T = unknown, R = unknown>(cmd: IpcCommandName, req?: T): Promise<R>;
   createChannel<T = unknown>(
     onEvent: (event: T) => void
-  ): ChannelAdapter<T> | string | number | ((event: T) => void);
+  ): Channel<T> | ChannelAdapter<T> | string | number | ((event: T) => void);
 }
 
 /**

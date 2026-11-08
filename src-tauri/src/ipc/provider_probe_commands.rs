@@ -83,6 +83,16 @@ fn extract_models(body: &Value) -> Vec<String> {
     out
 }
 
+fn probe_paths(endpoint: &str, provider_id: &str) -> (String, String) {
+    let base = endpoint.trim().trim_end_matches('/');
+    if provider_id == "ollama" {
+        let root = base.strip_suffix("/api/chat").or_else(|| base.strip_suffix("/api")).unwrap_or(base);
+        return (format!("{root}/api/tags"), format!("{root}/api/chat"));
+    }
+    let root = base.strip_suffix("/chat/completions").or_else(|| base.strip_suffix("/responses")).or_else(|| base.strip_suffix("/messages")).unwrap_or(base);
+    (format!("{root}/models"), format!("{root}/chat/completions"))
+}
+
 pub async fn probe_provider(
     state: &RuntimeConfigState,
     req: &ProbeProviderReq,
@@ -148,8 +158,9 @@ pub async fn probe_provider(
         ProbeProviderResultDto::fail("unreachable", "provider_unreachable", msg)
     };
 
-    // 1) GET {base}/models
-    let resp = match auth(client.get(format!("{base}/models"))).send().await {
+    // Normalize configured adapter endpoints before probing (Ollama uses /api/tags).
+    let (models_url, completion_url) = probe_paths(&base, provider_id);
+    let resp = match auth(client.get(models_url)).send().await {
         Ok(r) => r,
         Err(e) => return map_send_err(e),
     };
@@ -218,7 +229,11 @@ pub async fn probe_provider(
             json!({"model": model, "max_tokens": 1, "messages": [{"role": "user", "content": "ping"}]}),
         ),
     };
-    let resp = match auth(client.post(format!("{base}/{path}")).json(&body)).send().await {
+    let url = if provider_id == "ollama" { completion_url } else if path == "chat/completions" { completion_url } else { format!("{base}/{path}") };
+    let body = if provider_id == "ollama" {
+        json!({"model": model, "stream": false, "messages": [{"role": "user", "content": "ping"}]})
+    } else { body };
+    let resp = match auth(client.post(url).json(&body)).send().await {
         Ok(r) => r,
         Err(e) => return map_send_err(e),
     };
@@ -277,5 +292,14 @@ mod tests {
         let g = json!({"models": [{"name": "models/gemini-x"}]});
         assert_eq!(extract_models(&g), vec!["gemini-x"]);
         assert_eq!(extract_models(&json!(["m1", "m1"])), vec!["m1"]);
+        assert_eq!(extract_models(&json!({"models": [{"name": "llama3.2"}]})), vec!["llama3.2"]);
+    }
+
+    #[test]
+    fn configured_provider_endpoints_have_correct_probe_routes() {
+        assert_eq!(probe_paths("http://127.0.0.1:11434/api/chat", "ollama"),
+            ("http://127.0.0.1:11434/api/tags".into(), "http://127.0.0.1:11434/api/chat".into()));
+        assert_eq!(probe_paths("https://api.opencode.ai/v1/chat/completions", "opencode"),
+            ("https://api.opencode.ai/v1/models".into(), "https://api.opencode.ai/v1/chat/completions".into()));
     }
 }

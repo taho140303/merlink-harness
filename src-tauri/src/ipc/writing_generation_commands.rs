@@ -28,9 +28,11 @@ pub async fn exec_start_scene_generation(
 #[tauri::command]
 pub async fn start_scene_generation(
     service: tauri::State<'_, Arc<WritingGenerationService>>,
+    config: tauri::State<'_, Arc<crate::ipc::config_commands::RuntimeConfigState>>,
     req: StartSceneGenerationReq,
     on_event: tauri::ipc::Channel<SceneGenerationStreamEvent>,
 ) -> Result<SceneGenerationResultDto, IpcError> {
+    let provider = config.selected_provider()?;
     let (tx, mut rx) = mpsc::channel(100);
     let channel_clone = on_event.clone();
     tokio::spawn(async move {
@@ -38,7 +40,7 @@ pub async fn start_scene_generation(
             let _ = channel_clone.send(evt);
         }
     });
-    exec_start_scene_generation(&service, &req, Some(tx)).await
+    service.start_scene_generation_with_provider(&req, provider, Some(tx)).await
 }
 
 // ============================================================================
