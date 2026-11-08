@@ -354,10 +354,10 @@ export async function testProviderConnection(
 
 const DEFAULT_MODELS: ModelConfig[] = [
   {
-    id: "gpt-6-luna",
-    name: "gpt-6-luna",
-    contextWindow: "272K",
-    maxOutputTokens: "32K",
+    id: "",
+    name: "",
+    contextWindow: "128K",
+    maxOutputTokens: "16K",
     inputTypes: { text: true, image: false },
     reasoning: false,
   },
@@ -446,7 +446,7 @@ export function ProviderForm({
       ...models,
       {
         id: `model-${Date.now()}`,
-        name: "new-model",
+        name: "",
         contextWindow: "128K",
         maxOutputTokens: "16K",
         inputTypes: { text: true, image: false },
@@ -812,7 +812,7 @@ export function ProviderForm({
                               updated[idx].id = e.target.value;
                               setModels(updated);
                             }}
-                            placeholder="gpt-6-luna"
+                            placeholder="model-id (e.g. gpt-4o)"
                             className="w-full text-xs font-mono"
                           />
                         </div>
