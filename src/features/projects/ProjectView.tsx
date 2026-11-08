@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { Search, ChevronDown } from "lucide-react";
-import { MOCK_PROJECTS } from "./mockProjects";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectDetailSidebar } from "./ProjectDetailSidebar";
 import { DeleteConfirmDialog } from "@/shared/components/ui/delete-confirm-dialog";
@@ -115,7 +114,7 @@ export default function ProjectView({ initialProjects, client: propClient }: Pro
   const activeClient = propClient || backendClient;
   const [projects, setProjects] = useState<ProjectItem[]>(() => {
     if (initialProjects) return initialProjects.map(sanitizeProjectItem);
-    return MOCK_PROJECTS.map(sanitizeProjectItem);
+    return [];
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("a-z");

@@ -3,7 +3,6 @@ import { Search, Plus, Link as LinkIcon } from "lucide-react";
 import { useCharacterStore } from "./store";
 import { CharacterCard } from "./CharacterCard";
 import { CreateCharacterDialog } from "./CreateCharacterDialog";
-import { MOCK_PROJECTS } from "@/features/projects/mockProjects";
 import { sanitizeDisplayLabel } from "@/features/projects/ProjectView";
 import { useT } from "@/shared/i18n/useT";
 import { Input } from "@/shared/components/ui/input";
@@ -211,11 +210,6 @@ export function CharacterListView({ initialCharacters, client: propClient }: Cha
     characters.forEach((c) => {
       if (c.projectId && c.projectName) {
         map.set(c.projectId, c.projectName);
-      }
-    });
-    MOCK_PROJECTS.forEach((p) => {
-      if (!map.has(p.id)) {
-        map.set(p.id, sanitizeDisplayLabel(p.title, p.id, "Dự án"));
       }
     });
     return Array.from(map.entries()).map(([id, title]) => ({ id, title }));

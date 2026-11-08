@@ -6,7 +6,6 @@ import type {
   DetailTab,
   LifeSubTab,
 } from './types';
-import { MOCK_CHARACTERS_MAP, MOCK_CHARACTERS } from './mockData';
 
 interface CharacterState {
   charactersList: CharacterProfile[];
@@ -35,8 +34,8 @@ interface CharacterState {
 }
 
 export const useCharacterStore = create<CharacterState>((set, get) => ({
-  charactersList: MOCK_CHARACTERS,
-  character: MOCK_CHARACTERS[0],
+  charactersList: [],
+  character: null as unknown as CharacterProfile,
   editSnapshot: null,
   isEditing: false,
   isChatOpen: false,
@@ -47,7 +46,6 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     const list = get().charactersList;
     const found =
       list.find((c) => c.id === id || c.code === id) ||
-      MOCK_CHARACTERS_MAP[id] ||
       list[0];
     if (found && found.id !== get().character.id) {
       set({ character: found, editSnapshot: null, isEditing: false });

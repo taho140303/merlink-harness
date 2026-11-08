@@ -3,12 +3,12 @@ import { after, test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
-const vite = await createServer({ configFile: false, resolve: { alias: { '@': new URL('../../', import.meta.url).pathname } }, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' });
+const vite = await createServer({ configFile: false, resolve: { alias: { '@': new URL('../../', import.meta.url).pathname } }, server: { middlewareMode: true, watch: null, hmr: false, ws: false }, appType: 'custom' });
 after(async () => { await vite.close(); });
 
 const n = await vite.ssrLoadModule('/src/features/draft/commitNavigation.ts');
 const { MOCK_PROJECTS } = await vite.ssrLoadModule('/src/features/projects/mockProjects.ts');
-const projects = MOCK_PROJECTS.map((p) => ({ id: p.id, title: p.title }));
+const projects = (MOCK_PROJECTS.length ? MOCK_PROJECTS : [{ id: 'proj-1', title: 'Test Project' }]).map((p) => ({ id: p.id, title: p.title }));
 const okId = projects[0].id;
 const base = { pending: false, simulationActive: true, projects };
 const go = (over) => n.resolveSimulatedNavigation({ ...base, ...over });

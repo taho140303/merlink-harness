@@ -4,7 +4,7 @@ import { createServer } from "vite";
 
 const vite = await createServer({
   configFile: false,
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, watch: null, hmr: false, ws: false },
   appType: "custom",
 });
 after(async () => { delete globalThis.window; await vite.close(); });

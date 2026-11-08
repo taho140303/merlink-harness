@@ -37,12 +37,7 @@ export {
   type AIProviderItemExtended,
 };
 
-const DEFAULT_FALLBACK_PROVIDERS: AIProviderItemExtended[] = [
-  { id: "ollama", name: "Ollama (Native Local)", status: "connected", providerType: "ollama" },
-  { id: "opencode", name: "OpenCode / Cloud AI", status: "connected", providerType: "opencode", hasApiKey: true, maskedApiKey: "••••••••" },
-  { id: "deepseek", name: "DeepSeek", status: "connected", providerType: "deepseek" },
-  { id: "antigravity", name: "Antigravity", status: "connected", isCustom: true },
-];
+const DEFAULT_FALLBACK_PROVIDERS: AIProviderItemExtended[] = [];
 
 export interface AIProvidersTabProps {
   client?: BackendClient;

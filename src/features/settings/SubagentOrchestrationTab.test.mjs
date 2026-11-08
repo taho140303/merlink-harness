@@ -8,7 +8,7 @@ import { createServer } from 'vite';
 // Vite transforms the project's TSX and @ alias; no DOM or test-runner dependency needed.
 const vite = await createServer({
   configFile: false,
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, watch: null, hmr: false, ws: false },
   appType: 'custom',
   resolve: { alias: { '@': path.resolve('src') } },
 });

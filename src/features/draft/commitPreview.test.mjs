@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { createServer } from 'vite';
 
-const vite = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' });
+const vite = await createServer({ configFile: false, server: { middlewareMode: true, watch: null, hmr: false, ws: false }, appType: 'custom' });
 after(async () => { await vite.close(); });
 
 const m = await vite.ssrLoadModule('/src/features/draft/commitPreview.ts');

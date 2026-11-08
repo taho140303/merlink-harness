@@ -15,7 +15,6 @@ import { backendClient, type BackendClient } from '@/shared/backend/client';
 import type { CharacterDetailDto } from '@/shared/backend/generated';
 import { sanitizeDisplayLabel } from '@/features/projects/ProjectView';
 import { useCharacterStore } from './store';
-import { MOCK_CHARACTERS_MAP } from './mockData';
 import { CoreIdentityTab } from './tabs/CoreIdentityTab';
 import { LifeExperienceTab } from './tabs/LifeExperienceTab';
 import { PsychologicalTab } from './tabs/PsychologicalTab';
@@ -234,10 +233,8 @@ export function CharacterDetailLayout({
           if (isMounted) setLoading(false);
         });
     } else {
-      // Backend unavailable: look in local store or mock map
-      const found =
-        charactersList.find((c) => c.id === targetId || c.code === targetId) ||
-        MOCK_CHARACTERS_MAP[targetId];
+      // Backend unavailable: look in local store
+      const found = charactersList.find((c) => c.id === targetId || c.code === targetId);
 
       if (found) {
         const sanitized = sanitizeCharacterProfile(found);

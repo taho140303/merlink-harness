@@ -11,7 +11,7 @@ import { createServer } from "vite";
 // Spin up minimal Vite dev server in middleware mode to load TS/TSX modules directly in Node
 const vite = await createServer({
   configFile: false,
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, watch: null, hmr: false, ws: false },
   appType: "custom",
   resolve: {
     alias: {

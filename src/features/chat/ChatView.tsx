@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { GripVertical, StopCircle } from "lucide-react";
 import { useNavigate } from "react-router";
-import { MOCK_PROJECTS } from "@/features/projects/mockProjects";
 import { buildProjectPath } from "@/features/draft/commitNavigation";
 import { cn } from "@/shared/utils/cn";
 import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
@@ -604,10 +603,7 @@ export function ChatView({
   }, [controller, sessionId]);
 
   const [isDraftOpen, setIsDraftOpen] = useState(false);
-  const sampleProjects = useMemo(
-    () => MOCK_PROJECTS.map((p) => ({ id: p.id, title: p.title })),
-    [],
-  );
+  const sampleProjects = useMemo(() => [] as { id: string; title: string }[], []);
 
   const handleViewSampleProject = (projectId: string) => {
     setIsDraftOpen(false);

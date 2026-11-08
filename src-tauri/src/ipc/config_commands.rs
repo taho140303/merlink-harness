@@ -95,7 +95,11 @@ impl RuntimeConfigState {
                 normalize_provider_endpoint(&endpoint, "chat/completions")?,
                 self.credential_manager.get_api_key(&id),
             )),
-            _ => return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")),
+            // Any other (custom) provider is treated as OpenAI-compatible.
+            _ => Arc::new(crate::providers::opencode::OpenCodeProvider::new(
+                normalize_provider_endpoint(&endpoint, "chat/completions")?,
+                self.credential_manager.get_api_key(&id),
+            )),
         };
         Ok(Arc::new(SelectedModelProvider { adapter, model }))
     }
@@ -252,8 +256,15 @@ pub fn exec_update_runtime_and_provider_config(
                 "activeProviderId cannot be empty",
             ));
         }
-        if !matches!(trimmed, "ollama" | "opencode") {
-            return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider"));
+        {
+            // Custom (OpenAI-compatible) providers are registered on first save.
+            let mut providers_guard = state.providers.write();
+            providers_guard.entry(trimmed.to_string()).or_insert_with(|| ProviderRuntimeSettings {
+                provider_id: trimmed.to_string(),
+                name: trimmed.to_string(),
+                endpoint_url: None,
+                model_name: None,
+            });
         }
         *state.active_provider_id.write() = trimmed.to_string();
     }

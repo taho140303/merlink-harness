@@ -6,7 +6,7 @@ import { createServer } from "vite";
 // Spin up minimal Vite dev server in middleware mode to load TS modules directly in Node test runner
 const vite = await createServer({
   configFile: false,
-  server: { middlewareMode: true, hmr: false, ws: false },
+  server: { middlewareMode: true, watch: null, hmr: false, ws: false },
   appType: "custom",
 });
 after(async () => {

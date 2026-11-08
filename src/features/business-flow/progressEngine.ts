@@ -88,6 +88,10 @@ function isValidValue(value: unknown): boolean {
   return false;
 }
 
+function isNonEmptyString(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> = {
   // Require Phase
   'require.project.display_name': (d) => isValidValue(d?.require?.project?.display_name),
@@ -347,24 +351,15 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
 export function getMissingRequireFields(data: BusinessFlowData): string[] {
   const missing: string[] = [];
 
-  if (
-    !data?.require?.project?.display_name ||
-    data.require.project.display_name.trim().length === 0
-  ) {
+  if (!isNonEmptyString(data?.require?.project?.display_name)) {
     missing.push('require.project.display_name');
   }
 
-  if (
-    !data?.require?.project?.summary ||
-    data.require.project.summary.trim().length === 0
-  ) {
+  if (!isNonEmptyString(data?.require?.project?.summary)) {
     missing.push('require.project.summary');
   }
 
-  if (
-    !data?.require?.project?.language ||
-    data.require.project.language.trim().length === 0
-  ) {
+  if (!isNonEmptyString(data?.require?.project?.language)) {
     missing.push('require.project.language');
   }
 
@@ -403,8 +398,8 @@ export function getMissingRequireFields(data: BusinessFlowData): string[] {
     missing.push('require.character');
   } else {
     data.require.character.forEach((char, idx) => {
-      const hasDisplayName = Boolean(char?.display_name && char.display_name.trim().length > 0);
-      const hasNickname = Boolean(char?.nickname && char.nickname.trim().length > 0);
+      const hasDisplayName = isNonEmptyString(char?.display_name);
+      const hasNickname = isNonEmptyString(char?.nickname);
       if (!hasDisplayName && !hasNickname) {
         missing.push(`require.character[${idx}].display_name`);
       }
@@ -414,7 +409,7 @@ export function getMissingRequireFields(data: BusinessFlowData): string[] {
       ) {
         missing.push(`require.character[${idx}].biological_sex`);
       }
-      if (!char?.motif_code || char.motif_code.trim().length === 0) {
+      if (!isNonEmptyString(char?.motif_code)) {
         missing.push(`require.character[${idx}].motif_code`);
       }
     });

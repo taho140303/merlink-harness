@@ -6,14 +6,7 @@ import { useT } from "@/shared/i18n/useT";
 import type { ChatItem } from "../types";
 
 // 3.1: Lưu project_id và chỉ hiển thị project name
-const MOCK_HISTORY: ChatItem[] = [
-  { id: "1", title: "Setup Docker and Kube", time: "21h", projectId: "proj-1", projectName: "Chronicles of Aethelgard" },
-  { id: "2", title: "Refactor Tailwind v4", time: "1d", projectId: "proj-1", projectName: "Chronicles of Aethelgard" },
-  { id: "3", title: "Fix layout route bug", time: "3d", projectId: "proj-2", projectName: "The Sunken Leyline" },
-  { id: "4", title: "World lore brainstorming", time: "1w", projectId: "proj-3", projectName: "Echoes of the Void" },
-  { id: "5", title: "Character stat rules", time: "3w", projectId: "proj-3", projectName: "Echoes of the Void" },
-  { id: "6", title: "Release checklist", time: "2m", projectId: "proj-2", projectName: "The Sunken Leyline" },
-];
+const MOCK_HISTORY: ChatItem[] = [];
 
 function formatTitle(title: string): string {
   return title.length > 12 ? `${title.slice(0, 12)}...` : title;

@@ -14,12 +14,7 @@ interface DeletedItem {
   details: string;
 }
 
-const MOCK_DELETED_ITEMS: DeletedItem[] = [
-  { id: 'd-1', name: 'Echoes of the Void', type: 'PROJECT', deletedAt: '2026-10-25 14:30', details: 'Sci-Fi / Space Opera' },
-  { id: 'd-2', name: 'Kaelen Vance', type: 'CHARACTER', deletedAt: '2026-10-24 09:15', details: 'High Human' },
-  { id: 'd-3', name: 'The Sunken Leyline', type: 'PROJECT', deletedAt: '2026-10-20 11:45', details: 'Oceanpunk / Exploration' },
-  { id: 'd-4', name: 'Lyra Dawnseeker', type: 'CHARACTER', deletedAt: '2026-10-18 16:20', details: 'Human / Solar Blessed' },
-];
+const MOCK_DELETED_ITEMS: DeletedItem[] = [];
 
 export function RecycleBinTab() {
   const t = useT();
