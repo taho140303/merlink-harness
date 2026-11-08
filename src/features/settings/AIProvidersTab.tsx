@@ -64,9 +64,9 @@ export function AIProvidersTab({
       : "KEYCHAIN";
 
   const initialItems: AIProviderItemExtended[] = initialProviders
-    ? (initialProviders as AIProviderItemExtended[])
+    ? (initialProviders as AIProviderItemExtended[]).filter((p) => p.id !== "ollama")
     : initialConfig?.providers
-    ? initialConfig.providers.map((p) => ({
+    ? initialConfig.providers.filter((p) => p.providerId !== "ollama").map((p) => ({
         id: p.providerId,
         name: p.name,
         status: p.isActive ? "connected" : "disconnected",
@@ -95,7 +95,20 @@ export function AIProvidersTab({
     const activeClient = client || backendClient;
 
     async function loadLiveConfig() {
-      if (initialConfig?.providers) return; // Already initialized from props
+      useModelCatalogStore.getState().hydrate();
+      const savedNames = new Map(
+        useModelCatalogStore.getState().providers.map((provider) => [provider.id, provider.name])
+      );
+
+      if (initialConfig?.providers) {
+        setProviders((current) => current
+          .filter((provider) => provider.id !== "ollama")
+          .map((provider) => ({
+            ...provider,
+            name: savedNames.get(provider.id) || provider.name,
+          })));
+        return;
+      }
 
       try {
         const config = await getProviderConfig(activeClient);
@@ -104,10 +117,12 @@ export function AIProvidersTab({
         setCredentialStorage(config.credentialStorage);
         setIsBackendAvailable(true);
 
-        if (config.providers && config.providers.length > 0) {
-          const liveList: AIProviderItemExtended[] = config.providers.map((p) => ({
+        if (config.providers) {
+          const liveList: AIProviderItemExtended[] = config.providers
+            .filter((p) => p.providerId !== "ollama")
+            .map((p) => ({
             id: p.providerId,
-            name: p.name,
+            name: savedNames.get(p.providerId) || p.name,
             status: p.isActive ? "connected" : "disconnected",
             hasApiKey: p.hasApiKey,
             maskedApiKey: p.maskedApiKey,

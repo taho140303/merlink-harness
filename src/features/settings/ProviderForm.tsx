@@ -194,7 +194,10 @@ export async function updateProviderConfig(
     }
   }
 
-  const targetProviderId = input.providerId || input.activeProviderId || "ollama";
+  const targetProviderId = input.providerId || input.activeProviderId;
+  if (!targetProviderId?.trim()) {
+    throw new Error("A provider ID is required before saving provider configuration");
+  }
 
   // 1. If transient raw API key was entered, store securely via set_provider_api_key
   if (input.apiKey && input.apiKey.trim()) {
@@ -607,7 +610,6 @@ export function ProviderForm({
             <option value="deepseek">deepseek</option>
             <option value="google">google gemini</option>
             <option value="kimi">kimi</option>
-            <option value="ollama">ollama (native local)</option>
             <option value="opencode">opencode / cloud ai</option>
           </Select>
         </div>
@@ -812,7 +814,7 @@ export function ProviderForm({
                               updated[idx].id = e.target.value;
                               setModels(updated);
                             }}
-                            placeholder="model-id (e.g. gpt-4o)"
+                            placeholder={t("settings.provider.modelIdPlaceholder")}
                             className="w-full text-xs font-mono"
                           />
                         </div>

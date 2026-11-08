@@ -553,15 +553,8 @@ fn test_ipc_cmd_038_get_runtime_and_provider_config() {
     assert_eq!(config.subagent_config.outline_capacity, 50);
     assert_eq!(config.subagent_config.outline_lookback, 10);
 
-    // Verify provider status list
-    assert!(config.providers.len() >= 2);
-    let ollama_status = config
-        .providers
-        .iter()
-        .find(|p| p.provider_id == "ollama")
-        .expect("ollama provider present");
-    assert!(ollama_status.is_active);
-    assert_eq!(ollama_status.has_api_key, false);
+    // No provider or model should be hard-coded into a fresh configuration.
+    assert!(config.providers.is_empty());
 
     assert_eq!(config.credential_storage_mode, "session_only_fallback");
 }

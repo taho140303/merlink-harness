@@ -37,7 +37,28 @@ export function ModelSelectorPopover() {
       }
       backendClient
         .getRuntimeAndProviderConfig({})
-        .then((res) => {
+        .then(async (res) => {
+          if (cancelled || !res || !Array.isArray(res.providers)) return;
+
+          // Runtime provider settings are session-scoped. Restore Ollama's non-secret
+          // endpoint/model from local storage before pruning the shared model catalog.
+          if (!res.providers.some((provider) => provider.providerId === "ollama")) {
+            try {
+              const raw = window.localStorage.getItem("merlink.ollamaAgentConfig");
+              const saved = raw ? JSON.parse(raw) as { endpointUrl?: unknown; modelName?: unknown } : null;
+              if (typeof saved?.endpointUrl === "string" && saved.endpointUrl.trim() &&
+                  typeof saved.modelName === "string" && saved.modelName.trim()) {
+                await backendClient.updateRuntimeAndProviderConfig({
+                  activeProviderId: "ollama",
+                  endpointUrl: saved.endpointUrl,
+                  modelName: saved.modelName,
+                });
+                res = await backendClient.getRuntimeAndProviderConfig({});
+              }
+            } catch {
+              // Keep chat usable; an unavailable Ollama config will be reported on send.
+            }
+          }
           if (cancelled || !res || !Array.isArray(res.providers)) return;
           const liveIds = new Set(res.providers.map((p) => p.providerId));
           const currentStore = useModelCatalogStore.getState();

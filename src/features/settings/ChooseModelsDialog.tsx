@@ -15,18 +15,8 @@ import {
 import { useT } from "@/shared/i18n/useT";
 import type { BackendClient } from "@/shared/backend/client";
 
-export const AVAILABLE_PROVIDER_MODELS = [
-  "claude-opus-4-6",
-  "claude-opus-4-6-thinking",
-  "claude-opus-5-5",
-  "claude-opus-5-5-*",
-  "claude-opus-5-5-high",
-  "claude-opus-5-5-low",
-  "claude-opus-5-5-medium",
-  "claude-sonnet-4-6",
-  "claude-sonnet-5-5",
-  "claude-sonnet-5-5-*",
-];
+// Models come from endpoint discovery; never seed a provider with a fixed model catalog.
+export const AVAILABLE_PROVIDER_MODELS: readonly string[] = [];
 
 const EMPTY_IDS: readonly string[] = [];
 

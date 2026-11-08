@@ -17,8 +17,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::domain::workflow_planner::WorkflowConfig;
 use crate::ipc::config_commands::RuntimeConfigState;
-use crate::providers::ollama::OllamaProvider;
-use crate::providers::traits::LlmProvider;
 use crate::service::character_service::CharacterService;
 use crate::service::chat_orchestrator::ChatOrchestrator;
 use crate::service::commit_service::CommitService;
@@ -53,7 +51,6 @@ pub struct AppBootstrap {
     pub workflow_service: Arc<WorkflowService>,
     pub writing_generation_service: Arc<WritingGenerationService>,
     pub writing_persistence_service: Arc<WritingPersistenceService>,
-    pub provider: Arc<dyn LlmProvider>,
     pub recovery_report: StartupRecoveryReport,
 }
 
@@ -91,7 +88,6 @@ impl AppBootstrap {
         ));
         let writing_generation_service = Arc::new(WritingGenerationService::new(pool.clone()));
         let writing_persistence_service = Arc::new(WritingPersistenceService::new(pool.clone()));
-        let provider: Arc<dyn LlmProvider> = Arc::new(OllamaProvider::new("http://localhost:11434", false));
 
         // 4. Deterministic Startup Crash Recovery
         let recovery_report = run_startup_recovery(&pool, temp_root, Some(&drafts))
@@ -116,7 +112,6 @@ impl AppBootstrap {
             workflow_service,
             writing_generation_service,
             writing_persistence_service,
-            provider,
             recovery_report,
         })
     }
@@ -210,7 +205,6 @@ pub fn configure_builder_with_bootstrap(
         app.manage(bootstrap.workflow_service.clone());
         app.manage(bootstrap.writing_generation_service.clone());
         app.manage(bootstrap.writing_persistence_service.clone());
-        app.manage(bootstrap.provider.clone());
         app.manage(bootstrap.state);
         Ok(())
     })
@@ -247,7 +241,6 @@ pub fn create_app() -> tauri::Builder<tauri::Wry> {
         app.manage(bootstrap.workflow_service.clone());
         app.manage(bootstrap.writing_generation_service.clone());
         app.manage(bootstrap.writing_persistence_service.clone());
-        app.manage(bootstrap.provider.clone());
         app.manage(bootstrap.state);
 
         Ok(())
