@@ -26,13 +26,14 @@ pub struct ProviderToolCall {
 
 /// Message exchange item for provider request.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
 pub struct ProviderMessage {
     pub role: String,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "tool_calls")]
     pub tool_calls: Option<Vec<ProviderToolCall>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "tool_call_id")]
     pub tool_call_id: Option<String>,
 }
 
@@ -41,6 +42,7 @@ impl ProviderMessage {
         Self {
             role: "system".to_string(),
             content: content.into(),
+            name: None,
             tool_calls: None,
             tool_call_id: None,
         }
@@ -50,6 +52,7 @@ impl ProviderMessage {
         Self {
             role: "user".to_string(),
             content: content.into(),
+            name: None,
             tool_calls: None,
             tool_call_id: None,
         }
@@ -59,15 +62,21 @@ impl ProviderMessage {
         Self {
             role: "assistant".to_string(),
             content: content.into(),
+            name: None,
             tool_calls: None,
             tool_call_id: None,
         }
     }
 
-    pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+    pub fn tool_result(
+        tool_call_id: impl Into<String>,
+        name: impl Into<String>,
+        content: impl Into<String>,
+    ) -> Self {
         Self {
             role: "tool".to_string(),
             content: content.into(),
+            name: Some(name.into()),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
         }

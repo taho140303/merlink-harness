@@ -255,8 +255,9 @@ export class ChatBackendController {
       options?.systemLanguageOverride,
     );
 
-    const userMsgId = `usr-${Date.now()}`;
-    const assistantMsgId = `ast-${Date.now()}`;
+    const startTime = Date.now();
+    const userMsgId = `usr-${startTime}`;
+    const assistantMsgId = `ast-${startTime}`;
 
     const userMsg: ChatMessage = {
       id: userMsgId,
@@ -299,11 +300,12 @@ export class ChatBackendController {
           feedbackContext: feedbackPayload,
         },
         (event: ChatStreamEvent) => {
-          if (generation === this.turnGeneration) this.handleStreamEvent(event, assistantMsgId);
+          if (generation === this.turnGeneration) this.handleStreamEvent(event, assistantMsgId, startTime);
         },
       );
 
       if (generation !== this.turnGeneration) return response;
+      const finalSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       this.updateState({
         isStreaming: false,
         activeTurnId: null,
@@ -312,6 +314,7 @@ export class ChatBackendController {
             ? {
                 ...m,
                 isThinking: false,
+                thinkingSeconds: m.thinkingSeconds ?? finalSeconds,
                 content: m.content || response.assistantText,
               }
             : m,
@@ -330,6 +333,7 @@ export class ChatBackendController {
       if (generation !== this.turnGeneration) throw err;
       // P5S2-N: Provider failure NEVER marks chat turn saved or sealed!
       const errMsg = err?.message ?? "Chat turn execution failed";
+      const finalSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       this.updateState({
         isStreaming: false,
         activeTurnId: null,
@@ -339,6 +343,7 @@ export class ChatBackendController {
             ? {
                 ...m,
                 isThinking: false,
+                thinkingSeconds: m.thinkingSeconds ?? finalSeconds,
                 content: m.content
                   ? `${m.content}\n\n[Lỗi kết nối nhà cung cấp: ${errMsg}]`
                   : `[Không thể lưu lượt trò chuyện do lỗi kết nối: ${errMsg}]`,
@@ -371,21 +376,28 @@ export class ChatBackendController {
     }
   }
 
-  private handleStreamEvent(event: ChatStreamEvent, assistantMsgId: string) {
+  private handleStreamEvent(event: ChatStreamEvent, assistantMsgId: string, startTime?: number) {
     switch (event.event) {
       case "turnStarted":
         this.updateState({ activeTurnId: event.data.turnId });
         break;
 
-      case "assistantDelta":
+      case "assistantDelta": {
+        const elapsed = startTime ? Math.max(1, Math.round((Date.now() - startTime) / 1000)) : undefined;
         this.updateState({
           messages: this.state.messages.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, content: (m.content || "") + event.data.delta, isThinking: false }
+              ? {
+                  ...m,
+                  content: (m.content || "") + event.data.delta,
+                  isThinking: false,
+                  thinkingSeconds: m.thinkingSeconds ?? elapsed,
+                }
               : m,
           ),
         });
         break;
+      }
 
       case "toolCallStarted":
         this.updateState({

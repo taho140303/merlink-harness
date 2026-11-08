@@ -76,7 +76,11 @@ impl TempStore {
 
     /// Default canonical temporary storage root under app_data_dir (§1.4).
     pub fn canonical_temp_root(app_data_dir: &Path) -> PathBuf {
-        app_data_dir.join("merlink-harness").join("tmp")
+        if app_data_dir.ends_with(".merlink") {
+            app_data_dir.join("tmp")
+        } else {
+            app_data_dir.join("merlink-harness").join("tmp")
+        }
     }
 
     /// Read-only reference to the configured root directory.

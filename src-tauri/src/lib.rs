@@ -222,11 +222,23 @@ pub fn create_app() -> tauri::Builder<tauri::Wry> {
             window.set_icon(icon)?;
         }
 
-        let app_data_dir = app
+        let home_merlink = app
             .path()
-            .app_data_dir()
-            .unwrap_or_else(|_| PathBuf::from("./app-data"));
-        let temp_root = app_data_dir.join("merlink-harness").join("tmp");
+            .home_dir()
+            .ok()
+            .or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
+            .map(|h| h.join(".merlink"));
+
+        let app_data_dir = home_merlink.unwrap_or_else(|| {
+            app.path()
+                .app_data_dir()
+                .unwrap_or_else(|_| PathBuf::from("./app-data"))
+        });
+        let temp_root = if app_data_dir.ends_with(".merlink") {
+            app_data_dir.join("tmp")
+        } else {
+            app_data_dir.join("merlink-harness").join("tmp")
+        };
 
         let bootstrap = AppBootstrap::new(&app_data_dir, &temp_root)
             .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error>)?;

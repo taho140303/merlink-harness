@@ -159,9 +159,59 @@ impl OpenCodeProvider {
             )
         });
 
+        let formatted_messages: Vec<serde_json::Value> = req
+            .messages
+            .iter()
+            .map(|m| {
+                let mut map = serde_json::Map::new();
+                map.insert("role".to_string(), serde_json::Value::String(m.role.clone()));
+
+                if m.role == "assistant" && m.tool_calls.is_some() && m.content.is_empty() {
+                    map.insert("content".to_string(), serde_json::Value::Null);
+                } else {
+                    map.insert("content".to_string(), serde_json::Value::String(m.content.clone()));
+                }
+
+                if let Some(ref name) = m.name {
+                    map.insert("name".to_string(), serde_json::Value::String(name.clone()));
+                }
+
+                if let Some(ref tid) = m.tool_call_id {
+                    map.insert("tool_call_id".to_string(), serde_json::Value::String(tid.clone()));
+                }
+
+                if let Some(ref tcs) = m.tool_calls {
+                    let formatted_tcs: Vec<serde_json::Value> = tcs
+                        .iter()
+                        .map(|tc| {
+                            let args_str = if tc.arguments.is_string() {
+                                tc.arguments.as_str().unwrap().to_string()
+                            } else {
+                                serde_json::to_string(&tc.arguments).unwrap_or_else(|_| "{}".to_string())
+                            };
+                            serde_json::json!({
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.name,
+                                    "arguments": args_str
+                                }
+                            })
+                        })
+                        .collect();
+                    map.insert(
+                        "tool_calls".to_string(),
+                        serde_json::Value::Array(formatted_tcs),
+                    );
+                }
+
+                serde_json::Value::Object(map)
+            })
+            .collect();
+
         serde_json::json!({
             "model": req.model,
-            "messages": req.messages,
+            "messages": formatted_messages,
             "tools": tools_value,
             "temperature": req.temperature,
             "max_tokens": req.max_tokens,

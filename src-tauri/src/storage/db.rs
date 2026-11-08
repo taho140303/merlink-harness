@@ -76,7 +76,11 @@ pub fn configure_connection(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 /// Directory path for canonical database location (§1.6, DB-P01).
 pub fn canonical_db_dir(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join("merlink-harness").join("db")
+    if app_data_dir.ends_with(".merlink") {
+        app_data_dir.join("db")
+    } else {
+        app_data_dir.join("merlink-harness").join("db")
+    }
 }
 
 /// Canonical file path for the primary SQLite database (§1.6, DB-P01).
@@ -87,7 +91,11 @@ pub fn canonical_db_path(app_data_dir: &Path) -> PathBuf {
 
 /// Directory path for database backup files (§3.4, DB-P02).
 pub fn backup_dir(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join("merlink-harness").join("backups")
+    if app_data_dir.ends_with(".merlink") {
+        app_data_dir.join("backups")
+    } else {
+        app_data_dir.join("merlink-harness").join("backups")
+    }
 }
 
 /// Canonical path for pre-migration backup files (§3.4, DB-P02).

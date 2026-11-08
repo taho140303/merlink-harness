@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -15,6 +15,23 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
   const t = useT();
   const [copied, setCopied] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(false);
+  const [liveSeconds, setLiveSeconds] = useState(message.thinkingSeconds ?? 1);
+
+  const isAssistant = message.role === "assistant";
+
+  useEffect(() => {
+    if (!message.isThinking) {
+      setLiveSeconds(message.thinkingSeconds ?? 1);
+      return;
+    }
+
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setLiveSeconds(Math.max(1, Math.floor((Date.now() - start) / 1000) + 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [message.isThinking]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -22,16 +39,14 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isAssistant = message.role === "assistant";
-
   return (
     <div id={message.id} className="mx-auto w-full max-w-4xl py-3 space-y-2 select-text scroll-mt-6">
       {/* 1. Trạng thái Đang suy nghĩ: Đồng hồ đếm giây + Stream dòng suy nghĩ */}
       {isAssistant && message.isThinking && (
-        <div className="space-y-2   duration-200">
+        <div className="space-y-2 duration-200">
           <div className="flex items-center gap-2 text-xs font-medium text-fg-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
-            <span>{t("chat.thinking", { seconds: message.thinkingSeconds ?? 1 })}</span>
+            <span>{t("chat.thinking", { seconds: liveSeconds })}</span>
           </div>
 
           {/* Khối log suy nghĩ streaming trực tiếp */}

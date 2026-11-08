@@ -712,6 +712,7 @@ impl ChatOrchestrator {
             messages.push(ProviderMessage {
                 role: "assistant".to_string(),
                 content: resp.content.clone().unwrap_or_default(),
+                name: None,
                 tool_calls: Some(resp.tool_calls.clone()),
                 tool_call_id: None,
             });
@@ -895,6 +896,7 @@ impl ChatOrchestrator {
                 // Append observation message to conversation history
                 messages.push(ProviderMessage::tool_result(
                     call.id.clone(),
+                    tool_name.clone(),
                     outcome_json.to_string(),
                 ));
 
@@ -905,6 +907,7 @@ impl ChatOrchestrator {
                             serde_json::json!({ "status": "rejected", "error": "turn_aborted" });
                         messages.push(ProviderMessage::tool_result(
                             skipped.id.clone(),
+                            skipped.name.clone(),
                             aborted_val.to_string(),
                         ));
                         state.all_tool_calls.push(ToolCallItemDto {

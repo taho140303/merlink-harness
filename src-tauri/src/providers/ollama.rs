@@ -155,9 +155,49 @@ impl OllamaProvider {
             )
         });
 
+        let formatted_messages: Vec<serde_json::Value> = req
+            .messages
+            .iter()
+            .map(|m| {
+                let mut map = serde_json::Map::new();
+                map.insert("role".to_string(), serde_json::Value::String(m.role.clone()));
+                map.insert("content".to_string(), serde_json::Value::String(m.content.clone()));
+
+                if let Some(ref name) = m.name {
+                    map.insert("name".to_string(), serde_json::Value::String(name.clone()));
+                }
+
+                if let Some(ref tid) = m.tool_call_id {
+                    map.insert("tool_call_id".to_string(), serde_json::Value::String(tid.clone()));
+                }
+
+                if let Some(ref tcs) = m.tool_calls {
+                    let formatted_tcs: Vec<serde_json::Value> = tcs
+                        .iter()
+                        .map(|tc| {
+                            serde_json::json!({
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.name,
+                                    "arguments": tc.arguments
+                                }
+                            })
+                        })
+                        .collect();
+                    map.insert(
+                        "tool_calls".to_string(),
+                        serde_json::Value::Array(formatted_tcs),
+                    );
+                }
+
+                serde_json::Value::Object(map)
+            })
+            .collect();
+
         serde_json::json!({
             "model": req.model,
-            "messages": req.messages,
+            "messages": formatted_messages,
             "stream": false,
             "tools": tools_value
         })
