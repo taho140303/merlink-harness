@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Link, useBlocker } from "react-router";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { Link, useBlocker, useParams } from "react-router";
 import {
   Pencil,
   MessageSquare,
@@ -31,20 +31,33 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
 import { FloatingOutline } from "@/shared/components/ui/floating-outline";
+import { backendClient, type BackendClient } from "@/shared/backend/client";
 import {
   applyBulkLock,
   canBulkChangeLocks,
   buildPreviewVersions,
   buildSceneBlocks,
+  buildSceneBlocksFromReadModel,
   buildSceneRegenerationRequest,
   isSceneDirty,
+  isSceneContentDirty,
   sourceForSceneAction,
+  loadChapterWritingReadModel,
+  setSceneLock,
+  setChapterScenesLockBulk,
+  generateSceneDraft,
+  cancelSceneGeneration,
+  reviewGeneratedScene,
+  listSceneVersions,
+  executeSaveWithReceiptReconciliation,
+  restoreSceneVersion,
   type SceneBlock,
   type SceneRegenerationRequest,
   type SceneSource,
-  type SceneVersionPreview,
+  type SceneGenerationCandidate,
 } from "./scenePreview";
 import type { ProjectItem, ChapterItem } from "./types";
+import type { SceneVersionItemDto } from "@/shared/backend/generated";
 
 const SOURCE_LABEL_KEY = {
   AI_GENERATED: "project.scene.source.ai",
@@ -52,20 +65,14 @@ const SOURCE_LABEL_KEY = {
   RESTORE: "project.scene.source.restore",
 } as const;
 
-interface ChapterDetailViewProps {
-  project: ProjectItem;
-  chapter: ChapterItem;
-  chapterIndex: number;
+export interface ChapterDetailViewProps {
+  project?: ProjectItem;
+  chapter?: ChapterItem;
+  chapterIndex?: number;
   creatorEntry?: boolean;
-}
-
-interface PreviewGeneration {
-  requestId: number;
-  sceneId: string;
-  status: "generating" | "review";
-  attempt: number;
-  text: string;
-  note: string | null;
+  projectId?: string;
+  chapterId?: string;
+  client?: BackendClient;
 }
 
 interface RegenerateDialogState {
@@ -125,27 +132,52 @@ function AutoResizeTextarea({
 export function ChapterDetailView({
   project,
   chapter,
-  chapterIndex,
+  chapterIndex = 1,
   creatorEntry = false,
+  projectId: propProjectId,
+  chapterId: propChapterId,
+  client: propClient,
 }: ChapterDetailViewProps) {
   const t = useT();
   const isCompact = useIsCompact();
+  const routeParams = useParams();
+  const activeClient = propClient || backendClient;
+
+  const targetProjectId = propProjectId || routeParams.projectId || project?.id;
+  const targetChapterId = propChapterId || routeParams.chapterId || chapter?.id;
+
+  const [backendGateError, setBackendGateError] = useState<
+    "UNCOMMITTED_PLAN" | "NOT_FOUND" | "BACKEND_ERROR" | null
+  >(null);
+  const [readModelTitle, setReadModelTitle] = useState<string | null>(null);
+  const [readModelIndex, setReadModelIndex] = useState<number | null>(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const [compactHeader, setCompactHeader] = useState(false);
   const [stackHeader, setStackHeader] = useState(false);
-  const [blocks, setBlocks] = useState<SceneBlock[]>(() => buildSceneBlocks(chapter));
-  const [savedBlocks] = useState<SceneBlock[]>(() => buildSceneBlocks(chapter));
+
+  const initialBlocks = useMemo(() => {
+    if (chapter) return buildSceneBlocks(chapter);
+    return [];
+  }, [chapter]);
+
+  const [blocks, setBlocks] = useState<SceneBlock[]>(initialBlocks);
+  const [savedBlocks, setSavedBlocks] = useState<SceneBlock[]>(initialBlocks);
   const [sources, setSources] = useState<Record<string, SceneSource>>({});
-  const [generation, setGeneration] = useState<PreviewGeneration | null>(null);
+
+  const [generation, setGeneration] = useState<SceneGenerationCandidate | null>(null);
   const [regenerateDialog, setRegenerateDialog] =
     useState<RegenerateDialogState | null>(null);
   const [versionSceneId, setVersionSceneId] = useState<string | null>(null);
+  const [backendVersions, setBackendVersions] = useState<SceneVersionItemDto[] | null>(null);
+
   const generationTimer = useRef<number | null>(null);
   const generationRequestId = useRef(0);
   const regenerateSubmitting = useRef(false);
+  const currentSaveIdRef = useRef<string | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { leftRatio, isDragging, containerRef, startDragging } = useResizablePanel({
@@ -153,6 +185,71 @@ export function ChapterDetailView({
     minPx: 340,
   });
 
+  // Load Chapter Writing Read Model via BackendClient (#29 get_chapter_writing_state)
+  const loadWritingReadModel = useCallback(async () => {
+    if (
+      !activeClient ||
+      activeClient.status === "unavailable" ||
+      !targetProjectId ||
+      !targetChapterId
+    ) {
+      return;
+    }
+
+    try {
+      const readModel = await loadChapterWritingReadModel(activeClient, {
+        projectId: targetProjectId,
+        chapterId: targetChapterId,
+      });
+
+      setBackendGateError(null);
+      setReadModelTitle(readModel.chapterTitle);
+      if (typeof readModel.position === "number") {
+        setReadModelIndex(readModel.position);
+      }
+
+      const sceneBlocks = buildSceneBlocksFromReadModel(readModel);
+      setBlocks(sceneBlocks);
+      setSavedBlocks(sceneBlocks.map((b) => ({ ...b })));
+
+      const initialSources: Record<string, SceneSource> = {};
+      for (const s of sceneBlocks) {
+        if (s.currentSceneSource === "AI") {
+          initialSources[s.sceneId] = "AI_GENERATED";
+        } else if (s.currentSceneSource === "RESTORE") {
+          initialSources[s.sceneId] = "RESTORE";
+        } else if (s.currentSceneSource === "USER") {
+          initialSources[s.sceneId] = "HUMAN_EDITED";
+        }
+      }
+      setSources(initialSources);
+    } catch (err: any) {
+      const errMsg = String(err?.message || err);
+      if (
+        errMsg.includes("EntityNotFound") ||
+        errMsg.includes("not found") ||
+        errMsg.includes("NotFound")
+      ) {
+        setBackendGateError("NOT_FOUND");
+      } else if (
+        errMsg.includes("ValidationFailed") ||
+        errMsg.includes("Committed") ||
+        errMsg.includes("committed") ||
+        errMsg.includes("plan")
+      ) {
+        // Committed-Plan Gate (WR-01)
+        setBackendGateError("UNCOMMITTED_PLAN");
+      } else {
+        setBackendGateError("BACKEND_ERROR");
+      }
+    }
+  }, [activeClient, targetProjectId, targetChapterId]);
+
+  useEffect(() => {
+    loadWritingReadModel();
+  }, [loadWritingReadModel]);
+
+  // Header responsive measurements
   useEffect(() => {
     const header = headerRef.current;
     if (!header) return;
@@ -174,11 +271,12 @@ export function ChapterDetailView({
     [savedBlocks],
   );
 
+  // Content-dirty check: Lock is NOT content-dirty (REQ-FE-005)
   const dirtyByScene = useMemo(() => {
     const dirty = new Map<string, boolean>();
     for (const block of blocks) {
       const saved = savedByScene.get(block.sceneId);
-      dirty.set(block.sceneId, isSceneDirty(block, saved));
+      dirty.set(block.sceneId, isSceneContentDirty(block, saved));
     }
     return dirty;
   }, [blocks, savedByScene]);
@@ -188,7 +286,7 @@ export function ChapterDetailView({
     [dirtyByScene],
   );
 
-  const hasUnsavedWork = dirtyCount > 0 || generation !== null;
+  const hasUnsavedWork = dirtyCount > 0 || (generation !== null && generation.status !== "failed");
 
   const sceneIndexById = useMemo(
     () => new Map(blocks.map((block, index) => [block.sceneId, index])),
@@ -230,27 +328,172 @@ export function ChapterDetailView({
     }
   };
 
-  const handleLockAll = () => {
-    if (generation) return;
+  // Lock All (#31 set_chapter_scenes_lock_bulk)
+  const handleLockAll = async () => {
+    if (generation && generation.status === "streaming") return;
     setRegenerateDialog(null);
+
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      try {
+        await setChapterScenesLockBulk(activeClient, {
+          projectId: targetProjectId,
+          chapterId: targetChapterId,
+          isLocked: true,
+        });
+
+        // Lock change is immediate and not content dirty; update both blocks and savedBlocks lock state
+        setBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
+        setSavedBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
+
+        // Invalidate generation candidate if present (P5S5-N)
+        if (generation) {
+          setGeneration((prev) =>
+            prev ? { ...prev, authorizationValid: false, status: "invalidated_by_lock" } : null,
+          );
+        }
+      } catch (err) {
+        console.error("Lock all failed:", err);
+        toast({ title: "Không thể khóa tất cả các cảnh." });
+      }
+      return;
+    }
+
     setBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
+    setSavedBlocks((prev) => prev.map((b) => ({ ...b, locked: true })));
   };
 
-  const handleUnlockAll = () => {
+  // Unlock All (#31 set_chapter_scenes_lock_bulk)
+  const handleUnlockAll = async () => {
     if (!canBulkChangeLocks(generation)) return;
+
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      try {
+        await setChapterScenesLockBulk(activeClient, {
+          projectId: targetProjectId,
+          chapterId: targetChapterId,
+          isLocked: false,
+        });
+
+        setBlocks((prev) => prev.map((b) => ({ ...b, locked: false })));
+        setSavedBlocks((prev) => prev.map((b) => ({ ...b, locked: false })));
+      } catch (err) {
+        console.error("Unlock all failed:", err);
+        toast({ title: "Không thể mở khóa các cảnh." });
+      }
+      return;
+    }
+
     setBlocks((prev) => applyBulkLock(prev, false, generation));
+    setSavedBlocks((prev) => applyBulkLock(prev, false, generation));
   };
 
   const handleStartEdit = () => {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
+  // Save Chapter scenes (#36 save_chapter, with OCC and #37 get_chapter_save_receipt reconciliation)
+  const handleSave = async () => {
     if (dirtyCount === 0) {
       toast({ title: t("project.save.noChanges") });
       return;
     }
 
+    // Identify dirty scenes
+    const dirtyScenesToSave = blocks.filter((b) =>
+      isSceneContentDirty(b, savedByScene.get(b.sceneId)),
+    );
+
+    // LOCK-05 / P5S5-B: Reject save if any dirty scene is locked; locked clean scenes do NOT block saving!
+    const lockedDirtyScene = dirtyScenesToSave.find((b) => b.locked);
+    if (lockedDirtyScene) {
+      toast({
+        title: "Không thể lưu cảnh bị khóa",
+        description: "Có cảnh bị khóa đang chứa thay đổi chưa lưu. Vui lòng mở khóa cảnh trước khi lưu chương.",
+      });
+      return;
+    }
+
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      // Retain or mint clientSaveId for idempotent retry/reconciliation (phase5_sprint5_deep3-F2)
+      if (!currentSaveIdRef.current) {
+        currentSaveIdRef.current =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `save-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      }
+      const clientSaveId = currentSaveIdRef.current;
+
+      try {
+        const result = await executeSaveWithReceiptReconciliation(activeClient, {
+          projectId: targetProjectId,
+          chapterId: targetChapterId,
+          clientSaveId,
+          dirtyScenes: dirtyScenesToSave.map((b) => ({
+            sceneId: b.sceneId,
+            expectedVersionNumber: b.headVersionNumber ?? 0,
+            content: b.text,
+            sceneSource:
+              sources[b.sceneId] === "AI_GENERATED"
+                ? "AI"
+                : sources[b.sceneId] === "RESTORE"
+                  ? "RESTORE"
+                  : "USER",
+            summary: b.summary ?? null,
+            isLocked: b.locked,
+          })),
+        });
+
+        // Save successfully persisted / reconciled!
+        currentSaveIdRef.current = null;
+
+        if (result.response.chapterScenes && result.response.chapterScenes.length > 0) {
+          const updatedBlocks = buildSceneBlocksFromReadModel({
+            projectId: targetProjectId,
+            chapterId: targetChapterId,
+            chapterTitle: readModelTitle || "",
+            position: readModelIndex ?? chapterIndex,
+            scenes: result.response.chapterScenes,
+          });
+          setBlocks(updatedBlocks);
+          setSavedBlocks(updatedBlocks.map((b) => ({ ...b })));
+        } else {
+          setSavedBlocks(blocks.map((b) => ({ ...b })));
+        }
+
+        toast({
+          title: "Đã lưu chương thành công",
+          description: result.reconciledFromReceipt
+            ? "Đã đối soát biên nhận lưu thành công từ dịch vụ."
+            : "Toàn bộ thay đổi nội dung đã được lưu bền vững.",
+        });
+      } catch (err: any) {
+        console.error("Save chapter failed:", err);
+        // phase5_sprint5_deep3-F2: Retain currentSaveIdRef.current and dirty buffer intact!
+        toast({
+          title: "Lỗi lưu chương",
+          description: "Không thể lưu chương. Toàn bộ nội dung đang sửa được giữ nguyên để thử lại.",
+        });
+      }
+      return;
+    }
+
+    // Local / preview fallback
+    setSavedBlocks(blocks.map((b) => ({ ...b })));
     toast({
       title: t("project.save.previewTitle"),
       description: t("project.save.previewDescription"),
@@ -281,12 +524,66 @@ export function ChapterDetailView({
     setDiscardOpen(false);
   };
 
-  const toggleLock = (sceneId: string) => {
-    if (generation?.sceneId === sceneId) return;
+  // Toggle single scene lock (#30 set_scene_lock)
+  // Lock is NOT content-dirty. Lock failure keeps UI unlocked and dirty buffer intact (phase5_sprint5_deep3-F1).
+  const toggleLock = async (sceneId: string) => {
+    if (generation?.sceneId === sceneId && generation?.status === "streaming") return;
+
+    const targetBlock = blocks.find((b) => b.sceneId === sceneId);
+    if (!targetBlock) return;
+
+    const desiredLocked = !targetBlock.locked;
+
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      try {
+        await setSceneLock(activeClient, {
+          projectId: targetProjectId,
+          chapterId: targetChapterId,
+          sceneId,
+          desiredLocked,
+        });
+
+        // Persist lock in UI state & baseline without touching dirty content buffer
+        setBlocks((prev) =>
+          prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: desiredLocked } : b)),
+        );
+        setSavedBlocks((prev) =>
+          prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: desiredLocked } : b)),
+        );
+
+        // LOCK-04 / P5S5-N: Locking invalidates any active or completed generation candidate
+        if (desiredLocked && generation?.sceneId === sceneId) {
+          setGeneration((prev) =>
+            prev ? { ...prev, authorizationValid: false, status: "invalidated_by_lock" } : null,
+          );
+        }
+      } catch (err) {
+        // phase5_sprint5_deep3-F1: UI remains in previous lock state, dirty buffer intact!
+        console.error("Lock toggle failed on backend:", err);
+        toast({
+          title: "Lỗi cập nhật khóa cảnh",
+          description: "Không thể cập nhật khóa cảnh. Trạng thái và nội dung soạn thảo được giữ nguyên.",
+        });
+      }
+      return;
+    }
 
     setBlocks((prev) =>
-      prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: !b.locked } : b)),
+      prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: desiredLocked } : b)),
     );
+    setSavedBlocks((prev) =>
+      prev.map((b) => (b.sceneId === sceneId ? { ...b, locked: desiredLocked } : b)),
+    );
+    if (desiredLocked && generation?.sceneId === sceneId) {
+      setGeneration((prev) =>
+        prev ? { ...prev, authorizationValid: false, status: "invalidated_by_lock" } : null,
+      );
+    }
   };
 
   const updateBlockText = (sceneId: string, newText: string) => {
@@ -299,25 +596,114 @@ export function ChapterDetailView({
     }));
   };
 
-  const startPreviewGeneration = (
+  // Start scene generation (#32 start_scene_generation)
+  const startPreviewGeneration = async (
     block: SceneBlock,
     attemptBase: number,
     note: string | null = null,
   ) => {
     if (block.locked) return;
     if (generation && generation.sceneId !== block.sceneId) return;
-    if (generation?.status === "generating") return;
+    if (generation?.status === "streaming") return;
 
     clearGenerationTimer();
-    const requestId = ++generationRequestId.current;
+    const requestId = String(++generationRequestId.current);
     const attempt = attemptBase + 1;
     const sceneNumber = (sceneIndexById.get(block.sceneId) ?? 0) + 1;
 
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      setGeneration({
+        requestId,
+        generationId: "",
+        sceneId: block.sceneId,
+        baselineVersionNumber: block.headVersionNumber ?? 0,
+        authorizationValid: true,
+        status: "streaming",
+        text: "",
+        note,
+      });
+
+      try {
+        const candidate = await generateSceneDraft(
+          activeClient,
+          {
+            projectId: targetProjectId,
+            chapterId: targetChapterId,
+            sceneId: block.sceneId,
+            mode: block.text.trim().length > 0 ? "regenerate" : "generate",
+            note,
+            currentWorkingContent: block.text,
+          },
+          (event) => {
+            if (event.event === "started") {
+              setGeneration((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      generationId: event.data.generationId,
+                      baselineVersionNumber: event.data.baselineVersionNumber,
+                      authorizationValid: event.data.authorizationValid,
+                    }
+                  : null,
+              );
+            } else if (event.event === "delta") {
+              setGeneration((prev) =>
+                prev ? { ...prev, text: prev.text + event.data.textDelta } : null,
+              );
+            } else if (event.event === "completed") {
+              setGeneration((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      text: event.data.fullText,
+                      status: "review", // Completed stream remains reviewable (P5S5-P)
+                    }
+                  : null,
+              );
+            } else if (
+              event.event === "cancelled" ||
+              event.event === "invalidatedByLock"
+            ) {
+              setGeneration((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      text: event.data.partialText,
+                      status: "invalidated_by_lock",
+                      authorizationValid: false,
+                    }
+                  : null,
+              );
+            }
+          },
+        );
+
+        // P5S5-P: Valid completed stream candidate remains in Review state after stream completes
+        setGeneration(candidate);
+      } catch (err: any) {
+        console.error("Scene generation error:", err);
+        toast({
+          title: "Lỗi sinh nội dung cảnh",
+          description: String(err?.message || err),
+        });
+        setGeneration(null);
+      }
+      return;
+    }
+
+    // Local / simulated generation fallback
     setGeneration({
       requestId,
+      generationId: `gen-local-${Date.now()}`,
       sceneId: block.sceneId,
-      status: "generating",
-      attempt,
+      status: "streaming",
+      baselineVersionNumber: block.headVersionNumber ?? 0,
+      authorizationValid: true,
       text: "",
       note,
     });
@@ -368,27 +754,60 @@ export function ChapterDetailView({
     startPreviewGeneration(block, 0, request.note);
   };
 
-  const cancelGeneration = () => {
+  const cancelGeneration = async () => {
     clearGenerationTimer();
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetChapterId &&
+      generation?.generationId
+    ) {
+      try {
+        await cancelSceneGeneration(activeClient, {
+          chapterId: targetChapterId,
+          generationId: generation.generationId,
+        });
+      } catch (err) {
+        console.warn("Cancel generation warning:", err);
+      }
+    }
     setGeneration(null);
   };
 
+  // Accept generation (P5S5-P, P5S5-N)
   const acceptGeneration = () => {
     if (!generation || generation.status !== "review") return;
     const target = blocks.find((block) => block.sceneId === generation.sceneId);
-    if (!target || target.locked) return;
+    if (!target) return;
 
-    generationRequestId.current += 1;
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.sceneId === generation.sceneId ? { ...b, text: generation.text } : b,
-      ),
-    );
-    setSources((prev) => ({
-      ...prev,
-      [generation.sceneId]: sourceForSceneAction("accept"),
-    }));
-    setGeneration(null);
+    try {
+      const reviewResult = reviewGeneratedScene({
+        action: "accept",
+        candidate: generation,
+        scene: target,
+      });
+
+      if (reviewResult.accepted && reviewResult.updatedText) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.sceneId === generation.sceneId
+              ? { ...b, text: reviewResult.updatedText! }
+              : b,
+          ),
+        );
+        setSources((prev) => ({
+          ...prev,
+          [generation.sceneId]: sourceForSceneAction("accept"),
+        }));
+        setGeneration(null);
+      }
+    } catch (err: any) {
+      // P5S5-N: lock-unlock cannot accept invalidated generation (CONFLICT_INVALIDATED)
+      toast({
+        title: "Không thể chấp nhận bản sinh",
+        description: "Bản sinh đã bị vô hiệu hóa do cảnh bị khóa hoặc nội dung đã thay đổi.",
+      });
+    }
   };
 
   const discardGeneration = () => {
@@ -396,26 +815,69 @@ export function ChapterDetailView({
     setGeneration(null);
   };
 
-  const restoreVersion = (version: SceneVersionPreview) => {
-    if (!versionSceneId) return;
-
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.sceneId === versionSceneId ? { ...b, text: version.content } : b,
-      ),
-    );
-    setSources((prev) => ({
-      ...prev,
-      [versionSceneId]: sourceForSceneAction("restore"),
-    }));
-    setVersionSceneId(null);
-    toast({
-      title: t("project.scene.versionRestored"),
-      description: t("project.scene.versionRestoredHint"),
-    });
+  // Open versions dialog (#35 list_scene_versions)
+  const handleOpenVersions = async (sceneId: string) => {
+    setVersionSceneId(sceneId);
+    if (
+      activeClient &&
+      activeClient.status !== "unavailable" &&
+      targetProjectId &&
+      targetChapterId
+    ) {
+      try {
+        const res = await listSceneVersions(activeClient, {
+          projectId: targetProjectId,
+          chapterId: targetChapterId,
+          sceneId,
+        });
+        setBackendVersions(res.versions);
+      } catch (err) {
+        console.error("List scene versions error:", err);
+        setBackendVersions(null);
+      }
+      return;
+    }
+    setBackendVersions(null);
   };
 
-  const fullChapterTitle = t("chapter.title", { index: chapterIndex, title: chapter.title });
+  // Restore scene version (CI-08 / REQ-WRITE-004)
+  // Loads content into dirty buffer; persisted via save_chapter (#36). Zero 41st IPC command.
+  const restoreVersion = (version: { versionNumber: number; content: string }) => {
+    if (!versionSceneId) return;
+    const target = blocks.find((b) => b.sceneId === versionSceneId);
+    if (!target) return;
+
+    try {
+      const res = restoreSceneVersion(target, version);
+      if (res.success && res.newText !== undefined) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.sceneId === versionSceneId ? { ...b, text: res.newText! } : b,
+          ),
+        );
+        setSources((prev) => ({
+          ...prev,
+          [versionSceneId]: sourceForSceneAction("restore"),
+        }));
+        setVersionSceneId(null);
+        toast({
+          title: t("project.scene.versionRestored"),
+          description: t("project.scene.versionRestoredHint"),
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Không thể khôi phục phiên bản",
+        description: "Cảnh đang bị khóa. Mở khóa cảnh trước khi khôi phục nội dung phiên bản lịch sử.",
+      });
+    }
+  };
+
+  const currentProjectId = project?.id || targetProjectId || "";
+  const currentProjectTitle = project?.title || "Dự án";
+  const currentChapterIndex = readModelIndex ?? chapterIndex;
+  const currentChapterTitle = readModelTitle || chapter?.title || t("project.chapter.blockTitle", { index: currentChapterIndex });
+  const fullChapterTitle = t("chapter.title", { index: currentChapterIndex, title: currentChapterTitle });
 
   const versionBlock = versionSceneId
     ? blocks.find((block) => block.sceneId === versionSceneId)
@@ -423,16 +885,28 @@ export function ChapterDetailView({
   const versionIndex = versionBlock
     ? (sceneIndexById.get(versionBlock.sceneId) ?? 0) + 1
     : 0;
-  const versions = versionBlock
-    ? buildPreviewVersions(
+
+  const previewVersions = useMemo(() => {
+    if (backendVersions) {
+      return backendVersions.map((v) => ({
+        versionNumber: v.versionNumber,
+        source: (v.sceneSource === "AI" ? "AI_GENERATED" : v.sceneSource === "RESTORE" ? "RESTORE" : "HUMAN_EDITED") as SceneSource,
+        createdAt: v.createdAt,
+        content: v.content,
+      }));
+    }
+    if (versionBlock) {
+      return buildPreviewVersions(
         versionBlock,
         t("project.scene.versionSample", { index: versionIndex, version: 1 }),
-      )
-    : [];
+      );
+    }
+    return [];
+  }, [backendVersions, versionBlock, versionIndex, t]);
 
   const scrollToBlock = (id: string) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const outlineItems = useMemo(
@@ -443,8 +917,42 @@ export function ChapterDetailView({
           ? t("project.scene.label", { index: idx + 1 })
           : b.text || t("project.chapter.blockTitle", { index: idx + 1 }),
       })),
-    [blocks, isEditing, t]
+    [blocks, isEditing, t],
   );
+
+  // Committed-Plan Gate UI rendering (WR-01)
+  if (backendGateError === "UNCOMMITTED_PLAN") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md rounded-2xl border border-amber-300/60 bg-amber-50/60 p-6 dark:border-amber-800 dark:bg-amber-950/30">
+          <h2 className="text-base font-bold text-fg">
+            Chưa có kịch bản đã cam kết
+          </h2>
+          <p className="mt-2 text-xs leading-relaxed text-fg-muted">
+            Writing Mode chỉ khả dụng sau khi kịch bản đã được xác nhận và cam kết (Committed Plan). Vui lòng hoàn thành giai đoạn lập kế hoạch trước khi soạn thảo.
+          </p>
+          <Link
+            to={`/project/${currentProjectId}`}
+            className="mt-4 inline-flex items-center rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+          >
+            {t("project.backToList")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Not Found UI
+  if (backendGateError === "NOT_FOUND") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center">
+        <p className="text-sm text-fg-muted">{t("chapter.notFound")}</p>
+        <Link to="/project" className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
+          {t("project.backToList")}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -463,7 +971,7 @@ export function ChapterDetailView({
           )}
         >
           <ProjectChatPane
-            projectName={project.title}
+            projectName={currentProjectTitle}
             subContext={fullChapterTitle}
             onClose={() => setIsChatOpen(false)}
           />
@@ -512,11 +1020,11 @@ export function ChapterDetailView({
             </Link>
             <span>›</span>
             <Link
-              to={`/project/${project.id}`}
+              to={`/project/${currentProjectId}`}
               className="truncate hover:text-fg "
-              title={project.title}
+              title={currentProjectTitle}
             >
-              {truncate(project.title, 15)}
+              {truncate(currentProjectTitle, 15)}
             </Link>
             <span>›</span>
             <span
@@ -539,7 +1047,7 @@ export function ChapterDetailView({
                 <button
                   type="button"
                   onClick={handleLockAll}
-                  disabled={!!generation}
+                  disabled={!!generation && generation.status === "streaming"}
                   aria-label={t("project.lockAll")}
                   className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors duration-100 hover:bg-rose-50 active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
                   title={t("project.lockAll")}
@@ -632,7 +1140,11 @@ export function ChapterDetailView({
                 </Badge>
               )}
             </h1>
-            <p className="mt-1 text-xs text-fg-subtle">{t("project.chapter.postedAt", { date: chapter.date })}</p>
+            <p className="mt-1 text-xs text-fg-subtle">
+              {chapter?.date
+                ? t("project.chapter.postedAt", { date: chapter.date })
+                : "Chế độ soạn thảo trực tiếp"}
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -666,7 +1178,7 @@ export function ChapterDetailView({
                         <button
                           type="button"
                           onClick={() => toggleLock(block.sceneId)}
-                          disabled={!!activeGeneration}
+                          disabled={!!activeGeneration && activeGeneration.status === "streaming"}
                           aria-label={
                             block.locked
                               ? t("project.scene.unlock")
@@ -721,7 +1233,7 @@ export function ChapterDetailView({
                       <AutoResizeTextarea
                         value={block.text}
                         disabled={
-                          block.locked || activeGeneration?.status === "generating"
+                          block.locked || activeGeneration?.status === "streaming"
                         }
                         ariaLabel={t("project.scene.label", { index: sceneNumber })}
                         onChange={(val) => updateBlockText(block.sceneId, val)}
@@ -734,7 +1246,7 @@ export function ChapterDetailView({
                         </span>
                       )}
 
-                      {activeGeneration?.status === "generating" && (
+                      {activeGeneration?.status === "streaming" && (
                         <div
                           role="status"
                           className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface-muted/60 px-3 py-2 text-xs text-fg-muted"
@@ -802,7 +1314,7 @@ export function ChapterDetailView({
                           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t("project.scene.regenerate")}</span>
                         </Button>
-                        {activeGeneration?.status === "generating" && (
+                        {activeGeneration?.status === "streaming" && (
                           <Button size="sm" variant="ghost" onClick={cancelGeneration}>
                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                             <span>{t("common.cancel")}</span>
@@ -812,7 +1324,7 @@ export function ChapterDetailView({
                           size="sm"
                           variant="ghost"
                           disabled={!hasContent || block.locked || !!generation}
-                          onClick={() => setVersionSceneId(block.sceneId)}
+                          onClick={() => handleOpenVersions(block.sceneId)}
                         >
                           <History className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t("project.scene.versions")}</span>
@@ -831,10 +1343,10 @@ export function ChapterDetailView({
 
       {/* Chapter outline minimap */}
       {blocks.length > 0 && (
-        <FloatingOutline 
-          items={outlineItems} 
+        <FloatingOutline
+          items={outlineItems}
           containerRef={scrollContainerRef}
-          onItemClick={scrollToBlock} 
+          onItemClick={scrollToBlock}
         />
       )}
 
@@ -926,12 +1438,12 @@ export function ChapterDetailView({
             </div>
 
             <div className="mt-2 max-h-[55vh] space-y-2 overflow-y-auto pr-1">
-              {versions.length === 0 ? (
+              {previewVersions.length === 0 ? (
                 <p className="text-xs text-fg-muted">
                   {t("project.scene.versionEmpty")}
                 </p>
               ) : (
-                versions.map((version) => (
+                previewVersions.map((version) => (
                   <div
                     key={version.versionNumber}
                     className="rounded-xl border border-line bg-surface-muted/40 p-3"
@@ -959,6 +1471,7 @@ export function ChapterDetailView({
                       <Button
                         size="sm"
                         variant="secondary"
+                        disabled={versionBlock.locked}
                         onClick={() => restoreVersion(version)}
                       >
                         {t("project.scene.versionRestore")}

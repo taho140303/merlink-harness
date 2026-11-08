@@ -13,6 +13,7 @@ import {
   DialogClose,
 } from "@/shared/components/ui/dialog";
 import { useT } from "@/shared/i18n/useT";
+import type { BackendClient } from "@/shared/backend/client";
 
 export const AVAILABLE_PROVIDER_MODELS = [
   "claude-opus-4-6",
@@ -33,6 +34,8 @@ export interface ChooseModelsDialogProps {
   onAddModels: (modelIds: string[]) => void;
   availableModels?: readonly string[];
   initialSelectedIds?: readonly string[];
+  client?: BackendClient;
+  providerId?: string;
 }
 
 export function ChooseModelsDialog({
@@ -41,20 +44,44 @@ export function ChooseModelsDialog({
   onAddModels,
   availableModels = AVAILABLE_PROVIDER_MODELS,
   initialSelectedIds = [],
+  client,
+  providerId,
 }: ChooseModelsDialogProps) {
   const t = useT();
   const [modelSearch, setModelSearch] = useState("");
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+  const [modelsList, setModelsList] = useState<readonly string[]>(availableModels);
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setModelSearch("");
       setSelectedModelIds([...initialSelectedIds]);
-    }
-  }, [open, initialSelectedIds]);
 
-  const filteredAvailableModels = availableModels.filter((modelId) =>
+      // If live backend client is provided, query runtime provider models
+      if (client && client.status === "available") {
+        client
+          .getRuntimeAndProviderConfig()
+          .then((cfg) => {
+            const target = providerId
+              ? cfg.providers.find((p) => p.providerId === providerId)
+              : cfg.providers.find((p) => p.isActive);
+            if (target?.modelName) {
+              const unique = Array.from(new Set([target.modelName, ...availableModels]));
+              setModelsList(unique);
+            }
+          })
+          .catch(() => {
+            // Keep default available models if backend query fails
+            setModelsList(availableModels);
+          });
+      } else {
+        setModelsList(availableModels);
+      }
+    }
+  }, [open, initialSelectedIds, availableModels, client, providerId]);
+
+  const filteredAvailableModels = modelsList.filter((modelId) =>
     modelId.toLowerCase().includes(modelSearch.trim().toLowerCase())
   );
 
@@ -139,7 +166,7 @@ export function ChooseModelsDialog({
             </button>
           </div>
 
-          {/* Block 4: Vertically scrollable container of model items (left-aligned checkbox + model-id) */}
+          {/* Block 4: Vertically scrollable container of model items */}
           <div
             role="group"
             aria-label={t("settings.provider.fetchDialog.title")}

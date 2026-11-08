@@ -1,0 +1,97 @@
+name: Verify Merlink Harness
+
+on:
+  push:
+    branches:
+      - main
+      - "impl/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: /tmp/merlink-ci-target
+  MERLINK_TEST_TEMP_ROOT: /tmp/merlink-ci-temp
+  MERLINK_TEST_DB_PATH: /tmp/merlink-ci-temp/disposable-test.sqlite3
+
+jobs:
+  verify:
+    name: Reproducible Frontend, Plan, and Rust Verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare disposable test directories and verify no production DB or secrets (P6S1-N)
+        run: |
+          set -euo pipefail
+          mkdir -p "$CARGO_TARGET_DIR" "$MERLINK_TEST_TEMP_ROOT"
+          chmod 0700 "$MERLINK_TEST_TEMP_ROOT"
+          test ! -e "app-data"
+          test ! -e "merlink.sqlite3"
+
+      - name: Install required Linux platform dependencies for Tauri v2 (P6S1-N / phase6_sprint1_deep0-F1)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libssl-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+          for pkg in pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf; do
+            dpkg -s "$pkg" >/dev/null 2>&1 || {
+              echo "P6S1-N: missing required platform dependency $pkg" >&2
+              exit 1
+            }
+          done
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Setup Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies from frozen pnpm lockfile (P6S1-P)
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate planning artifacts at planning baseline
+        run: |
+          set -euo pipefail
+          test -f docs/plan/manifest.json
+          test -f docs/plan/validate_plan.py
+          python3 -m py_compile docs/plan/validate_plan.py docs/plan/plan_model.py docs/plan/render_plan.py
+
+      - name: Run frontend unit and contract tests (P6S1-P)
+        run: pnpm test
+
+      - name: Run frontend typecheck
+        run: pnpm typecheck
+
+      - name: Run frontend lint and CI/Docker packaging verification (P6S1-P, P6S1-N, P6S1-B, F0..F2)
+        run: pnpm lint
+
+      - name: Build reproducible frontend package (P6S1-B)
+        run: pnpm build
+
+      - name: Check Rust workspace compilation
+        run: cargo check --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Run Rust domain and planner tests with disposable temp root (P6S1-P)
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --test domain_core --test planner_progress

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, ChevronDown } from "lucide-react";
 import { MOCK_PROJECTS } from "./mockProjects";
 import { ProjectCard } from "./ProjectCard";
@@ -6,16 +6,144 @@ import { ProjectDetailSidebar } from "./ProjectDetailSidebar";
 import { DeleteConfirmDialog } from "@/shared/components/ui/delete-confirm-dialog";
 import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
+import { backendClient, type BackendClient } from "@/shared/backend/client";
+import type { ProjectItemUiDto } from "@/shared/backend/generated";
 import type { ProjectItem, SortOption } from "./types";
 
-export default function ProjectView() {
+const ENTITY_CODE_PATTERN = /\b(CHAR|REL|FACTION|EVENT|LOC|ARC|CH|SC|SCN|THM|PROJ|COMP)_[A-Za-z0-9_-]+\b/gi;
+const CODE_PREFIX_REGEX = /^(\[[A-Za-z0-9_-]+\]\s*|[A-Za-z0-9_-]+(?::|\s+[-–—])\s*)/i;
+
+/**
+ * Sanitizes entity names and titles to ensure internal codes (CHAR_001, ARC_001, etc.)
+ * are never exposed as user-visible labels in rendered outputs.
+ */
+export function sanitizeDisplayLabel(
+  nameOrTitle?: string | null,
+  code?: string,
+  fallback = "Chưa đặt tên"
+): string {
+  if (!nameOrTitle || typeof nameOrTitle !== "string") return fallback;
+  let label = nameOrTitle.trim();
+  if (code && typeof code === "string" && code.length > 0) {
+    const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    label = label.replace(new RegExp(`^\\[${escaped}\\]\\s*`, "i"), "");
+    label = label.replace(new RegExp(`^${escaped}(?::|\\s+[-–—])\\s*`, "i"), "");
+    if (label.trim().toLowerCase() === code.trim().toLowerCase()) return fallback;
+    label = label.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "").trim();
+  }
+  label = label.replace(CODE_PREFIX_REGEX, "");
+  label = label.replace(ENTITY_CODE_PATTERN, "").trim();
+  label = label.replace(/^[:\-–—\s]+/, "").trim();
+  return label || fallback;
+}
+
+/**
+ * Maps a ProjectItemUiDto from the backend transport into a clean ProjectItem.
+ */
+export function mapProjectDtoToItem(dto: ProjectItemUiDto): ProjectItem {
+  const cleanTitle = sanitizeDisplayLabel(dto.title, dto.id, "Dự án");
+  const validStatus: ProjectItem["status"] =
+    dto.status === "Completed" ||
+    dto.status === "Drafting" ||
+    dto.status === "In Review" ||
+    dto.status === "Ongoing" ||
+    dto.status === "Planning"
+      ? dto.status
+      : "Drafting";
+
+  return {
+    id: dto.id,
+    title: cleanTitle,
+    status: validStatus,
+    cover: dto.cover || "",
+    description: sanitizeDisplayLabel(dto.description, undefined, dto.description || ""),
+    genres: dto.genres || [],
+    modifiedAt: dto.modifiedAt,
+    details: {
+      wordCount: dto.details?.wordCount ?? "0",
+      chapters: dto.details?.chapters ?? "0",
+      characters: dto.details?.characters ?? "0",
+      worldLore: dto.details?.worldLore ?? "0",
+      createdDate: dto.details?.createdDate ?? "",
+    },
+    arcs: dto.arcs?.map((a) => ({
+      id: a.id,
+      title: sanitizeDisplayLabel(a.title, a.id, "Hồi"),
+      cover: a.cover ?? undefined,
+      chapters: (a.chapters || []).map((c) => ({
+        id: c.id,
+        title: sanitizeDisplayLabel(c.title, c.id, "Chương"),
+        date: c.date,
+        isNew: c.isNew ?? false,
+        blocks: (c.blocks || []).map((b) => ({
+          id: b.id,
+          sceneId: b.sceneId ?? undefined,
+          text: b.text,
+          locked: b.locked,
+        })),
+      })),
+    })),
+  };
+}
+
+/**
+ * Sanitizes an existing ProjectItem to ensure no entity codes are leaked into labels.
+ */
+export function sanitizeProjectItem(project: ProjectItem): ProjectItem {
+  return {
+    ...project,
+    title: sanitizeDisplayLabel(project.title, project.id, "Dự án"),
+    description: sanitizeDisplayLabel(project.description, undefined, project.description),
+    arcs: project.arcs?.map((a) => ({
+      ...a,
+      title: sanitizeDisplayLabel(a.title, a.id, "Hồi"),
+      chapters: a.chapters.map((c) => ({
+        ...c,
+        title: sanitizeDisplayLabel(c.title, c.id, "Chương"),
+      })),
+    })),
+  };
+}
+
+export interface ProjectViewProps {
+  initialProjects?: ProjectItem[];
+  client?: BackendClient;
+}
+
+export default function ProjectView({ initialProjects, client: propClient }: ProjectViewProps = {}) {
   const t = useT();
-  const [projects, setProjects] = useState<ProjectItem[]>(MOCK_PROJECTS);
+  const activeClient = propClient || backendClient;
+  const [projects, setProjects] = useState<ProjectItem[]>(() => {
+    if (initialProjects) return initialProjects.map(sanitizeProjectItem);
+    return MOCK_PROJECTS.map(sanitizeProjectItem);
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("a-z");
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (initialProjects) {
+      setProjects(initialProjects.map(sanitizeProjectItem));
+      return;
+    }
+    if (activeClient && activeClient.status !== "unavailable") {
+      activeClient.listProjects()
+        .then((res) => {
+          if (!isMounted) return;
+          const mapped = (res.items || []).map(mapProjectDtoToItem);
+          setProjects(mapped);
+        })
+        .catch((err) => {
+          console.warn("Failed to load projects from backend transport:", err);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [activeClient, initialProjects]);
 
   const filteredAndSortedProjects = useMemo(() => {
     return projects
@@ -40,16 +168,30 @@ export default function ProjectView() {
     setDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    setProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-    toast({ title: t("project.deletedToast"), variant: "success" });
-    setDeleteTarget(null);
+    const targetId = deleteTarget.id;
+    try {
+      if (activeClient && activeClient.status !== "unavailable") {
+        await activeClient.deleteProject({ projectId: targetId });
+      }
+      setProjects((prev) => prev.filter((p) => p.id !== targetId));
+      if (selectedProject?.id === targetId) {
+        setSelectedProject(null);
+      }
+      toast({ title: t("project.deletedToast"), variant: "success" });
+    } catch (err) {
+      console.error("deleteProject failed:", err);
+      toast({ title: "Không thể xóa dự án", variant: "error" });
+    } finally {
+      setDeleteTarget(null);
+      setDeleteOpen(false);
+    }
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-y-auto bg-surface-muted/50 p-6  sm:p-8">
-      <div className="flex flex-col gap-4 border-b border-line pb-6  sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative flex h-full flex-col overflow-y-auto bg-surface-muted/50 p-6 sm:p-8">
+      <div className="flex flex-col gap-4 border-b border-line pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-fg sm:text-2xl">
             {t("project.title")}
@@ -67,7 +209,7 @@ export default function ProjectView() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t("project.searchPlaceholder")}
-              className="w-full tier-card rounded-card py-1.5 pl-9 pr-3 text-xs text-fg placeholder:text-fg-subtle focus-ring   "
+              className="w-full tier-card rounded-card py-1.5 pl-9 pr-3 text-xs text-fg placeholder:text-fg-subtle focus-ring"
             />
           </div>
 
@@ -75,7 +217,7 @@ export default function ProjectView() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full appearance-none tier-card rounded-card py-1.5 pl-3 pr-8 text-xs font-medium text-fg-muted  focus-ring   "
+              className="w-full appearance-none tier-card rounded-card py-1.5 pl-3 pr-8 text-xs font-medium text-fg-muted focus-ring"
             >
               <option value="a-z">{t("project.sort.a-z")}</option>
               <option value="z-a">{t("project.sort.z-a")}</option>

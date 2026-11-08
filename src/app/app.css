@@ -92,6 +92,14 @@ html.dark .neu-pressed {
               inset 5px 5px 12px rgba(0, 0, 0, 0.9);
 }
 
+/* Blob mềm bằng mask thay cho filter blur lớn (rẻ hơn nhiều trên WebKitGTK/Tauri) */
+.aurora-blob {
+  -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgba(0,0,0,0.75) 35%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 0%, rgba(0,0,0,0.75) 35%, transparent 100%);
+  backface-visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) { .aurora-blob { animation: none !important; } }
+
 /* Animations */
 @keyframes chaotic-blob-1 {
   0% { transform: translate(0px, 0px) scale(1) rotate(0deg) skew(0deg); }

@@ -1,43 +1,215 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, AlertTriangle, AlertCircle, RefreshCw, CheckCircle2, ShieldAlert } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
-import { ProviderForm } from "./ProviderForm";
+import {
+  ProviderForm,
+  getProviderConfig,
+  updateProviderConfig,
+  testProviderConnection,
+  type CredentialStorageType,
+  type ProviderConfigStatusDto,
+  type ProviderConfigResultDto,
+  type UpdateProviderConfigInput,
+  type TestProviderConnectionParams,
+  type TestProviderConnectionResult,
+  type AIProviderItemExtended,
+} from "./ProviderForm";
 import { CodingAgentCards } from "./CodingAgentCards";
 import { DeleteConfirmDialog } from "@/shared/components/ui/delete-confirm-dialog";
 import { toast } from "@/shared/components/ui/toast";
 import { useT } from "@/shared/i18n/useT";
 import type { AIProviderItem } from "./types";
+import { backendClient, type BackendClient } from "@/shared/backend/client";
+import type { RuntimeAndProviderConfigDto } from "@/shared/backend/generated";
 
-const INITIAL_PROVIDERS: AIProviderItem[] = [
-  { id: "1", name: "DeepSeek Account", status: "signed-in" },
-  { id: "2", name: "DeepSeek", status: "connected" },
-  { id: "3", name: "Command Code", status: "connected" },
-  { id: "4", name: "ChatGPT", status: "connected" },
-  { id: "5", name: "vercel-ai-gateway", status: "connected" },
-  { id: "6", name: "antigravity", status: "connected", isCustom: true },
-  { id: "7", name: "codex-lb", status: "connected", isCustom: true },
+// Re-export public interfaces for external callers and tests
+export {
+  getProviderConfig,
+  updateProviderConfig,
+  testProviderConnection,
+  type CredentialStorageType,
+  type ProviderConfigStatusDto,
+  type ProviderConfigResultDto,
+  type UpdateProviderConfigInput,
+  type TestProviderConnectionParams,
+  type TestProviderConnectionResult,
+  type AIProviderItemExtended,
+};
+
+const DEFAULT_FALLBACK_PROVIDERS: AIProviderItemExtended[] = [
+  { id: "ollama", name: "Ollama (Native Local)", status: "connected", providerType: "ollama" },
+  { id: "opencode", name: "OpenCode / Cloud AI", status: "connected", providerType: "opencode", hasApiKey: true, maskedApiKey: "••••••••" },
+  { id: "deepseek", name: "DeepSeek", status: "connected", providerType: "deepseek" },
+  { id: "antigravity", name: "Antigravity", status: "connected", isCustom: true },
 ];
 
-export function AIProvidersTab() {
+export interface AIProvidersTabProps {
+  client?: BackendClient;
+  initialConfig?: Partial<RuntimeAndProviderConfigDto>;
+  initialProviders?: AIProviderItem[];
+}
+
+export function AIProvidersTab({
+  client,
+  initialConfig,
+  initialProviders,
+}: AIProvidersTabProps = {}) {
   const t = useT();
   const [activeSubTab, setActiveSubTab] = useState<"api" | "coding-agent">("api");
-  const [providers, setProviders] = useState<AIProviderItem[]>(INITIAL_PROVIDERS);
-  const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(null);
+
+  // Determine initial credential storage and providers
+  const initialStorageMode: CredentialStorageType =
+    initialConfig?.credentialStorageMode === "session_only_fallback" ||
+    initialConfig?.credentialStorageMode === "SESSION_ONLY"
+      ? "SESSION_ONLY"
+      : initialConfig?.credentialStorageMode === "os_keychain" ||
+        initialConfig?.credentialStorageMode === "KEYCHAIN"
+      ? "KEYCHAIN"
+      : "KEYCHAIN";
+
+  const initialItems: AIProviderItemExtended[] = initialProviders
+    ? (initialProviders as AIProviderItemExtended[])
+    : initialConfig?.providers
+    ? initialConfig.providers.map((p) => ({
+        id: p.providerId,
+        name: p.name,
+        status: p.isActive ? "connected" : "disconnected",
+        hasApiKey: Boolean(p.hasApiKey),
+        maskedApiKey: p.hasApiKey ? "••••••••" : undefined,
+        credentialStorage: p.hasApiKey ? initialStorageMode : "NONE",
+        baseUrl: p.endpointUrl || undefined,
+        modelName: p.modelName || undefined,
+        isCustom: p.providerId !== "ollama" && p.providerId !== "opencode" && p.providerId !== "deepseek",
+      }))
+    : DEFAULT_FALLBACK_PROVIDERS;
+
+  const [providers, setProviders] = useState<AIProviderItemExtended[]>(initialItems);
+  const [credentialStorage, setCredentialStorage] = useState<CredentialStorageType>(initialStorageMode);
+  const [isBackendAvailable, setIsBackendAvailable] = useState<boolean>(true);
+  const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
+
+  const [editingProvider, setEditingProvider] = useState<AIProviderItemExtended | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<AIProviderItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AIProviderItemExtended | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const handleSave = (provider: AIProviderItem) => {
+  // Fetch live IPC state via BackendClient (REQ-FE-006, CI-10)
+  useEffect(() => {
+    let isMounted = true;
+    const activeClient = client || backendClient;
+
+    async function loadLiveConfig() {
+      if (initialConfig?.providers) return; // Already initialized from props
+
+      try {
+        const config = await getProviderConfig(activeClient);
+        if (!isMounted) return;
+
+        setCredentialStorage(config.credentialStorage);
+        setIsBackendAvailable(true);
+
+        if (config.providers && config.providers.length > 0) {
+          const liveList: AIProviderItemExtended[] = config.providers.map((p) => ({
+            id: p.providerId,
+            name: p.name,
+            status: p.isActive ? "connected" : "disconnected",
+            hasApiKey: p.hasApiKey,
+            maskedApiKey: p.maskedApiKey,
+            credentialStorage: p.credentialStorage,
+            baseUrl: p.endpointUrl || undefined,
+            isCustom:
+              p.providerId !== "ollama" &&
+              p.providerId !== "opencode" &&
+              p.providerId !== "deepseek",
+          }));
+          setProviders(liveList);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        // In unavailable / browser / SSR environments, mark backend as unavailable
+        setIsBackendAvailable(false);
+      }
+    }
+
+    loadLiveConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [client, initialConfig]);
+
+  const handleTestProvider = async (provider: AIProviderItemExtended) => {
+    setTestingProviderId(provider.id);
+    try {
+      const activeClient = client || backendClient;
+      const res = await testProviderConnection(
+        {
+          providerId: provider.id,
+          endpointUrl: provider.baseUrl,
+        },
+        activeClient
+      );
+
+      if (res.ok) {
+        setProviders((prev) =>
+          prev.map((p) =>
+            p.id === provider.id
+              ? { ...p, status: "connected", lastError: null }
+              : p
+          )
+        );
+        toast({ title: t("common.saved") || "Connection successful", variant: "success" });
+      } else {
+        setProviders((prev) =>
+          prev.map((p) =>
+            p.id === provider.id
+              ? { ...p, status: "error", lastError: res.error }
+              : p
+          )
+        );
+        toast({
+          title: `Connection failed: ${res.error || "PROVIDER_ERROR"}`,
+          variant: "error",
+        });
+      }
+    } catch (err: any) {
+      setProviders((prev) =>
+        prev.map((p) =>
+          p.id === provider.id
+            ? { ...p, status: "error", lastError: err.message || "PROVIDER_ERROR" }
+            : p
+        )
+      );
+      toast({
+        title: `Connection failed: ${err.message || "PROVIDER_ERROR"}`,
+        variant: "error",
+      });
+    } finally {
+      setTestingProviderId(null);
+    }
+  };
+
+  const handleSave = async (savedItem: AIProviderItem) => {
+    // Secret safety: ensure raw apiKey is never saved in frontend state
+    const safeItem: AIProviderItemExtended = {
+      ...savedItem,
+      status: "connected",
+      hasApiKey: Boolean(savedItem.apiKey || (editingProvider && editingProvider.hasApiKey)),
+      maskedApiKey: "••••••••",
+      credentialStorage: credentialStorage,
+      apiKey: undefined,
+    };
+
     if (editingProvider) {
-      setProviders(providers.map((p) => (p.id === provider.id ? provider : p)));
+      setProviders(providers.map((p) => (p.id === safeItem.id ? safeItem : p)));
     } else {
-      setProviders([...providers, provider]);
+      setProviders([...providers, safeItem]);
     }
     setIsAdding(false);
     setEditingProvider(null);
+    toast({ title: t("common.saved") || "Provider saved", variant: "success" });
   };
 
-  const requestDelete = (provider: AIProviderItem) => {
+  const requestDelete = (provider: AIProviderItemExtended) => {
     setDeleteTarget(provider);
     setDeleteOpen(true);
   };
@@ -53,6 +225,8 @@ export function AIProvidersTab() {
     return (
       <ProviderForm
         initialData={editingProvider}
+        client={client}
+        credentialStorage={credentialStorage}
         onCancel={() => {
           setIsAdding(false);
           setEditingProvider(null);
@@ -61,6 +235,9 @@ export function AIProvidersTab() {
       />
     );
   }
+
+  const isSessionOnly =
+    credentialStorage === "SESSION_ONLY" || credentialStorage === "session_only_fallback";
 
   return (
     <div className="space-y-4">
@@ -72,6 +249,42 @@ export function AIProvidersTab() {
           {t("providers.subtitle")}
         </p>
       </div>
+
+      {/* Session-Only Warning (phase5_sprint6_deep1-F1) */}
+      {isSessionOnly && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <span className="font-semibold">
+              SESSION_ONLY: Non-durable credential notice.{" "}
+            </span>
+            <span>
+              OS Keychain is unavailable. Credentials are stored in-memory for this session
+              only and will not persist after restart.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Backend Unavailable Notice (CI-10) */}
+      {!isBackendAvailable && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-muted/60 p-3 text-xs text-fg-muted"
+        >
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" />
+          <div>
+            <span className="font-semibold">Backend unavailable (offline mode). </span>
+            <span>
+              Tauri IPC is not connected. Showing simulated local provider state; changes will
+              not be durably persisted to OS Keychain.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Top-level segmented switch: API vs AI coding agent */}
       <div
@@ -114,33 +327,82 @@ export function AIProvidersTab() {
           {providers.map((provider) => (
             <div
               key={provider.id}
-              className="flex items-center justify-between rounded-2xl border border-line bg-surface-card px-4 py-2.5 transition-colors  "
+              className="flex items-center justify-between rounded-2xl border border-line bg-surface-card px-4 py-2.5 transition-colors"
             >
               <div className="flex items-center gap-2.5 truncate">
                 <span className="truncate text-xs font-medium text-fg">
                   {provider.name}
                 </span>
                 {provider.isCustom && (
-                  <span className="rounded-md bg-surface-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted  ">
+                  <span className="rounded-md bg-surface-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted">
                     {t("providers.custom")}
                   </span>
                 )}
-                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+
+                {/* Status dot indicator (P5S6-B) */}
+                {provider.status === "connected" || provider.status === "signed-in" ? (
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500"
+                    title="Connected"
+                  />
+                ) : provider.status === "error" ? (
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full bg-rose-500"
+                    title="Connection failed"
+                  />
+                ) : (
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full bg-zinc-400 dark:bg-zinc-600"
+                    title="Disconnected"
+                  />
+                )}
+
                 {provider.status === "signed-in" && (
                   <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">
                     {t("providers.signedIn")}
                   </span>
                 )}
+
+                {provider.status === "error" && (
+                  <span className="text-xs font-normal text-rose-500">
+                    Connection failed
+                  </span>
+                )}
+
+                {/* Masked API Key & Storage Indicator (P5S6-P, phase5_sprint6_deep1-F1) */}
+                {provider.hasApiKey && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-xs text-fg-muted">
+                      {provider.maskedApiKey || "••••••••"}
+                    </span>
+                    {provider.credentialStorage && (
+                      <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-mono font-medium text-fg-muted">
+                        {provider.credentialStorage}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
+                {/* Test Connection Button */}
+                <button
+                  type="button"
+                  onClick={() => handleTestProvider(provider)}
+                  disabled={testingProviderId === provider.id}
+                  className="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg disabled:opacity-50"
+                >
+                  {testingProviderId === provider.id ? "Testing..." : "Test"}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setEditingProvider(provider)}
-                  className="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg   "
+                  className="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg"
                 >
                   {t("providers.edit")}
                 </button>
+
                 {provider.name !== "DeepSeek Account" && (
                   <button
                     type="button"
@@ -157,7 +419,7 @@ export function AIProvidersTab() {
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong py-3 text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg   "
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong py-3 text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
           >
             <Plus className="h-4 w-4" />
             <span>{t("providers.add")}</span>

@@ -11,12 +11,16 @@ after(async () => { await vite.close(); });
 
 const {
   buildSceneBlocks,
+  buildSceneBlocksFromReadModel,
   buildSceneRegenerationRequest,
   isSceneDirty,
+  isSceneContentDirty,
   normalizeNote,
   sourceForSceneAction,
   canBulkChangeLocks,
   applyBulkLock,
+  reviewGeneratedScene,
+  restoreSceneVersion,
 } = await vite.ssrLoadModule('/src/features/projects/scenePreview.ts');
 
 test('T09/T10: normalizes empty, whitespace-only, and non-empty notes', () => {
@@ -57,6 +61,14 @@ test('content and lock changes are combined in dirty calculation', () => {
   assert.equal(isSceneDirty({ text: 'B', locked: false }, baseline), true);
 });
 
+test('REQ-FE-005: isSceneContentDirty treats lock toggles as NOT content-dirty', () => {
+  const baseline = { text: 'Nội dung ban đầu', locked: false };
+  assert.equal(isSceneContentDirty(baseline, baseline), false);
+  assert.equal(isSceneContentDirty({ text: 'Nội dung ban đầu', locked: true }, baseline), false);
+  assert.equal(isSceneContentDirty({ text: 'Nội dung đã sửa', locked: false }, baseline), true);
+  assert.equal(isSceneContentDirty({ text: 'Nội dung đã sửa', locked: true }, baseline), true);
+});
+
 test('T07/T08: source follows the final scene action', () => {
   assert.equal(sourceForSceneAction('accept'), 'AI_GENERATED');
   assert.equal(sourceForSceneAction('edit'), 'HUMAN_EDITED');
@@ -84,6 +96,49 @@ test('scene identity follows block id, not array position', () => {
     'scn-c-1-blk-2',
     'scn-c-1-blk-1',
   ]);
+});
+
+test('buildSceneBlocksFromReadModel maps real UUIDv7 scenes.id directly', () => {
+  const readModel = {
+    projectId: 'proj-123',
+    chapterId: 'chap-456',
+    chapterTitle: 'Chương 1',
+    position: 1,
+    scenes: [
+      {
+        id: '0192e2b3-7649-7000-8000-000000000001',
+        chapterId: 'chap-456',
+        position: 1,
+        displayName: 'Cảnh mở đầu',
+        content: 'Bình minh trên đỉnh núi.',
+        wordCount: 5,
+        isLocked: false,
+        headVersionNumber: 1,
+        currentSceneSource: 'USER',
+      },
+      {
+        id: '0192e2b3-7649-7000-8000-000000000002',
+        chapterId: 'chap-456',
+        position: 2,
+        displayName: 'Cảnh chuyển tiếp',
+        content: 'Bóng tối ập xuống thung lũng.',
+        wordCount: 6,
+        isLocked: true,
+        headVersionNumber: 2,
+        currentSceneSource: 'AI',
+      },
+    ],
+  };
+
+  const blocks = buildSceneBlocksFromReadModel(readModel);
+  assert.equal(blocks.length, 2);
+  assert.equal(blocks[0].sceneId, '0192e2b3-7649-7000-8000-000000000001');
+  assert.equal(blocks[0].id, '0192e2b3-7649-7000-8000-000000000001');
+  assert.equal(blocks[0].locked, false);
+  assert.equal(blocks[0].headVersionNumber, 1);
+  assert.equal(blocks[1].sceneId, '0192e2b3-7649-7000-8000-000000000002');
+  assert.equal(blocks[1].locked, true);
+  assert.equal(blocks[1].headVersionNumber, 2);
 });
 
 test('F03: bulk lock changes are blocked while generating or reviewing', () => {
@@ -115,4 +170,77 @@ test('F03: Unlock All when idle unlocks every scene and preserves content', () =
   assert.deepEqual(out.map((b) => b.text), ['a edited', 'b']);
   assert.deepEqual(blocks.map((b) => b.locked), [true, true]);
   assert.equal(isSceneDirty(out[0], blocks[0]), true);
+});
+
+test('P5S5-P & P5S5-N: reviewGeneratedScene accepts valid candidate and rejects invalidated', () => {
+  const scene = {
+    id: 's1',
+    sceneId: 's1',
+    text: 'Old text',
+    locked: false,
+    headVersionNumber: 1,
+  };
+  const validCandidate = {
+    requestId: 'req-1',
+    generationId: 'gen-1',
+    sceneId: 's1',
+    baselineVersionNumber: 1,
+    authorizationValid: true,
+    status: 'review',
+    text: 'AI generated content text',
+  };
+
+  // Valid candidate acceptance
+  const accepted = reviewGeneratedScene({ action: 'accept', candidate: validCandidate, scene });
+  assert.equal(accepted.accepted, true);
+  assert.equal(accepted.updatedText, 'AI generated content text');
+  assert.equal(accepted.source, 'AI_GENERATED');
+
+  // Discard
+  const discarded = reviewGeneratedScene({ action: 'discard', candidate: validCandidate, scene });
+  assert.equal(discarded.accepted, false);
+
+  // Invalidated candidate: authorizationValid === false
+  const invalidAuth = { ...validCandidate, authorizationValid: false };
+  assert.throws(
+    () => reviewGeneratedScene({ action: 'accept', candidate: invalidAuth, scene }),
+    /CONFLICT_INVALIDATED/
+  );
+
+  // Invalidated candidate: scene is locked
+  assert.throws(
+    () => reviewGeneratedScene({ action: 'accept', candidate: validCandidate, scene: { ...scene, locked: true } }),
+    /CONFLICT_INVALIDATED/
+  );
+
+  // Invalidated candidate: version mismatch
+  assert.throws(
+    () => reviewGeneratedScene({ action: 'accept', candidate: validCandidate, scene: { ...scene, headVersionNumber: 2 } }),
+    /CONFLICT_INVALIDATED/
+  );
+});
+
+test('CI-08 / REQ-WRITE-004: restoreSceneVersion restores into dirty buffer and blocks locked scene', () => {
+  const unlockedScene = {
+    id: 's1',
+    sceneId: 's1',
+    text: 'Current text',
+    locked: false,
+    headVersionNumber: 2,
+  };
+  const version = {
+    versionNumber: 1,
+    content: 'Historical version 1 content',
+  };
+
+  const res = restoreSceneVersion(unlockedScene, version);
+  assert.equal(res.success, true);
+  assert.equal(res.newText, 'Historical version 1 content');
+  assert.equal(res.source, 'RESTORE');
+
+  const lockedScene = { ...unlockedScene, locked: true };
+  assert.throws(
+    () => restoreSceneVersion(lockedScene, version),
+    /SCENE_LOCKED_RESTORE_BLOCKED/
+  );
 });

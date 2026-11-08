@@ -8,7 +8,14 @@ manifest=json.loads((P/'manifest.json').read_text(encoding='utf-8'))
 sprints=manifest['sprints']; gates=manifest['integration_gates']; reqs=manifest['requirements']
 ids=[s['sprint_id'] for s in sprints]; gid=[g['id'] for g in gates]
 assert manifest['schema_version']==1 and manifest['project']=='merlink-harness'
-assert manifest['baseline_commit']==m['BASE']==subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+source_base=m.get('SOURCE_BASE',m['BASE']); exec_base=m.get('EXEC_BASE',head)
+assert manifest['baseline_commit']==m['BASE']==source_base
+assert manifest.get('source_baseline_commit',source_base)==source_base
+assert manifest.get('execution_baseline_commit',exec_base)==exec_base
+subprocess.run(['git','merge-base','--is-ancestor',source_base,head],cwd=ROOT,check=True)
+changed=subprocess.check_output(['git','diff','--name-only',f'{source_base}..{head}'],cwd=ROOT,text=True).splitlines()
+assert all(p.startswith('docs/plan/') for p in changed),('baseline_contamination',changed)
 assert len(ids)==len(set(ids))==len(m['S'])
 assert len(gid)==len(set(gid))==len(ids)
 assert len(reqs)==len({r['requirement_id'] for r in reqs})==len(m['R'])
@@ -104,4 +111,4 @@ if __name__=='__main__':
         assert re.search(r'^AUTHORITY_SHA: [0-9a-f]{40}$',body,re.M)
         assert 'ISSUE_ID:' in body and 'SOURCE_ANCHOR:' in body and 'DISPOSITION:' in body
         if 'CONTRACT_STATUS: ACCEPTED' in body:assert 'DISPOSITION: CONTRACT_BLOCKED' not in body
-print(json.dumps({'result':'PLAN_STRUCTURE_VALIDATED','baseline':m['BASE'],'phases':len(manifest['phases']),'sprints':len(sprints),'gates':len(gates),'requirements':len(reqs),'status':status,'unowned':0,'missing_acceptance':0,'same_depth_pairs_reviewed':pairs,'unsafe_pairs':unsafe},default=list,ensure_ascii=False))
+print(json.dumps({'result':'PLAN_STRUCTURE_VALIDATED','baseline':m['BASE'],'source_baseline':source_base,'execution_baseline':exec_base,'phases':len(manifest['phases']),'sprints':len(sprints),'gates':len(gates),'requirements':len(reqs),'status':status,'unowned':0,'missing_acceptance':0,'same_depth_pairs_reviewed':pairs,'unsafe_pairs':unsafe},default=list,ensure_ascii=False))

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Info, Pencil } from "lucide-react";
+import { Info, Pencil, AlertCircle } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { ProcessDetailDialog } from "./ProcessDetailDialog";
 import { Badge } from "@/shared/components/ui/badge";
@@ -7,6 +7,7 @@ import { useT } from "@/shared/i18n/useT";
 import {
   type BusinessFlowData,
   isRequireComplete as checkRequireComplete,
+  TOTAL_TRACKED_ATTRIBUTES,
 } from "@/features/business-flow";
 
 export interface ChatHeaderProps {
@@ -15,6 +16,13 @@ export interface ChatHeaderProps {
   progressPercent?: number;
   isRequireComplete?: boolean;
   businessFlowData?: BusinessFlowData;
+  confirmedCount?: number;
+  aiInferredCount?: number;
+  totalAttributes?: number;
+  readinessGatePassed?: boolean;
+  backendStatus?: "available" | "unavailable";
+  interruptedTurnAlert?: string | null;
+  onDismissAlert?: () => void;
 }
 
 export function ChatHeader({
@@ -23,16 +31,34 @@ export function ChatHeader({
   progressPercent = 65,
   isRequireComplete: propIsRequireComplete,
   businessFlowData,
+  confirmedCount,
+  aiInferredCount,
+  totalAttributes = TOTAL_TRACKED_ATTRIBUTES,
+  readinessGatePassed,
+  backendStatus = "available",
+  interruptedTurnAlert,
+  onDismissAlert,
 }: ChatHeaderProps) {
   const [infoOpen, setInfoOpen] = useState(false);
   const t = useT();
 
   const isComplete =
-    propIsRequireComplete !== undefined
-      ? propIsRequireComplete
-      : businessFlowData
-        ? checkRequireComplete(businessFlowData)
-        : true;
+    readinessGatePassed !== undefined
+      ? readinessGatePassed
+      : propIsRequireComplete !== undefined
+        ? propIsRequireComplete
+        : businessFlowData
+          ? checkRequireComplete(businessFlowData)
+          : true;
+
+  const hasDual = confirmedCount !== undefined || aiInferredCount !== undefined;
+  const confirmedPct = hasDual
+    ? Math.round(((confirmedCount ?? 0) / totalAttributes) * 100)
+    : progressPercent;
+  const aiPct = hasDual
+    ? Math.round(((aiInferredCount ?? 0) / totalAttributes) * 100)
+    : 0;
+  const displayTotalPct = Math.min(100, confirmedPct + aiPct);
 
   return (
     <>
@@ -41,23 +67,64 @@ export function ChatHeader({
           <h2 className="text-sm font-semibold tracking-tight text-fg">
             Merlink-harness
           </h2>
-          <Badge variant="neutral">{t("chat.preview")}</Badge>
+          {backendStatus === "unavailable" ? (
+            <Badge
+              variant="neutral"
+              className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/30"
+              title="Backend runtime bridge is unavailable"
+            >
+              Backend Unavailable
+            </Badge>
+          ) : (
+            <Badge variant="neutral">{t("chat.preview")}</Badge>
+          )}
+          {interruptedTurnAlert && (
+            <div
+              role="alert"
+              className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50/80 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+              title={interruptedTurnAlert}
+            >
+              <AlertCircle className="h-3 w-3 shrink-0 text-amber-500" />
+              <span className="max-w-[200px] truncate">{interruptedTurnAlert}</span>
+              {onDismissAlert && (
+                <button
+                  type="button"
+                  onClick={onDismissAlert}
+                  className="ml-1 text-xs opacity-60 hover:opacity-100"
+                  aria-label="Dismiss alert"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div
               role="progressbar"
-              aria-valuenow={progressPercent}
+              aria-valuenow={displayTotalPct}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label={t("chat.progress")}
-              className="h-2 w-28 overflow-hidden rounded-full border border-line bg-surface-muted"
+              title={
+                hasDual
+                  ? `Đã xác nhận: ${confirmedCount ?? 0}/${totalAttributes} (${confirmedPct}%) | AI đề xuất: ${aiInferredCount ?? 0}/${totalAttributes} (${aiPct}%)`
+                  : undefined
+              }
+              className="flex h-2 w-28 overflow-hidden rounded-full border border-line bg-surface-muted"
             >
               <div
-                className="h-full rounded-full bg-accent transition-colors duration-300"
-                style={{ width: `${progressPercent}%` }}
+                className="h-full bg-accent transition-all duration-300"
+                style={{ width: `${confirmedPct}%` }}
               />
+              {aiPct > 0 && (
+                <div
+                  className="h-full bg-accent/40 transition-all duration-300"
+                  style={{ width: `${aiPct}%` }}
+                />
+              )}
             </div>
             <button
               type="button"

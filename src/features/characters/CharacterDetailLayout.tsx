@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { Pencil, MessageSquare, GripVertical, X, Check } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
@@ -11,12 +11,26 @@ import { toast } from '@/shared/components/ui/toast';
 import { useT } from '@/shared/i18n/useT';
 import { Tabs } from '@/shared/components/ui/tabs';
 import type { TKey } from '@/shared/i18n/dict';
+import { backendClient, type BackendClient } from '@/shared/backend/client';
+import type { CharacterDetailDto } from '@/shared/backend/generated';
+import { sanitizeDisplayLabel } from '@/features/projects/ProjectView';
 import { useCharacterStore } from './store';
 import { MOCK_CHARACTERS_MAP } from './mockData';
 import { CoreIdentityTab } from './tabs/CoreIdentityTab';
 import { LifeExperienceTab } from './tabs/LifeExperienceTab';
 import { PsychologicalTab } from './tabs/PsychologicalTab';
-import type { DetailTab } from './types';
+import { sanitizeCharacterProfile } from './CharacterListView';
+import type {
+  CharacterProfile,
+  CharacterAppearance,
+  CharacterCompetence,
+  CharacterMemory,
+  CharacterRelationship,
+  DetailTab,
+  DistinguishingMark,
+  Gender,
+  PsychologicalProfile,
+} from './types';
 
 const tabKeys: Record<DetailTab, TKey> = {
   core: 'character.detail.core',
@@ -29,18 +43,150 @@ const lifeSubLabels = {
   memory: 'Memory',
 } as const;
 
-interface CharacterDetailLayoutProps {
-  characterId?: string;
+const validGender = (g?: string | null): Gender => {
+  if (g === 'MALE' || g === 'FEMALE' || g === 'NONE') return g;
+  return 'NONE';
+};
+
+/**
+ * Maps a CharacterDetailDto from the backend transport into a UI CharacterProfile.
+ * Sanitizes all names and internal code slugs.
+ */
+export function mapCharacterDetailDtoToProfile(
+  dto: CharacterDetailDto,
+  projectName?: string
+): CharacterProfile {
+  const c = dto.character;
+  const cleanName = sanitizeDisplayLabel(c.name, c.code, 'Nhân vật');
+  const cleanNickname = c.nickname ? sanitizeDisplayLabel(c.nickname, undefined, '') : undefined;
+
+  const app = dto.appearance;
+  const appearance: CharacterAppearance = {
+    height: app?.height ?? 170,
+    weight: app?.weight ?? 60,
+    hair: app?.hair ?? 'Đen',
+    eyes: app?.eyes ?? 'Nâu',
+    skin: app?.skin ?? 'Tự nhiên',
+    hairNote: app?.hairNote ?? '',
+    eyesNote: app?.eyesNote ?? '',
+    skinNote: app?.skinNote ?? '',
+    outfitStyle: app?.outfitStyle ?? 'Giản dị',
+    defaultSummary: app?.defaultSummary ?? c.defaultSummary ?? '',
+  };
+
+  const distinguishingMarks: DistinguishingMark[] = [];
+
+  const memories: CharacterMemory[] = (dto.memories ?? []).map((m) => ({
+    id: m.id,
+    content: sanitizeDisplayLabel(
+      m.title ? `${m.title}: ${m.description}` : m.description,
+      undefined,
+      m.description || m.id
+    ),
+  }));
+
+  const competences: CharacterCompetence[] = (dto.competences ?? []).map((comp) => ({
+    id: comp.id,
+    code: comp.id,
+    name: sanitizeDisplayLabel(comp.competenceName, comp.id, 'Kỹ năng'),
+    domain: comp.domain || 'Chung',
+    level: comp.level || 'Cơ bản',
+    description: comp.competenceName,
+    capabilities: [],
+    limitations: [],
+  }));
+
+  const relationships: CharacterRelationship[] = (dto.relationships ?? []).map((r, idx) => ({
+    id: `rel-${r.targetCharacterId}-${idx}`,
+    targetId: r.targetCharacterId,
+    targetName: sanitizeDisplayLabel(r.targetCharacterId, undefined, 'Người liên hệ'),
+    role: 'EQUAL' as const,
+    category: 'SOCIAL' as const,
+    states: {
+      trust: 'MODERATE' as const,
+      affection: 'MODERATE' as const,
+      hostility: 'NONE' as const,
+      fear: 'NONE' as const,
+      respect: 'MODERATE' as const,
+      familiarity: 'MODERATE' as const,
+      dependency: 'LOW' as const,
+    },
+  }));
+
+  let psychological: PsychologicalProfile | undefined = undefined;
+  if (dto.psychological) {
+    psychological = {
+      coreTrauma: {
+        theWound: dto.psychological.summary || '',
+        theLie: '',
+        fundamentalFear: '',
+      },
+      cognitiveMoral: {
+        moralAlignment: 'NEUTRAL',
+        moralCode: (dto.psychological.coreValues || []).join(', '),
+        cognitiveBias: '',
+        breakingPoint: (dto.psychological.traumaTriggers || []).join(', '),
+      },
+      narrativeEngine: {
+        externalWant: '',
+        internalNeed: '',
+        internalConflict: '',
+      },
+      behavioralAdaptation: {
+        socialMask: {
+          personaType: '',
+          verbalStyle: (dto.psychological.behavioralQuirks || []).join(', '),
+        },
+        defenseMechanisms: {
+          primaryReaction: '',
+          stressTrigger: '',
+          copingStrategy: '',
+        },
+      },
+    };
+  }
+
+  return {
+    id: c.id,
+    code: c.code,
+    projectId: undefined,
+    projectName: projectName,
+    basicInfo: {
+      name: cleanName,
+      nickname: cleanNickname,
+      species: c.species,
+      biologicalSex: validGender(c.biologicalSex),
+      genderIdentity: validGender(c.genderIdentity),
+      genderExpression: validGender(c.genderExpression),
+    },
+    avatarBg: 'bg-indigo-500',
+    appearance,
+    distinguishingMarks,
+    relationships,
+    competences,
+    memories,
+    psychological,
+  };
 }
 
-export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLayoutProps = {}) {
+export interface CharacterDetailLayoutProps {
+  characterId?: string;
+  client?: BackendClient;
+}
+
+export function CharacterDetailLayout({
+  characterId: propId,
+  client: propClient,
+}: CharacterDetailLayoutProps = {}) {
   const t = useT();
   const { characterId: paramId } = useParams();
   const targetId = propId || paramId;
+  const activeClient = propClient || backendClient;
 
   const charactersList = useCharacterStore((s) => s.charactersList);
   const storeCharacter = useCharacterStore((s) => s.character);
   const loadCharacter = useCharacterStore((s) => s.loadCharacter);
+  const setStoreCharacter = useCharacterStore((s) => s.setCharacter);
   const isEditing = useCharacterStore((s) => s.isEditing);
   const startEditing = useCharacterStore((s) => s.startEditing);
   const saveEditing = useCharacterStore((s) => s.saveEditing);
@@ -51,22 +197,64 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
   const setActiveTab = useCharacterStore((s) => s.setActiveTab);
   const activeLifeTab = useCharacterStore((s) => s.activeLifeTab);
 
-  // Synchronously resolve character from URL param / propId (no delay, no flashing Kaelen Vance!)
-  const character = useMemo(() => {
-    if (!targetId) return storeCharacter;
-    return (
-      charactersList.find((c) => c.id === targetId || c.code === targetId) ||
-      MOCK_CHARACTERS_MAP[targetId] ||
-      storeCharacter
-    );
-  }, [charactersList, targetId, storeCharacter]);
+  const [backendCharacter, setBackendCharacter] = useState<CharacterProfile | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Đồng bộ vào store khi param URL thay đổi
   useEffect(() => {
-    if (targetId) {
-      loadCharacter(targetId);
+    let isMounted = true;
+    if (!targetId) {
+      setNotFound(true);
+      return;
     }
-  }, [targetId, loadCharacter]);
+
+    if (activeClient && activeClient.status !== 'unavailable') {
+      setLoading(true);
+      activeClient
+        .getCharacterDetail({ characterId: targetId })
+        .then((res) => {
+          if (!isMounted) return;
+          if (!res?.character) {
+            setNotFound(true);
+            setBackendCharacter(null);
+          } else {
+            const mapped = mapCharacterDetailDtoToProfile(res);
+            setBackendCharacter(mapped);
+            setNotFound(false);
+            setStoreCharacter(mapped);
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          // Absent from backend: explicit not-found, never mock fallback!
+          setNotFound(true);
+          setBackendCharacter(null);
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    } else {
+      // Backend unavailable: look in local store or mock map
+      const found =
+        charactersList.find((c) => c.id === targetId || c.code === targetId) ||
+        MOCK_CHARACTERS_MAP[targetId];
+
+      if (found) {
+        const sanitized = sanitizeCharacterProfile(found);
+        setBackendCharacter(sanitized);
+        setNotFound(false);
+        loadCharacter(targetId);
+      } else {
+        // If absent locally as well, render explicit not found!
+        setNotFound(true);
+        setBackendCharacter(null);
+      }
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetId, activeClient, charactersList, loadCharacter, setStoreCharacter]);
 
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -75,6 +263,35 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
     initialRatio: 45,
     minPx: 340,
   });
+
+  if (notFound || (!backendCharacter && !loading)) {
+    return (
+      <div
+        data-testid="character-not-found"
+        className="flex h-full flex-col items-center justify-center p-6 text-center"
+      >
+        <p className="text-sm text-fg-muted">
+          Không tìm thấy nhân vật.
+        </p>
+        <Link
+          to="/character"
+          className="mt-3 text-xs font-semibold text-blue-600 hover:underline"
+        >
+          Quay lại danh sách nhân vật
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading && !backendCharacter) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-center text-xs text-fg-muted">
+        Đang tải...
+      </div>
+    );
+  }
+
+  const character = backendCharacter || storeCharacter;
 
   const tabLabel = (tab: DetailTab) => t(tabKeys[tab]);
   const subSectionName =
@@ -86,6 +303,7 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
     saveEditing();
     toast({ title: t('common.saved'), variant: 'success' });
   };
+
   const handleConfirmDiscard = () => {
     cancelEditing();
     setDiscardOpen(false);
@@ -154,7 +372,6 @@ export function CharacterDetailLayout({ characterId: propId }: CharacterDetailLa
               {t('character.title')}
             </Link>
             <span>›</span>
-            {/* 1.1: Hiển thị tên nhân vật đang xem thay vì fix cứng */}
             <span
               className="truncate text-fg-muted font-medium"
               title={`${character.basicInfo.name} (${t('character.nickname')}: ${character.basicInfo.nickname?.trim() || t('common.unknown')})`}

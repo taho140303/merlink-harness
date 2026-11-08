@@ -1,6 +1,6 @@
 # Merlink Harness autonomous implementation plan
 
-Baseline commit: `57a462efb953a665e3673b15e6cc33622a4f2d39` on `main`; working tree was clean when authored. This is a **plan only**. At baseline there is a React Router 8/React 19 mock frontend and 39 Node tests, but no Rust, Tauri, SQLite migrations, backend tests or CI. No implementation or migration was run to author these files.
+Source baseline commit: `57a462efb953a665e3673b15e6cc33622a4f2d39` on `main` (execution/plan commit: `407469219679d2fa40f3aaf634d6e802741d908a`); working tree was clean when authored. This is a **plan only**. At baseline there is a React Router 8/React 19 mock frontend and 39 Node tests, but no Rust, Tauri, SQLite migrations, backend tests or CI. No implementation or migration was run to author these files.
 
 ## Authority and navigation
 Owner decisions in `docs/architecture/decisions/sf06-owner-ratification.md` > Business Core > DBML > FE Core > BE Core > tool/prompt contracts > this plan. `report/` is not an authority and never a sprint prerequisite. Start with `manifest.json` for scheduling, `coverage-matrix.md` for requirements, `dependency-graph.md` for edges/parallelism, `integration-contract.md` for execution protocol; then open a single `phase<i>_sprint<j>_deep<k>.md` sprint file. Sprint IDs are stable; phase index is engineering capability and **not** business Phase 0–6. `deep` is longest in-phase dependency depth, not priority/effort. Cross-phase deps are explicit.

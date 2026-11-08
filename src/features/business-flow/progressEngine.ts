@@ -452,3 +452,268 @@ export function calculateBusinessFlowProgress(
     missingRequireFields,
   };
 }
+
+// ============================================================================
+// Phase 5 Sprint 2: Dual Progress & Backend Progress Integration (46 Master Attributes)
+// ============================================================================
+
+/**
+ * Total number of Master Attributes tracked by the progress engine (core.md §3.1, be-core.md §4.6).
+ * 50 attributes in specification minus 4 explicitly excluded attributes = 46 fixed denominator.
+ */
+export const TOTAL_TRACKED_ATTRIBUTES = 46 as const;
+
+/**
+ * 4 explicitly excluded attributes that do not contribute to progress denominator or numerator:
+ * - 3 tolerance fields in Overview Phase
+ * - 1 motif event_blocks field in Relationship Phase
+ */
+export const EXCLUDED_PROGRESS_ATTRIBUTES: readonly string[] = [
+  'optional.overview_phase.project.target.arc_tolerance',
+  'optional.overview_phase.project.target.chapter_tolerance',
+  'optional.overview_phase.project.target.word_per_chapter_tolerance',
+  'optional.relationship_phase.relationship.motif.event_blocks',
+] as const;
+
+/**
+ * Canonical list of 46 tracked Master Attributes (50 - 4 = 46).
+ */
+export const MASTER_TRACKED_ATTRIBUTES: readonly string[] = MASTER_ATTRIBUTES_LIST.filter(
+  (attr) => !EXCLUDED_PROGRESS_ATTRIBUTES.includes(attr),
+);
+
+/**
+ * Evaluated progress state for an individual Master Attribute.
+ */
+export type AttributeProgressState = 'confirmed' | 'ai_suggested' | 'incomplete';
+
+/**
+ * Raw progress DTO received from Tauri IPC backend (Group 1 / Group 2).
+ * Supports both camelCase and snake_case representations from Rust serde serialization.
+ */
+export interface DraftProgressDto {
+  confirmed_count?: number;
+  confirmedCount?: number;
+  ai_inferred_count?: number;
+  aiInferredCount?: number;
+  ai_suggested_count?: number;
+  aiSuggestedCount?: number;
+  completed_attributes?: number;
+  completedAttributes?: number;
+  total_attributes?: number;
+  totalAttributes?: number;
+  total_count?: number;
+  totalCount?: number;
+  progress_percentage?: number;
+  progressPercentage?: number;
+  confirmed_percent?: number;
+  confirmedPercent?: number;
+  ai_suggested_percent?: number;
+  aiInferredPercent?: number;
+  is_require_complete?: boolean;
+  isRequireComplete?: boolean;
+  readiness_gate_passed?: boolean;
+  readinessGatePassed?: boolean;
+  can_advance_phase?: boolean;
+  canAdvancePhase?: boolean;
+  current_phase?: number;
+  currentPhase?: number;
+  current_subphase?: number | null;
+  currentSubphase?: number | null;
+}
+
+/**
+ * Strongly-typed live frontend progress model adhering to P5S2-B:
+ * - Dual progress tracking (confirmed vs AI inferred).
+ * - Fixed 46-attribute denominator (TOTAL_TRACKED_ATTRIBUTES).
+ * - Exact readiness gate passed status with zero synthetic fabrication.
+ */
+export interface DraftProgressState {
+  confirmedCount: number;
+  aiInferredCount: number;
+  totalAttributes: 46;
+  confirmedPercent: number;
+  aiInferredPercent: number;
+  totalPercent: number;
+  isRequireComplete: boolean;
+  readinessGatePassed: boolean;
+  canAdvancePhase: boolean;
+  currentPhase: number;
+  currentSubphase?: number | null;
+}
+
+/**
+ * Maps incoming backend DraftProgressDto / ProgressSummaryDto to strongly-typed DraftProgressState.
+ * Guarantees fixed denominator 46, dual percentages, and no synthetic readiness fabrication (P5S2-B).
+ */
+export function fromDraftProgressDto(
+  dto: DraftProgressDto | null | undefined,
+): DraftProgressState {
+  if (!dto) {
+    return {
+      confirmedCount: 0,
+      aiInferredCount: 0,
+      totalAttributes: TOTAL_TRACKED_ATTRIBUTES,
+      confirmedPercent: 0,
+      aiInferredPercent: 0,
+      totalPercent: 0,
+      isRequireComplete: false,
+      readinessGatePassed: false,
+      canAdvancePhase: false,
+      currentPhase: 0,
+      currentSubphase: null,
+    };
+  }
+
+  const confirmedCount =
+    dto.confirmedCount ??
+    dto.confirmed_count ??
+    dto.completedAttributes ??
+    dto.completed_attributes ??
+    0;
+
+  const aiInferredCount =
+    dto.aiInferredCount ??
+    dto.ai_inferred_count ??
+    dto.aiSuggestedCount ??
+    dto.ai_suggested_count ??
+    0;
+
+  const totalAttributes = TOTAL_TRACKED_ATTRIBUTES; // Fixed denominator 46
+
+  const confirmedPercent =
+    dto.confirmedPercent ??
+    dto.confirmed_percent ??
+    Math.round((confirmedCount / totalAttributes) * 100);
+
+  const aiInferredPercent =
+    dto.aiInferredPercent ??
+    dto.ai_suggested_percent ??
+    Math.round((aiInferredCount / totalAttributes) * 100);
+
+  const totalPercent = Math.min(
+    100,
+    dto.progressPercentage ??
+      dto.progress_percentage ??
+      confirmedPercent + aiInferredPercent,
+  );
+
+  // Strict readiness evaluation: zero synthetic readiness!
+  const readinessGatePassed = Boolean(
+    dto.readinessGatePassed ??
+      dto.readiness_gate_passed ??
+      dto.isRequireComplete ??
+      dto.is_require_complete,
+  );
+
+  const canAdvancePhase = Boolean(
+    dto.canAdvancePhase ??
+      dto.can_advance_phase ??
+      readinessGatePassed,
+  );
+
+  const currentPhase = dto.currentPhase ?? dto.current_phase ?? 0;
+  const currentSubphase = dto.currentSubphase ?? dto.current_subphase ?? null;
+
+  return {
+    confirmedCount,
+    aiInferredCount,
+    totalAttributes,
+    confirmedPercent,
+    aiInferredPercent,
+    totalPercent,
+    isRequireComplete: readinessGatePassed,
+    readinessGatePassed,
+    canAdvancePhase,
+    currentPhase,
+    currentSubphase,
+  };
+}
+
+/**
+ * Reconciles current progress state with newly received backend progress DTO.
+ */
+export function reconcileDraftProgress(
+  current: DraftProgressState | null | undefined,
+  dto: DraftProgressDto | null | undefined,
+): DraftProgressState {
+  if (!dto) {
+    return current ?? fromDraftProgressDto(null);
+  }
+  return fromDraftProgressDto(dto);
+}
+
+/**
+ * Computes progress state for local BusinessFlowData across 46 Master Attributes.
+ */
+export function computeDraftProgress(
+  data: BusinessFlowData | null | undefined,
+): DraftProgressState {
+  if (!data) {
+    return fromDraftProgressDto(null);
+  }
+
+  let confirmedCount = 0;
+  const aiInferredCount = 0;
+
+  for (const attr of MASTER_TRACKED_ATTRIBUTES) {
+    const evaluator = ATTRIBUTE_EVALUATORS[attr];
+    if (evaluator && evaluator(data)) {
+      confirmedCount++;
+    }
+  }
+
+  const isReady = isRequireComplete(data);
+  const totalAttributes = TOTAL_TRACKED_ATTRIBUTES;
+  const confirmedPercent = Math.round((confirmedCount / totalAttributes) * 100);
+  const aiInferredPercent = Math.round((aiInferredCount / totalAttributes) * 100);
+
+  return {
+    confirmedCount,
+    aiInferredCount,
+    totalAttributes,
+    confirmedPercent,
+    aiInferredPercent,
+    totalPercent: Math.min(100, confirmedPercent + aiInferredPercent),
+    isRequireComplete: isReady,
+    readinessGatePassed: isReady,
+    canAdvancePhase: isReady,
+    currentPhase: 0,
+    currentSubphase: null,
+  };
+}
+
+/**
+ * Resolves system language enforcing CI-09 authority precedence:
+ * Trusted UI/settings language takes strict precedence; untrusted caller override cannot silently clobber it.
+ */
+export function resolveSystemLanguage(
+  trustedSetting?: string | null,
+  untrustedOverride?: string | null,
+): 'vi' | 'en' {
+  // If a valid trusted UI setting is explicitly provided, it strictly wins
+  if (trustedSetting === 'vi' || trustedSetting === 'en') {
+    return trustedSetting;
+  }
+
+  // If in browser environment, check trusted localStorage setting
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage?.getItem('merlink.locale');
+      if (stored === 'vi' || stored === 'en') {
+        return stored;
+      }
+    } catch {
+      // Storage access failed, proceed to fallback
+    }
+  }
+
+  // Untrusted override is only considered if trusted setting is absent and it's valid
+  if (untrustedOverride === 'vi' || untrustedOverride === 'en') {
+    return untrustedOverride;
+  }
+
+  // Authoritative default locale per Merlink specification
+  return 'vi';
+}
+

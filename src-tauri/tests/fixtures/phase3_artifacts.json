@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase-3 Producer-Consumer Artifact Fixture Vectors",
+  "description": "Golden vectors for WorldProbeReportV1 and WorldWriteInputV1 testing RFC 8785 JCS UTF-8 serialization, domain separation prefix, and SHA-256 hash digests (REQ-ART-001, CI-02).",
+  "metadata": {
+    "authoritySha": "57a462efb953a665e3673b15e6cc33622a4f2d39",
+    "predecessorP1S3Sha": "1e70d6f6d89b806b2243a1f4669eddce858d0b95",
+    "predecessorP2S2Sha": "f69f1ab0e3d3d34853ddf887cac139cde6d64b0d",
+    "domainPrefix": "merlink.sf06.artifact.v1\\0",
+    "defaultMaxBudget": 262144
+  },
+  "worldProbeReportGolden": {
+    "artifact": {
+      "schemaVersion": 1,
+      "codecVersion": "v1",
+      "assignedScope": "p3:arc_01:ch=001..050",
+      "reportText": "Terrain: Northern jagged mountains; Organizations: Iron Citadel garrison; Lore: Legend of the Frost King."
+    },
+    "canonicalJcs": "{\"assignedScope\":\"p3:arc_01:ch=001..050\",\"codecVersion\":\"v1\",\"reportText\":\"Terrain: Northern jagged mountains; Organizations: Iron Citadel garrison; Lore: Legend of the Frost King.\",\"schemaVersion\":1}",
+    "sha256Hash": "86ce4162ba4600462c6daf2855217f12b0fadcc32603cc5789f7b4524a15a0c6"
+  },
+  "worldProbeReportGolden2": {
+    "artifact": {
+      "schemaVersion": 1,
+      "codecVersion": "v1",
+      "assignedScope": "p3:arc_01:ch=051..100",
+      "reportText": "Terrain: Frozen plateau; Organizations: Shadow Guard sentinels; Lore: Dragon egg ruins."
+    },
+    "canonicalJcs": "{\"assignedScope\":\"p3:arc_01:ch=051..100\",\"codecVersion\":\"v1\",\"reportText\":\"Terrain: Frozen plateau; Organizations: Shadow Guard sentinels; Lore: Dragon egg ruins.\",\"schemaVersion\":1}",
+    "sha256Hash": "e7bbe6c815c83c0f560dda0ee4c0f4b133ad285bb5ceae20f9a59349a54e4a3b"
+  },
+  "worldWriteInputGolden": {
+    "artifact": {
+      "schemaVersion": 1,
+      "codecVersion": "v1",
+      "assignedScope": "p3:arc_01:world_write:depth=1",
+      "consumedInput": {
+        "entities": [
+          {
+            "code": "ws-iron-citadel",
+            "name": "Iron Citadel",
+            "parentCode": null,
+            "type": "world_setting"
+          }
+        ],
+        "hierarchy": {
+          "depth": 1,
+          "parent": "arc_01"
+        }
+      },
+      "probeRefs": [
+        {
+          "roundReceiptId": "rcpt-probe-001",
+          "taskIdentity": "p3:s0:world_probe:arc=arc_01:ch=001..050",
+          "artifactHash": "86ce4162ba4600462c6daf2855217f12b0fadcc32603cc5789f7b4524a15a0c6"
+        },
+        {
+          "roundReceiptId": "rcpt-probe-002",
+          "taskIdentity": "p3:s0:world_probe:arc=arc_01:ch=051..100",
+          "artifactHash": "e7bbe6c815c83c0f560dda0ee4c0f4b133ad285bb5ceae20f9a59349a54e4a3b"
+        }
+      ]
+    },
+    "canonicalJcs": "{\"assignedScope\":\"p3:arc_01:world_write:depth=1\",\"codecVersion\":\"v1\",\"consumedInput\":{\"entities\":[{\"code\":\"ws-iron-citadel\",\"name\":\"Iron Citadel\",\"parentCode\":null,\"type\":\"world_setting\"}],\"hierarchy\":{\"depth\":1,\"parent\":\"arc_01\"}},\"probeRefs\":[{\"artifactHash\":\"86ce4162ba4600462c6daf2855217f12b0fadcc32603cc5789f7b4524a15a0c6\",\"roundReceiptId\":\"rcpt-probe-001\",\"taskIdentity\":\"p3:s0:world_probe:arc=arc_01:ch=001..050\"},{\"artifactHash\":\"e7bbe6c815c83c0f560dda0ee4c0f4b133ad285bb5ceae20f9a59349a54e4a3b\",\"roundReceiptId\":\"rcpt-probe-002\",\"taskIdentity\":\"p3:s0:world_probe:arc=arc_01:ch=051..100\"}],\"schemaVersion\":1}",
+    "sha256Hash": "f4cd2c4097524050ddf92044f66413d6325ddcfb9b1a83d61cf8333c124e578d"
+  }
+}

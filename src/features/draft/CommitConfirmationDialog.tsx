@@ -11,14 +11,24 @@ import {
   canDismissCommitDialog,
   derivePendingPatches,
   deriveValidation,
+  fromCommitPreviewDto,
   getCommitBlockReasons,
   reduceCommitOp,
   summarizePlan,
   type CommitBlockReason,
   type CommitOpState,
   type CommitReadinessInput,
+  type DerivedCommitPreview,
 } from './commitPreview';
-import { createOnceGuard, resolveSimulatedNavigation, type CommitResult, type NavigationBlockReason, type SampleProjectRef } from './commitNavigation';
+import {
+  buildCommittedProjectViewPath,
+  createOnceGuard,
+  executeDraftCommitWithReconciliation,
+  resolveSimulatedNavigation,
+  type CommitResult,
+  type NavigationBlockReason,
+  type SampleProjectRef,
+} from './commitNavigation';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import type { DraftOverview } from './types';
 
@@ -26,12 +36,18 @@ interface CommitConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   overview: DraftOverview;
-  /** Readiness from a future backend. Undefined today → validation/patches are "unknown". */
+  /** Readiness from a backend or fixture. Undefined → validation/patches are "unknown". */
   readiness?: CommitReadinessInput;
   /** Existing mock projects that a simulated success may preview. */
   sampleProjects?: SampleProjectRef[];
   /** Explicit preview transition to a sample project (closes Draft Workspace, navigates). */
   onViewSampleProject?: (projectId: string) => void;
+  /** Phase 5 Sprint 3 real backend client integration */
+  client?: any;
+  /** Active draftSessionId for real backend commit preview & execution */
+  draftSessionId?: string;
+  /** Callback on successful durable commit to real project in View mode */
+  onCommitSuccess?: (projectId: string, path: string) => void;
 }
 
 const SIMULATED_LATENCY_MS = 1200;
@@ -81,34 +97,88 @@ const NAV_ERROR_KEYS: Record<NavigationBlockReason, TKey> = {
   invalidProject: 'commit.nav.error.invalidProject',
 };
 
-export function CommitConfirmationDialog({ open, onOpenChange, overview, readiness, sampleProjects = [], onViewSampleProject }: CommitConfirmationDialogProps) {
+export function CommitConfirmationDialog({
+  open,
+  onOpenChange,
+  overview,
+  readiness,
+  sampleProjects = [],
+  onViewSampleProject,
+  client,
+  draftSessionId,
+  onCommitSuccess,
+}: CommitConfirmationDialogProps) {
   const t = useT();
   const [op, setOp] = useState<CommitOpState>({ status: 'idle' });
   const busyRef = useRef(false); // synchronous duplicate-submit guard
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fixture, setFixture] = useState<Fixture>('none');
   const [simOpen, setSimOpen] = useState(false);
-  const simActive = SHOW_DEV_SIM && fixture !== 'none';
+  const simActive = SHOW_DEV_SIM && !client && fixture !== 'none';
   const [outcome, setOutcome] = useState<'success' | 'error' | 'unknown'>('success');
   const [simTarget, setSimTarget] = useState<string>('');
   const [result, setResult] = useState<CommitResult | null>(null);
   const [navError, setNavError] = useState<NavigationBlockReason | null>(null);
   const [navConfirmOpen, setNavConfirmOpen] = useState(false);
+  const [backendPreview, setBackendPreview] = useState<DerivedCommitPreview | null>(null);
+  const [structuredError, setStructuredError] = useState<string | null>(null);
   const navGuard = useRef(createOnceGuard());
   const targetId = simTarget || sampleProjects[0]?.id || MISSING_TARGET;
   const targetProject = sampleProjects.find((p) => p.id === targetId) ?? null;
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  // Summary is derived from the current draft on every render (reopen-safe).
-  const plan = useMemo(() => summarizePlan(overview), [overview]);
-  const effective = SHOW_DEV_SIM && fixture !== 'none' ? FIXTURES[fixture] : readiness;
-  const validation = deriveValidation(effective);
-  const patches = derivePendingPatches(effective);
+  // Fetch real backend CommitConfirmationPreview when dialog opens with client & draftSessionId
+  useEffect(() => {
+    if (!open || !client || !draftSessionId) {
+      setBackendPreview(null);
+      return;
+    }
+    let isCancelled = false;
+    const loadPreview = async () => {
+      try {
+        const previewFn = client.getCommitConfirmationPreview
+          ? client.getCommitConfirmationPreview.bind(client)
+          : (client.getDraftCommitPreview ? client.getDraftCommitPreview.bind(client) : null);
+        if (previewFn) {
+          const dto = await previewFn({ draftSessionId });
+          if (!isCancelled && dto) {
+            setBackendPreview(fromCommitPreviewDto(dto));
+          }
+        }
+      } catch (err: any) {
+        // Fall back to prop readiness
+      }
+    };
+    loadPreview();
+    return () => { isCancelled = true; };
+  }, [open, client, draftSessionId]);
+
+  // Derived plan, validation and patches from backend preview or client fallback
+  const plan = useMemo(() => {
+    if (backendPreview) return backendPreview.plan;
+    return summarizePlan(overview);
+  }, [backendPreview, overview]);
+
+  const effective = useMemo(() => {
+    if (backendPreview) return backendPreview.readiness;
+    if (SHOW_DEV_SIM && !client && fixture !== 'none') return FIXTURES[fixture];
+    return readiness;
+  }, [backendPreview, client, fixture, readiness]);
+
+  const validation = useMemo(() => {
+    if (backendPreview) return backendPreview.validation;
+    return deriveValidation(effective);
+  }, [backendPreview, effective]);
+
+  const patches = useMemo(() => {
+    if (backendPreview) return backendPreview.pendingPatches;
+    return derivePendingPatches(effective);
+  }, [backendPreview, effective]);
+
   const pending = op.status === 'pending';
   const blockReasons = getCommitBlockReasons(validation, patches, pending);
   const eligible = blockReasons.length === 0;
-
 
   const handleOpenChange = (next: boolean) => {
     if (!next && !canDismissCommitDialog(op)) return;
@@ -116,17 +186,59 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
       setOp((s) => reduceCommitOp(s, 'reset'));
       setResult(null);
       setNavError(null);
+      setStructuredError(null);
     }
     onOpenChange(next);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!eligible || busyRef.current) return;
     busyRef.current = true;
     navGuard.current = createOnceGuard();
     setResult(null);
     setNavError(null);
+    setStructuredError(null);
     setOp((s) => reduceCommitOp(s, 'submit'));
+
+    // Real backend commit execution with reconciliation
+    if (client && draftSessionId) {
+      try {
+        const commitRes = await executeDraftCommitWithReconciliation({
+          client,
+          draftSessionId,
+          onSuccess: (projectId, path) => {
+            navGuard.current(() => {
+              onCommitSuccess?.(projectId, path);
+            });
+          },
+          onError: (err) => {
+            const msg = typeof err === 'string' ? err : (err?.message || 'Commit failed');
+            setStructuredError(msg);
+          },
+        });
+
+        busyRef.current = false;
+        if (commitRes.status === 'committed') {
+          setResult(commitRes);
+          setOp((s) => reduceCommitOp(s, 'succeed'));
+        } else if (commitRes.status === 'failed') {
+          setResult(commitRes);
+          setOp((s) => reduceCommitOp(s, 'fail'));
+          setStructuredError(commitRes.reason || 'Commit failed');
+        } else {
+          setResult(commitRes);
+          setOp((s) => reduceCommitOp(s, 'unknown'));
+        }
+      } catch (err: any) {
+        busyRef.current = false;
+        setResult({ status: 'failed', reason: err?.message || 'Commit failed' });
+        setOp((s) => reduceCommitOp(s, 'fail'));
+        setStructuredError(err?.message || 'Commit failed');
+      }
+      return;
+    }
+
+    // Simulated fallback for dev inspection
     const simOutcome = SHOW_DEV_SIM ? outcome : 'unknown';
     const committedId = targetId;
     timer.current = setTimeout(() => {
@@ -190,6 +302,11 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
               <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               {t('commit.sim.banner')}
             </div>
+          ) : client ? (
+            <div className="flex items-start gap-2 text-sm text-fg-muted">
+              <Badge variant="neutral" className="shrink-0 text-sm">{t('commit.previewBadge')}</Badge>
+              <span>Backend Head Authoritative ({draftSessionId ?? 'active-session'})</span>
+            </div>
           ) : (
             <div className="flex items-start gap-2 text-sm text-fg-muted">
               <Badge variant="neutral" className="shrink-0 text-sm">{t('commit.previewBadge')}</Badge>
@@ -219,6 +336,13 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
               <Badge variant={VALIDATION_BADGE[validation.status]} className="text-sm">{t(`commit.validation.${validation.status}` as TKey)}</Badge>
             </div>
             <p className="text-sm text-fg-muted">{t(validationDesc)}</p>
+            {validation.blockingReasons.length > 0 && (
+              <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-rose-600 dark:text-rose-400">
+                {validation.blockingReasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="tier-card space-y-2 rounded-card p-4">
@@ -243,7 +367,9 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
             </p>
           )}
           {op.status === 'error' && (
-            <p className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" role="alert">{t('commit.error')}</p>
+            <p className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" role="alert">
+              {structuredError || t('commit.error')}
+            </p>
           )}
           {op.status === 'unknown' && (
             <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" role="alert">{t('commit.unknownResult')}</p>
@@ -252,6 +378,12 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
             <div className="rounded-xl bg-emerald-100 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" role="status">
               <p className="font-semibold">{t('commit.successTitle')}</p>
               <p className="mt-0.5">{t('commit.success')}</p>
+              {client && result?.status === 'committed' && (
+                <div className="mt-2 space-y-1 border-t border-line pt-2 text-xs">
+                  <p>Committed Project ID: <span className="font-semibold font-mono">{result.projectId}</span></p>
+                  <p>Route: <span className="font-semibold font-mono">{buildCommittedProjectViewPath(result.projectId)}</span></p>
+                </div>
+              )}
               {simActive && onViewSampleProject && (
                 <div className="mt-2 space-y-1 border-t border-line pt-2">
                   <p>{t('commit.nav.target')}: <span className="font-semibold">{targetProject?.title ?? t('commit.nav.targetMissing')}</span></p>
@@ -263,7 +395,7 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
             </div>
           )}
 
-          {SHOW_DEV_SIM && (
+          {SHOW_DEV_SIM && !client && (
             <div className="rounded-card border border-dashed border-amber-400/70 bg-amber-100/30 dark:bg-amber-950/20">
               <button
                 type="button"
@@ -335,3 +467,4 @@ export function CommitConfirmationDialog({ open, onOpenChange, overview, readine
     </Dialog>
   );
 }
+

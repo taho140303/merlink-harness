@@ -2,6 +2,8 @@
   "schema_version": 1,
   "project": "merlink-harness",
   "baseline_commit": "57a462efb953a665e3673b15e6cc33622a4f2d39",
+  "source_baseline_commit": "57a462efb953a665e3673b15e6cc33622a4f2d39",
+  "execution_baseline_commit": "407469219679d2fa40f3aaf634d6e802741d908a",
   "planning_status": "PLANNED",
   "authority_files": [
     "docs/architecture/decisions/sf06-owner-ratification.md",

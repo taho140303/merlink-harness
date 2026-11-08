@@ -8,6 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 BASE = '57a462efb953a665e3673b15e6cc33622a4f2d39'
+SOURCE_BASE = BASE
+EXEC_BASE = '407469219679d2fa40f3aaf634d6e802741d908a'
 AUTH = ['docs/architecture/decisions/sf06-owner-ratification.md','docs/business/core.md','docs/db.dbml','docs/business/fe-core.md','docs/business/be-core.md','docs/business/harness/tools.md','docs/business/prompts/overview.md','docs/design-system.md','docs/business/prompts/case_newchat.md']
 PHASES = {1:'Contract validation',2:'Foundation and frozen interfaces',3:'Draft domain and durable workflow',4:'Backend services and Writing Mode',5:'Frontend integration',6:'Application assurance'}
 # (ID, authority, exact current line range, normative obligation, owner, coverage)
