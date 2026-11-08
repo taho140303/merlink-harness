@@ -160,7 +160,20 @@ class DefaultTauriTransport implements BackendTransport {
     }
 
     try {
-      return (await invoker(cmd, req)) as R;
+      // Tauri v2 maps invoke args by Rust parameter name: every command takes
+      // `req: <Dto>` and streaming ones also take `on_event` (camelCase `onEvent`).
+      // Streaming callers attach the channel as `req.channel`; split it out here.
+      let args: Record<string, unknown> | undefined;
+      if (req === undefined || req === null) {
+        args = undefined;
+      } else {
+        const { channel, ...rest } = req as Record<string, unknown>;
+        args = { req: rest };
+        if (channel !== undefined) {
+          args.onEvent = channel;
+        }
+      }
+      return (await invoker(cmd, args)) as R;
     } catch (err) {
       throw normalizeBackendError(err);
     }

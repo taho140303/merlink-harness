@@ -69,6 +69,7 @@ export interface TestProviderConnectionParams {
   apiKey?: string;
   endpointUrl?: string | null;
   modelName?: string | null;
+  protocol?: string;
   client?: BackendClient;
   throwOnError?: boolean;
 }
@@ -219,6 +220,14 @@ export async function updateProviderConfig(
   return await getProviderConfig(client, targetProviderId);
 }
 
+/** Maps the UI protocol label to the backend protocol id. */
+export function toProtocolId(label?: string | null): string {
+  const l = (label || "").toLowerCase();
+  if (l.includes("anthropic")) return "anthropic-messages";
+  if (l.includes("responses")) return "openai-responses";
+  return "openai-completions";
+}
+
 /**
  * Tests connectivity to the specified provider.
  * Redacts secrets from failure messages and never implicitly retries (P5S6-B, phase5_sprint6_deep1-F2).
@@ -257,6 +266,8 @@ export async function testProviderConnection(
         providerId,
         endpointUrl: params.endpointUrl,
         modelName: params.modelName,
+        protocol: params.protocol,
+        apiKey: params.apiKey,
       });
     } catch (invokeErr: any) {
       const rawMsg = String(invokeErr.message || invokeErr);
@@ -296,12 +307,7 @@ export async function testProviderConnection(
         return res;
       }
 
-      // If test_provider_connection is not a registered custom handler, verify backend availability
-      const config = await client.getRuntimeAndProviderConfig();
-      const exists = config.providers.some((p) => p.providerId === providerId);
-      if (exists) {
-        return { ok: true, status: "connected" };
-      }
+      // No fake "connected" fallback: a failed probe is a failed connection.
       throw invokeErr;
     }
 
@@ -462,6 +468,7 @@ export function ProviderForm({
           apiKey: apiKey.trim() || undefined,
           endpointUrl: baseUrl,
           modelName: models[0]?.name,
+          protocol: toProtocolId(apiProtocol),
         },
         client
       );
@@ -741,6 +748,7 @@ export function ProviderForm({
                 onChange={(e) => setApiProtocol(e.target.value)}
               >
                 <option value="OpenAI Chat Completions">OpenAI Chat Completions</option>
+                <option value="OpenAI Responses">OpenAI Responses</option>
                 <option value="Anthropic Messages">Anthropic Messages</option>
               </Select>
             </div>
@@ -946,6 +954,13 @@ export function ProviderForm({
         onOpenChange={setFetchDialogOpen}
         onAddModels={handleAddSelectedModels}
         client={client}
+        providerId={providerType}
+        fetchParams={{
+          providerId: providerType,
+          endpointUrl: baseUrl,
+          protocol: toProtocolId(apiProtocol),
+          apiKey: apiKey.trim() || undefined,
+        }}
       />
     </form>
   );

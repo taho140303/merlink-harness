@@ -36,6 +36,13 @@ export interface ChooseModelsDialogProps {
   initialSelectedIds?: readonly string[];
   client?: BackendClient;
   providerId?: string;
+  /** Current form values; when set, models are fetched live from the endpoint. */
+  fetchParams?: {
+    providerId: string;
+    endpointUrl?: string | null;
+    protocol?: string;
+    apiKey?: string;
+  };
 }
 
 export function ChooseModelsDialog({
@@ -46,17 +53,52 @@ export function ChooseModelsDialog({
   initialSelectedIds = [],
   client,
   providerId,
+  fetchParams,
 }: ChooseModelsDialogProps) {
   const t = useT();
   const [modelSearch, setModelSearch] = useState("");
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [modelsList, setModelsList] = useState<readonly string[]>(availableModels);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setModelSearch("");
       setSelectedModelIds([...initialSelectedIds]);
+
+      setFetchError(null);
+
+      // Live discovery from the endpoint currently in the form (DeepSeek-Harness style)
+      if (client && client.status === "available" && fetchParams?.endpointUrl) {
+        let cancelled = false;
+        setFetching(true);
+        client.transport
+          .invoke("fetch_provider_models" as any, fetchParams)
+          .then((res: any) => {
+            if (cancelled) return;
+            if (res?.ok && Array.isArray(res.models) && res.models.length > 0) {
+              setModelsList(res.models);
+            } else {
+              setModelsList([]);
+              setFetchError(
+                res?.error || "Endpoint returned no models. Add model ids manually."
+              );
+            }
+          })
+          .catch((err: any) => {
+            if (cancelled) return;
+            setModelsList([]);
+            setFetchError(String(err?.message || err));
+          })
+          .finally(() => {
+            if (!cancelled) setFetching(false);
+          });
+        return () => {
+          cancelled = true;
+        };
+      }
 
       // If live backend client is provided, query runtime provider models
       if (client && client.status === "available") {
@@ -79,7 +121,7 @@ export function ChooseModelsDialog({
         setModelsList(availableModels);
       }
     }
-  }, [open, initialSelectedIds, availableModels, client, providerId]);
+  }, [open, initialSelectedIds, availableModels, client, providerId, fetchParams?.endpointUrl, fetchParams?.protocol, fetchParams?.providerId]);
 
   const filteredAvailableModels = modelsList.filter((modelId) =>
     modelId.toLowerCase().includes(modelSearch.trim().toLowerCase())
@@ -174,7 +216,7 @@ export function ChooseModelsDialog({
           >
             {filteredAvailableModels.length === 0 ? (
               <div className="py-8 text-center text-xs text-fg-muted">
-                {t("settings.provider.fetchDialog.empty")}
+                {fetching ? "…" : fetchError ?? t("settings.provider.fetchDialog.empty")}
               </div>
             ) : (
               filteredAvailableModels.map((modelId) => {

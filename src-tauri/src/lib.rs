@@ -187,6 +187,9 @@ pub fn create_builder() -> tauri::Builder<tauri::Wry> {
             crate::ipc::config_commands::get_runtime_and_provider_config,
             crate::ipc::config_commands::update_runtime_and_provider_config,
             crate::ipc::config_commands::set_provider_api_key,
+            // Auxiliary diagnostics (outside the 40-command master catalog)
+            crate::ipc::provider_probe_commands::test_provider_connection,
+            crate::ipc::provider_probe_commands::fetch_provider_models,
         ])
 }
 
