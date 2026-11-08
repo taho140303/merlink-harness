@@ -22,12 +22,23 @@ export function ModelSelectorPopover() {
   useEffect(() => {
     hydrate();
 
-    // Synchronize catalog with live backend providers to remove stale test leftovers
-    if (backendClient && backendClient.status !== "unavailable") {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    const syncWithBackend = () => {
+      if (cancelled) return;
+      attempts += 1;
+      if (!backendClient || backendClient.status === "unavailable") {
+        if (attempts < 15) {
+          retryTimer = setTimeout(syncWithBackend, 200);
+        }
+        return;
+      }
       backendClient
         .getRuntimeAndProviderConfig({})
         .then((res) => {
-          if (!res || !Array.isArray(res.providers)) return;
+          if (cancelled || !res || !Array.isArray(res.providers)) return;
           const liveIds = new Set(res.providers.map((p) => p.providerId));
           const currentStore = useModelCatalogStore.getState();
           const cleanProviders = currentStore.providers.filter((p) => liveIds.has(p.id));
@@ -49,7 +60,14 @@ export function ModelSelectorPopover() {
           }
         })
         .catch(() => {});
-    }
+    };
+
+    syncWithBackend();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [hydrate]);
 
   // Only show configured providers with non-empty model IDs

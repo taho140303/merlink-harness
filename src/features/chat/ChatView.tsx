@@ -149,7 +149,9 @@ export class ChatBackendController {
   }): Promise<ChatBackendState> {
     const generation = ++this.initGeneration;
     ++this.turnGeneration;
+    const isAvail = isTauriEnvironment() || this.client.status === "available";
     this.updateState({
+      backendStatus: isAvail ? "available" : "unavailable",
       initialized: false,
       sessionId: "",
       draftSessionId: null,
@@ -164,7 +166,7 @@ export class ChatBackendController {
       messages: [],
       lastError: null,
     });
-    if (!isTauriEnvironment() && this.client.status === "unavailable") {
+    if (!isAvail) {
       this.updateState({ backendStatus: "unavailable", lastError: "BACKEND_UNAVAILABLE" });
       return this.getState();
     }
@@ -575,6 +577,7 @@ export function ChatView({
   );
 
   useEffect(() => {
+    setControllerState(controller.getState());
     return controller.subscribe((next) => {
       setControllerState(next);
       if (onProgressUpdate) onProgressUpdate(next.progress);
@@ -584,10 +587,32 @@ export function ChatView({
   }, [controller, onProgressUpdate, onVersionSealed, onPendingPatchesChange]);
 
   // Route ID is the only resume authority. Locale changes must not create sessions.
+  // Retry briefly on mount in case WebKitGTK/Tauri IPC bridge attaches after SSR hydration.
   useEffect(() => {
-    controller.initSession({ sessionId }).then((state) => {
-      if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
-    });
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const maxAttempts = 25;
+
+    const attemptInit = () => {
+      if (cancelled) return;
+      attempts += 1;
+      controller.initSession({ sessionId }).then((state) => {
+        if (cancelled) return;
+        if (state.initialized) {
+          window.dispatchEvent(new Event("merlink:chat-history-changed"));
+        } else if (attempts < maxAttempts) {
+          retryTimer = setTimeout(attemptInit, 200);
+        }
+      });
+    };
+
+    attemptInit();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [controller, sessionId]);
 
   useEffect(() => {
