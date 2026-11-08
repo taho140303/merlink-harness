@@ -220,6 +220,14 @@ pub fn configure_builder_with_bootstrap(
 pub fn create_app() -> tauri::Builder<tauri::Wry> {
     create_builder().setup(|app| {
         use tauri::Manager;
+
+        // Set the bundled Merlink icon explicitly. In Linux dev runs the window
+        // manager may otherwise display the generic Tauri icon.
+        if let Some(window) = app.get_webview_window("main") {
+            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+            window.set_icon(icon)?;
+        }
+
         let app_data_dir = app
             .path()
             .app_data_dir()
