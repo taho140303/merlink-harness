@@ -157,8 +157,10 @@ impl CredentialManager {
             return Err("API key cannot be empty or whitespace".to_string());
         }
 
+        // Always cache in RAM session store so credentials are immediately available in-process
+        self.session_store.insert(provider_id, trimmed);
+
         if self.force_session_only {
-            self.session_store.insert(provider_id, trimmed);
             return Ok(CredentialStorageMode::SessionOnlyFallback);
         }
 
@@ -166,22 +168,10 @@ impl CredentialManager {
         let username = Self::keyring_username(provider_id);
         match keyring::Entry::new(&self.service_name, &username) {
             Ok(entry) => match entry.set_password(trimmed) {
-                Ok(()) => {
-                    // Evict from RAM store if it previously fell back
-                    self.session_store.remove(provider_id);
-                    Ok(CredentialStorageMode::OsKeychain)
-                }
-                Err(_err) => {
-                    // Keychain failed: fallback to RAM
-                    self.session_store.insert(provider_id, trimmed);
-                    Ok(CredentialStorageMode::SessionOnlyFallback)
-                }
+                Ok(()) => Ok(CredentialStorageMode::OsKeychain),
+                Err(_err) => Ok(CredentialStorageMode::SessionOnlyFallback),
             },
-            Err(_err) => {
-                // Keychain entry creation failed: fallback to RAM
-                self.session_store.insert(provider_id, trimmed);
-                Ok(CredentialStorageMode::SessionOnlyFallback)
-            }
+            Err(_err) => Ok(CredentialStorageMode::SessionOnlyFallback),
         }
     }
 

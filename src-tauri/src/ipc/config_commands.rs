@@ -46,10 +46,30 @@ impl Default for RuntimeConfigState {
 
 impl RuntimeConfigState {
     pub fn new(credential_manager: CredentialManager, redactor: Arc<Redactor>) -> Self {
+        let mut providers = HashMap::new();
+        providers.insert(
+            "ollama".to_string(),
+            ProviderRuntimeSettings {
+                provider_id: "ollama".to_string(),
+                name: "Ollama (Native Local)".to_string(),
+                endpoint_url: Some("http://127.0.0.1:11434".to_string()),
+                model_name: Some("llama3.2".to_string()),
+            },
+        );
+        providers.insert(
+            "opencode".to_string(),
+            ProviderRuntimeSettings {
+                provider_id: "opencode".to_string(),
+                name: "OpenCode / Cloud AI".to_string(),
+                endpoint_url: Some("https://api.opencode.ai/v1/chat/completions".to_string()),
+                model_name: Some("claude-3-5-sonnet".to_string()),
+            },
+        );
+
         Self {
             subagent_config: RwLock::new(SubagentConfigDto::default()),
-            active_provider_id: RwLock::new(String::new()),
-            providers: RwLock::new(HashMap::new()),
+            active_provider_id: RwLock::new("ollama".to_string()),
+            providers: RwLock::new(providers),
             credential_manager,
             redactor,
         }
@@ -163,26 +183,6 @@ mod provider_selection_tests {
     #[test]
     fn test_selected_provider_uses_configured_model_and_endpoint() {
         let state = RuntimeConfigState::default();
-        assert!(state.selected_provider().is_err());
-        state.providers.write().insert(
-            "ollama".to_string(),
-            ProviderRuntimeSettings {
-                provider_id: "ollama".to_string(),
-                name: "Ollama (Native Local)".to_string(),
-                endpoint_url: Some("http://127.0.0.1:11434".to_string()),
-                model_name: Some("llama3.2".to_string()),
-            },
-        );
-        state.providers.write().insert(
-            "opencode".to_string(),
-            ProviderRuntimeSettings {
-                provider_id: "opencode".to_string(),
-                name: "OpenCode / Cloud AI".to_string(),
-                endpoint_url: Some("https://api.opencode.ai/v1/chat/completions".to_string()),
-                model_name: Some("claude-3-5-sonnet".to_string()),
-            },
-        );
-        *state.active_provider_id.write() = "ollama".into();
         let provider = state.selected_provider().unwrap();
         assert_eq!(provider.provider_id(), "ollama");
         *state.active_provider_id.write() = "opencode".into();

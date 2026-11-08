@@ -198,9 +198,15 @@ impl OpenCodeProvider {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         if let Some(key) = &self.api_key {
-            let auth_str = format!("Bearer {}", key.expose_secret());
+            let secret = key.expose_secret();
+            let auth_str = format!("Bearer {}", secret);
             if let Ok(val) = HeaderValue::from_str(&auth_str) {
                 headers.insert(AUTHORIZATION, val);
+            }
+            if let Ok(val) = HeaderValue::from_str(secret) {
+                if let Ok(hname) = reqwest::header::HeaderName::from_bytes(b"x-api-key") {
+                    headers.insert(hname, val);
+                }
             }
         }
         headers
