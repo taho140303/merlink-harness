@@ -1,12 +1,31 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink } from "react-router";
 import { History as HistoryIcon, Folder, ChevronDown } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { useT } from "@/shared/i18n/useT";
+import { backendClient, type BackendClient } from "@/shared/backend/client";
+import type { SessionSummaryDto } from "@/shared/backend/generated";
 import type { ChatItem } from "../types";
 
-// 3.1: Lưu project_id và chỉ hiển thị project name
-const MOCK_HISTORY: ChatItem[] = [];
+function formatSessionTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, { month: "numeric", day: "numeric" }).format(date);
+}
+
+/** `displayName` is returned by the backend session list but is not yet in generated.ts. */
+type SessionSummaryWithTitle = SessionSummaryDto & { displayName?: string | null };
+
+export function mapSessionSummaryToChatItem(session: SessionSummaryDto): ChatItem {
+  const storedTitle = (session as SessionSummaryWithTitle).displayName?.trim();
+  return {
+    id: session.sessionId,
+    title: storedTitle || `Chat ${session.sessionId.slice(0, 6)}`,
+    time: formatSessionTime(session.updatedAt),
+    projectId: session.projectId || "",
+    projectName: "Cuộc trò chuyện",
+  };
+}
 
 function formatTitle(title: string): string {
   return title.length > 12 ? `${title.slice(0, 12)}...` : title;
@@ -15,6 +34,7 @@ function formatTitle(title: string): string {
 interface SidebarHistoryProps {
   collapsed: boolean;
   onExpand: () => void;
+  client?: BackendClient;
 }
 
 const rowBase =
@@ -22,9 +42,29 @@ const rowBase =
 const rowActive = "bg-surface-muted font-medium text-fg";
 const rowIdle = "text-fg-muted hover:bg-surface-muted hover:text-fg";
 
-export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
+export function SidebarHistory({ collapsed, onExpand, client = backendClient }: SidebarHistoryProps) {
   const t = useT();
   const [groupByProject, setGroupByProject] = useState(false);
+  const [history, setHistory] = useState<ChatItem[]>([]);
+
+  const loadHistory = useCallback(async () => {
+    if (client.status === "unavailable") return;
+    try {
+      const result = await client.listChatSessions({ limit: 100 });
+      setHistory((result.items || []).map(mapSessionSummaryToChatItem));
+    } catch (error) {
+      console.warn("Failed to load chat history from backend:", error);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => void loadHistory(), 0);
+    window.addEventListener("merlink:chat-history-changed", loadHistory);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.removeEventListener("merlink:chat-history-changed", loadHistory);
+    };
+  }, [loadHistory]);
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({
     "proj-1": true,
     "proj-2": true,
@@ -36,7 +76,7 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
   };
 
   // Nhóm theo projectId nhưng hiển thị projectName
-  const projectGroups = MOCK_HISTORY.reduce<Record<string, { projectName: string; chats: ChatItem[] }>>(
+  const projectGroups = history.reduce<Record<string, { projectName: string; chats: ChatItem[] }>>(
     (acc, item) => {
       if (!acc[item.projectId]) {
         acc[item.projectId] = { projectName: item.projectName, chats: [] };
@@ -136,7 +176,7 @@ export function SidebarHistory({ collapsed, onExpand }: SidebarHistoryProps) {
             );
           })
         ) : (
-          MOCK_HISTORY.map((chat) => (
+          history.map((chat) => (
             <NavLink
               key={chat.id}
               to={`/chat/${chat.id}`}

@@ -1166,6 +1166,22 @@ impl ChatOrchestrator {
         )
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
+        if role == "user" {
+            // The sidebar labels a conversation by its opening message. Only
+            // replace a placeholder name, so later turns never rename the chat.
+            let title = session_title_from_message(content);
+            if !title.is_empty() {
+                conn.execute(
+                    "UPDATE sessions SET display_name = ?1
+                     WHERE id = ?2
+                       AND (display_name IS NULL OR TRIM(display_name) = ''
+                            OR display_name IN ('New Session', 'Active Session'))",
+                    params![title, session_id],
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            }
+        }
+
         Ok(())
     }
 
@@ -1183,10 +1199,14 @@ impl ChatOrchestrator {
         let mut stmt = conn
             .prepare(
                 "SELECT id, role, content, payload_json, created_at
-                 FROM messages
-                 WHERE session_id = ?1 AND id != ?2
-                 ORDER BY created_at ASC
-                 LIMIT ?3",
+                 FROM (
+                   SELECT rowid AS message_order, id, role, content, payload_json, created_at
+                   FROM messages
+                   WHERE session_id = ?1 AND id != ?2
+                   ORDER BY created_at DESC, rowid DESC
+                   LIMIT ?3
+                 )
+                 ORDER BY created_at ASC, message_order ASC",
             )
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
@@ -1225,4 +1245,10 @@ impl ChatOrchestrator {
 
         Ok(items)
     }
+}
+
+/// Builds a conversation title from the first user message: whitespace is
+/// collapsed and at most 10 characters are kept, as required by the sidebar UI.
+fn session_title_from_message(content: &str) -> String {
+    content.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(10).collect()
 }

@@ -181,6 +181,7 @@ fn P2S5_P_all_40_command_dto_pairs_typecheck_and_roundtrip_camelcase() {
             project_id: Some(dummy_uuid),
             status: "editing".to_string(),
             updated_at: "2026-11-08T00:00:00Z".to_string(),
+            display_name: Some("Hello worl".to_string()),
         }],
         next_cursor: None,
     };

@@ -207,7 +207,7 @@ pub fn exec_list_chat_sessions(
 
     let (query, query_params): (String, Vec<rusqlite::types::Value>) = match (&req.project_id, &req.cursor) {
         (Some(pid), Some(cur)) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at)
+            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
              FROM sessions s
              LEFT JOIN draft_sessions d ON s.id = d.session_id
              WHERE s.project_id = ?1 AND s.created_at < ?2
@@ -221,7 +221,7 @@ pub fn exec_list_chat_sessions(
             ],
         ),
         (Some(pid), None) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at)
+            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
              FROM sessions s
              LEFT JOIN draft_sessions d ON s.id = d.session_id
              WHERE s.project_id = ?1
@@ -231,7 +231,7 @@ pub fn exec_list_chat_sessions(
             vec![pid.to_string().into(), ((limit + 1) as i64).into()],
         ),
         (None, Some(cur)) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at)
+            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
              FROM sessions s
              LEFT JOIN draft_sessions d ON s.id = d.session_id
              WHERE s.created_at < ?1
@@ -241,7 +241,7 @@ pub fn exec_list_chat_sessions(
             vec![cur.clone().into(), ((limit + 1) as i64).into()],
         ),
         (None, None) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at)
+            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
              FROM sessions s
              LEFT JOIN draft_sessions d ON s.id = d.session_id
              ORDER BY s.created_at DESC
@@ -271,6 +271,7 @@ pub fn exec_list_chat_sessions(
         let project_id = pid_str.and_then(|s| Uuid::parse_str(&s).ok());
         let status: String = row.get(3).unwrap_or_else(|_| "editing".to_string());
         let updated_at: String = row.get(4).unwrap_or_default();
+        let display_name: Option<String> = row.get(5).unwrap_or(None);
 
         items.push(SessionSummaryDto {
             session_id: sid,
@@ -278,6 +279,7 @@ pub fn exec_list_chat_sessions(
             project_id,
             status,
             updated_at,
+            display_name,
         });
     }
 

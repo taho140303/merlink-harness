@@ -4,6 +4,7 @@
   "description": "Least-privilege default capability for the main application window",
   "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:webview:allow-set-webview-zoom"
   ]
 }

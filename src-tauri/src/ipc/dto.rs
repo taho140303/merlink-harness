@@ -476,6 +476,9 @@ pub struct SessionSummaryDto {
     pub project_id: Option<Uuid>,
     pub status: String,
     pub updated_at: String,
+    /// Session title derived from the first user message (max 10 characters).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 // ============================================================================

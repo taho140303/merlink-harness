@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { GripVertical, StopCircle } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useOutletContext } from "react-router";
+import type { ChatStartupContext } from "@/app/layouts/FullLayout";
 import { buildProjectPath } from "@/features/draft/commitNavigation";
 import { cn } from "@/shared/utils/cn";
 import { useResizablePanel } from "@/shared/hooks/useResizablePanel";
@@ -89,6 +90,7 @@ export class ChatBackendController {
   private listeners: Set<(state: ChatBackendState) => void> = new Set();
   private initGeneration = 0;
   private turnGeneration = 0;
+  private pendingInit: { key: string; promise: Promise<ChatBackendState> } | null = null;
 
   constructor(client?: BackendClient, initialConfig?: Partial<ChatBackendState>) {
     this.client = client ?? new BackendClient();
@@ -142,7 +144,24 @@ export class ChatBackendController {
   /**
    * Initializes or reloads a chat session using `create_or_load_chat_session`.
    */
-  public async initSession(options?: {
+  public initSession(options?: {
+    sessionId?: string;
+    projectId?: string;
+    trustedLanguage?: string;
+  }, forceNew = false): Promise<ChatBackendState> {
+    const key = JSON.stringify([options?.sessionId ?? null, options?.projectId ?? null]);
+    // StrictMode can replay the mount effect; share the same pending request so
+    // a new chat is allocated only once rather than creating duplicate sessions.
+    if (!forceNew && this.pendingInit?.key === key) return this.pendingInit.promise;
+    const promise = this.performInitSession(options);
+    this.pendingInit = { key, promise };
+    void promise.finally(() => {
+      if (this.pendingInit?.promise === promise) this.pendingInit = null;
+    });
+    return promise;
+  }
+
+  private async performInitSession(options?: {
     sessionId?: string;
     projectId?: string;
     trustedLanguage?: string;
@@ -563,6 +582,9 @@ export function ChatView({
   const { locale: currentLocale } = useLocale();
   const isCompact = useIsCompact();
   const navigate = useNavigate();
+  const startup = useOutletContext<ChatStartupContext | undefined>();
+  const finishChatStartup = startup?.finishChatStartup;
+  const beginChatStartup = startup?.beginChatStartup;
   const backendClient = useMemo(() => client ?? new BackendClient(), [client]);
 
   // Pure controller instance
@@ -592,18 +614,43 @@ export function ChatView({
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
-    const maxAttempts = 25;
+    const maxAttempts = 5;
+    // Never expose the previous route's historical message blocks if loading
+    // configuration for the next route fails before session hydration begins.
+    controller.updateState({
+      initialized: false,
+      sessionId: "",
+      draftSessionId: null,
+      messages: [],
+      lastError: null,
+    });
 
     const attemptInit = () => {
       if (cancelled) return;
       attempts += 1;
-      controller.initSession({ sessionId }).then((state) => {
-        if (cancelled) return;
-        if (state.initialized) {
-          window.dispatchEvent(new Event("merlink:chat-history-changed"));
-        } else if (attempts < maxAttempts) {
+      if (!isTauriEnvironment() && backendClient.status === "unavailable") {
+        if (attempts < maxAttempts) {
           retryTimer = setTimeout(attemptInit, 200);
+        } else {
+          controller.updateState({ backendStatus: "unavailable", lastError: "BACKEND_UNAVAILABLE" });
+          finishChatStartup?.();
         }
+        return;
+      }
+      // Configuration and persisted messages are both required before revealing
+      // the chat. Fetch configuration first so a failed setup cannot create a
+      // throwaway session on every retry.
+      void backendClient.getRuntimeAndProviderConfig({}).then(() => {
+        if (cancelled) return null;
+        return controller.initSession({ sessionId });
+      }).then((state) => {
+        if (cancelled || !state) return;
+        if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
+        finishChatStartup?.();
+      }).catch((error: unknown) => {
+        if (cancelled) return;
+        controller.updateState({ lastError: error instanceof Error ? error.message : String(error) });
+        finishChatStartup?.();
       });
     };
 
@@ -613,19 +660,30 @@ export function ChatView({
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [controller, sessionId]);
+  }, [controller, sessionId, backendClient, finishChatStartup]);
+
+  const retryInitialization = useCallback((forceNew = false) => {
+    beginChatStartup?.();
+    void backendClient.getRuntimeAndProviderConfig({}).then(() =>
+      controller.initSession({ sessionId }, forceNew),
+    ).then((state) => {
+      if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
+      finishChatStartup?.();
+    }).catch((error: unknown) => {
+      controller.updateState({ lastError: error instanceof Error ? error.message : String(error) });
+      finishChatStartup?.();
+    });
+  }, [backendClient, controller, sessionId, beginChatStartup, finishChatStartup]);
 
   useEffect(() => {
     if (sessionId) return;
     const newChat = () => {
       setIsDraftOpen(false);
-      controller.initSession().then((state) => {
-        if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
-      });
+      retryInitialization(true);
     };
     window.addEventListener("merlink:new-chat", newChat);
     return () => window.removeEventListener("merlink:new-chat", newChat);
-  }, [controller, sessionId]);
+  }, [sessionId, retryInitialization]);
 
   const [isDraftOpen, setIsDraftOpen] = useState(false);
   const sampleProjects = useMemo(() => [] as { id: string; title: string }[], []);
@@ -759,8 +817,13 @@ export function ChatView({
         )}
 
         {controllerState.lastError && (
-          <div role="alert" className="mx-6 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
-            {controllerState.lastError}
+          <div role="alert" className="mx-6 mt-2 flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            <span>{controllerState.lastError}</span>
+            {!controllerState.initialized && (
+              <button type="button" onClick={() => retryInitialization()} className="focus-ring shrink-0 rounded-lg px-2 py-1 font-semibold underline underline-offset-2 hover:text-fg">
+                {t("chat.startup.retry")}
+              </button>
+            )}
           </div>
         )}
 
