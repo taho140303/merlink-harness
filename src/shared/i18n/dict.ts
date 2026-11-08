@@ -445,7 +445,7 @@ const en = {
   'settings.provider.ollamaSelectModel': 'Fetch models to choose one',
   'settings.provider.ollamaEndpointRequired': 'Enter the Ollama server URL first.',
   'settings.provider.ollamaFetchFailed': 'Could not fetch models from Ollama.',
-  'settings.provider.ollamaRequired': 'Enter both the Ollama server URL and model ID.'},{
+  'settings.provider.ollamaRequired': 'Enter both the Ollama server URL and model ID.',
   'settings.provider.ollamaSaveFailed': 'Could not save Ollama settings.',
   'settings.provider.ollamaBackendUnavailable': 'The desktop backend is unavailable; start the Tauri app to test the connection.',
   'settings.provider.ollamaTestFailed': 'Ollama connection test failed.',
@@ -1245,7 +1245,7 @@ const vi: Record<keyof typeof en, string> = {
   'settings.provider.ollamaSelectModel': 'Tải danh sách để chọn model',
   'settings.provider.ollamaEndpointRequired': 'Hãy nhập URL máy chủ Ollama trước.',
   'settings.provider.ollamaFetchFailed': 'Không thể tải danh sách model từ Ollama.',
-  'settings.provider.ollamaRequired': 'Hãy nhập cả URL máy chủ Ollama và ID model.'}
+  'settings.provider.ollamaRequired': 'Hãy nhập cả URL máy chủ Ollama và ID model.',
   'settings.provider.ollamaSaveFailed': 'Không thể lưu cấu hình Ollama.',
   'settings.provider.ollamaBackendUnavailable': 'Backend desktop chưa hoạt động; hãy mở app Tauri để kiểm tra kết nối.',
   'settings.provider.ollamaTestFailed': 'Kiểm tra kết nối Ollama thất bại.',
