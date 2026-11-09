@@ -12,6 +12,7 @@ import "./app.css";
 import { AppProviders } from "./providers";
 
 export const links: Route.LinksFunction = () => [
+  { rel: "icon", href: "/favicon.ico?v=2", type: "image/x-icon" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
