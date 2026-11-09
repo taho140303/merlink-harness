@@ -6,6 +6,7 @@ export default [
     route("chat/:id", "routes/chat.tsx"),
     route("project", "routes/project.tsx"),
     route("project/:projectId", "routes/project-detail.tsx"),
+    route("projects/:projectId", "routes/project-detail.tsx"),
     route("project/:projectId/chapter/:chapterId", "routes/chapter-detail.tsx"),
     route("character", "routes/character.tsx"),
     route("character/:characterId", "routes/character-detail.tsx"),

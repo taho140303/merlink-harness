@@ -12,16 +12,43 @@ import { useLocale } from "@/shared/i18n/store";
 import { cn } from "@/shared/utils/cn";
 import type { BusinessFlowData } from "@/features/business-flow";
 import {
-  SAMPLE_BUSINESS_FLOW_DATA,
   calculateBusinessFlowProgress,
   generateRequireMarkdown,
+  TOTAL_TRACKED_ATTRIBUTES,
 } from "@/features/business-flow";
+
+const EMPTY_BUSINESS_FLOW_DATA: BusinessFlowData = {
+  meta: {
+    phase: 0,
+    version: "v.01",
+    updated_at: "",
+  },
+  require: {
+    project: {
+      display_name: "",
+      summary: "",
+      language: "",
+      target: {
+        arc_count: 0,
+        chapter_count: 0,
+        word_per_chapter_count: 0,
+      },
+      genres: [],
+    },
+    character: [],
+  },
+  optional: {},
+};
 
 export interface ProcessDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data?: BusinessFlowData;
   businessFlowData?: BusinessFlowData;
+  confirmedCount?: number;
+  aiInferredCount?: number;
+  totalAttributes?: number;
+  isRequireComplete?: boolean;
 }
 
 export function ProcessDetailDialog({
@@ -29,15 +56,35 @@ export function ProcessDetailDialog({
   onOpenChange,
   data,
   businessFlowData,
+  confirmedCount,
+  aiInferredCount,
+  totalAttributes = TOTAL_TRACKED_ATTRIBUTES,
+  isRequireComplete: propIsRequireComplete,
 }: ProcessDetailDialogProps) {
   const t = useT();
   const { locale } = useLocale();
   const currentLang = locale;
   const lang = currentLang === "en" ? "en" : "vi";
 
-  const flowData = businessFlowData ?? data ?? SAMPLE_BUSINESS_FLOW_DATA;
+  const flowData = businessFlowData ?? data ?? EMPTY_BUSINESS_FLOW_DATA;
   const markdown = generateRequireMarkdown(flowData, lang === "en" ? "en" : "vi");
-  const progress = calculateBusinessFlowProgress(flowData);
+  const computedProgress = calculateBusinessFlowProgress(flowData);
+  const hasBackendCounts = confirmedCount !== undefined || aiInferredCount !== undefined;
+  const filledCount = hasBackendCounts
+    ? Math.max(computedProgress.filledCount, (confirmedCount ?? 0) + (aiInferredCount ?? 0))
+    : computedProgress.filledCount;
+  const totalCount = totalAttributes || computedProgress.totalCount;
+  const percent = totalCount > 0 ? Math.min(100, Math.round((filledCount / totalCount) * 100)) : 0;
+  const isRequireComplete =
+    propIsRequireComplete !== undefined
+      ? propIsRequireComplete || computedProgress.isRequireComplete
+      : computedProgress.isRequireComplete;
+  const progress = {
+    percent,
+    filledCount,
+    totalCount,
+    isRequireComplete,
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

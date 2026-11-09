@@ -57,19 +57,22 @@ pub fn exec_get_progress_detail(
     let snapshot = entry.get_snapshot();
 
     let eval = evaluate_progress(&snapshot.business_flow_data);
+    let completed = (eval.confirmed_count + eval.ai_suggested_count) as u32;
 
     let progress = ProgressSummaryDto {
         current_phase: snapshot.phase,
         current_subphase: snapshot.subphase,
-        completed_attributes: eval.confirmed_count as u32,
+        completed_attributes: completed,
         total_attributes: 46,
-        progress_percentage: (eval.confirmed_count as f32 / 46.0) * 100.0,
+        progress_percentage: (completed as f32 / 46.0) * 100.0,
         is_require_complete: eval.is_require_complete,
         can_advance_phase: if snapshot.phase == 0 {
             eval.is_require_complete
         } else {
             true
         },
+        confirmed_count: Some(eval.confirmed_count as u32),
+        ai_inferred_count: Some(eval.ai_suggested_count as u32),
     };
 
     let attributes = eval
@@ -241,19 +244,22 @@ pub async fn exec_apply_manual_draft_edit(
 
     let sealed_dto = service.seal_version(&seal_params)?;
     let progress_eval = evaluate_progress(&updated_snap.business_flow_data);
+    let completed = (progress_eval.confirmed_count + progress_eval.ai_suggested_count) as u32;
 
     let progress = ProgressSummaryDto {
         current_phase,
         current_subphase,
-        completed_attributes: progress_eval.confirmed_count as u32,
+        completed_attributes: completed,
         total_attributes: 46,
-        progress_percentage: (progress_eval.confirmed_count as f32 / 46.0) * 100.0,
+        progress_percentage: (completed as f32 / 46.0) * 100.0,
         is_require_complete: progress_eval.is_require_complete,
         can_advance_phase: if current_phase == 0 {
             progress_eval.is_require_complete
         } else {
             true
         },
+        confirmed_count: Some(progress_eval.confirmed_count as u32),
+        ai_inferred_count: Some(progress_eval.ai_suggested_count as u32),
     };
 
     Ok(ManualEditResponseDto {

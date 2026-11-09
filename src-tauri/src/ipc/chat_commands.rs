@@ -37,6 +37,32 @@ pub fn exec_create_or_load_chat_session(
 
     let now = Utc::now().to_rfc3339();
 
+    let project_exists_in_db = |pid: Uuid| -> bool {
+        conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?1 AND deleted_at IS NULL)",
+            params![pid.to_string()],
+            |r| r.get::<_, bool>(0),
+        )
+        .unwrap_or(false)
+    };
+
+    let find_project_draft_session = |pid: Uuid| -> Option<(Uuid, Option<i32>, String)> {
+        conn.query_row(
+            "SELECT id, head_version_seq, status FROM draft_sessions WHERE project_id = ?1 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+            params![pid.to_string()],
+            |r| {
+                let id_str: String = r.get(0)?;
+                let d_uuid = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+                let h_seq: Option<i32> = r.get(1).unwrap_or(None);
+                let st: String = r.get(2).unwrap_or_else(|_| "editing".to_string());
+                Ok((d_uuid, h_seq, st))
+            },
+        )
+        .optional()
+        .ok()
+        .flatten()
+    };
+
     let (session_id, project_id, draft_session_id, head_version_seq, status) = match &req.session_id {
         Some(sid) => {
             // Find existing session
@@ -61,35 +87,51 @@ pub fn exec_create_or_load_chat_session(
             };
 
             let proj_uuid = p_id.and_then(|s| Uuid::parse_str(&s).ok()).or(req.project_id);
+            let valid_proj_uuid = proj_uuid.filter(|&pid| project_exists_in_db(pid));
 
-            // Find associated draft session
-            let mut d_stmt = conn
-                .prepare("SELECT id, head_version_seq, status FROM draft_sessions WHERE session_id = ?1")
-                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-            let mut d_rows = d_stmt
-                .query(params![s_id])
-                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            // If session was given a valid project_id from req that wasn't stored on sessions yet, persist it
+            if let Some(vpid) = valid_proj_uuid {
+                let _ = conn.execute(
+                    "UPDATE sessions SET project_id = ?1 WHERE id = ?2 AND project_id IS NULL",
+                    params![vpid.to_string(), s_id],
+                );
+            }
 
-            let (d_id, head_seq, stat) = match d_rows
-                .next()
-                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
-            {
-                Some(r) => {
-                    let id_str: String = r.get(0).unwrap();
-                    let d_uuid = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
-                    let h_seq: Option<i32> = r.get(1).unwrap_or(None);
-                    let st: String = r.get(2).unwrap_or_else(|_| "editing".to_string());
-                    (d_uuid, h_seq, st)
-                }
-                None => {
-                    let d_uuid = Uuid::new_v4();
-                    conn.execute(
-                        "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
-                         VALUES (?1, ?2, ?3, NULL, 'editing', ?4, ?4)",
-                        params![d_uuid.to_string(), s_id, proj_uuid.map(|u| u.to_string()), now],
-                    )
+            // If this chat session points to an existing created project in DB, share that project's draft session
+            let shared_project_draft = valid_proj_uuid.and_then(find_project_draft_session);
+
+            let (d_id, head_seq, stat) = if let Some(shared) = shared_project_draft {
+                shared
+            } else {
+                // Find associated draft session strictly for this chat session
+                let mut d_stmt = conn
+                    .prepare("SELECT id, head_version_seq, status FROM draft_sessions WHERE session_id = ?1")
                     .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                    (d_uuid, None, "editing".to_string())
+                let mut d_rows = d_stmt
+                    .query(params![s_id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+
+                match d_rows
+                    .next()
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+                {
+                    Some(r) => {
+                        let id_str: String = r.get(0).unwrap();
+                        let d_uuid = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+                        let h_seq: Option<i32> = r.get(1).unwrap_or(None);
+                        let st: String = r.get(2).unwrap_or_else(|_| "editing".to_string());
+                        (d_uuid, h_seq, st)
+                    }
+                    None => {
+                        let d_uuid = Uuid::new_v4();
+                        conn.execute(
+                            "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
+                             VALUES (?1, ?2, ?3, NULL, 'editing', ?4, ?4)",
+                            params![d_uuid.to_string(), s_id, proj_uuid.map(|u| u.to_string()), now],
+                        )
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                        (d_uuid, None, "editing".to_string())
+                    }
                 }
             };
 
@@ -97,7 +139,7 @@ pub fn exec_create_or_load_chat_session(
         }
         None => {
             let s_id = Uuid::new_v4().to_string();
-            let d_uuid = Uuid::new_v4();
+            let valid_proj_uuid = req.project_id.filter(|&pid| project_exists_in_db(pid));
 
             conn.execute(
                 "INSERT INTO sessions (id, project_id, display_name, created_at)
@@ -106,14 +148,22 @@ pub fn exec_create_or_load_chat_session(
             )
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-            conn.execute(
-                "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, NULL, 'editing', ?4, ?4)",
-                params![d_uuid.to_string(), s_id, req.project_id.map(|u| u.to_string()), now],
-            )
-            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            // If pointing to a created project in DB that already has a draft_session, share it;
+            // otherwise create an isolated draft_session for this new chat session.
+            let (d_uuid, head_seq, stat) = if let Some(shared) = valid_proj_uuid.and_then(find_project_draft_session) {
+                shared
+            } else {
+                let d_uuid = Uuid::new_v4();
+                conn.execute(
+                    "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, NULL, 'editing', ?4, ?4)",
+                    params![d_uuid.to_string(), s_id, req.project_id.map(|u| u.to_string()), now],
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                (d_uuid, None, "editing".to_string())
+            };
 
-            (s_id, req.project_id, d_uuid, None, "editing".to_string())
+            (s_id, req.project_id, d_uuid, head_seq, stat)
         }
     };
 
@@ -232,16 +282,21 @@ pub fn exec_list_chat_sessions(
         ""
     };
 
+    let draft_join = "LEFT JOIN draft_sessions d ON d.id = COALESCE(
+        (SELECT ds.id FROM draft_sessions ds WHERE ds.session_id = s.id LIMIT 1),
+        (SELECT dp.id FROM draft_sessions dp JOIN projects p ON p.id = s.project_id AND p.deleted_at IS NULL WHERE dp.project_id = s.project_id ORDER BY dp.updated_at DESC, dp.created_at DESC LIMIT 1)
+    )";
+
     let (query, query_params): (String, Vec<rusqlite::types::Value>) = match (&req.project_id, &req.cursor) {
         (Some(pid), Some(cur)) => (
             format!(
                 "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
                  FROM sessions s
-                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 {}
                  WHERE s.project_id = ?1 AND s.created_at < ?2{}
                  ORDER BY s.created_at DESC
                  LIMIT ?3",
-                msg_filter
+                draft_join, msg_filter
             ),
             vec![
                 pid.to_string().into(),
@@ -253,11 +308,11 @@ pub fn exec_list_chat_sessions(
             format!(
                 "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
                  FROM sessions s
-                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 {}
                  WHERE s.project_id = ?1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?2",
-                msg_filter
+                draft_join, msg_filter
             ),
             vec![pid.to_string().into(), ((limit + 1) as i64).into()],
         ),
@@ -265,11 +320,11 @@ pub fn exec_list_chat_sessions(
             format!(
                 "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
                  FROM sessions s
-                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 {}
                  WHERE s.created_at < ?1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?2",
-                msg_filter
+                draft_join, msg_filter
             ),
             vec![cur.clone().into(), ((limit + 1) as i64).into()],
         ),
@@ -277,11 +332,11 @@ pub fn exec_list_chat_sessions(
             format!(
                 "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
                  FROM sessions s
-                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 {}
                  WHERE 1=1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?1",
-                msg_filter
+                draft_join, msg_filter
             ),
             vec![((limit + 1) as i64).into()],
         ),
@@ -378,14 +433,19 @@ pub async fn exec_send_chat_message(
         .get()
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    // Look up draft_session_id
-    let mut stmt = conn
-        .prepare("SELECT id FROM draft_sessions WHERE session_id = ?1")
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-
-    let draft_session_id_str: String = stmt
-        .query_row(params![req.session_id], |row| row.get(0))
-        .map_err(|_| {
+    // Look up draft_session_id (either owned by this session or shared via a created project in DB)
+    let draft_session_id_str: String = conn
+        .query_row(
+            "SELECT COALESCE(
+                (SELECT ds.id FROM draft_sessions ds WHERE ds.session_id = ?1 LIMIT 1),
+                (SELECT dp.id FROM sessions s JOIN projects p ON p.id = s.project_id AND p.deleted_at IS NULL JOIN draft_sessions dp ON dp.project_id = p.id WHERE s.id = ?1 ORDER BY dp.updated_at DESC, dp.created_at DESC LIMIT 1)
+            )",
+            params![req.session_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .ok()
+        .flatten()
+        .ok_or_else(|| {
             IpcError::new(
                 ErrorCode::EntityNotFound,
                 format!("Draft session for session_id '{}' not found", req.session_id),

@@ -950,6 +950,7 @@ export function ChatView({
             key={controllerState.draftSessionId}
             client={backendClient}
             draftSessionId={controllerState.draftSessionId!}
+            businessFlowData={controllerState.workingState}
             onClose={() => setIsDraftOpen(false)}
             onFeedback={(feedback) => setFeedbackContext(feedback)}
             sampleProjects={sampleProjects}

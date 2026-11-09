@@ -260,6 +260,7 @@ pub struct RawCharacterRecord {
     pub gender_expression: String,
     pub default_summary: Option<String>,
     pub in_project: bool,
+    pub primary_project_id: Option<Uuid>,
 }
 
 impl RawCharacterRecord {
@@ -271,9 +272,23 @@ impl RawCharacterRecord {
     }
 
     pub fn to_dto(&self, project_id: Option<Uuid>) -> CharacterLibraryItemDto {
+        let resolved_project_id = if project_id.is_some() {
+            if self.in_project {
+                project_id
+            } else {
+                self.primary_project_id
+            }
+        } else {
+            self.primary_project_id
+        };
+        let resolved_in_project = if project_id.is_some() {
+            self.in_project
+        } else {
+            self.primary_project_id.is_some()
+        };
         CharacterLibraryItemDto {
             id: self.id,
-            project_id: if self.in_project { project_id } else { None },
+            project_id: resolved_project_id,
             code: self.code.clone(),
             name: self.resolved_name(),
             nickname: self.nickname.clone(),
@@ -281,7 +296,7 @@ impl RawCharacterRecord {
             biological_sex: self.biological_sex.clone(),
             gender_identity: self.gender_identity.clone(),
             gender_expression: self.gender_expression.clone(),
-            in_project: self.in_project,
+            in_project: resolved_in_project,
             avatar_url: None,
             default_summary: self.default_summary.clone(),
         }
@@ -311,7 +326,13 @@ pub fn list_characters(
     let sql = "SELECT c.id, c.code, c.display_name, c.nickname, c.species,
                       c.biological_sex, c.gender_identity, c.gender_expression,
                       ca.default_summary,
-                      CASE WHEN ?1 IS NOT NULL AND pc.id IS NOT NULL THEN 1 ELSE 0 END AS in_project
+                      CASE WHEN ?1 IS NOT NULL AND pc.id IS NOT NULL THEN 1 ELSE 0 END AS in_project,
+                      (SELECT pc2.project_id
+                       FROM project_characters pc2
+                       JOIN projects p2 ON p2.id = pc2.project_id AND p2.deleted_at IS NULL
+                       WHERE pc2.character_id = c.id AND pc2.deleted_at IS NULL
+                       ORDER BY pc2.created_at DESC
+                       LIMIT 1) AS primary_project_id
                FROM characters c
                LEFT JOIN character_appearances ca ON ca.character_id = c.id
                LEFT JOIN project_characters pc ON pc.character_id = c.id AND pc.project_id = ?1 AND pc.deleted_at IS NULL
@@ -335,6 +356,8 @@ pub fn list_characters(
             let gender_expression: Option<String> = r.get(7)?;
             let default_summary: Option<String> = r.get(8)?;
             let in_proj_int: i64 = r.get(9)?;
+            let primary_proj_str: Option<String> = r.get(10)?;
+            let primary_project_id = primary_proj_str.and_then(|s| Uuid::parse_str(&s).ok());
 
             Ok(RawCharacterRecord {
                 id,
@@ -347,6 +370,7 @@ pub fn list_characters(
                 gender_expression: gender_expression.unwrap_or_else(|| "NONE".to_string()),
                 default_summary,
                 in_project: in_proj_int == 1,
+                primary_project_id,
             })
         })
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
@@ -534,20 +558,36 @@ pub fn get_character_detail(
     let gender_expression: Option<String> = row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
     let default_summary: Option<String> = row.get(8).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    let in_project = if let Some(pid) = project_id {
-        conn.query_row(
-            "SELECT EXISTS (SELECT 1 FROM project_characters WHERE project_id = ?1 AND character_id = ?2 AND deleted_at IS NULL)",
-            params![pid.to_string(), char_id_str],
-            |r| r.get(0),
+    let primary_project_id: Option<Uuid> = conn
+        .query_row(
+            "SELECT pc2.project_id
+             FROM project_characters pc2
+             JOIN projects p2 ON p2.id = pc2.project_id AND p2.deleted_at IS NULL
+             WHERE pc2.character_id = ?1 AND pc2.deleted_at IS NULL
+             ORDER BY pc2.created_at DESC
+             LIMIT 1",
+            params![char_id_str],
+            |r| r.get::<_, String>(0),
         )
-        .unwrap_or(false)
+        .ok()
+        .and_then(|s| Uuid::parse_str(&s).ok());
+
+    let (in_project, resolved_project_id) = if let Some(pid) = project_id {
+        let linked = conn
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM project_characters WHERE project_id = ?1 AND character_id = ?2 AND deleted_at IS NULL)",
+                params![pid.to_string(), char_id_str],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+        (linked, if linked { Some(*pid) } else { primary_project_id })
     } else {
-        false
+        (primary_project_id.is_some(), primary_project_id)
     };
 
     let character = CharacterLibraryItemDto {
         id: *character_id,
-        project_id: if in_project { project_id.copied() } else { None },
+        project_id: resolved_project_id,
         code: code.unwrap_or_default(),
         name: display_name.clone().or_else(|| nickname.clone()).unwrap_or_else(|| id_str.clone()),
         nickname,

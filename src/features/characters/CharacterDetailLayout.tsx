@@ -148,7 +148,7 @@ export function mapCharacterDetailDtoToProfile(
   return {
     id: c.id,
     code: c.code,
-    projectId: undefined,
+    projectId: c.projectId ?? undefined,
     projectName: projectName,
     basicInfo: {
       name: cleanName,
@@ -288,7 +288,7 @@ export function CharacterDetailLayout({
     );
   }
 
-  const character = backendCharacter || storeCharacter;
+  const character = storeCharacter || backendCharacter;
 
   const tabLabel = (tab: DetailTab) => t(tabKeys[tab]);
   const subSectionName =
@@ -296,8 +296,76 @@ export function CharacterDetailLayout({
       ? `${tabLabel('life')} › ${lifeSubLabels[activeLifeTab] || 'Competence'}`
       : tabLabel(activeTab);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const edited = storeCharacter || backendCharacter;
     saveEditing();
+    setBackendCharacter(edited);
+    if (activeClient && activeClient.status !== 'unavailable' && edited) {
+      try {
+        const updatedDto = await activeClient.createOrUpdateLibraryCharacter({
+          characterId: edited.id,
+          projectId: edited.projectId,
+          profile: {
+            name: edited.basicInfo.name,
+            nickname: edited.basicInfo.nickname || null,
+            species: edited.basicInfo.species || 'HUMAN',
+            biologicalSex: edited.basicInfo.biologicalSex || 'NONE',
+            genderIdentity: edited.basicInfo.genderIdentity || 'NONE',
+            genderExpression: edited.basicInfo.genderExpression || 'NONE',
+            appearance: {
+              height: edited.appearance.height,
+              weight: edited.appearance.weight,
+              hair: edited.appearance.hair,
+              eyes: edited.appearance.eyes,
+              skin: edited.appearance.skin,
+              hairNote: edited.appearance.hairNote,
+              eyesNote: edited.appearance.eyesNote,
+              skinNote: edited.appearance.skinNote,
+              outfitStyle: edited.appearance.outfitStyle,
+              defaultSummary: edited.appearance.defaultSummary,
+            },
+            psychological: edited.psychological
+              ? {
+                  summary: edited.psychological.coreTrauma.theWound || '',
+                  coreValues: edited.psychological.cognitiveMoral.moralCode
+                    ? edited.psychological.cognitiveMoral.moralCode
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [],
+                  traumaTriggers: edited.psychological.cognitiveMoral.breakingPoint
+                    ? edited.psychological.cognitiveMoral.breakingPoint
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [],
+                  behavioralQuirks: edited.psychological.behavioralAdaptation.socialMask.verbalStyle
+                    ? edited.psychological.behavioralAdaptation.socialMask.verbalStyle
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    : [],
+                }
+              : null,
+            memories: (edited.memories ?? []).map((m) => ({
+              id: m.id,
+              memoryType: 'EPISODIC',
+              title: m.content.slice(0, 60) || 'Ký ức',
+              description: m.content,
+              emotionalCharge: 'NEUTRAL',
+            })),
+            competences: [],
+          },
+        });
+        const mapped = mapCharacterDetailDtoToProfile(updatedDto, edited.projectName);
+        setBackendCharacter(mapped);
+        setStoreCharacter(mapped);
+      } catch (err) {
+        console.warn('Failed to save character to backend:', err);
+        toast({ title: 'Không thể lưu thay đổi nhân vật', variant: 'error' });
+        return;
+      }
+    }
     toast({ title: t('common.saved'), variant: 'success' });
   };
 

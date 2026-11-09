@@ -87,6 +87,10 @@ pub struct ProgressSummaryDto {
     pub progress_percentage: f32,
     pub is_require_complete: bool,
     pub can_advance_phase: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirmed_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_inferred_count: Option<u32>,
 }
 
 /// Pending patch item requiring user confirmation or rejection.

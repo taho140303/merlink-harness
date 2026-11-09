@@ -736,18 +736,21 @@ impl DraftService {
         let lock_state = entry.get_lock_status();
 
         let progress_eval = evaluate_progress(&snapshot.business_flow_data);
+        let completed = (progress_eval.confirmed_count + progress_eval.ai_suggested_count) as u32;
         let progress = ProgressSummaryDto {
             current_phase: snapshot.phase,
             current_subphase: snapshot.subphase,
-            completed_attributes: progress_eval.confirmed_count as u32,
+            completed_attributes: completed,
             total_attributes: 46,
-            progress_percentage: (progress_eval.confirmed_count as f32 / 46.0) * 100.0,
+            progress_percentage: (completed as f32 / 46.0) * 100.0,
             is_require_complete: progress_eval.is_require_complete,
             can_advance_phase: if snapshot.phase == 0 {
                 progress_eval.is_require_complete
             } else {
                 true
             },
+            confirmed_count: Some(progress_eval.confirmed_count as u32),
+            ai_inferred_count: Some(progress_eval.ai_suggested_count as u32),
         };
 
         let bfd_json = serde_json::to_value(&snapshot.business_flow_data).unwrap_or(serde_json::json!({}));

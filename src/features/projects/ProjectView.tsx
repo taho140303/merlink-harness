@@ -124,23 +124,38 @@ export default function ProjectView({ initialProjects, client: propClient }: Pro
 
   useEffect(() => {
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
     if (initialProjects) {
       setProjects(initialProjects.map(sanitizeProjectItem));
       return;
     }
-    if (activeClient && activeClient.status !== "unavailable") {
-      activeClient.listProjects()
-        .then((res) => {
-          if (!isMounted) return;
-          const mapped = (res.items || []).map(mapProjectDtoToItem);
-          setProjects(mapped);
-        })
-        .catch((err) => {
-          console.warn("Failed to load projects from backend transport:", err);
-        });
-    }
+
+    const loadProjects = () => {
+      if (!isMounted) return;
+      if (activeClient && activeClient.status !== "unavailable") {
+        activeClient
+          .listProjects()
+          .then((res) => {
+            if (!isMounted) return;
+            const mapped = (res.items || []).map(mapProjectDtoToItem);
+            setProjects(mapped);
+          })
+          .catch((err) => {
+            console.warn("Failed to load projects from backend transport:", err);
+          });
+      } else if (attempts < 10) {
+        attempts += 1;
+        retryTimer = setTimeout(loadProjects, 150);
+      }
+    };
+
+    loadProjects();
+
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [activeClient, initialProjects]);
 

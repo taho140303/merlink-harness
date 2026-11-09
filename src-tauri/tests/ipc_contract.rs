@@ -159,6 +159,8 @@ fn P2S5_P_all_40_command_dto_pairs_typecheck_and_roundtrip_camelcase() {
             progress_percentage: 10.8,
             is_require_complete: false,
             can_advance_phase: false,
+            confirmed_count: Some(5),
+            ai_inferred_count: Some(0),
         },
         interrupted_turn_alert: None,
     };

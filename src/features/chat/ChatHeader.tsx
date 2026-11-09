@@ -28,7 +28,7 @@ export interface ChatHeaderProps {
 export function ChatHeader({
   onToggleDraft,
   isDraftOpen,
-  progressPercent = 65,
+  progressPercent = 0,
   isRequireComplete: propIsRequireComplete,
   businessFlowData,
   confirmedCount,
@@ -49,7 +49,7 @@ export function ChatHeader({
         ? propIsRequireComplete
         : businessFlowData
           ? checkRequireComplete(businessFlowData)
-          : true;
+          : false;
 
   const hasDual = confirmedCount !== undefined || aiInferredCount !== undefined;
   const confirmedPct = hasDual
@@ -170,6 +170,10 @@ export function ChatHeader({
         onOpenChange={setInfoOpen}
         businessFlowData={businessFlowData}
         data={businessFlowData}
+        confirmedCount={confirmedCount}
+        aiInferredCount={aiInferredCount}
+        totalAttributes={totalAttributes}
+        isRequireComplete={isComplete}
       />
     </>
   );

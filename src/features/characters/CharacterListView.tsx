@@ -80,7 +80,7 @@ export function libraryItemToProfile(dto: CharacterLibraryItemDto, projectName?:
   return {
     id: dto.id,
     code: dto.code,
-    projectId: undefined,
+    projectId: dto.projectId ?? undefined,
     projectName: projectName ? sanitizeDisplayLabel(projectName, undefined, projectName) : undefined,
     basicInfo: {
       name: cleanName,
@@ -137,57 +137,82 @@ export function CharacterListView({ initialCharacters, client: propClient }: Cha
   const [linkNotes, setLinkNotes] = useState<string>("");
   const [isLinking, setIsLinking] = useState(false);
 
-  // Fetch projects from backend transport
+  // Fetch projects from backend transport (with retry if Tauri bridge attaches slightly after mount)
   useEffect(() => {
     let isMounted = true;
-    if (activeClient && activeClient.status !== "unavailable") {
-      activeClient
-        .listProjects()
-        .then((res) => {
-          if (!isMounted) return;
-          if (res?.items) {
-            setBackendProjects(
-              res.items.map((p) => ({
-                id: p.id,
-                title: sanitizeDisplayLabel(p.title, p.id, "Dự án"),
-              }))
-            );
-          }
-        })
-        .catch(() => {});
-    }
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    const loadProjects = () => {
+      if (!isMounted) return;
+      if (activeClient && activeClient.status !== "unavailable") {
+        activeClient
+          .listProjects()
+          .then((res) => {
+            if (!isMounted) return;
+            if (res?.items) {
+              setBackendProjects(
+                res.items.map((p) => ({
+                  id: p.id,
+                  title: sanitizeDisplayLabel(p.title, p.id, "Dự án"),
+                }))
+              );
+            }
+          })
+          .catch(() => {});
+      } else if (attempts < 10) {
+        attempts += 1;
+        retryTimer = setTimeout(loadProjects, 150);
+      }
+    };
+
+    loadProjects();
+
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [activeClient]);
 
   // Fetch characters from backend transport when filter/search changes
   useEffect(() => {
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
     if (initialCharacters) {
       return;
     }
 
-    if (activeClient && activeClient.status !== "unavailable") {
-      const req: ListCharactersReq = {
-        projectId: filterProject !== "ALL" ? filterProject : undefined,
-        biologicalSex: filterSex !== "ALL" ? (filterSex as Gender) : undefined,
-        query: searchTerm.trim() ? searchTerm.trim() : undefined,
-      };
+    const loadCharacters = () => {
+      if (!isMounted) return;
+      if (activeClient && activeClient.status !== "unavailable") {
+        const req: ListCharactersReq = {
+          projectId: filterProject !== "ALL" ? filterProject : undefined,
+          biologicalSex: filterSex !== "ALL" ? (filterSex as Gender) : undefined,
+          query: searchTerm.trim() ? searchTerm.trim() : undefined,
+        };
 
-      activeClient
-        .listCharacters(req)
-        .then((res) => {
-          if (!isMounted) return;
-          setBackendItems(res.items || []);
-        })
-        .catch((err) => {
-          console.warn("Failed to list characters from backend transport:", err);
-        });
-    }
+        activeClient
+          .listCharacters(req)
+          .then((res) => {
+            if (!isMounted) return;
+            setBackendItems(res.items || []);
+          })
+          .catch((err) => {
+            console.warn("Failed to list characters from backend transport:", err);
+          });
+      } else if (attempts < 10) {
+        attempts += 1;
+        retryTimer = setTimeout(loadCharacters, 150);
+      }
+    };
+
+    loadCharacters();
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [activeClient, initialCharacters, filterProject, filterSex, searchTerm]);
 
@@ -197,10 +222,15 @@ export function CharacterListView({ initialCharacters, client: propClient }: Cha
       return initialCharacters.map(sanitizeCharacterProfile);
     }
     if (backendItems !== null) {
-      return backendItems.map((item) => libraryItemToProfile(item));
+      const projectMap = new Map<string, string>();
+      (backendProjects ?? []).forEach((p) => projectMap.set(p.id, p.title));
+      return backendItems.map((item) => {
+        const pName = item.projectId ? projectMap.get(item.projectId) : undefined;
+        return libraryItemToProfile(item, pName);
+      });
     }
     return storeCharacters.map(sanitizeCharacterProfile);
-  }, [initialCharacters, backendItems, storeCharacters]);
+  }, [initialCharacters, backendItems, backendProjects, storeCharacters]);
 
   const projectOptions = useMemo(() => {
     if (backendProjects !== null) {
@@ -216,8 +246,14 @@ export function CharacterListView({ initialCharacters, client: propClient }: Cha
   }, [characters, backendProjects]);
 
   const filteredCharacters = useMemo(() => {
-    // If backend transport provided filtered items, return directly
+    // If backend transport provided filtered items, also apply project dropdown filter when search is empty
     if (backendItems !== null) {
+      if (filterProject !== "ALL" && !searchTerm.trim()) {
+        return characters.filter((c, idx) => {
+          const rawItem = backendItems[idx];
+          return Boolean(rawItem?.inProject) || c.projectId === filterProject;
+        });
+      }
       return characters;
     }
     return characters.filter((c) => {
@@ -237,8 +273,50 @@ export function CharacterListView({ initialCharacters, client: propClient }: Cha
     });
   }, [characters, backendItems, searchTerm, filterSex, filterProject]);
 
-  const handleAddCharacter = (newChar: CharacterProfile) => {
+  const handleAddCharacter = async (newChar: CharacterProfile) => {
     addCharacter(newChar);
+    if (activeClient && activeClient.status !== "unavailable") {
+      try {
+        await activeClient.createOrUpdateLibraryCharacter({
+          projectId: newChar.projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newChar.projectId)
+            ? newChar.projectId
+            : undefined,
+          profile: {
+            name: newChar.basicInfo.name,
+            nickname: newChar.basicInfo.nickname || null,
+            species: newChar.basicInfo.species || "HUMAN",
+            biologicalSex: newChar.basicInfo.biologicalSex || "NONE",
+            genderIdentity: newChar.basicInfo.genderIdentity || "NONE",
+            genderExpression: newChar.basicInfo.genderExpression || "NONE",
+            appearance: {
+              height: newChar.appearance.height,
+              weight: newChar.appearance.weight,
+              hair: newChar.appearance.hair,
+              eyes: newChar.appearance.eyes,
+              skin: newChar.appearance.skin,
+              hairNote: newChar.appearance.hairNote,
+              eyesNote: newChar.appearance.eyesNote,
+              skinNote: newChar.appearance.skinNote,
+              outfitStyle: newChar.appearance.outfitStyle,
+              defaultSummary: newChar.appearance.defaultSummary,
+            },
+            psychological: null,
+            memories: [],
+            competences: [],
+          },
+        });
+        toast({ title: "Đã tạo nhân vật thành công", variant: "success" });
+        const res = await activeClient.listCharacters({
+          projectId: filterProject !== "ALL" ? filterProject : undefined,
+          biologicalSex: filterSex !== "ALL" ? (filterSex as Gender) : undefined,
+          query: searchTerm.trim() ? searchTerm.trim() : undefined,
+        });
+        setBackendItems(res.items || []);
+      } catch (err) {
+        console.warn("Failed to persist new character to backend:", err);
+        toast({ title: "Không thể lưu nhân vật vào cơ sở dữ liệu", variant: "error" });
+      }
+    }
   };
 
   const handleLinkSubmit = async () => {

@@ -78,18 +78,51 @@ export const MASTER_ATTRIBUTES_LIST: readonly string[] = [
   'optional.relationship_phase.relationship.character.scenes',
 ] as const;
 
+function unwrapValue(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as Record<string, unknown>)) {
+    return (value as Record<string, unknown>).value;
+  }
+  return value;
+}
+
 function isValidValue(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (typeof value === 'number') return !Number.isNaN(value);
-  if (typeof value === 'boolean') return true;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
+  const raw = unwrapValue(value);
+  if (raw === null || raw === undefined) return false;
+  if (typeof raw === 'string') return raw.trim().length > 0;
+  if (typeof raw === 'number') return !Number.isNaN(raw);
+  if (typeof raw === 'boolean') return true;
+  if (Array.isArray(raw)) return raw.length > 0;
+  if (typeof raw === 'object') {
+    const entries = Object.entries(raw as Record<string, unknown>);
+    if (entries.length === 0) return false;
+    return entries.some(([k, v]) => k !== 'source' && isValidValue(v));
+  }
   return false;
 }
 
 function isNonEmptyString(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
+  const raw = unwrapValue(value);
+  return typeof raw === 'string' && raw.trim().length > 0;
+}
+
+function toPositiveNumber(value: unknown): number {
+  const raw = unwrapValue(value);
+  if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;
+  return 0;
+}
+
+function getWorldSettingsArray(d: BusinessFlowData): any[] {
+  const ws = (d?.optional?.world_building_phase as any)?.world_settings;
+  if (!ws) return [];
+  return Array.isArray(ws) ? ws : [ws];
+}
+
+function getPsychCharacterArray(d: BusinessFlowData): any[] {
+  const opt = d?.optional as any;
+  const list =
+    opt?.character_psychological_phase?.character ??
+    opt?.charactar_psychological_phase?.character;
+  return Array.isArray(list) ? list : [];
 }
 
 const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> = {
@@ -98,14 +131,11 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
   'require.project.summary': (d) => isValidValue(d?.require?.project?.summary),
   'require.project.language': (d) => isValidValue(d?.require?.project?.language),
   'require.project.target.arc_count': (d) =>
-    isValidValue(d?.require?.project?.target?.arc_count) &&
-    (d?.require?.project?.target?.arc_count ?? 0) > 0,
+    toPositiveNumber(d?.require?.project?.target?.arc_count) > 0,
   'require.project.target.chapter_count': (d) =>
-    isValidValue(d?.require?.project?.target?.chapter_count) &&
-    (d?.require?.project?.target?.chapter_count ?? 0) > 0,
+    toPositiveNumber(d?.require?.project?.target?.chapter_count) > 0,
   'require.project.target.word_per_chapter_count': (d) =>
-    isValidValue(d?.require?.project?.target?.word_per_chapter_count) &&
-    (d?.require?.project?.target?.word_per_chapter_count ?? 0) > 0,
+    toPositiveNumber(d?.require?.project?.target?.word_per_chapter_count) > 0,
   'require.project.genres.code': (d) =>
     Boolean(d?.require?.project?.genres?.some((g) => isValidValue(g?.code))),
   'require.character.display_name': (d) =>
@@ -191,24 +221,20 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
 
   // Optional: World Building Phase
   'optional.world_building_phase.world_settings.display_name': (d) =>
-    isValidValue(d?.optional?.world_building_phase?.world_settings?.display_name),
+    getWorldSettingsArray(d).some((w) => isValidValue(w?.display_name)),
   'optional.world_building_phase.world_settings.type': (d) =>
-    isValidValue(d?.optional?.world_building_phase?.world_settings?.type),
+    getWorldSettingsArray(d).some((w) => isValidValue(w?.type)),
   'optional.world_building_phase.world_settings.description': (d) =>
-    isValidValue(d?.optional?.world_building_phase?.world_settings?.description),
+    getWorldSettingsArray(d).some((w) => isValidValue(w?.description)),
   'optional.world_building_phase.world_settings.access': (d) =>
-    isValidValue(d?.optional?.world_building_phase?.world_settings?.access),
+    getWorldSettingsArray(d).some((w) => isValidValue(w?.access)),
   'optional.world_building_phase.world_settings.lore_entries.display_name': (d) =>
-    Boolean(
-      d?.optional?.world_building_phase?.world_settings?.lore_entries?.some((l: any) =>
-        isValidValue(l?.display_name),
-      ),
+    getWorldSettingsArray(d).some((w) =>
+      w?.lore_entries?.some((l: any) => isValidValue(l?.display_name)),
     ),
   'optional.world_building_phase.world_settings.lore_entries.description': (d) =>
-    Boolean(
-      d?.optional?.world_building_phase?.world_settings?.lore_entries?.some((l: any) =>
-        isValidValue(l?.description),
-      ),
+    getWorldSettingsArray(d).some((w) =>
+      w?.lore_entries?.some((l: any) => isValidValue(l?.description)),
     ),
 
   // Optional: Scene Config Phase
@@ -232,7 +258,10 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
     Boolean(
       d?.optional?.scene_config_phase?.arcs?.some((a) =>
         a?.chapters?.some((c: any) =>
-          c?.scenes?.some((s: any) => isValidValue(s?.lore_entries_code)),
+          c?.scenes?.some((s: any) =>
+            isValidValue(s?.lore_entries_code) ||
+            (Array.isArray(s?.lore_entry_codes) && s.lore_entry_codes.some((lc: any) => isValidValue(lc))),
+          ),
         ),
       ),
     ),
@@ -241,7 +270,7 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
       d?.optional?.scene_config_phase?.arcs?.some((a) =>
         a?.chapters?.some((c: any) =>
           c?.scenes?.some((s: any) =>
-            s?.characters?.some((ch: any) => typeof ch?.is_pov === 'boolean'),
+            s?.characters?.some((ch: any) => typeof unwrapValue(ch?.is_pov) === 'boolean'),
           ),
         ),
       ),
@@ -289,34 +318,28 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
   'optional.charactar_psychological_phase.character.core_trauma_and_belief.the_wound': (
     d,
   ) =>
-    Boolean(
-      d?.optional?.charactar_psychological_phase?.character?.some((c) =>
-        isValidValue(c?.core_trauma_and_belief?.the_wound),
-      ),
+    getPsychCharacterArray(d).some((c) =>
+      isValidValue(c?.core_trauma_and_belief?.the_wound),
     ),
   'optional.charactar_psychological_phase.character.cognitive_moral_framework.moral_code': (
     d,
   ) =>
-    Boolean(
-      d?.optional?.charactar_psychological_phase?.character?.some((c) =>
-        isValidValue(c?.cognitive_moral_framework?.moral_code),
-      ),
+    getPsychCharacterArray(d).some((c) =>
+      isValidValue(c?.cognitive_moral_framework?.moral_code),
     ),
   'optional.charactar_psychological_phase.character.narrative_engine.external_want': (
     d,
   ) =>
-    Boolean(
-      d?.optional?.charactar_psychological_phase?.character?.some((c) =>
-        isValidValue(c?.narrative_engine?.external_want),
-      ),
+    getPsychCharacterArray(d).some((c) =>
+      isValidValue(c?.narrative_engine?.external_want),
     ),
   'optional.charactar_psychological_phase.character.behavioral_adaptation.social_mask': (
     d,
   ) =>
-    Boolean(
-      d?.optional?.charactar_psychological_phase?.character?.some((c) =>
-        isValidValue(c?.behavioral_adaptation?.social_mask?.persona_type),
-      ),
+    getPsychCharacterArray(d).some(
+      (c) =>
+        isValidValue(c?.behavioral_adaptation?.social_mask?.persona_type) ||
+        isValidValue(c?.behavioral_adaptation?.social_mask),
     ),
 
   // Optional: Character Life Experience Phase
@@ -343,7 +366,9 @@ const ATTRIBUTE_EVALUATORS: Record<string, (data: BusinessFlowData) => boolean> 
   'optional.relationship_phase.relationship.character.scenes': (d) =>
     Boolean(
       d?.optional?.relationship_phase?.relationship?.some(
-        (r) => Array.isArray(r?.character?.scenes) && r.character.scenes.length > 0,
+        (r: any) =>
+          (Array.isArray(r?.character?.scenes) && r.character.scenes.length > 0) ||
+          (Array.isArray(r?.scenes) && r.scenes.length > 0),
       ),
     ),
 };
@@ -363,30 +388,22 @@ export function getMissingRequireFields(data: BusinessFlowData): string[] {
     missing.push('require.project.language');
   }
 
-  if (
-    typeof data?.require?.project?.target?.arc_count !== 'number' ||
-    data.require.project.target.arc_count <= 0
-  ) {
+  if (toPositiveNumber(data?.require?.project?.target?.arc_count) <= 0) {
     missing.push('require.project.target.arc_count');
   }
 
-  if (
-    typeof data?.require?.project?.target?.chapter_count !== 'number' ||
-    data.require.project.target.chapter_count <= 0
-  ) {
+  if (toPositiveNumber(data?.require?.project?.target?.chapter_count) <= 0) {
     missing.push('require.project.target.chapter_count');
   }
 
-  if (
-    typeof data?.require?.project?.target?.word_per_chapter_count !== 'number' ||
-    data.require.project.target.word_per_chapter_count <= 0
-  ) {
+  if (toPositiveNumber(data?.require?.project?.target?.word_per_chapter_count) <= 0) {
     missing.push('require.project.target.word_per_chapter_count');
   }
 
   if (
     !Array.isArray(data?.require?.project?.genres) ||
-    data.require.project.genres.length === 0
+    data.require.project.genres.length === 0 ||
+    !data.require.project.genres.some((g) => isNonEmptyString(g?.code))
   ) {
     missing.push('require.project.genres');
   }
@@ -403,9 +420,10 @@ export function getMissingRequireFields(data: BusinessFlowData): string[] {
       if (!hasDisplayName && !hasNickname) {
         missing.push(`require.character[${idx}].display_name`);
       }
+      const sex = unwrapValue(char?.biological_sex);
       if (
-        !char?.biological_sex ||
-        !['NONE', 'MALE', 'FEMALE'].includes(char.biological_sex)
+        typeof sex !== 'string' ||
+        !['NONE', 'MALE', 'FEMALE'].includes(sex.toUpperCase())
       ) {
         missing.push(`require.character[${idx}].biological_sex`);
       }
@@ -429,14 +447,14 @@ export function calculateBusinessFlowProgress(
   const requireComplete = missingRequireFields.length === 0;
 
   let filledCount = 0;
-  for (const attr of MASTER_ATTRIBUTES_LIST) {
+  for (const attr of MASTER_TRACKED_ATTRIBUTES) {
     const evaluator = ATTRIBUTE_EVALUATORS[attr];
     if (evaluator && evaluator(data)) {
       filledCount++;
     }
   }
 
-  const totalCount = MASTER_ATTRIBUTES_LIST.length;
+  const totalCount = TOTAL_TRACKED_ATTRIBUTES;
   const percent = totalCount > 0 ? Math.round((filledCount / totalCount) * 100) : 0;
 
   return {

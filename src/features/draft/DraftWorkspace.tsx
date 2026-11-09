@@ -43,6 +43,7 @@ export interface DraftBackendState {
   currentVersionLabel: string;
   versions: DraftVersionSummaryDto[];
   pendingPatches: PendingPatchDto[];
+  businessFlowData?: any;
   workflowStatus: "idle" | "running" | "requires_replan" | "completed" | "cancelled" | "failed";
   workflowRunId: string | null;
   manualRepairMessage: string | null;
@@ -62,6 +63,7 @@ export class DraftBackendController {
       currentVersionLabel: initialConfig?.currentVersionLabel ?? "v.01",
       versions: initialConfig?.versions ?? [],
       pendingPatches: initialConfig?.pendingPatches ?? [],
+      businessFlowData: initialConfig?.businessFlowData ?? null,
       workflowStatus: initialConfig?.workflowStatus ?? "idle",
       workflowRunId: initialConfig?.workflowRunId ?? null,
       manualRepairMessage: initialConfig?.manualRepairMessage ?? null,
@@ -115,6 +117,7 @@ export class DraftBackendController {
         this.updateState({
           headVersionSeq: wsState.headVersionSeq ?? this.state.headVersionSeq,
           pendingPatches: wsState.pendingPatches ?? this.state.pendingPatches,
+          businessFlowData: wsState.businessFlowData ?? this.state.businessFlowData,
         });
       }
       return wsState;
@@ -496,6 +499,335 @@ export class DraftBackendController {
 }
 
 // ============================================================================
+// BusinessFlowData -> DraftOverview Mapper
+// ============================================================================
+
+function unwrapTracked<T = any>(val: any, fallback: T): T {
+  if (val && typeof val === "object" && !Array.isArray(val) && "value" in val) {
+    return val.value !== null && val.value !== undefined ? val.value : fallback;
+  }
+  return val !== null && val !== undefined ? val : fallback;
+}
+
+export function mapBusinessFlowDataToDraftOverview(
+  bfd: any,
+  baseOverview: DraftOverview = DRAFT_OVERVIEW
+): DraftOverview {
+  if (!bfd || typeof bfd !== "object" || !bfd.require) {
+    return baseOverview;
+  }
+
+  const reqProj = bfd.require?.project ?? {};
+  const displayName = String(unwrapTracked(reqProj.display_name, "") || "").trim();
+  const summary = String(unwrapTracked(reqProj.summary, "") || "").trim();
+  const language = String(unwrapTracked(reqProj.language, "vi") || "vi").trim();
+  const arcCount = Number(unwrapTracked(reqProj.target?.arc_count, 0)) || 0;
+  const chapterCount = Number(unwrapTracked(reqProj.target?.chapter_count, 0)) || 0;
+  const wordPerChapter = Number(unwrapTracked(reqProj.target?.word_per_chapter_count, 0)) || 0;
+
+  const rawGenres = Array.isArray(reqProj.genres) ? reqProj.genres : [];
+  const genres = rawGenres
+    .map((g: any) => ({
+      name: String(
+        unwrapTracked(g?.display_name, "") || unwrapTracked(g?.code, "") || ""
+      ).trim(),
+      isPrimary: Boolean(unwrapTracked(g?.is_primary, false)),
+    }))
+    .filter((g: any) => g.name.length > 0);
+
+  const reqChars = Array.isArray(bfd.require?.character) ? bfd.require.character : [];
+  const appChars = Array.isArray(bfd.optional?.character_appearance_phase?.character)
+    ? bfd.optional.character_appearance_phase.character
+    : [];
+  const psychChars = Array.isArray(
+    bfd.optional?.character_psychological_phase?.character ??
+      bfd.optional?.charactar_psychological_phase?.character
+  )
+    ? bfd.optional?.character_psychological_phase?.character ??
+      bfd.optional?.charactar_psychological_phase?.character
+    : [];
+  const lifeChars = Array.isArray(bfd.optional?.character_life_experience_phase?.character)
+    ? bfd.optional.character_life_experience_phase.character
+    : [];
+
+  // If bfd is completely empty (no display_name, no characters, no arcs), fallback to baseOverview
+  const optArcs = Array.isArray(bfd.optional?.overview_phase?.arcs)
+    ? bfd.optional.overview_phase.arcs
+    : [];
+  if (!displayName && reqChars.length === 0 && optArcs.length === 0 && genres.length === 0) {
+    return baseOverview;
+  }
+
+  const charMap = new Map<string, string>();
+  const characters = reqChars.map((rc: any, idx: number) => {
+    const code = String(rc?.code || `CHAR_${idx + 1}`);
+    const name =
+      String(unwrapTracked(rc?.display_name, "") || unwrapTracked(rc?.nickname, "") || `Nhân vật ${idx + 1}`).trim();
+    charMap.set(code, name);
+    const nickname = String(unwrapTracked(rc?.nickname, "") || "").trim() || null;
+    const sex = String(unwrapTracked(rc?.biological_sex, "NONE") || "NONE").toUpperCase();
+    const genderBadge = sex === "MALE" ? "MALE" : sex === "FEMALE" ? "FEMALE" : "NONE";
+    const motifDesc =
+      String(
+        unwrapTracked(rc?.notes, "") ||
+          unwrapTracked(rc?.role, "") ||
+          unwrapTracked(rc?.motif_code, "") ||
+          ""
+      ).trim() || "Nhân vật cốt lõi";
+
+    const app = appChars.find((a: any) => a?.code === code) ?? {};
+    const psych = psychChars.find((p: any) => p?.code === code) ?? {};
+    const life = lifeChars.find((l: any) => l?.code === code) ?? {};
+
+    const rawMarks = Array.isArray(app?.distinguishing_marks) ? app.distinguishing_marks : [];
+    const distinguishingMarks = rawMarks
+      .map((m: any) => {
+        if (typeof m === "string") return m;
+        const desc = String(unwrapTracked(m?.description, "") || "").trim();
+        const loc = String(unwrapTracked(m?.location, "") || "").trim();
+        return loc && desc ? `${loc}: ${desc}` : desc || loc;
+      })
+      .filter(Boolean);
+
+    const rawCompetences = Array.isArray(life?.competences) ? life.competences : [];
+    const competences = rawCompetences.map((comp: any, cIdx: number) => ({
+      id: String(comp?.code || `comp-${idx}-${cIdx}`),
+      name: String(unwrapTracked(comp?.display_name, "") || `Kỹ năng ${cIdx + 1}`),
+      domain: String(unwrapTracked(comp?.domain, "") || "Chung"),
+      description: String(unwrapTracked(comp?.description, "") || ""),
+      sceneLearned: String(unwrapTracked(comp?.acquired_at_scene_code, "") || ""),
+      capabilities: Array.isArray(comp?.capabilities)
+        ? comp.capabilities.map((cap: any) => String(unwrapTracked(cap, ""))).filter(Boolean)
+        : [],
+      limitations: Array.isArray(comp?.limitations)
+        ? comp.limitations.map((lim: any) => String(unwrapTracked(lim, ""))).filter(Boolean)
+        : [],
+    }));
+
+    const rawMemories = Array.isArray(life?.memories) ? life.memories : [];
+    const memories = rawMemories.map((mem: any, mIdx: number) => ({
+      id: String(mem?.code || `mem-${idx}-${mIdx}`),
+      type: (String(unwrapTracked(mem?.memory_type, "Episodic")) as any) || "Episodic",
+      status: (String(unwrapTracked(mem?.retrieval_status, "Active")) as any) || "Active",
+      content: String(unwrapTracked(mem?.summary, "") || unwrapTracked(mem?.title, "") || ""),
+      sourceScene: String(unwrapTracked(mem?.origin_scene_code, "") || ""),
+    }));
+
+    return {
+      id: code,
+      name,
+      nickname,
+      gender: genderBadge,
+      genderBadge,
+      motif: {
+        description: motifDesc,
+      },
+      appearance: {
+        species: String(unwrapTracked(app?.species, "Con người") || "Con người"),
+        birth: String(unwrapTracked(app?.birth, "") || "Chưa rõ"),
+        gender: {
+          identity: String(unwrapTracked(app?.gender?.identity, genderBadge) || genderBadge),
+          expression: String(unwrapTracked(app?.gender?.expression, genderBadge) || genderBadge),
+        },
+        heightCm: Number(unwrapTracked(app?.height_cm, 170)) || 170,
+        weightKg: Number(unwrapTracked(app?.weight_kg, 60)) || 60,
+        hair: {
+          color: String(unwrapTracked(app?.hair?.color, "Đen") || "Đen"),
+          style: String(unwrapTracked(app?.hair?.style, "Tự nhiên") || "Tự nhiên"),
+          texture: String(unwrapTracked(app?.hair?.texture, "Mềm") || "Mềm"),
+          length: String(unwrapTracked(app?.hair?.length, "Vừa") || "Vừa"),
+        },
+        skin: {
+          tone: String(unwrapTracked(app?.skin?.tone, "Tự nhiên") || "Tự nhiên"),
+          texture: String(unwrapTracked(app?.skin?.texture, "Bình thường") || "Bình thường"),
+        },
+        eyes: {
+          pupil: {
+            shape: String(unwrapTracked(app?.eyes?.pupil?.shape, "Tròn") || "Tròn"),
+            color: String(unwrapTracked(app?.eyes?.pupil?.color, "Đen") || "Đen"),
+          },
+          iris: {
+            texture: unwrapTracked(app?.eyes?.iris?.texture, null),
+            color: String(unwrapTracked(app?.eyes?.iris?.color, "Nâu") || "Nâu"),
+          },
+          sclera: String(unwrapTracked(app?.eyes?.sclera, "Trắng") || "Trắng"),
+        },
+        outfitStyle: String(unwrapTracked(app?.outfit_style, "Giản dị") || "Giản dị"),
+        distinguishingMarks,
+        summary: String(unwrapTracked(app?.default_summary, "") || motifDesc),
+      },
+      competences,
+      memories,
+      psychological: {
+        coreTrauma: {
+          wound: String(unwrapTracked(psych?.core_trauma_and_belief?.the_wound, "") || "Chưa xác định"),
+          lie: String(unwrapTracked(psych?.core_trauma_and_belief?.the_lie, "") || "Chưa xác định"),
+          fear: String(unwrapTracked(psych?.core_trauma_and_belief?.fundamental_fear, "") || "Chưa xác định"),
+        },
+        moralFramework: {
+          alignment: String(unwrapTracked(psych?.cognitive_moral_framework?.moral_alignment, "NEUTRAL") || "NEUTRAL"),
+          code: String(unwrapTracked(psych?.cognitive_moral_framework?.moral_code, "") || "Chưa xác định"),
+          breakingPoint: String(unwrapTracked(psych?.cognitive_moral_framework?.breaking_point, "") || "Chưa xác định"),
+        },
+        narrativeEngine: {
+          want: String(unwrapTracked(psych?.narrative_engine?.external_want, "") || "Chưa xác định"),
+          need: String(unwrapTracked(psych?.narrative_engine?.internal_need, "") || "Chưa xác định"),
+          conflict: String(unwrapTracked(psych?.narrative_engine?.internal_conflict, "") || "Chưa xác định"),
+        },
+      },
+    };
+  });
+
+  const chapArcs = Array.isArray(bfd.optional?.chapter_phase?.arcs)
+    ? bfd.optional.chapter_phase.arcs
+    : [];
+
+  const arcs = optArcs.map((arc: any, idx: number) => {
+    const arcCode = String(arc?.code || `ARC_${idx + 1}`);
+    const arcTitle = String(unwrapTracked(arc?.display_name, "") || `Arc ${idx + 1}`);
+    const arcPos = Number(unwrapTracked(arc?.position, idx + 1)) || idx + 1;
+    const arcSummary = String(unwrapTracked(arc?.summary, "") || "");
+    const motifCode = String(unwrapTracked(arc?.motif?.code, "") || "");
+    const motifName = String(unwrapTracked(arc?.motif?.display_name, "") || motifCode || "Khởi đầu");
+    const eventBlocks = Array.isArray(arc?.motif?.event_blocks) ? arc.motif.event_blocks : [];
+    const segments = eventBlocks.map((eb: any, sIdx: number) => ({
+      id: `${arcCode}-seg-${sIdx + 1}`,
+      chapterRange: `${unwrapTracked(eb?.start_chapter, 1)}-${unwrapTracked(eb?.end_chapter, 1)}`,
+      phaseNumber: Number(unwrapTracked(eb?.position, sIdx + 1)) || sIdx + 1,
+      summary: String(unwrapTracked(eb?.summary, "") || ""),
+    }));
+
+    const themeArgs = Array.isArray(arc?.themes?.arguments) ? arc.themes.arguments : [];
+    const chapArc = chapArcs.find((ca: any) => ca?.code === arcCode);
+    const rawChapters = Array.isArray(chapArc?.chapters) ? chapArc.chapters : [];
+    const chapters = rawChapters.map((ch: any, cIdx: number) => {
+      const rawScenes = Array.isArray(ch?.scenes) ? ch.scenes : [];
+      return {
+        displayName: String(unwrapTracked(ch?.display_name, "") || `Chương ${cIdx + 1}`),
+        position: Number(unwrapTracked(ch?.position, cIdx + 1)) || cIdx + 1,
+        summary: String(unwrapTracked(ch?.summary, "") || ""),
+        scenes: rawScenes.map((sc: any, scIdx: number) => ({
+          code: String(sc?.code || `SC_${cIdx + 1}_${scIdx + 1}`),
+          displayName: String(unwrapTracked(sc?.display_name, "") || `Cảnh ${scIdx + 1}`),
+          position: Number(unwrapTracked(sc?.position, scIdx + 1)) || scIdx + 1,
+          summary: String(unwrapTracked(sc?.summary, "") || ""),
+        })),
+      };
+    });
+
+    return {
+      id: arcCode,
+      number: arcPos,
+      title: arcTitle,
+      subnote: motifName,
+      segmentsCount: segments.length,
+      summary: arcSummary,
+      motif: {
+        code: motifCode,
+        displayName: motifName,
+        category: String(unwrapTracked(arc?.motif?.category, "") || "Cốt truyện"),
+        note: String(unwrapTracked(arc?.motif?.note, "") || ""),
+      },
+      theme: {
+        question: String(unwrapTracked(arc?.themes?.question, "") || ""),
+        message: String(unwrapTracked(arc?.themes?.message, "") || ""),
+        resolution: String(
+          unwrapTracked(arc?.themes?.resolution?.content, "") ||
+            unwrapTracked(arc?.themes?.resolution?.type, "") ||
+            unwrapTracked(arc?.themes?.resolution, "") ||
+            ""
+        ),
+        arguments: themeArgs.map((arg: any, aIdx: number) => {
+          const cCode = String(unwrapTracked(arg?.character_code, "") || "");
+          return {
+            id: `${arcCode}-arg-${aIdx + 1}`,
+            characterName: charMap.get(cCode) || cCode || "Nhân vật",
+            role: (String(unwrapTracked(arg?.role, "PRIMARY")) as any) || "PRIMARY",
+            reactionType: (String(unwrapTracked(arg?.reaction_type, "ACTION")) as any) || "ACTION",
+            note: String(unwrapTracked(arg?.note, "") || ""),
+          };
+        }),
+      },
+      segments,
+      chapters: chapters.length > 0 ? chapters : undefined,
+    };
+  });
+
+  const rawWorldSettings = bfd.optional?.world_building_phase?.world_settings;
+  const wsItem = Array.isArray(rawWorldSettings) ? rawWorldSettings[0] : rawWorldSettings;
+  const worldSettings = wsItem
+    ? {
+        code: String(wsItem?.code || "WORLD_01"),
+        displayName: String(unwrapTracked(wsItem?.display_name, "") || "Bối cảnh thế giới"),
+        type: String(unwrapTracked(wsItem?.type, "") || "WORLD"),
+        description: String(unwrapTracked(wsItem?.description, "") || ""),
+        access: String(unwrapTracked(wsItem?.access, "") || "PUBLIC"),
+        loreEntries: (Array.isArray(wsItem?.lore_entries) ? wsItem.lore_entries : []).map(
+          (le: any, lIdx: number) => ({
+            code: String(le?.code || `LORE_${lIdx + 1}`),
+            displayName: String(unwrapTracked(le?.display_name, "") || `Tri thức ${lIdx + 1}`),
+            type: (String(unwrapTracked(le?.category, "HISTORY")) as any) || "HISTORY",
+            description: String(unwrapTracked(le?.description, "") || ""),
+            data: String(unwrapTracked(le?.content, "") || unwrapTracked(le?.description, "") || ""),
+          })
+        ),
+      }
+    : baseOverview.worldSettings;
+
+  const rawRels = Array.isArray(bfd.optional?.relationship_phase?.relationship)
+    ? bfd.optional.relationship_phase.relationship
+    : [];
+  const relationships =
+    rawRels.length > 0
+      ? rawRels.map((rel: any, rIdx: number) => {
+          const fromCode = String(unwrapTracked(rel?.from_character_code, "") || "");
+          const toCode = String(unwrapTracked(rel?.to_character_code, "") || "");
+          return {
+            id: String(rel?.code || `rel-${rIdx + 1}`),
+            fromCharacterName: charMap.get(fromCode) || fromCode || "Nhân vật A",
+            toCharacterName: charMap.get(toCode) || toCode || "Nhân vật B",
+            role: {
+              hierarchy: "EQUAL" as const,
+              category: (String(unwrapTracked(rel?.relationship_type, "SOCIAL")) as any) || "SOCIAL",
+              subType: String(unwrapTracked(rel?.relationship_type, "Đồng hành") || "Đồng hành"),
+              isPrimary: true,
+            },
+            states: {
+              trust: "MODERATE",
+              affection: "MODERATE",
+              hostility: "NONE",
+              fear: "NONE",
+              respect: "MODERATE",
+              familiarity: "MODERATE",
+              dependency: "LOW",
+            },
+            motif: {
+              code: String(unwrapTracked(rel?.motif?.code, "") || ""),
+              description: String(unwrapTracked(rel?.summary, "") || ""),
+            },
+          };
+        })
+      : baseOverview.relationships;
+
+  return {
+    ...baseOverview,
+    displayName: displayName || baseOverview.displayName,
+    language: language || baseOverview.language,
+    summary: summary || baseOverview.summary,
+    target: {
+      arcs: arcCount || baseOverview.target.arcs,
+      chapters: chapterCount || baseOverview.target.chapters,
+      wordPerChapter: wordPerChapter || baseOverview.target.wordPerChapter,
+    },
+    genres: genres.length > 0 ? genres : baseOverview.genres,
+    arcs,
+    characters,
+    worldSettings,
+    relationships,
+  };
+}
+
+// ============================================================================
 // DraftWorkspace Component
 // ============================================================================
 
@@ -503,6 +835,7 @@ export interface DraftWorkspaceProps {
   onClose: () => void;
   onFeedback: (feedback: FeedbackContext) => void;
   overview?: DraftOverview;
+  businessFlowData?: any;
   sampleProjects?: SampleProjectRef[];
   onViewSampleProject?: (projectId: string) => void;
   client?: BackendClient;
@@ -514,7 +847,8 @@ export interface DraftWorkspaceProps {
 export function DraftWorkspace({
   onClose,
   onFeedback,
-  overview = DRAFT_OVERVIEW,
+  overview: propOverview,
+  businessFlowData: propBusinessFlowData,
   sampleProjects,
   onViewSampleProject,
   client,
@@ -535,7 +869,7 @@ export function DraftWorkspace({
   if (!controllerRef.current) {
     controllerRef.current = new DraftBackendController(client, {
       draftSessionId: draftSessionId ?? `draft-${Date.now()}`,
-      currentVersionLabel: overview.version || "v.01",
+      currentVersionLabel: (propOverview ?? DRAFT_OVERVIEW).version || "v.01",
     });
   }
   const controller = controllerRef.current;
@@ -549,11 +883,21 @@ export function DraftWorkspace({
     });
   }, [controller]);
 
-  // Load versions and pending patches on mount
+  // Load workspace state, versions and pending patches on mount
   useEffect(() => {
+    controller.loadWorkspaceState();
     controller.loadVersions();
     controller.loadPendingPatches();
   }, [controller]);
+
+  const overview = useMemo(() => {
+    if (propOverview) return propOverview;
+    const activeBfd = controllerState.businessFlowData ?? propBusinessFlowData;
+    if (activeBfd) {
+      return mapBusinessFlowDataToDraftOverview(activeBfd, DRAFT_OVERVIEW);
+    }
+    return DRAFT_OVERVIEW;
+  }, [propOverview, controllerState.businessFlowData, propBusinessFlowData]);
 
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');

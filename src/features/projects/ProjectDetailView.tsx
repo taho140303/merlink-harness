@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/
 import { Segmented } from "@/shared/components/ui/segmented";
 import { useT } from "@/shared/i18n/useT";
 import { backendClient, type BackendClient } from "@/shared/backend/client";
+import type { CharacterLibraryItemDto } from "@/shared/backend/generated";
 import { ProjectChatPane } from "./ProjectChatPane";
 import { ProjectCreatorPanel } from "./ProjectCreatorPanel";
 import { sanitizeDisplayLabel, mapProjectDtoToItem, sanitizeProjectItem } from "./ProjectView";
@@ -42,6 +43,7 @@ export function ProjectDetailView({
     if (initialProject) return sanitizeProjectItem(initialProject);
     return null;
   });
+  const [projectCharacters, setProjectCharacters] = useState<CharacterLibraryItemDto[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -77,6 +79,17 @@ export function ProjectDetailView({
         .finally(() => {
           if (isMounted) setLoading(false);
         });
+
+      activeClient
+        .listCharacters({ projectId: targetId })
+        .then((res) => {
+          if (!isMounted) return;
+          const items = (res?.items || []).filter(
+            (c) => c.inProject || c.projectId === targetId
+          );
+          setProjectCharacters(items);
+        })
+        .catch(() => {});
     } else if (initialProject) {
       setCurrentProject(sanitizeProjectItem(initialProject));
       setNotFound(false);
@@ -268,6 +281,55 @@ export function ProjectDetailView({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Characters Container */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+                  {t("project.characters")} ({projectCharacters.length || project.details.characters})
+                </h3>
+                <Link
+                  to="/character"
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  {t("character.title")} →
+                </Link>
+              </div>
+              {projectCharacters.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {projectCharacters.map((char) => {
+                    const cleanName = sanitizeDisplayLabel(char.name, char.code, "Nhân vật");
+                    const cleanNickname = char.nickname
+                      ? sanitizeDisplayLabel(char.nickname, undefined, "")
+                      : "";
+                    return (
+                      <Link
+                        key={char.id}
+                        to={`/character/${char.id}`}
+                        className="flex items-center gap-3 rounded-2xl border border-line bg-surface-card p-3.5 transition-colors hover:bg-surface-muted"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-sm font-bold text-accent">
+                          {cleanName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-fg">
+                            {cleanName}
+                          </p>
+                          <p className="truncate text-[11px] text-fg-muted">
+                            {cleanNickname ? `${cleanNickname} • ` : ""}
+                            {char.species} • {char.biologicalSex}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-line bg-surface-card p-4 text-xs text-fg-muted">
+                  Chưa có nhân vật nào được liên kết với dự án này.
+                </div>
+              )}
             </div>
 
             {/* Arcs Container */}

@@ -30,18 +30,21 @@ use crate::storage::pending_repo::{
 /// Helper constructing `ProgressSummaryDto` from working state.
 pub fn compute_progress_dto(ws: &WorkingState) -> ProgressSummaryDto {
     let eval = evaluate_progress(&ws.business_flow_data);
+    let completed = (eval.confirmed_count + eval.ai_suggested_count) as u32;
     ProgressSummaryDto {
         current_phase: ws.phase,
         current_subphase: ws.subphase,
-        completed_attributes: eval.confirmed_count as u32,
+        completed_attributes: completed,
         total_attributes: 46,
-        progress_percentage: (eval.confirmed_count as f32 / 46.0) * 100.0,
+        progress_percentage: (completed as f32 / 46.0) * 100.0,
         is_require_complete: eval.is_require_complete,
         can_advance_phase: if ws.phase == 0 {
             eval.is_require_complete
         } else {
             true
         },
+        confirmed_count: Some(eval.confirmed_count as u32),
+        ai_inferred_count: Some(eval.ai_suggested_count as u32),
     }
 }
 
