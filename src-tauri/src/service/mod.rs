@@ -12,6 +12,7 @@ pub mod project_service;
 pub mod receipt_verifier;
 pub mod recovery_service;
 pub mod round_seal_service;
+pub mod workflow_llm_executor;
 pub mod workflow_service;
 pub mod writing_generation;
 pub mod writing_persistence;

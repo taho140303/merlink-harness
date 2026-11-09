@@ -328,7 +328,7 @@ pub fn run_startup_recovery(
 
                 if !is_valid_target {
                     conn.execute(
-                        "UPDATE pending_patches SET status = 'expired', updated_at = ?1 WHERE id = ?2",
+                        "UPDATE pending_patches SET status = 'expired', resolved_at = ?1 WHERE id = ?2",
                         params![now, patch_id],
                     )
                     .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;

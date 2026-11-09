@@ -5,6 +5,7 @@
 //! - IPC #39: `update_runtime_and_provider_config`
 //! - IPC #40: `set_provider_api_key`
 
+use crate::domain::workflow_planner::WorkflowConfig;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
     GetRuntimeConfigReq, ProviderStatusDto, RuntimeAndProviderConfigDto, SetProviderApiKeyReq,
@@ -126,21 +127,50 @@ impl RuntimeConfigState {
     }
 
     /// Resolve the selected provider for both chat and scene generation.
-    pub fn selected_provider(&self) -> Result<Arc<dyn crate::providers::traits::LlmProvider>, IpcError> {
+    pub fn selected_provider(&self) -> Result<Arc<dyn LlmProvider>, IpcError> {
         let id = self.active_provider_id.read().clone();
+        self.provider_for_model(&id, None)
+    }
+
+    /// Resolve the saved worker choice; `chat` follows the current active provider/model.
+    pub fn resolve_subagent_model(&self) -> Result<(String, String), IpcError> {
+        let choice = self.subagent_config.read().model.clone();
+        let (id, override_model) = if choice == "chat" {
+            (self.active_provider_id.read().clone(), None)
+        } else {
+            let (provider_id, model_id) = choice.split_once('/').ok_or_else(||
+                IpcError::new(ErrorCode::ValidationFailed, "Subagent model must be provider/model"))?;
+            if provider_id.trim().is_empty() || model_id.trim().is_empty() {
+                return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent provider and model must be non-empty"));
+            }
+            (provider_id.to_string(), Some(model_id.to_string()))
+        };
+        let settings = self.providers.read().get(&id).cloned().ok_or_else(||
+            IpcError::new(ErrorCode::ValidationFailed, "Subagent provider is not configured"))?;
+        let model = override_model.or(settings.model_name).filter(|s| !s.trim().is_empty()).ok_or_else(||
+            IpcError::new(ErrorCode::ValidationFailed, "Subagent model is not configured"))?;
+        Ok((id, model))
+    }
+
+    pub fn subagent_provider(&self) -> Result<Arc<dyn LlmProvider>, IpcError> {
+        let (id, model) = self.resolve_subagent_model()?;
+        self.provider_for_model(&id, Some(model))
+    }
+
+    fn provider_for_model(&self, id: &str, override_model: Option<String>) -> Result<Arc<dyn LlmProvider>, IpcError> {
         if id.is_empty() {
             return Err(IpcError::new(ErrorCode::ValidationFailed, "No active AI provider configured"));
         }
-        let settings = self.providers.read().get(&id).cloned().ok_or_else(|| {
+        let settings = self.providers.read().get(id).cloned().ok_or_else(|| {
             IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")
         })?;
         let endpoint = settings.endpoint_url.filter(|s| !s.trim().is_empty()).ok_or_else(|| {
             IpcError::new(ErrorCode::ValidationFailed, "Selected provider endpoint is missing")
         })?;
-        let model = settings.model_name.filter(|s| !s.trim().is_empty()).ok_or_else(|| {
+        let model = override_model.or(settings.model_name).filter(|s| !s.trim().is_empty()).ok_or_else(|| {
             IpcError::new(ErrorCode::ValidationFailed, "Selected provider model is missing")
         })?;
-        let adapter: Arc<dyn crate::providers::traits::LlmProvider> = match id.as_str() {
+        let adapter: Arc<dyn crate::providers::traits::LlmProvider> = match id {
             "ollama" => Arc::new(crate::providers::ollama::OllamaProvider::new(
                 normalize_provider_endpoint(&endpoint, "api/chat")?, false,
             )),
@@ -250,6 +280,70 @@ mod provider_selection_tests {
     }
 
     #[test]
+    fn test_subagent_config_maps_every_workflow_unit() {
+        let cfg = SubagentConfigDto {
+            max_subagents: 2,
+            outline_capacity: 80,
+            outline_lookback: 8,
+            context_margin: 3,
+            chapters_per_subagent: 12,
+            lore_records_per_subagent: 7,
+            characters_per_subagent: 2,
+            relationship_pairs_per_subagent: 4,
+            ..SubagentConfigDto::default()
+        };
+        let planner = workflow_config_from_subagent(&cfg).unwrap();
+        assert_eq!(planner.max_parallel, 2);
+        assert_eq!(planner.outline_cap, 80);
+        assert_eq!(planner.outline_lookback, 8);
+        assert_eq!(planner.context_margin, 3);
+        assert_eq!(planner.unit_chapter, 12);
+        assert_eq!(planner.unit_world_lore, 7);
+        assert_eq!(planner.unit_character, 2);
+        assert_eq!(planner.unit_relationship, 4);
+    }
+
+    #[test]
+    fn test_subagent_config_survives_restart_and_rejects_invalid_sizes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("provider-config.json");
+        let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
+        let saved = SubagentConfigDto {
+            max_subagents: 4, rejected_threshold: 5, outline_capacity: 75,
+            outline_lookback: 12, context_margin: 3, chapters_per_subagent: 15,
+            lore_records_per_subagent: 6, characters_per_subagent: 2,
+            relationship_pairs_per_subagent: 7, model: "chat".into(),
+        };
+        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
+            subagent_config: Some(saved.clone()), ..UpdateRuntimeConfigReq::default()
+        }).unwrap();
+        let restored = RuntimeConfigState::with_persistence(path).unwrap();
+        assert_eq!(*restored.subagent_config.read(), saved);
+        let bad = SubagentConfigDto { chapters_per_subagent: 0, ..saved.clone() };
+        assert!(validate_subagent_config(&bad).is_err());
+        let overflow = SubagentConfigDto { outline_capacity: i32::MAX as u32 + 1, ..saved };
+        assert!(validate_subagent_config(&overflow).is_err());
+    }
+
+    #[test]
+    fn test_subagent_model_resolution_fails_closed_on_missing_provider() {
+        let state = RuntimeConfigState::default();
+        assert!(state.subagent_provider().is_err());
+        state.providers.write().insert("custom".into(), ProviderRuntimeSettings {
+            provider_id: "custom".into(), name: "Custom".into(),
+            endpoint_url: Some("https://example.com/v1".into()),
+            model_name: Some("chat-model".into()),
+        });
+        *state.active_provider_id.write() = "custom".into();
+        assert_eq!(state.resolve_subagent_model().unwrap(), ("custom".into(), "chat-model".into()));
+        state.subagent_config.write().model = "custom/worker-model".into();
+        assert_eq!(state.resolve_subagent_model().unwrap(), ("custom".into(), "worker-model".into()));
+        assert_eq!(state.subagent_provider().unwrap().provider_id(), "opencode");
+        state.subagent_config.write().model = "missing/worker-model".into();
+        assert!(state.subagent_provider().is_err());
+    }
+
+    #[test]
     fn test_removed_provider_stays_removed_after_restart() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("provider-config.json");
@@ -307,6 +401,16 @@ pub fn validate_subagent_config(cfg: &SubagentConfigDto) -> Result<(), IpcError>
         ));
     }
 
+    if cfg.rejected_threshold == 0 || cfg.outline_capacity == 0 || cfg.chapters_per_subagent == 0
+        || cfg.lore_records_per_subagent == 0 || cfg.characters_per_subagent == 0
+        || cfg.relationship_pairs_per_subagent == 0 {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent thresholds and task sizes must be positive"));
+    }
+    if [cfg.outline_capacity, cfg.outline_lookback, cfg.context_margin, cfg.chapters_per_subagent,
+        cfg.lore_records_per_subagent, cfg.characters_per_subagent, cfg.relationship_pairs_per_subagent]
+        .iter().any(|&value| value > i32::MAX as u32) {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent task sizes exceed planner limits"));
+    }
     if cfg.outline_lookback >= cfg.outline_capacity {
         return Err(IpcError::new(
             ErrorCode::ValidationFailed,
@@ -318,6 +422,24 @@ pub fn validate_subagent_config(cfg: &SubagentConfigDto) -> Result<(), IpcError>
     }
 
     Ok(())
+}
+
+/// Convert a validated saved UI configuration into the planner's frozen per-run values.
+pub fn workflow_config_from_subagent(cfg: &SubagentConfigDto) -> Result<WorkflowConfig, IpcError> {
+    validate_subagent_config(cfg)?;
+    let config = WorkflowConfig {
+        max_parallel: cfg.max_subagents as usize,
+        outline_cap: cfg.outline_capacity as i32,
+        outline_lookback: cfg.outline_lookback as i32,
+        context_margin: cfg.context_margin as i32,
+        unit_chapter: cfg.chapters_per_subagent as i32,
+        unit_world_lore: cfg.lore_records_per_subagent as i32,
+        unit_character: cfg.characters_per_subagent as i32,
+        unit_relationship: cfg.relationship_pairs_per_subagent as i32,
+        ..WorkflowConfig::default()
+    };
+    config.validate().map_err(|error| IpcError::new(ErrorCode::ValidationFailed, error.to_string()))?;
+    Ok(config)
 }
 
 // ============================================================================

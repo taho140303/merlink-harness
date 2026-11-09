@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::error::IpcError;
+use crate::ipc::config_commands::{workflow_config_from_subagent, RuntimeConfigState};
 use crate::ipc::dto::{
     CancelWorkflowReq, CancelWorkflowResponseDto, GetWorkflowStatusReq, StartOrResumeWorkflowReq,
     WorkflowExecutionSummaryDto, WorkflowProgressEvent, WorkflowStatusDto,
@@ -27,6 +28,7 @@ pub async fn exec_start_or_resume_workflow(
 #[tauri::command]
 pub async fn start_or_resume_workflow(
     service: tauri::State<'_, Arc<WorkflowService>>,
+    config: tauri::State<'_, Arc<RuntimeConfigState>>,
     req: StartOrResumeWorkflowReq,
     on_event: tauri::ipc::Channel<WorkflowProgressEvent>,
 ) -> Result<WorkflowExecutionSummaryDto, IpcError> {
@@ -37,7 +39,9 @@ pub async fn start_or_resume_workflow(
             let _ = channel_clone.send(evt);
         }
     });
-    exec_start_or_resume_workflow(&service, &req, Some(tx)).await
+    let saved = config.subagent_config.read().clone();
+    let planner_config = workflow_config_from_subagent(&saved)?;
+    service.start_or_resume_workflow_with_config(&req, Some(tx), planner_config).await
 }
 
 // ============================================================================

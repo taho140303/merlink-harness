@@ -609,6 +609,84 @@ pub fn verify_p3s3_dispatch_preconditions(
     Ok(())
 }
 
+/// Validate the Owner-approved JSON report before accepting it as a durable probe artifact.
+/// `tempKey` is scoped to one report and never becomes a draft entity code.
+pub fn validate_probe_candidates(report_text: &str, existing_world_codes: &[String]) -> Result<Value, ArtifactError> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let report: Value = serde_json::from_str(report_text)
+        .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
+    let object = report.as_object().ok_or_else(|| ArtifactError::Serialization("ProbeCandidatesV1 must be an object".into()))?;
+    if object.len() != 3 || object.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err(ArtifactError::Serialization("Invalid ProbeCandidatesV1 version or keys".into()));
+    }
+    let worlds = object.get("worldSettings").and_then(Value::as_array)
+        .ok_or_else(|| ArtifactError::Serialization("worldSettings must be an array".into()))?;
+    let lores = object.get("loreEntries").and_then(Value::as_array)
+        .ok_or_else(|| ArtifactError::Serialization("loreEntries must be an array".into()))?;
+    let existing: BTreeSet<&str> = existing_world_codes.iter().map(String::as_str).collect();
+    let mut parents = BTreeMap::<&str, Option<&str>>::new();
+    for item in worlds {
+        let entry = item.as_object().ok_or_else(|| ArtifactError::Serialization("World candidate must be an object".into()))?;
+        let get = |key: &str| entry.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty());
+        let key = get("tempKey").ok_or_else(|| ArtifactError::Serialization("Missing world tempKey".into()))?;
+        if get("displayName").is_none() || !matches!(get("type"), Some("REALM" | "WORLD" | "REGION" | "COUNTRY" | "CITY" | "TOWN" | "FACILITY" | "STREET" | "ROOM"))
+            || entry.get("access").is_some() && !matches!(get("access"), Some("PUBLIC" | "PRIVATE" | "SECRET" | "LOCKED" | "GUARDED" | "RESTRICTED")) {
+            return Err(ArtifactError::Serialization("Invalid world candidate fields or enum".into()));
+        }
+        let parent = get("parentTempKey");
+        let external = get("existingParentCode");
+        if parent.is_some() && external.is_some() || external.is_some_and(|code| !existing.contains(code))
+            || parents.insert(key, parent).is_some() {
+            return Err(ArtifactError::Serialization("Invalid or duplicate world parent reference".into()));
+        }
+    }
+    for key in parents.keys() {
+        let mut seen = BTreeSet::new();
+        let mut next = Some(*key);
+        while let Some(current) = next {
+            if !seen.insert(current) {
+                return Err(ArtifactError::Serialization("World parent cycle".into()));
+            }
+            next = match parents.get(current) {
+                Some(parent) => *parent,
+                None => return Err(ArtifactError::Serialization("Missing world parentTempKey".into())),
+            };
+        }
+    }
+    let mut lore_keys = BTreeSet::new();
+    for item in lores {
+        let entry = item.as_object().ok_or_else(|| ArtifactError::Serialization("Lore candidate must be an object".into()))?;
+        let get = |key: &str| entry.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty());
+        let key = get("tempKey").ok_or_else(|| ArtifactError::Serialization("Missing lore tempKey".into()))?;
+        let world = get("worldTempKey");
+        let external = get("existingWorldCode");
+        if !lore_keys.insert(key) || get("displayName").is_none()
+            || !matches!(get("type"), Some("CULTURE" | "HISTORY" | "FACTION" | "ITEM"))
+            || !entry.get("data").is_some_and(Value::is_object)
+            || world.is_some() == external.is_some()
+            || world.is_some_and(|code| !parents.contains_key(code))
+            || external.is_some_and(|code| !existing.contains(code)) {
+            return Err(ArtifactError::Serialization("Invalid lore candidate or world reference".into()));
+        }
+    }
+    Ok(report)
+}
+
+#[cfg(test)]
+mod probe_candidates_tests {
+    use super::*;
+
+    #[test]
+    fn test_probe_candidates_validate_parent_and_lore_references() {
+        let valid = r#"{"schemaVersion":1,"worldSettings":[{"tempKey":"w1","displayName":"City","type":"CITY"},{"tempKey":"w2","parentTempKey":"w1","displayName":"Library","type":"FACILITY"}],"loreEntries":[{"tempKey":"l1","worldTempKey":"w2","displayName":"Fire","type":"HISTORY","data":{}}]}"#;
+        assert!(validate_probe_candidates(valid, &[]).is_ok());
+        assert!(validate_probe_candidates(&valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"missing\""), &[]).is_err());
+        assert!(validate_probe_candidates(&valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"w2\""), &[]).is_err());
+        assert!(validate_probe_candidates(&valid.replace("\"worldTempKey\":\"w2\"", "\"worldTempKey\":\"missing\""), &[]).is_err());
+        assert!(validate_probe_candidates(&valid.replace("\"type\":\"CITY\"", "\"type\":\"UNKNOWN\""), &[]).is_err());
+    }
+}
+
 // ============================================================================
 // RFC 8785 JSON Canonicalization Scheme (JCS) Implementation
 // ============================================================================

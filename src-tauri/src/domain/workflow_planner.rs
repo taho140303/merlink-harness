@@ -84,6 +84,9 @@ pub struct WorkflowConfig {
     pub outline_lookback: i32,
     pub outline_page: i32,
     pub unit_chapter: i32,
+    pub unit_world_lore: i32,
+    pub unit_character: i32,
+    pub unit_relationship: i32,
     pub context_margin: i32,
     pub max_parallel: usize,
     pub draft_lock_timeout_secs: u64,
@@ -96,6 +99,9 @@ impl Default for WorkflowConfig {
             outline_lookback: DEFAULT_OUTLINE_LOOKBACK,
             outline_page: DEFAULT_OUTLINE_PAGE,
             unit_chapter: DEFAULT_UNIT_CHAPTER,
+            unit_world_lore: 10,
+            unit_character: 5,
+            unit_relationship: 10,
             context_margin: DEFAULT_CONTEXT_MARGIN,
             max_parallel: DEFAULT_MAX_PARALLEL,
             draft_lock_timeout_secs: DEFAULT_DRAFT_LOCK_TIMEOUT_SECS,
@@ -123,6 +129,9 @@ impl WorkflowConfig {
                 "unit_chapter must be >= 1, got {}",
                 self.unit_chapter
             )));
+        }
+        if self.unit_world_lore <= 0 || self.unit_character <= 0 || self.unit_relationship <= 0 {
+            return Err(PlannerError::validation_failed("world/lore, character and relationship units must be >= 1"));
         }
         if self.context_margin < 0 {
             return Err(PlannerError::validation_failed(format!(

@@ -41,12 +41,11 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::domain::fingerprint::state_data_hash;
-use crate::domain::phase3_artifact::WorldProbeReportV1;
 use crate::domain::sf06::codec::{decode_evidence, replay, PatchOp, PatchV2};
 use crate::domain::workflow_planner::{
-    format_arc_chapter_task_identity, plan_arc_outline_runs, plan_chapter_phase_with_context,
-    plan_character_subphase, plan_relationship_phase, plan_world_write_by_depth, split_balanced,
-    WorkflowConfig, WorkflowTaskKind,
+    extract_arc_chapter_ranges, format_arc_chapter_task_identity, plan_arc_outline_runs,
+    plan_chapter_phase_with_context, plan_character_subphase, plan_relationship_phase,
+    plan_world_write_by_depth, WorkflowConfig, WorkflowTaskKind,
 };
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
@@ -114,33 +113,22 @@ pub struct DefaultWorkflowTaskExecutor;
 
 #[async_trait::async_trait]
 impl WorkflowTaskExecutor for DefaultWorkflowTaskExecutor {
+    /// Placeholder executor for environments without a configured provider.
+    ///
+    /// It intentionally produces no artifact: a probe report must come from a real model and
+    /// pass `validate_probe_candidates`, so a synthetic report here could be mistaken for a
+    /// sealed Phase 3 result. Production installs a provider resolver instead.
     async fn execute_task(
         &self,
         ctx: &TaskExecutionContext,
     ) -> Result<TaskExecutionOutput, IpcError> {
-        let mut artifact = None;
-
-        // Produce typed artifact for Phase 3 probe tasks
-        if ctx.phase == 3 && ctx.task_spec.task_kind == "world_probe" {
-            let report = WorldProbeReportV1::new(
-                ctx.task_spec.assigned_scope.to_string(),
-                format!(
-                    "World probe report for scope {}",
-                    ctx.task_spec.assigned_scope
-                ),
-            );
-            artifact = Some(serde_json::to_value(report).map_err(|e| {
-                IpcError::new(ErrorCode::InternalError, e.to_string())
-            })?);
-        }
-
         Ok(TaskExecutionOutput {
             task_index: ctx.task_index,
             task_spec: ctx.task_spec.clone(),
             task_identity: ctx.task_identity.clone(),
             mutations: Vec::new(),
             applied_write_count: 0,
-            artifact,
+            artifact: None,
         })
     }
 }
@@ -164,6 +152,10 @@ pub struct ActiveWorkflowState {
     pub applied_task_order: Arc<parking_lot::Mutex<Vec<usize>>>,
 }
 
+/// Builds the task executor for one workflow run (production installs a live LLM executor).
+pub type ExecutorFactory =
+    Arc<dyn Fn() -> Result<Arc<dyn WorkflowTaskExecutor>, IpcError> + Send + Sync>;
+
 /// Segmented Workflow Service.
 pub struct WorkflowService {
     pool: Pool<SqliteConnectionManager>,
@@ -172,6 +164,7 @@ pub struct WorkflowService {
     config: RwLock<WorkflowConfig>,
     active_runs: Arc<RwLock<HashMap<Uuid, Arc<ActiveWorkflowState>>>>,
     task_executor: Arc<RwLock<Arc<dyn WorkflowTaskExecutor>>>,
+    executor_factory: Arc<RwLock<Option<ExecutorFactory>>>,
     error_injection: Arc<RwLock<HashMap<Uuid, WorkflowErrorInjection>>>,
 }
 
@@ -189,6 +182,7 @@ impl WorkflowService {
             config: RwLock::new(config),
             active_runs: Arc::new(RwLock::new(HashMap::new())),
             task_executor: Arc::new(RwLock::new(Arc::new(DefaultWorkflowTaskExecutor))),
+            executor_factory: Arc::new(RwLock::new(None)),
             error_injection: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -207,6 +201,7 @@ impl WorkflowService {
             config: RwLock::new(config),
             active_runs: Arc::new(RwLock::new(HashMap::new())),
             task_executor: Arc::new(RwLock::new(executor)),
+            executor_factory: Arc::new(RwLock::new(None)),
             error_injection: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -225,6 +220,12 @@ impl WorkflowService {
 
     pub fn set_task_executor(&self, executor: Arc<dyn WorkflowTaskExecutor>) {
         *self.task_executor.write() = executor;
+    }
+
+    /// Install the production executor factory. When present, every run builds a fresh executor
+    /// (with the saved provider/model) at start instead of reusing the placeholder executor.
+    pub fn set_executor_factory(&self, factory: ExecutorFactory) {
+        *self.executor_factory.write() = Some(factory);
     }
 
     pub fn set_config(&self, config: WorkflowConfig) {
@@ -253,6 +254,16 @@ impl WorkflowService {
         req: &StartOrResumeWorkflowReq,
         event_tx: Option<mpsc::Sender<WorkflowProgressEvent>>,
     ) -> Result<WorkflowExecutionSummaryDto, IpcError> {
+        self.start_or_resume_workflow_with_config(req, event_tx, self.get_config()).await
+    }
+
+    /// Snapshot settings once per run; saving settings cannot change an in-flight plan.
+    pub async fn start_or_resume_workflow_with_config(
+        &self,
+        req: &StartOrResumeWorkflowReq,
+        event_tx: Option<mpsc::Sender<WorkflowProgressEvent>>,
+        cfg: WorkflowConfig,
+    ) -> Result<WorkflowExecutionSummaryDto, IpcError> {
         // 1. Parameter Validation
         if req.phase < 1 || req.phase > 6 {
             return Err(IpcError::new(
@@ -261,7 +272,6 @@ impl WorkflowService {
             ));
         }
 
-        let cfg = self.get_config();
         if cfg.outline_lookback < 0 || cfg.outline_lookback >= cfg.outline_cap {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
@@ -457,7 +467,10 @@ impl WorkflowService {
         // 6. Execute Rounds Loop
         let mut overall_status = "completed".to_string();
         let mut completed_tasks_count = 0u32;
-        let executor = self.task_executor.read().clone();
+        let executor: Arc<dyn WorkflowTaskExecutor> = match self.executor_factory.read().as_ref() {
+            Some(factory) => factory()?,
+            None => self.task_executor.read().clone(),
+        };
 
         for (round_idx, round_tasks) in plan_rounds.iter().enumerate() {
             if cancel_requested.load(Ordering::SeqCst) || cancel_token.is_cancelled() {
@@ -916,107 +929,166 @@ impl WorkflowService {
         &self,
         phase: i32,
         subphase: Option<i32>,
-        _ws: &WorkingState,
+        ws: &WorkingState,
         cfg: &WorkflowConfig,
     ) -> Result<Vec<Vec<PlannedTaskSpec>>, IpcError> {
+        let flow = &ws.business_flow_data;
+        let invalid = |message: String| IpcError::new(ErrorCode::ValidationFailed, message);
         let mut rounds = Vec::new();
 
         match phase {
             1 | 2 => {
-                // Phase 1–2: Sequential chapter runs via plan_arc_outline_runs
-                let arc_code = "arc_01";
-                let outline_runs = plan_arc_outline_runs(arc_code, 1, 50, cfg.outline_cap, cfg.outline_lookback)
-                    .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
-
-                for run in outline_runs {
-                    let arc = run.arc_code.as_deref().unwrap_or(arc_code);
-                    let task_id = format_arc_chapter_task_identity(phase, WorkflowTaskKind::OutlineWindow, arc, run.write.0, run.write.1)
-                        .unwrap_or_else(|_| format!("task:p{}:outline_window:{}:{}..={}", phase, arc, run.write.0, run.write.1));
-
-                    let spec = PlannedTaskSpec {
-                        phase,
-                        subphase: None,
-                        task_kind: "outline_window".to_string(),
-                        assigned_scope: json!({
-                            "arcCode": arc,
-                            "readRange": run.read,
-                            "writeRange": [run.write.0, run.write.1],
-                        }),
-                        dependencies: vec![],
-                        deterministic_identity: Some(task_id),
-                    };
-
-                    rounds.push(vec![spec]);
-                }
-            }
-            3 => {
-                // Phase 3: Three Stages
-                // Stage 1 (Probe): chapter slices using split_balanced
-                let total_chapters = 60i32;
-                let chapter_slices = split_balanced(1, total_chapters, cfg.unit_chapter)
-                    .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
-
-                let mut probe_tasks = Vec::new();
-                for (lo, hi) in &chapter_slices {
-                    let task_id = format!("task:p3:world_probe:ch_{lo:03}..={hi:03}");
-                    probe_tasks.push(PlannedTaskSpec {
-                        phase: 3,
-                        subphase: None,
-                        task_kind: "world_probe".to_string(),
-                        assigned_scope: json!({ "chapterRange": [*lo, *hi] }),
-                        dependencies: vec![],
-                        deterministic_identity: Some(task_id),
-                    });
+                // Phase 1–2: sequential outline windows over the Arc ranges in the draft.
+                let arc_ranges = extract_arc_chapter_ranges(flow)
+                    .map_err(|e| invalid(e.to_string()))?;
+                if arc_ranges.is_empty() {
+                    return Err(invalid(
+                        "Phase 1–2 requires at least one Arc with chapters in the draft".into(),
+                    ));
                 }
 
-                // Chunk probe tasks into rounds of max_parallel
-                for chunk in probe_tasks.chunks(cfg.max_parallel) {
-                    rounds.push(chunk.to_vec());
-                }
+                for (arc_code, lo, hi) in arc_ranges {
+                    let outline_runs = plan_arc_outline_runs(
+                        &arc_code,
+                        lo,
+                        hi,
+                        cfg.outline_cap,
+                        cfg.outline_lookback,
+                    )
+                    .map_err(|e| invalid(e.to_string()))?;
 
-                // Stage 2 & 3: Consolidate & Hierarchical Write by depth
-                let nodes = vec![
-                    ("continent_north".to_string(), None),
-                    ("kingdom_iron".to_string(), Some("continent_north".to_string())),
-                    ("city_capital".to_string(), Some("kingdom_iron".to_string())),
-                ];
+                    for run in outline_runs {
+                        let arc = run.arc_code.as_deref().unwrap_or(&arc_code);
+                        let task_id = format_arc_chapter_task_identity(
+                            phase,
+                            WorkflowTaskKind::OutlineWindow,
+                            arc,
+                            run.write.0,
+                            run.write.1,
+                        )
+                        .unwrap_or_else(|_| {
+                            format!(
+                                "task:p{}:outline_window:{}:{}..={}",
+                                phase, arc, run.write.0, run.write.1
+                            )
+                        });
 
-                let depth_plans = plan_world_write_by_depth(&nodes, 8, cfg.max_parallel)
-                    .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
+                        let spec = PlannedTaskSpec {
+                            phase,
+                            subphase: None,
+                            task_kind: "outline_window".to_string(),
+                            assigned_scope: json!({
+                                "arcCode": arc,
+                                "readRange": run.read,
+                                "writeRange": [run.write.0, run.write.1],
+                            }),
+                            dependencies: vec![],
+                            deterministic_identity: Some(task_id),
+                        };
 
-                for plan in depth_plans {
-                    for r in plan.rounds {
-                        let mut round_specs = Vec::new();
-                        for t in r.tasks {
-                            let task_id = t.task_identity.clone().unwrap_or_else(|| {
-                                format!("task:p3:world_write:group_{}:{}..={}", t.group_key, t.lo, t.hi)
-                            });
-
-                            round_specs.push(PlannedTaskSpec {
-                                phase: 3,
-                                subphase: None,
-                                task_kind: "world_write".to_string(),
-                                assigned_scope: json!({ "groupKey": t.group_key, "range": [t.lo, t.hi] }),
-                                dependencies: vec![],
-                                deterministic_identity: Some(task_id),
-                            });
-                        }
-                        rounds.push(round_specs);
+                        rounds.push(vec![spec]);
                     }
                 }
             }
-            4 => {
-                // Phase 4: scene configuration with context margin
-                let arc_ranges = vec![("arc_01", 1, 30)];
-                let phase_plan = plan_chapter_phase_with_context(
-                    4,
+            3 => {
+                // Phase 3 Stage 1: chapter probes over the Arc ranges actually present in the draft.
+                let arc_ranges = extract_arc_chapter_ranges(flow)
+                    .map_err(|e| invalid(e.to_string()))?;
+                if arc_ranges.is_empty() {
+                    return Err(invalid(
+                        "Phase 3 requires at least one Arc with chapters in the draft".into(),
+                    ));
+                }
+                let total_chapters = arc_ranges.iter().map(|(_, _, hi)| *hi).max().unwrap_or(0);
+                let probe_plan = plan_chapter_phase_with_context(
+                    3,
                     &arc_ranges,
-                    30,
+                    total_chapters,
                     cfg.unit_chapter,
                     cfg.max_parallel,
                     cfg.context_margin,
                 )
-                .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
+                .map_err(|e| invalid(e.to_string()))?;
+
+                for r in probe_plan.rounds {
+                    let mut round_specs = Vec::new();
+                    for t in r.tasks {
+                        let task_id = t.task_identity.clone().ok_or_else(|| {
+                            invalid("Phase 3 probe task is missing its canonical identity".into())
+                        })?;
+                        round_specs.push(PlannedTaskSpec {
+                            phase: 3,
+                            subphase: None,
+                            task_kind: "world_probe".to_string(),
+                            assigned_scope: json!({
+                                "groupKey": t.group_key,
+                                "range": [t.lo, t.hi],
+                                "contextRange": t.chapter_context_range,
+                            }),
+                            dependencies: vec![],
+                            deterministic_identity: Some(task_id),
+                        });
+                    }
+                    rounds.push(round_specs);
+                }
+
+                // Stage 3 write rounds are planned only from world settings that already exist in
+                // the draft (parent layers first). Probed candidates are written by a later pass
+                // once the pure merger has produced the consumed input; never fabricate nodes here.
+                let nodes: Vec<(String, Option<String>)> = flow
+                    .optional
+                    .world_building_phase
+                    .world_settings
+                    .iter()
+                    .map(|node| (node.code.clone(), node.parent_code.value.clone()))
+                    .collect();
+
+                if !nodes.is_empty() {
+                    let depth_plans =
+                        plan_world_write_by_depth(&nodes, cfg.unit_world_lore, cfg.max_parallel)
+                            .map_err(|e| invalid(e.to_string()))?;
+
+                    for plan in depth_plans {
+                        for r in plan.rounds {
+                            let mut round_specs = Vec::new();
+                            for t in r.tasks {
+                                let task_id = t.task_identity.clone().ok_or_else(|| {
+                                    invalid("Phase 3 write task is missing its canonical identity".into())
+                                })?;
+
+                                round_specs.push(PlannedTaskSpec {
+                                    phase: 3,
+                                    subphase: None,
+                                    task_kind: "world_write".to_string(),
+                                    assigned_scope: json!({ "groupKey": t.group_key, "range": [t.lo, t.hi] }),
+                                    dependencies: vec![],
+                                    deterministic_identity: Some(task_id),
+                                });
+                            }
+                            rounds.push(round_specs);
+                        }
+                    }
+                }
+            }
+            4 => {
+                // Phase 4: scene configuration over the Arc ranges actually present in the draft.
+                let arc_ranges = extract_arc_chapter_ranges(flow)
+                    .map_err(|e| invalid(e.to_string()))?;
+                if arc_ranges.is_empty() {
+                    return Err(invalid(
+                        "Phase 4 requires at least one Arc with chapters in the draft".into(),
+                    ));
+                }
+                let total_chapters = arc_ranges.iter().map(|(_, _, hi)| *hi).max().unwrap_or(0);
+                let phase_plan = plan_chapter_phase_with_context(
+                    4,
+                    &arc_ranges,
+                    total_chapters,
+                    cfg.unit_chapter,
+                    cfg.max_parallel,
+                    cfg.context_margin,
+                )
+                .map_err(|e| invalid(e.to_string()))?;
 
                 for r in phase_plan.rounds {
                     let mut round_specs = Vec::new();
@@ -1042,19 +1114,29 @@ impl WorkflowService {
                 }
             }
             5 => {
-                // Phase 5: Character profiles for specific subphase
+                // Phase 5: character profiles for one subphase, over the draft's characters.
                 let sub = subphase.unwrap_or(1);
-                let char_codes = vec!["char_mc".to_string(), "char_ally".to_string()];
+                let char_codes: Vec<String> = flow
+                    .require
+                    .character
+                    .iter()
+                    .map(|character| character.code.clone())
+                    .collect();
+                if char_codes.is_empty() {
+                    return Err(invalid(
+                        "Phase 5 requires at least one character in the draft".into(),
+                    ));
+                }
 
-                let plan = plan_character_subphase(sub, &char_codes, 4, cfg.max_parallel)
-                    .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
+                let plan = plan_character_subphase(sub, &char_codes, cfg.unit_character, cfg.max_parallel)
+                    .map_err(|e| invalid(e.to_string()))?;
 
                 for r in plan.rounds {
                     let mut round_specs = Vec::new();
                     for t in r.tasks {
-                        let task_id = t.task_identity.clone().unwrap_or_else(|| {
-                            format!("task:p5_s{}:char_profile:{}:{}..={}", sub, t.group_key, t.lo, t.hi)
-                        });
+                        let task_id = t.task_identity.clone().ok_or_else(|| {
+                            invalid("Phase 5 task is missing its canonical identity".into())
+                        })?;
 
                         round_specs.push(PlannedTaskSpec {
                             phase: 5,
@@ -1069,17 +1151,29 @@ impl WorkflowService {
                 }
             }
             6 => {
-                // Phase 6: Relationship matrix
-                let pairs = vec![("char_mc", "char_ally")];
-                let plan = plan_relationship_phase(&pairs, 10, cfg.max_parallel)
-                    .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
+                // Phase 6: relationship matrix over the directed pairs in the draft.
+                let pairs: Vec<(String, String)> = flow
+                    .optional
+                    .relationship_phase
+                    .relationship
+                    .iter()
+                    .map(|item| (item.character.from_code.clone(), item.character.to_code.clone()))
+                    .collect();
+                if pairs.is_empty() {
+                    return Err(invalid(
+                        "Phase 6 requires at least one relationship pair in the draft".into(),
+                    ));
+                }
+
+                let plan = plan_relationship_phase(&pairs, cfg.unit_relationship, cfg.max_parallel)
+                    .map_err(|e| invalid(e.to_string()))?;
 
                 for r in plan.rounds {
                     let mut round_specs = Vec::new();
                     for t in r.tasks {
-                        let task_id = t.task_identity.clone().unwrap_or_else(|| {
-                            format!("task:p6:rel_matrix:{}:{}..={}", t.group_key, t.lo, t.hi)
-                        });
+                        let task_id = t.task_identity.clone().ok_or_else(|| {
+                            invalid("Phase 6 task is missing its canonical identity".into())
+                        })?;
 
                         round_specs.push(PlannedTaskSpec {
                             phase: 6,

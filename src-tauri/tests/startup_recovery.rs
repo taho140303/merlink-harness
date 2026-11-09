@@ -834,3 +834,65 @@ fn test_phase6_sprint2_deep0_F2_corrupt_evidence_transitions_to_requires_replan(
         assert_eq!(reason, "evidence_fingerprint_mismatch");
     }
 }
+
+// ============================================================================
+// Regression: startup recovery expires patches whose target vanished
+// (`pending_patches` has `resolved_at`, not `updated_at` — be-core §11.2.2)
+// ============================================================================
+
+#[test]
+fn test_recovery_expires_pending_patch_with_missing_target_code() {
+    let temp_dir = TempDir::new().expect("create temp dir");
+    let (_db_path, pool) = setup_test_db(&temp_dir);
+    let conn = pool.get().expect("get conn");
+
+    let draft_session_id = Uuid::new_v4();
+    let session_id = "session_patch_expiry";
+    conn.execute(
+        "INSERT INTO sessions (id, project_id, display_name) VALUES (?1, NULL, 'Patch Expiry')",
+        params![session_id],
+    )
+    .expect("seed session");
+    conn.execute(
+        "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
+         VALUES (?1, ?2, NULL, 1, 'editing', '2026-03-01T00:00:00Z', '2026-03-01T00:00:00Z')",
+        params![draft_session_id.to_string(), session_id],
+    )
+    .expect("seed draft_session");
+
+    let bfd_json = serde_json::to_string(&BusinessFlowData::default()).expect("serialize bfd");
+    conn.execute(
+        "INSERT INTO draft_versions (id, draft_session_id, seq, seal_key, phase, subphase, data_json, data_hash, reason, parent_seq, turn_id, chat_message_id, created_at)
+         VALUES (?1, ?2, 1, 'seal_patch_expiry', NULL, NULL, ?3, 'hash_patch_expiry', 'manual_edit', NULL, NULL, NULL, '2026-03-01T00:00:00Z')",
+        params![Uuid::new_v4().to_string(), draft_session_id.to_string(), bfd_json],
+    )
+    .expect("seed draft_version");
+
+    let patch_id = Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO pending_patches (id, draft_session_id, base_version_seq, target_type, target_code, field_name, operation, previous_value, new_value, target_source, status, created_at)
+         VALUES (?1, ?2, 1, 'character', 'ghost_code', 'display_name', 'set', '\"Old\"', '\"New\"', 'user', 'pending', '2026-03-01T00:00:00Z')",
+        params![patch_id, draft_session_id.to_string()],
+    )
+    .expect("seed pending patch");
+
+    drop(conn);
+
+    let registry = Arc::new(DraftRuntimeRegistry::new());
+    let temp_root = temp_dir.path().join("app_temp");
+    fs::create_dir_all(&temp_root).expect("create app_temp");
+
+    run_startup_recovery(&pool, &temp_root, Some(&registry))
+        .expect("startup recovery must not fail on pending patch expiry");
+
+    let check_conn = pool.get().expect("get check_conn");
+    let (status, resolved_at): (String, Option<String>) = check_conn
+        .query_row(
+            "SELECT status, resolved_at FROM pending_patches WHERE id = ?1",
+            params![patch_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .expect("patch row must exist");
+    assert_eq!(status, "expired");
+    assert!(resolved_at.is_some(), "expired patch must record resolved_at");
+}

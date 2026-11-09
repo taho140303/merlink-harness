@@ -89,6 +89,14 @@ impl AppBootstrap {
             draft_service.clone(),
             WorkflowConfig::default(),
         ));
+        // Production: each workflow run resolves the saved subagent provider/model at start.
+        let resolver_config = config.clone();
+        workflow_service.set_executor_factory(Arc::new(move || {
+            let provider = resolver_config.subagent_provider()?;
+            Ok(Arc::new(
+                crate::service::workflow_llm_executor::LlmWorkflowTaskExecutor::new(provider),
+            ) as Arc<dyn crate::service::workflow_service::WorkflowTaskExecutor>)
+        }));
         let writing_generation_service = Arc::new(WritingGenerationService::new(pool.clone()));
         let writing_persistence_service = Arc::new(WritingPersistenceService::new(pool.clone()));
 

@@ -21,8 +21,11 @@ pub mod word_count;
 pub mod progress_engine;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
+#[path = "../src/domain/workflow_planner.rs"]
+pub mod workflow_planner;
 
 pub mod domain {
+    pub use crate::workflow_planner;
     pub use crate::business_flow;
     pub use crate::code_allocator;
     pub use crate::fingerprint;

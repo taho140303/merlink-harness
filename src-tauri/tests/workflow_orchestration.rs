@@ -142,6 +142,34 @@ pub mod error {
 pub mod ipc {
     pub use crate::dto;
     pub use crate::workflow_commands;
+
+    // This integration fixture imports workflow_commands.rs in isolation. Its IPC config
+    // state is supplied by the production library; the stub only preserves the module
+    // boundary for compiling the standalone workflow command tests.
+    pub mod config_commands {
+        use crate::domain::workflow_planner::WorkflowConfig;
+        use crate::error::IpcError;
+        use crate::dto::SubagentConfigDto;
+        use parking_lot::RwLock;
+
+        pub struct RuntimeConfigState {
+            pub subagent_config: RwLock<SubagentConfigDto>,
+        }
+
+        pub fn workflow_config_from_subagent(cfg: &SubagentConfigDto) -> Result<WorkflowConfig, IpcError> {
+            Ok(WorkflowConfig {
+                max_parallel: cfg.max_subagents as usize,
+                outline_cap: cfg.outline_capacity as i32,
+                outline_lookback: cfg.outline_lookback as i32,
+                unit_chapter: cfg.chapters_per_subagent as i32,
+                unit_world_lore: cfg.lore_records_per_subagent as i32,
+                unit_character: cfg.characters_per_subagent as i32,
+                unit_relationship: cfg.relationship_pairs_per_subagent as i32,
+                context_margin: cfg.context_margin as i32,
+                ..WorkflowConfig::default()
+            })
+        }
+    }
 }
 
 pub mod service {
@@ -237,6 +265,69 @@ fn setup_test_fixture() -> TestFixture {
     }
 }
 
+/// Draft fixture with real arcs/chapters/characters/relationships/world tree so that the
+/// production planner (which never fabricates entities) can build rounds from state.
+fn seeded_business_flow() -> BusinessFlowData {
+    let tracked = |value: serde_json::Value| serde_json::json!({"value": value, "source": "user"});
+    let chapter = |code: &str, position: u32| {
+        serde_json::json!({
+            "code": code,
+            "display_name": tracked(serde_json::json!(format!("Chapter {position}"))),
+            "position": tracked(serde_json::json!(position)),
+            "summary": tracked(serde_json::json!("Summary")),
+        })
+    };
+    let value = serde_json::json!({
+        "meta": {"version": "1.0", "phase": 0, "subphase": null, "updated_at": null},
+        "require": {
+            "project": {
+                "display_name": tracked(serde_json::json!("Workflow Project")),
+                "summary": tracked(serde_json::json!("Premise")),
+                "language": tracked(serde_json::json!("VI")),
+                "target": {
+                    "arc_count": tracked(serde_json::json!(2)),
+                    "chapter_count": tracked(serde_json::json!(12)),
+                    "word_per_chapter_count": tracked(serde_json::json!(3000))
+                },
+                "genres": [{"code": tracked(serde_json::json!("fantasy")), "is_primary": tracked(serde_json::json!(true))}]
+            },
+            "character": [
+                {"code": "char_a", "display_name": tracked(serde_json::json!("A")), "biological_sex": tracked(serde_json::json!("FEMALE")), "motif_code": tracked(serde_json::json!("strong_girl"))},
+                {"code": "char_b", "display_name": tracked(serde_json::json!("B")), "biological_sex": tracked(serde_json::json!("MALE")), "motif_code": tracked(serde_json::json!("loyal_knight"))},
+                {"code": "char_c", "display_name": tracked(serde_json::json!("C")), "biological_sex": tracked(serde_json::json!("NONE")), "motif_code": tracked(serde_json::json!("loyal_knight"))}
+            ]
+        },
+        "optional": {
+            "chapter_phase": {"arcs": [
+                {"code": "arc_one", "chapters": [
+                    chapter("arc_one-c1", 1), chapter("arc_one-c2", 2), chapter("arc_one-c3", 3),
+                    chapter("arc_one-c4", 4), chapter("arc_one-c5", 5), chapter("arc_one-c6", 6)
+                ]},
+                {"code": "arc_two", "chapters": [
+                    chapter("arc_two-c1", 7), chapter("arc_two-c2", 8), chapter("arc_two-c3", 9),
+                    chapter("arc_two-c4", 10), chapter("arc_two-c5", 11), chapter("arc_two-c6", 12)
+                ]}
+            ]},
+            "world_building_phase": {"world_settings": [
+                {"code": "continent_north", "display_name": tracked(serde_json::json!("North")), "type": tracked(serde_json::json!("REALM"))},
+                {"code": "kingdom_iron", "parent_code": tracked(serde_json::json!("continent_north")), "display_name": tracked(serde_json::json!("Iron")), "type": tracked(serde_json::json!("WORLD"))},
+                {"code": "city_capital", "parent_code": tracked(serde_json::json!("kingdom_iron")), "display_name": tracked(serde_json::json!("Capital")), "type": tracked(serde_json::json!("CITY"))}
+            ]},
+            "relationship_phase": {"relationship": [
+                {"code": "rel_ab", "character": {"from_code": "char_a", "to_code": "char_b"}},
+                {"code": "rel_ba", "character": {"from_code": "char_b", "to_code": "char_a"}},
+                {"code": "rel_ac", "character": {"from_code": "char_a", "to_code": "char_c"}},
+                {"code": "rel_ca", "character": {"from_code": "char_c", "to_code": "char_a"}},
+                {"code": "rel_bc", "character": {"from_code": "char_b", "to_code": "char_c"}},
+                {"code": "rel_cb", "character": {"from_code": "char_c", "to_code": "char_b"}}
+            ]}
+        }
+    });
+    let flow: BusinessFlowData = serde_json::from_value(value).expect("fixture draft must deserialize");
+    flow.validate_structure().expect("fixture draft must be structurally valid");
+    flow
+}
+
 fn seed_test_draft_session(conn: &Connection, draft_session_id: &Uuid, status: &str) -> Uuid {
     let proj_id = Uuid::new_v4();
     let sess_id = Uuid::new_v4();
@@ -259,7 +350,7 @@ fn seed_test_draft_session(conn: &Connection, draft_session_id: &Uuid, status: &
     )
     .unwrap();
 
-    let s0 = BusinessFlowData::new();
+    let s0 = seeded_business_flow();
     let s0_json = serde_json::to_string(&s0).unwrap();
     let s0_hash = state_data_hash(&s0).unwrap();
 
@@ -467,7 +558,7 @@ async fn P4S1_N_no_external_effect_replay_on_retry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(round_count_1, 1);
+    assert!(round_count_1 >= 1, "Phase 1 must seal at least one round receipt");
 
     // Second run with the same workflow_run_id uses idempotent replay, zero new writes
     let summary2 = exec_start_or_resume_workflow(&fixture.workflow_service, &req, None)
@@ -482,7 +573,7 @@ async fn P4S1_N_no_external_effect_replay_on_retry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(round_count_2, 1, "Idempotent replay must not create duplicate round receipts");
+    assert_eq!(round_count_2, round_count_1, "Idempotent replay must not create duplicate round receipts");
 }
 
 /// Acceptance Test: `P4S1-B`
@@ -1050,4 +1141,45 @@ async fn IPC_CMD_018_get_workflow_status_contracts() {
     assert!(running_status.current_round.is_some());
 
     let _ = join_handle.await;
+}
+
+/// The production planner must derive rounds from the sealed draft, never from fabricated
+/// fixture identifiers (`arc_01`). Two real arcs in state produce two outline rounds.
+#[tokio::test]
+async fn workflow_plan_uses_draft_arcs_not_fixture_codes() {
+    let fixture = setup_test_fixture();
+    let draft_session_id = Uuid::new_v4();
+    {
+        let conn = fixture.pool.get().unwrap();
+        seed_test_draft_session(&conn, &draft_session_id, "editing");
+    }
+
+    let req = StartOrResumeWorkflowReq {
+        draft_session_id,
+        phase: 1,
+        subphase: None,
+        workflow_run_id: None,
+        system_language: "vi".to_string(),
+    };
+
+    let (event_tx, mut event_rx) = mpsc::channel(100);
+    let summary = exec_start_or_resume_workflow(&fixture.workflow_service, &req, Some(event_tx))
+        .await
+        .expect("phase 1 planning from a real draft should succeed");
+    assert_eq!(summary.status, "completed");
+
+    let mut identities = Vec::new();
+    while let Ok(evt) = event_rx.try_recv() {
+        if let WorkflowProgressEvent::RoundStarted { active_task_identities, .. } = evt {
+            identities.extend(active_task_identities);
+        }
+    }
+
+    assert_eq!(identities.len(), 2, "one outline round per draft Arc expected");
+    assert!(identities.iter().any(|id| id.contains("arc=arc_one")));
+    assert!(identities.iter().any(|id| id.contains("arc=arc_two")));
+    assert!(
+        !identities.iter().any(|id| id.contains("arc_01")),
+        "planner must not fabricate arc_01"
+    );
 }
