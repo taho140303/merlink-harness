@@ -271,7 +271,7 @@ Tool Registry giữ metadata `writes_draft_state` cho từng tool; pipeline dùn
 * Hai pipeline có prompt block, context injection, tập tool và quy tắc versioning riêng. Không tái sử dụng workflow Phase 3-6 để viết nội dung.
 * Toàn bộ quy tắc nghiệp vụ của Writing Mode (`Q4.1..Q4.9`) đã được chốt tại `core.md` §1.6 và mục Q4 (v2.4.4).
 
-Khi nạp lại vài lượt chat cuối, mỗi `tool_call` phải đi kèm `tool_result` tương ứng. Nếu vượt ngưỡng giữa một phản hồi có nhiều call, các call còn lại nhận kết quả `rejected` với `error = turn_aborted` trước khi gửi lịch sử vào lượt model cuối không cấp tool. Lượt cuối tạo lời mời nhắc lại theo `{{system_language}}` do pipeline bơm từ cài đặt giao diện, không hardcode tiếng Việt và không dùng ngôn ngữ sáng tác `project.language` cho lời mời.
+Khi nạp lại vài lượt chat cuối, mỗi `tool_call` phải đi kèm `tool_result` tương ứng. Nếu vượt ngưỡng giữa một phản hồi có nhiều call, các call còn lại nhận kết quả `rejected` với `error = turn_aborted` trước khi gửi lịch sử vào lượt model cuối không cấp tool. Lượt cuối thông báo ngắn phần chưa lưu theo `{{system_language}}`, không yêu cầu nhập lại dữ kiện đã cung cấp do pipeline bơm từ cài đặt giao diện, không hardcode tiếng Việt và không dùng ngôn ngữ sáng tác `project.language` cho lời mời.
 
 ### Enum lớn thì query tại chỗ, không preload
 
@@ -301,7 +301,7 @@ Quy ước:
 ### Guardrails trong harness
 
 - `MAX_ITER` 20–30 là giới hạn tổng số vòng lặp; độc lập với ngưỡng `consecutive_rejected_count`.
-- Backend giữ `consecutive_rejected_count` in-memory trong lượt, chỉ tăng khi `status` tổng của tool call là `rejected` và về 0 trong các trường hợp còn lại, kể cả call có ít nhất một trường `applied` hoặc `pending_confirmation`. Ngưỡng runtime cho phép tối đa N call `rejected` liên tiếp (ví dụ N = 3); call thứ N+1 thì dừng lượt, giữ State đã có và niêm phong phần tool ghi được `applied` trước đó vào version cuối lượt. Lời mời nhắc lại được model sinh ở lượt cuối không cấp tool theo `{{system_language}}`, không lộ lỗi kỹ thuật.
+- Backend giữ `consecutive_rejected_count` in-memory trong lượt, chỉ tăng khi `status` tổng của tool call là `rejected` và về 0 trong các trường hợp còn lại, kể cả call có ít nhất một trường `applied` hoặc `pending_confirmation`. Ngưỡng runtime cho phép tối đa N call `rejected` liên tiếp (ví dụ N = 3); call thứ N+1 thì dừng lượt, giữ State đã có và niêm phong phần tool ghi được `applied` trước đó vào version cuối lượt. Thông báo phần chưa lưu được model sinh ở lượt cuối không cấp tool theo `{{system_language}}`, không lộ lỗi kỹ thuật.
 - Cap output mỗi tool (~10–20 dòng / 1–2k token), có cursor để phân trang.
 - Truncate/compact history khi gần context limit.
 - Cache kết quả `search_genre` (tên ví dụ, chưa chốt) theo session nếu danh mục ít đổi.
@@ -310,3 +310,15 @@ Quy ước:
 Các tool danh mục tĩnh và tool ghi minh họa ở trên chỉ là row trong `tools`, gắn vào block tương ứng qua `prompt_block_tools`; không cần bảng riêng cho từng tool. Tên tool trong ví dụ chưa chốt.
 
 Tham khảo: [ReAct loop — ramonchancay](https://www.ramonchancay.me/blog/react-loop-agent-tools) · [Context engineering — Mastra](https://mastra.ai/articles/context-engineering)
+
+
+## Bổ sung triển khai chat (2026-11-09)
+
+- Prompt được tách thành vai trò, bất biến, hướng dẫn Planning, xử lý lỗi, phạm vi, cách dùng tool và context. `story_context` dùng `content_format = JSON`, chứa biến `{{story_context}}`; backend thay bằng snapshot có phase, readiness, State và pending patches trước mỗi bước ReAct. Tin nhắn người dùng gửi riêng, không nhúng vào system prompt.
+- Model chỉ được gọi những tool đã cấp trong run và được registry cho phép. Metadata thiếu schema hoặc mô tả không được biến thành một function rỗng; không tự cấp bộ tool mặc định khi block không có liên kết.
+- `get_tool_definition` trả đúng hợp đồng của một tool đã cấp (mô tả, schema, ví dụ) khi model chưa rõ tham số hoặc cần sửa lời gọi lỗi. Đây là tool đọc theo yêu cầu người dùng, không thay `compose`/`get_tools_by_prompt` và không mở toàn bộ catalog.
+- Lịch sử cung cấp lại cặp tool call/result để model biết lần ghi trước có thực sự thành công hay không. Chỉ đưa kết quả nghiệp vụ vào observation; `authenticated_effect` vẫn nằm trong audit backend, không lặp toàn bộ State vào từng tool result. Snapshot context luôn được cập nhật sau các thao tác. Việc đưa log vào context không phát lại tool hoặc khôi phục State từ lịch sử.
+- `set_project` xử lý target lồng theo schema, nguồn dùng đường dẫn `target.arc_count`, `target.chapter_count`, `target.word_per_chapter_count`. Giá trị phải là số nguyên dương; trường lỗi trả diagnostic riêng, trường hợp lệ tiếp tục được xử lý. Sửa giá trị `user`/`user_edited` tạo patch chờ duyệt như các trường văn bản.
+- Prompt yêu cầu phân biệt dữ kiện người dùng đã nói, dữ liệu đã lưu và đề xuất cần duyệt; không hỏi lại dữ kiện chỉ vì lỗi tool. Khi người dùng nhờ nghĩ ý tưởng, trả đề xuất có nội dung cụ thể để duyệt, không ép hoàn thành bảng hỏi. Phản hồi tự kiểm tra câu gãy, ký hiệu giữ chỗ và từ kỹ thuật lạc nghĩa trước khi gửi.
+
+- Phần lời nói đi kèm tool call được giữ trong ngữ cảnh vòng lặp; giao diện nhận trạng thái tool và chỉ hiển thị phản hồi cuối sau khi model đã đọc kết quả, tránh ghép nhiều lời thông báo tạm hoặc khẳng định lưu trước khi tool chạy.

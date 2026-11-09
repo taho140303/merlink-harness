@@ -278,16 +278,16 @@ pub fn exec_list_chat_sessions(
     let limit = req.limit.unwrap_or(20).clamp(1, 100) as usize;
     let filter_has_messages = req.has_messages.unwrap_or(false);
     let msg_filter = if let Some(minimum) = req.min_message_count {
-        format!(" AND (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) >= {}", minimum.clamp(1, 1000))
+        format!(" AND (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0) >= {}", minimum.clamp(1, 1000))
     } else if filter_has_messages {
-        " AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id)".to_string()
+        " AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0)".to_string()
     } else {
         String::new()
     };
     let visibility_filter = if req.trash_only.unwrap_or(false) {
-        " AND s.id NOT LIKE 'detached-%' AND (s.deleted_at IS NOT NULL OR (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) = 1)"
+        " AND s.id NOT LIKE 'detached-%' AND (s.deleted_at IS NOT NULL OR (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0) = 1)"
     } else {
-        " AND s.deleted_at IS NULL"
+        " AND s.deleted_at IS NULL AND (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0) != 1"
     };
     let query_filter = format!("{visibility_filter}{msg_filter}");
 
@@ -299,7 +299,7 @@ pub fn exec_list_chat_sessions(
     let (query, query_params): (String, Vec<rusqlite::types::Value>) = match (&req.project_id, &req.cursor) {
         (Some(pid), Some(cur)) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.project_id = ?1 AND s.created_at < ?2{}
@@ -315,7 +315,7 @@ pub fn exec_list_chat_sessions(
         ),
         (Some(pid), None) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.project_id = ?1{}
@@ -327,7 +327,7 @@ pub fn exec_list_chat_sessions(
         ),
         (None, Some(cur)) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.created_at < ?1{}
@@ -339,7 +339,7 @@ pub fn exec_list_chat_sessions(
         ),
         (None, None) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE 1=1{}
@@ -459,7 +459,7 @@ pub fn exec_manage_chat_sessions(
 
     for id in &req.session_ids {
         let (deleted_at, message_count): (Option<String>, i64) = tx.query_row(
-            "SELECT s.deleted_at, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) FROM sessions s WHERE s.id = ?1",
+            "SELECT s.deleted_at, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id AND m.role IN ('user', 'assistant') AND length(trim(COALESCE(m.content, ''), char(9) || char(10) || char(13) || ' ')) > 0) FROM sessions s WHERE s.id = ?1",
             [id], |row| Ok((row.get(0)?, row.get(1)?)),
         ).optional().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             .ok_or_else(|| IpcError::new(ErrorCode::EntityNotFound, "Chat session does not exist"))?;

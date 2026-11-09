@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 9;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 13;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -20,6 +20,10 @@ pub const MIGRATION_0006_SQL: &str = include_str!("../../migrations/0006_seed_pr
 pub const MIGRATION_0007_SQL: &str = include_str!("../../migrations/0007_fix_prompt_identity.sql");
 pub const MIGRATION_0008_SQL: &str = include_str!("../../migrations/0008_session_trash.sql");
 pub const MIGRATION_0009_SQL: &str = include_str!("../../migrations/0009_tool_catalog_and_invariant.sql");
+pub const MIGRATION_0010_SQL: &str = include_str!("../../migrations/0010_refine_chat_contracts.sql");
+pub const MIGRATION_0013_SQL: &str = include_str!("../../migrations/0013_author_facing_language.sql");
+pub const MIGRATION_0012_SQL: &str = include_str!("../../migrations/0012_clarify_story_summary.sql");
+pub const MIGRATION_0011_SQL: &str = include_str!("../../migrations/0011_clarify_planning_scope.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -115,6 +119,10 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         7 => Ok(MIGRATION_0007_SQL),
         8 => Ok(MIGRATION_0008_SQL),
         9 => Ok(MIGRATION_0009_SQL),
+        10 => Ok(MIGRATION_0010_SQL),
+        11 => Ok(MIGRATION_0011_SQL),
+        12 => Ok(MIGRATION_0012_SQL),
+        13 => Ok(MIGRATION_0013_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -197,7 +205,7 @@ mod prompt_seed_tests {
             [],
             |row| row.get(0),
         ).unwrap();
-        assert_eq!(tool_count, 8);
+        assert_eq!(tool_count, 9);
     }
 }
 
@@ -239,8 +247,8 @@ mod tool_inventory_migration_tests {
             "SELECT COUNT(*) FROM tools WHERE display_name IS NULL AND description IS NULL AND input_schema IS NULL",
             [], |row| row.get(0),
         ).unwrap();
-        assert_eq!(total, 86);
-        assert_eq!(linked, 8);
+        assert_eq!(total, 87);
+        assert_eq!(linked, 9);
         assert_eq!(incomplete, 78);
     }
 
@@ -275,7 +283,86 @@ mod tool_inventory_migration_tests {
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(content, "My custom rules");
-        assert_eq!(get_user_version(&conn).unwrap(), 9);
+        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+    }
+}
+
+#[cfg(test)]
+mod chat_contract_migration_tests {
+    use super::*;
+
+    #[test]
+    fn test_chat_contract_migration_exposes_help_and_accurate_project_schema() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM tools t JOIN prompt_block_tools p ON t.id=p.tool_id WHERE t.code='get_tool_definition'", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 1);
+        let schema: String = conn.query_row("SELECT input_schema FROM tools WHERE code='set_project'", [], |r| r.get(0)).unwrap();
+        let schema: serde_json::Value = serde_json::from_str(&schema).unwrap();
+        assert_eq!(schema["examples"][0]["target"]["chapter_count"], 120);
+        assert_eq!(schema["properties"]["target"]["properties"]["arc_count"]["minimum"], 1);
+        let (format, content): (String, String) = conn.query_row("SELECT content_format,content FROM prompt_blocks WHERE prompt_code='story_context'", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
+        assert_eq!(format, "JSON");
+        assert_eq!(content, "{{story_context}}");
+    }
+
+    #[test]
+    fn test_chat_contract_upgrade_preserves_custom_prompt_and_tool() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        for version in 1..=9 { conn.execute_batch(get_migration_sql(version).unwrap()).unwrap(); }
+        set_user_version(&conn, 9).unwrap();
+        conn.execute("UPDATE prompt_blocks SET content='Author custom prompt' WHERE prompt_code='invariant_rule'", []).unwrap();
+        conn.execute("UPDATE tools SET description='Custom description' WHERE code='set_project'", []).unwrap();
+        run_migrations(&mut conn).unwrap();
+        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+        let content: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
+        assert_eq!(content, "Author custom prompt");
+        let description: String = conn.query_row("SELECT description FROM tools WHERE code='set_project'", [], |r| r.get(0)).unwrap();
+        assert_eq!(description, "Custom description");
+    }
+}
+
+#[cfg(test)]
+mod planning_scope_migration_tests {
+    use super::*;
+
+    #[test]
+    fn planning_scope_allows_outline_but_reserves_scene_content_for_writing() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let content: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='planning_mode'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(content.contains("Phase 2 lập dàn ý chương và cảnh"));
+        assert!(content.contains("không sinh nội dung scenes.content"));
+        assert!(content.contains("Writing Mode sau khi plan đã commit"));
+    }
+
+    #[test]
+    fn planning_scope_upgrade_keeps_author_custom_prompt() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        for version in 1..=10 {
+            conn.execute_batch(get_migration_sql(version).unwrap()).unwrap();
+        }
+        set_user_version(&conn, 10).unwrap();
+        conn.execute(
+            "UPDATE prompt_blocks SET content='Author custom planning' WHERE prompt_code='planning_mode'",
+            [],
+        )
+        .unwrap();
+        run_migrations(&mut conn).unwrap();
+        let content: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='planning_mode'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(content, "Author custom planning");
     }
 }
 
@@ -304,7 +391,7 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 /// Verify schema structure, constraints, indexes, and referential integrity (§3.5, MIG-05).
 ///
 /// Checks:
-/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (9)
+/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (11)
 /// 2. PRAGMA quick_check(1) == "ok"
 /// 3. Exactly 66 target tables exist and NO `_schema_migrations` table
 /// 4. Mandatory columns, types, NOT NULL and CHECK constraints:
@@ -518,4 +605,31 @@ pub fn verify_p1s2_authorization(contract_text: &str) -> Result<(), DbError> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod summary_prompt_tests {
+    use super::*;
+
+    #[test]
+    fn test_author_facing_prompt_does_not_narrate_internal_mechanics() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let rule: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
+        let exceptions: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='exception_handling'", [], |r| r.get(0)).unwrap();
+        assert!(rule.contains("Không kể quy trình kỹ thuật nội bộ"));
+        assert!(rule.contains("Không bắt chước cách nói lỗi"));
+        assert!(exceptions.contains("không yêu cầu tác giả xác nhận lại để sửa lỗi kỹ thuật"));
+        assert!(exceptions.contains("không tự nhảy sang bước sau"));
+    }
+
+    #[test]
+    fn test_summary_rule_is_migrated_for_existing_databases() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let rule: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
+        assert!(rule.contains("150–200 từ"));
+        assert!(rule.contains("declared_sources.summary=user"));
+        assert!(rule.contains("không hỏi lại tác giả"));
+    }
 }

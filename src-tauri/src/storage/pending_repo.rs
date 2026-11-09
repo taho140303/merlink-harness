@@ -373,6 +373,9 @@ pub fn get_field_value(
                 "display_name" => Ok(p.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
                 "summary" => Ok(p.summary.value.as_ref().map(|s| Value::String(s.clone()))),
                 "language" => Ok(p.language.value.as_ref().map(|s| Value::String(s.clone()))),
+                "target.arc_count" => Ok(p.target.arc_count.value.map(Value::from)),
+                "target.chapter_count" => Ok(p.target.chapter_count.value.map(Value::from)),
+                "target.word_per_chapter_count" => Ok(p.target.word_per_chapter_count.value.map(Value::from)),
                 _ => Ok(None),
             }
         }
@@ -517,6 +520,16 @@ pub fn apply_field_mutation(
                 "display_name" => p.display_name = TrackedField::user_edited(str_val),
                 "summary" => p.summary = TrackedField::user_edited(str_val),
                 "language" => p.language = TrackedField::user_edited(str_val),
+                "target.arc_count" | "target.chapter_count" | "target.word_per_chapter_count" => {
+                    let value = new_value.as_u64().and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+                        .ok_or_else(|| "expected_positive_integer".to_string())?;
+                    let field = match field_name {
+                        "target.arc_count" => &mut p.target.arc_count,
+                        "target.chapter_count" => &mut p.target.chapter_count,
+                        _ => &mut p.target.word_per_chapter_count,
+                    };
+                    *field = TrackedField::user_edited(value);
+                }
                 _ => return Err(format!("Unknown project field '{}'", field_name)),
             }
             Ok(())
@@ -614,6 +627,22 @@ pub fn apply_field_mutation(
             Err(format!("Scene '{}' not found", target_code))
         }
         _ => Err(format!("Unsupported target_type '{}'", target_type)),
+    }
+}
+
+#[cfg(test)]
+mod project_target_patch_tests {
+    use super::*;
+
+    #[test]
+    fn test_project_target_patch_reads_numeric_baseline_and_applies_confirmed_value() {
+        let mut data = BusinessFlowData::new();
+        data.require.project.target.chapter_count = TrackedField::user(120);
+        assert_eq!(get_field_value(&data, "project", "require.project", "target.chapter_count").unwrap(), Some(serde_json::json!(120)));
+        apply_field_mutation(&mut data, "project", "require.project", "target.chapter_count", &serde_json::json!(122)).unwrap();
+        assert_eq!(data.require.project.target.chapter_count, TrackedField::user_edited(122));
+        assert!(apply_field_mutation(&mut data, "project", "require.project", "target.chapter_count", &serde_json::json!(0)).is_err());
+        assert_eq!(data.require.project.target.chapter_count.value, Some(122));
     }
 }
 

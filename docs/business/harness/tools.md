@@ -41,6 +41,7 @@ Số tool đếm theo từng tên (mỗi cặp `add_` / `set_` / `delete_` tính
 
 | Tool (tên ví dụ) | Client | Loại | Bảng DBML | Tham số (theo DBML) | Ghi chú |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| `get_tool_definition` | AI | Đọc | `tools`, `prompt_block_tools` của run hiện tại | `tool_name`* | Trả `description`, `input_schema`, `examples` cho tool đã được cấp. Không cấp thêm quyền, không trả placeholder chưa có metadata; không ghi State hoặc tạo version. |
 | `get_field_null` | AI | Đọc | State (không có bảng) | `limit?` (tối đa 3) | Trả tối đa 3 cặp `field`, `question` cố định theo `system_language` do backend biết; AI không truyền ngôn ngữ (core 3.1, 3.8). |
 | `get_array_element_fields` | AI | Đọc | State (không có bảng) | `array_path`*, `code?`, `limit?` (tối đa 3) | Mảng rỗng không phải `null`: có `code` thì trả trường `null` của phần tử, không có `code` thì trả trường ưu tiên để tạo phần tử mới; mỗi trường kèm câu hỏi theo `system_language` (core 3.1). |
 | `get_state` | AI | Đọc | State (không có bảng) | `target_type?`, `code?`, `fields?` | Trả State hoặc phần State theo thực thể, kèm `source` và `pending_patches` liên quan. |

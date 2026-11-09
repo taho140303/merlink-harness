@@ -14,7 +14,6 @@
 //! 4. Pure execution strictly on clones of `WorkingState` (`BusinessFlowData`), preserving immutable baseline.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::BTreeMap;
 
 use crate::domain::business_flow::{
@@ -620,6 +619,10 @@ impl ToolExecutor {
             }
         }
 
+        if results.is_empty() {
+            return ToolOutcome::rejected("no_supported_fields");
+        }
+
         // Step 3: Compute aggregate status
         let has_applied = results.iter().any(|r| r.status == "applied");
         let has_pending = results.iter().any(|r| r.status == "pending_confirmation");
@@ -738,7 +741,7 @@ impl ToolExecutor {
                     }
                 };
 
-                let res = evaluate_single_string_field(
+                let res = evaluate_single_field(
                     call.caller,
                     "character",
                     target_code,
@@ -865,28 +868,62 @@ impl ToolExecutor {
     ) {
         let base_proj = &baseline.require.project;
         let cand_proj = &mut candidate.require.project;
-
+        let Some(parameters) = call.parameters.as_object() else {
+            results.push(field_rejection("call", "expected_object"));
+            return;
+        };
+        for name in parameters.keys() {
+            if !["display_name", "summary", "language", "target", "declared_sources"].contains(&name.as_str()) {
+                results.push(field_rejection(name, "unknown_field"));
+            }
+        }
         let str_fields = [
             ("display_name", &base_proj.display_name, &mut cand_proj.display_name),
             ("summary", &base_proj.summary, &mut cand_proj.summary),
             ("language", &base_proj.language, &mut cand_proj.language),
         ];
-
-        for (f_name, base_f, cand_f) in str_fields {
-            if let Some(v) = call.parameters.get(f_name) {
-                if let Some(s) = v.as_str() {
-                    let res = evaluate_single_string_field(
-                        call.caller,
-                        "project",
-                        "project",
-                        f_name,
-                        s.to_string(),
-                        base_f,
-                        cand_f,
-                        declared_sources,
-                        pending_patches,
-                    );
-                    results.push(res);
+        for (name, base, candidate_field) in str_fields {
+            if let Some(value) = parameters.get(name) {
+                let Some(value) = value.as_str().filter(|s| !s.trim().is_empty()) else {
+                    results.push(field_rejection(name, "expected_nonempty_string"));
+                    continue;
+                };
+                if name == "language" && !["VI", "EN", "JA", "ZH_HANT", "ZH_HANS"].contains(&value) {
+                    results.push(field_rejection(name, "invalid_language"));
+                    continue;
+                }
+                results.push(evaluate_single_field(
+                    call.caller, "project", "require.project", name, value.to_string(),
+                    base, candidate_field, declared_sources, pending_patches,
+                ));
+            }
+        }
+        if let Some(target) = parameters.get("target") {
+            let Some(target) = target.as_object() else {
+                results.push(field_rejection("target", "expected_object"));
+                return;
+            };
+            for name in target.keys() {
+                if !["arc_count", "chapter_count", "word_per_chapter_count"].contains(&name.as_str()) {
+                    results.push(field_rejection(&format!("target.{name}"), "unknown_field"));
+                }
+            }
+            let fields = [
+                ("arc_count", &base_proj.target.arc_count, &mut cand_proj.target.arc_count),
+                ("chapter_count", &base_proj.target.chapter_count, &mut cand_proj.target.chapter_count),
+                ("word_per_chapter_count", &base_proj.target.word_per_chapter_count, &mut cand_proj.target.word_per_chapter_count),
+            ];
+            for (name, base, candidate_field) in fields {
+                if let Some(value) = target.get(name) {
+                    let field = format!("target.{name}");
+                    let Some(value) = value.as_u64().and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0) else {
+                        results.push(field_rejection(&field, "expected_positive_integer"));
+                        continue;
+                    };
+                    results.push(evaluate_single_field(
+                        call.caller, "project", "require.project", &field, value,
+                        base, candidate_field, declared_sources, pending_patches,
+                    ));
                 }
             }
         }
@@ -992,7 +1029,7 @@ impl ToolExecutor {
         let cand_arc = candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.code == arc_code).unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "arc",
                 arc_code,
@@ -1111,7 +1148,7 @@ impl ToolExecutor {
         let cand_chap = candidate.optional.chapter_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).find(|c| c.code == chap_code).unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "chapter",
                 chap_code,
@@ -1232,7 +1269,7 @@ impl ToolExecutor {
         let cand_sc = candidate.optional.chapter_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).flat_map(|c| &mut c.scenes).find(|s| s.code == sc_code).unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "scene",
                 sc_code,
@@ -1247,7 +1284,7 @@ impl ToolExecutor {
         }
 
         if let Some(v) = call.parameters.get("world_setting_code").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "scene",
                 sc_code,
@@ -1331,7 +1368,7 @@ impl ToolExecutor {
             let dummy = TrackedField::unset();
             let base_f_ref = base_f.unwrap_or(&dummy);
 
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "scene_config",
                 sc_code,
@@ -1432,7 +1469,7 @@ impl ToolExecutor {
         let cand_ws = candidate.optional.world_building_phase.world_settings.iter_mut().find(|w| w.code == ws_code).unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "world_setting",
                 ws_code,
@@ -1566,7 +1603,7 @@ impl ToolExecutor {
         let cand_lore = cand_lore.unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            let res = evaluate_single_string_field(
+            let res = evaluate_single_field(
                 call.caller,
                 "lore_entry",
                 lore_code,
@@ -2149,14 +2186,21 @@ impl ToolExecutor {
 // Two-Phase Per-Field Evaluation Helper
 // ============================================================================
 
-fn evaluate_single_string_field(
+fn field_rejection(field: &str, error: &str) -> FieldResult {
+    FieldResult {
+        field: field.to_string(), status: "rejected".to_string(),
+        patch_id: None, error: Some(error.to_string()), candidates: None,
+    }
+}
+
+fn evaluate_single_field<T: Clone + PartialEq + Serialize>(
     caller: CallerCategory,
     target_type: &str,
     target_code: &str,
     field_name: &str,
-    new_value: String,
-    baseline_field: &TrackedField<String>,
-    candidate_field: &mut TrackedField<String>,
+    new_value: T,
+    baseline_field: &TrackedField<T>,
+    candidate_field: &mut TrackedField<T>,
     declared_sources: &BTreeMap<String, ProvenanceSource>,
     pending_patches: &mut Vec<PendingProposal>,
 ) -> FieldResult {
@@ -2251,8 +2295,8 @@ fn evaluate_single_string_field(
                         target_type: target_type.to_string(),
                         target_code: target_code.to_string(),
                         field_name: Some(field_name.to_string()),
-                        previous_value: Some(Value::String(curr_val.clone())),
-                        new_value: Some(Value::String(new_value)),
+                        previous_value: Some(serde_json::json!(curr_val)),
+                        new_value: Some(serde_json::json!(new_value)),
                         status: "pending".to_string(),
                     };
                     pending_patches.push(proposal);
@@ -2286,6 +2330,66 @@ fn evaluate_single_string_field(
 // ============================================================================
 // Helper extraction routines
 // ============================================================================
+
+#[cfg(test)]
+mod project_target_regression_tests {
+    use super::*;
+    use serde_json::{json, Value};
+
+    fn execute(data: &BusinessFlowData, args: Value) -> ToolOutcome {
+        ToolExecutor::execute(&ToolCall::new("set_project", CallerCategory::AiCaller, args), &ExecutionGuard::new(data))
+    }
+
+    #[test]
+    fn test_project_targets_from_failed_chat_are_saved() {
+        let data = BusinessFlowData::new();
+        let result = execute(&data, json!({"target": {"arc_count": 1, "chapter_count": 120, "word_per_chapter_count": 2400},
+            "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user", "target.word_per_chapter_count": "user"}}));
+        assert!(result.is_applied(), "{result:?}");
+        let target = &result.mutated_state().unwrap().require.project.target;
+        assert_eq!(target.arc_count, TrackedField::user(1));
+        assert_eq!(target.chapter_count, TrackedField::user(120));
+        assert_eq!(target.word_per_chapter_count, TrackedField::user(2400));
+    }
+
+    #[test]
+    fn test_project_targets_reject_invalid_values_per_field() {
+        for invalid in [json!(0), json!(-1), json!(2.5), json!("120"), json!(4294967296_u64), Value::Null] {
+            let result = execute(&BusinessFlowData::new(), json!({"target": {"arc_count": 1, "chapter_count": invalid},
+                "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user"}}));
+            assert!(result.is_applied());
+            assert_eq!(result.mutated_state().unwrap().require.project.target.chapter_count.value, None);
+            assert!(result.results.iter().any(|r| r.field == "target.chapter_count" && r.error.as_deref() == Some("expected_positive_integer")));
+        }
+    }
+
+    #[test]
+    fn test_project_targets_require_source_and_protect_user_value() {
+        let mut data = BusinessFlowData::new();
+        let missing = execute(&data, json!({"target": {"chapter_count": 120}}));
+        assert_eq!(missing.results[0].error.as_deref(), Some("missing_or_invalid_declared_source"));
+        data.require.project.target.chapter_count = TrackedField::user(120);
+        let pending = execute(&data, json!({"target": {"chapter_count": 122}, "declared_sources": {"target.chapter_count": "user"}}));
+        assert!(pending.is_pending());
+        let patch = &pending.pending_patches()[0];
+        assert_eq!(patch.target_code, "require.project");
+        assert_eq!(patch.previous_value, Some(json!(120)));
+        assert_eq!(patch.new_value, Some(json!(122)));
+        let repeat = execute(&data, json!({"target": {"chapter_count": 120}, "declared_sources": {"target.chapter_count": "user"}}));
+        assert!(repeat.is_applied());
+        assert!(repeat.pending_patches().is_empty());
+    }
+
+    #[test]
+    fn test_project_rejects_unknown_or_empty_arguments_with_diagnostics() {
+        for args in [json!({}), json!({"target": {"chapters": 120}}), json!({"summary": 123})] {
+            let result = execute(&BusinessFlowData::new(), args);
+            assert!(result.is_rejected());
+            assert!(!result.results.is_empty());
+            assert!(result.results.iter().all(|r| r.error.is_some()));
+        }
+    }
+}
 
 fn extract_declared_sources(call: &ToolCall) -> BTreeMap<String, ProvenanceSource> {
     if let Some(ds) = &call.declared_sources {

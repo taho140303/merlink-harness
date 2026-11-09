@@ -959,6 +959,31 @@ fn test_list_chat_sessions_minimum_two_messages() {
 }
 
 #[test]
+fn test_blank_assistant_messages_are_only_in_trash() {
+    let (pool, registry, _, _, orchestrator, _tmp) = setup_test_context();
+    let (session, _, _) = create_test_session(&pool, &registry);
+    let turn = Uuid::new_v4();
+    orchestrator.save_message(Uuid::new_v4(), &session, turn, "user", "Chào", None).unwrap();
+    for content in ["", " \n\t\r"] {
+        orchestrator.save_message(Uuid::new_v4(), &session, turn, "assistant", content, None).unwrap();
+    }
+    for minimum in [None, Some(2)] {
+        let history = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
+            min_message_count: minimum, ..Default::default()
+        }).unwrap();
+        assert!(history.items.is_empty(), "Blank assistant rows must not make a conversation visible");
+    }
+    let trash = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
+        trash_only: Some(true), ..Default::default()
+    }).unwrap();
+    assert_eq!(trash.items.len(), 1);
+    assert_eq!(trash.items[0].message_count, Some(1));
+    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "permanent_delete".into(), session_ids: vec![session], display_name: None,
+    }).unwrap();
+}
+
+#[test]
 fn test_chat_trash_rename_soft_delete_restore_and_permanent_delete() {
     let (pool, registry, _draft_svc, _patch_svc, orchestrator, _tmp) = setup_test_context();
     let (unfinished, _, _) = create_test_session(&pool, &registry);
