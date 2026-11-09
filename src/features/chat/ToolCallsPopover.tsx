@@ -27,7 +27,7 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
         {toolCalls.some((tool) => tool.status === "error") && <CircleX aria-hidden="true" className="h-3 w-3 text-rose-500" />}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-[min(90vw,36rem)] max-w-xl p-4">
+      <DialogContent className="w-[min(94vw,72rem)] max-w-6xl max-h-[90vh] overflow-y-auto p-5">
         <DialogTitle className="sr-only">{translate("chat.executedTools")}</DialogTitle>
         <DialogDescription className="sr-only">{translate("chat.toolCount", { count: toolCalls.length })}</DialogDescription>
       <div className="flex items-center justify-between border-b border-line pb-2 px-1 pr-8">
@@ -37,8 +37,8 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
         </span>
       </div>
 
-      <div className="mt-2.5 grid grid-cols-5 gap-2">
-        <div className="col-span-2 space-y-1 border-r border-line pr-1.5">
+      <div className="mt-2.5 grid min-h-0 grid-cols-1 gap-3 md:grid-cols-[minmax(12rem,1fr)_minmax(0,3fr)]">
+        <div className="min-w-0 max-h-[65vh] overflow-y-auto space-y-1 md:border-r border-line pr-1.5">
           {toolCalls.map((tool) => (
             <button
               key={tool.id}
@@ -60,7 +60,7 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
           ))}
         </div>
 
-        <div className="col-span-3 max-h-48 overflow-y-auto space-y-2 text-xs font-mono pl-1">
+        <div className="min-w-0 max-h-[65vh] overflow-auto space-y-2 text-xs font-mono pl-1">
           <div>
             <span className="block mb-0.5 text-fg-subtle">{translate("chat.input")}</span>
             <pre className="overflow-x-auto rounded-lg bg-surface-muted p-2 text-fg-muted">{JSON.stringify(activeTool.parameters, null, 2)}</pre>

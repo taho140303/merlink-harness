@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { GripVertical, StopCircle } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router";
 import type { ChatStartupContext } from "@/app/layouts/FullLayout";
 import { buildProjectPath } from "@/features/draft/commitNavigation";
@@ -624,9 +624,12 @@ export function ChatView({
   }
   const controller = controllerRef.current;
 
-  const [controllerState, setControllerState] = useState<ChatBackendState>(() =>
-    controller.getState(),
-  );
+  const [controllerState, setControllerState] = useState<ChatBackendState>(() => ({
+    ...controller.getState(),
+    // The server cannot detect the desktop bridge. Hydrate with the same
+    // snapshot, then publish the actual runtime status in the effect below.
+    backendStatus: "unavailable",
+  }));
 
   useEffect(() => {
     setControllerState(controller.getState());
@@ -898,24 +901,13 @@ export function ChatView({
         </div>
 
         <div className="shrink-0 p-6">
-          {controllerState.isStreaming && (
-            <div className="mb-2 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="focus-ring flex items-center gap-1.5 rounded-lg border border-line bg-surface-card px-2.5 py-1 text-xs font-medium text-fg-subtle hover:bg-surface-muted hover:text-fg"
-              >
-                <StopCircle className="h-3.5 w-3.5 text-red-500" />
-                <span>{currentLocale === "vi" ? "Dừng tạo" : "Stop generating"}</span>
-              </button>
-            </div>
-          )}
-
           <ChatInputBar
             feedbackContext={feedbackContext}
             onClearFeedback={() => setFeedbackContext(null)}
             onSend={handleSendMessage}
-            disabled={!controllerState.initialized || controllerState.isStreaming}
+            disabled={!controllerState.initialized}
+            isGenerating={controllerState.isStreaming}
+            onStop={handleCancel}
           />
         </div>
       </div>

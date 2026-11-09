@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Sparkles, ChevronDown, Paperclip, ArrowUp, X, MessageSquareQuote } from "lucide-react";
+import { Sparkles, ChevronDown, Paperclip, ArrowUp, Square, X, MessageSquareQuote } from "lucide-react";
 import { ContextUsagePopover } from "./ContextUsagePopover";
 import { ModelSelectorPopover } from "./ModelSelectorPopover";
 import { useT } from "@/shared/i18n/useT";
@@ -13,6 +13,8 @@ interface ChatInputBarProps {
   onClearFeedback?: () => void;
   onSend?: (text: string) => void;
   disabled?: boolean;
+  isGenerating?: boolean;
+  onStop?: () => void;
 }
 
 interface AttachedTextFile { name: string; content: string; size: number }
@@ -28,6 +30,8 @@ export function ChatInputBar({
   onClearFeedback,
   onSend,
   disabled = false,
+  isGenerating = false,
+  onStop,
 }: ChatInputBarProps) {
   const t = useT();
   const [prompt, setPrompt] = useState("");
@@ -54,7 +58,7 @@ export function ChatInputBar({
   }, [feedbackContext]);
 
   const handleSend = () => {
-    if (disabled || isReadingFile || (!prompt.trim() && attachments.length === 0)) return;
+    if (disabled || isGenerating || isReadingFile || (!prompt.trim() && attachments.length === 0)) return;
     onSend?.(serializeChatAttachments(prompt, attachments.map(({ name, content }) => ({ name, content }))));
     setPrompt("");
     setAttachments([]);
@@ -114,7 +118,7 @@ export function ChatInputBar({
         <Sparkles className="mt-2 h-4 w-4" />
         <textarea
           ref={inputRef}
-          disabled={disabled}
+          disabled={disabled || isGenerating}
           aria-label={t("chat.message")}
           rows={1}
           value={prompt}
@@ -168,7 +172,7 @@ export function ChatInputBar({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={disabled || isReadingFile || attachments.length >= MAX_ATTACHMENTS}
+            disabled={disabled || isGenerating || isReadingFile || attachments.length >= MAX_ATTACHMENTS}
             title={t("chat.attachTooltip")}
             aria-label={t("chat.attachTooltip")}
             className="focus-ring flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg transition-colors"
@@ -190,9 +194,15 @@ export function ChatInputBar({
         <div className="flex items-center gap-2">
           <ModelSelectorPopover />
           <ContextUsagePopover />
-          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={disabled || isReadingFile || (!prompt.trim() && attachments.length === 0)} aria-label={t("chat.send")} title={t("chat.send")}>
-            <ArrowUp aria-hidden="true" className="h-4 w-4" />
-          </Button>
+          {isGenerating ? (
+            <Button type="button" variant="danger" size="icon" onClick={onStop} disabled={!onStop} aria-label={t("chat.stopGenerating")} title={t("chat.stopGenerating")}>
+              <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" />
+            </Button>
+          ) : (
+            <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={disabled || isReadingFile || (!prompt.trim() && attachments.length === 0)} aria-label={t("chat.send")} title={t("chat.send")}>
+              <ArrowUp aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

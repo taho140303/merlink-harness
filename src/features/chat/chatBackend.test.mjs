@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router";
 import { after, describe, it } from "node:test";
 import { createServer } from "vite";
 
@@ -37,6 +38,27 @@ const {
 } = progressModule;
 const { ChatBackendController, ChatView } = chatViewModule;
 const { ChatHeader } = chatHeaderModule;
+
+it("keeps the initial chat markup identical with a desktop bridge and compact viewport", () => {
+  const render = () => renderToStaticMarkup(
+    createElement(MemoryRouter, null, createElement(ChatView)),
+  );
+  const serverMarkup = render();
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  try {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        __TAURI_INTERNALS__: {},
+        matchMedia: () => ({ matches: true }),
+      },
+    });
+    assert.equal(render(), serverMarkup);
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+    else delete globalThis.window;
+  }
+});
 
 // Predecessor commits and baseline commit for lineage verification
 const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
@@ -843,4 +865,20 @@ describe("UI Preservation Invariant: Layout, dual progress bar & strict write bo
       assert.ok(filePath.startsWith("src/features/"));
     }
   });
+});
+
+
+it("replaces send with an enabled stop button while generating, even with input disabled", async () => {
+  const { ChatInputBar } = await vite.ssrLoadModule("/src/features/chat/ChatInputBar.tsx");
+  const html = renderToStaticMarkup(createElement(ChatInputBar, {
+    disabled: true, isGenerating: true, onStop: () => {},
+  }));
+  const stop = html.match(/<button[^>]*aria-label="Dừng tạo"[^>]*>/)?.[0];
+  assert.ok(stop);
+  assert.ok(!/\sdisabled(?:=|\s|>)/.test(stop));
+  assert.ok(stop.includes("bg-rose-600"));
+  assert.ok(!html.includes('aria-label="Gửi"'));
+  const idle = renderToStaticMarkup(createElement(ChatInputBar));
+  assert.ok(idle.includes('aria-label="Gửi"'));
+  assert.ok(!idle.includes('aria-label="Dừng tạo"'));
 });

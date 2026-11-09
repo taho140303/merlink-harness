@@ -54,6 +54,56 @@ export function Layout({ children }: { children: React.ReactNode }) {
             `,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var retryKey = 'merlink:module-reload-at';
+                var moduleFailure = /Importing a module script failed|Failed to fetch dynamically imported module|Outdated Optimize Dep/i;
+                function showStartupFailure() {
+                  var loading = document.querySelector('[data-chat-startup-loading]');
+                  if (!loading || loading.querySelector('[data-startup-retry]')) return;
+                  var english = document.documentElement.lang === 'en';
+                  var title = loading.querySelector('h1');
+                  var status = loading.querySelector('p');
+                  if (title) title.textContent = english ? 'Merlink could not load' : 'Merlink không tải được';
+                  if (status) {
+                    status.textContent = english ? 'The app did not finish starting.' : 'Ứng dụng chưa khởi động xong.';
+                    status.classList.remove('animate-pulse');
+                  }
+                  var button = document.createElement('button');
+                  button.type = 'button';
+                  button.dataset.startupRetry = '';
+                  button.textContent = english ? 'Reload' : 'Tải lại';
+                  button.className = 'mt-5 rounded-xl bg-accent px-4 py-2 font-semibold text-white';
+                  button.onclick = function() {
+                    try { sessionStorage.removeItem(retryKey); } catch (_) {}
+                    window.location.reload();
+                  };
+                  loading.appendChild(button);
+                }
+                function handleModuleFailure(message) {
+                  if (!moduleFailure.test(message || '')) return;
+                  var lastReload = 0;
+                  try { lastReload = Number(sessionStorage.getItem(retryKey)) || 0; } catch (_) {}
+                  if (Date.now() - lastReload > 60000) {
+                    try { sessionStorage.setItem(retryKey, String(Date.now())); } catch (_) {}
+                    window.setTimeout(function() { window.location.reload(); }, 800);
+                  } else {
+                    showStartupFailure();
+                  }
+                }
+                window.addEventListener('unhandledrejection', function(event) {
+                  handleModuleFailure(event.reason && (event.reason.message || String(event.reason)));
+                });
+                window.addEventListener('error', function(event) {
+                  handleModuleFailure(event.message);
+                });
+                window.setTimeout(showStartupFailure, 20000);
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
         {children}

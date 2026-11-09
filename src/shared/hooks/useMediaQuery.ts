@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 
 /** Theo dõi một media query, cập nhật khi viewport đổi. */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() =>
-    typeof window === 'undefined' ? false : window.matchMedia(query).matches,
-  );
+  // Match SSR on the first client render; read the viewport after hydration.
+  const [matches, setMatches] = useState(false);
 
   useEffect(() => {
     const mql = window.matchMedia(query);
