@@ -13,7 +13,7 @@ const vite = await createServer({
   resolve: { alias: { '@': path.resolve('src') } },
 });
 after(async () => { await vite.close(); });
-const { SubagentOrchestrationTab } = await vite.ssrLoadModule('/src/features/settings/SubagentOrchestrationTab.tsx');
+const { SubagentOrchestrationTab, getSubagentModelOptions } = await vite.ssrLoadModule('/src/features/settings/SubagentOrchestrationTab.tsx');
 const { SettingsSidebar } = await vite.ssrLoadModule('/src/features/settings/SettingsSidebar.tsx');
 const { DEFAULT_SUBAGENT_CONFIG, toDraft, validateSubagentDraft } =
   await vite.ssrLoadModule('/src/features/settings/subagentConfig.ts');
@@ -29,12 +29,19 @@ test('renders localized settings, all numeric controls, and disabled unchanged S
   const html = render();
   assert.match(html, /Điều phối subagent/);
   assert.match(html, /Theo model của cuộc chat/);
-  assert.match(html, /ví dụ cục bộ/);
+  assert.doesNotMatch(html, /Claude 3\.7 Sonnet|GPT-4o|DeepSeek-V3/);
   assert.equal((html.match(/type="number"/g) ?? []).length, 9);
   assert.match(html, /aria-label="Giảm Số subagent tối đa mỗi vòng"/);
   assert.match(html, /<button[^>]*disabled=""[^>]*>Lưu<\/button>/);
   assert.equal(dict.en['settings.subagent.title'], 'Subagent orchestration');
   assert.equal(dict.en['settings.subagent.useChatModel'], 'Use chat model');
+});
+
+test('shows configured provider models in the subagent selector', () => {
+  const options = getSubagentModelOptions([
+    { id: 'custom', name: 'My Provider', models: [{ id: 'story-v1', name: 'Story V1' }] },
+  ]);
+  assert.deepEqual(options, [{ value: 'custom/story-v1', label: 'My Provider · Story V1' }]);
 });
 
 test('settings sidebar renders orchestration between providers and recycle bin with active state', () => {

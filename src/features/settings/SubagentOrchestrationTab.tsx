@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
 import { useT } from '@/shared/i18n/useT';
 import type { TKey } from '@/shared/i18n/dict';
+import { useModelCatalogStore } from './modelCatalogStore';
+import type { CatalogProvider } from './modelCatalogStore';
 import {
   DEFAULT_SUBAGENT_CONFIG, NUMERIC_LIMITS, toConfig, toDraft,
   validateSubagentDraft,
@@ -32,9 +35,6 @@ const SECTIONS: Section[] = [
   ] },
 ];
 
-// These are local examples, NOT a provider connection or model registry.
-const MOCK_MODELS = ['Claude 3.7 Sonnet', 'GPT-4o', 'DeepSeek-V3'];
-
 interface Props {
   draft: SubagentDraft;
   saved: SubagentConfig;
@@ -42,10 +42,24 @@ interface Props {
   onSave: (config: SubagentConfig) => void;
 }
 
+export function getSubagentModelOptions(providers: CatalogProvider[]) {
+  return providers.flatMap((provider) => provider.models.map((model) => ({
+    value: `${provider.id}/${model.id}`,
+    label: `${provider.name} · ${model.name || model.id}`,
+  })));
+}
+
 export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }: Props) {
   const t = useT();
+  const providers = useModelCatalogStore((state) => state.providers);
+  const hydrateCatalog = useModelCatalogStore((state) => state.hydrate);
+  useEffect(() => { hydrateCatalog(); }, [hydrateCatalog]);
+  const modelOptions = getSubagentModelOptions(providers);
+  const selectedModel = draft.model === 'chat' || modelOptions.some((option) => option.value === draft.model)
+    ? draft.model : 'chat';
   const errors = validateSubagentDraft(draft);
-  const isDirty = Object.entries(saved).some(([key, value]) => draft[key as keyof SubagentDraft] !== String(value));
+  const isDirty = Object.entries(saved).some(([key, value]) =>
+    (key === 'model' ? selectedModel : draft[key as keyof SubagentDraft]) !== String(value));
   const setField = (key: keyof SubagentDraft, value: string) => onDraftChange({ ...draft, [key]: value });
   const errorText = (error: ValidationError, key: NumericSetting) => {
     if (error === 'minimum') return t('settings.subagent.error.minimum', { min: NUMERIC_LIMITS[key].min });
@@ -112,10 +126,10 @@ export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }
             <label htmlFor="subagent-model" className="block text-sm font-medium text-fg">{t('settings.subagent.modelLabel')}</label>
             <p id="subagent-model-description" className="mt-0.5 text-xs leading-relaxed text-fg-muted">{t('settings.subagent.modelDesc')}</p>
           </div>
-          <Select id="subagent-model" value={draft.model} onChange={(event) => setField('model', event.target.value)}
+          <Select id="subagent-model" value={selectedModel} onChange={(event) => setField('model', event.target.value)}
             aria-describedby="subagent-model-description" fieldClassName="w-full min-w-0 sm:w-48" className="text-xs">
             <option value="chat">{t('settings.subagent.useChatModel')}</option>
-            {MOCK_MODELS.map((name) => <option key={name} value={name}>{name} · {t('settings.subagent.localExample')}</option>)}
+            {modelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </Select>
         </div>
       </section>
@@ -125,7 +139,7 @@ export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }
           {t('settings.subagent.restoreDefaults')}
         </Button>
         <Button size="sm" variant="primary" disabled={!isDirty || Object.keys(errors).length > 0}
-          onClick={() => onSave(toConfig(draft))}>{t('settings.subagent.save')}</Button>
+          onClick={() => onSave({ ...toConfig(draft), model: selectedModel })}>{t('settings.subagent.save')}</Button>
       </footer>
     </div>
   );
