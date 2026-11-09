@@ -39,7 +39,11 @@ interface Props {
   draft: SubagentDraft;
   saved: SubagentConfig;
   onDraftChange: (draft: SubagentDraft) => void;
-  onSave: (config: SubagentConfig) => void;
+  onSave: (config: SubagentConfig) => void | Promise<void>;
+  loading?: boolean;
+  loaded?: boolean;
+  saving?: boolean;
+  error?: string | null;
 }
 
 export function getSubagentModelOptions(providers: CatalogProvider[]) {
@@ -49,18 +53,21 @@ export function getSubagentModelOptions(providers: CatalogProvider[]) {
   })));
 }
 
-export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }: Props) {
+export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave, loading = false, loaded = true, saving = false, error = null }: Props) {
   const t = useT();
   const providers = useModelCatalogStore((state) => state.providers);
   const hydrateCatalog = useModelCatalogStore((state) => state.hydrate);
   useEffect(() => { hydrateCatalog(); }, [hydrateCatalog]);
   const modelOptions = getSubagentModelOptions(providers);
-  const selectedModel = draft.model === 'chat' || modelOptions.some((option) => option.value === draft.model)
-    ? draft.model : 'chat';
+  const selectedModel = draft.model;
+  const modelUnavailable = selectedModel !== 'chat' && !modelOptions.some((option) => option.value === selectedModel);
   const errors = validateSubagentDraft(draft);
   const isDirty = Object.entries(saved).some(([key, value]) =>
     (key === 'model' ? selectedModel : draft[key as keyof SubagentDraft]) !== String(value));
-  const setField = (key: keyof SubagentDraft, value: string) => onDraftChange({ ...draft, [key]: value });
+  const setField = (key: keyof SubagentDraft, value: string) => {
+    if (loading || !loaded || saving) return;
+    onDraftChange({ ...draft, [key]: value });
+  };
   const errorText = (error: ValidationError, key: NumericSetting) => {
     if (error === 'minimum') return t('settings.subagent.error.minimum', { min: NUMERIC_LIMITS[key].min });
     if (error === 'maximum') return t('settings.subagent.error.maximum', { max: NUMERIC_LIMITS[key].max ?? 0 });
@@ -72,6 +79,8 @@ export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }
       <header>
         <h3 className="text-base font-semibold text-fg">{t('settings.subagent.title')}</h3>
         <p className="mt-1 text-xs leading-relaxed text-fg-muted">{t('settings.subagent.subtitle')}</p>
+        {loading && <p role="status" className="mt-2 text-xs text-fg-muted">{t('settings.subagent.loading')}</p>}
+        {error && <p role="alert" className="mt-2 text-xs text-rose-500">{t('settings.subagent.loadError')}: {error}</p>}
       </header>
 
       {SECTIONS.map((section) => (
@@ -93,18 +102,18 @@ export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }
                     </div>
                     <div role="group" aria-label={t(label)} className="flex h-9 shrink-0 items-stretch overflow-hidden rounded-xl border border-line bg-surface-input">
                       <button type="button" onClick={() => setField(key, String(numeric - 1))}
-                        disabled={!validInteger || numeric <= min}
+                        disabled={loading || !loaded || saving || !validInteger || numeric <= min}
                         aria-label={t('settings.subagent.decrease', { label: t(label) })}
                         className="focus-ring flex w-9 items-center justify-center text-fg-muted hover:bg-surface-muted hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
                         <Minus aria-hidden="true" className="h-3.5 w-3.5" />
                       </button>
                       <input id={inputId} type="number" inputMode="numeric" step={1} min={min} max={max}
-                        value={draft[key]} onChange={(event) => setField(key, event.target.value)}
+                        value={draft[key]} disabled={loading || !loaded || saving} onChange={(event) => setField(key, event.target.value)}
                         aria-invalid={error ? true : undefined}
                         aria-describedby={`${inputId}-description${error ? ` ${inputId}-error` : ''}`}
                         className="focus-ring w-14 border-x border-line bg-surface-card px-1 text-center text-sm font-medium text-fg [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
                       <button type="button" onClick={() => setField(key, String(numeric + 1))}
-                        disabled={!validInteger || (max !== undefined && numeric >= max)}
+                        disabled={loading || !loaded || saving || !validInteger || (max !== undefined && numeric >= max)}
                         aria-label={t('settings.subagent.increase', { label: t(label) })}
                         className="focus-ring flex w-9 items-center justify-center text-fg-muted hover:bg-surface-muted hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
                         <Plus aria-hidden="true" className="h-3.5 w-3.5" />
@@ -126,20 +135,22 @@ export function SubagentOrchestrationTab({ draft, saved, onDraftChange, onSave }
             <label htmlFor="subagent-model" className="block text-sm font-medium text-fg">{t('settings.subagent.modelLabel')}</label>
             <p id="subagent-model-description" className="mt-0.5 text-xs leading-relaxed text-fg-muted">{t('settings.subagent.modelDesc')}</p>
           </div>
-          <Select id="subagent-model" value={selectedModel} onChange={(event) => setField('model', event.target.value)}
+          <Select id="subagent-model" value={selectedModel} disabled={loading || !loaded || saving} onChange={(event) => setField('model', event.target.value)}
             aria-describedby="subagent-model-description" fieldClassName="w-full min-w-0 sm:w-48" className="text-xs">
             <option value="chat">{t('settings.subagent.useChatModel')}</option>
+            {modelUnavailable &&
+              <option value={selectedModel}>{selectedModel} ({t('settings.subagent.modelUnavailable')})</option>}
             {modelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </Select>
         </div>
       </section>
 
       <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
-        <Button size="sm" variant="secondary" onClick={() => onDraftChange(toDraft(DEFAULT_SUBAGENT_CONFIG))}>
+        <Button size="sm" variant="secondary" disabled={loading || !loaded || saving} onClick={() => onDraftChange(toDraft(DEFAULT_SUBAGENT_CONFIG))}>
           {t('settings.subagent.restoreDefaults')}
         </Button>
-        <Button size="sm" variant="primary" disabled={!isDirty || Object.keys(errors).length > 0}
-          onClick={() => onSave({ ...toConfig(draft), model: selectedModel })}>{t('settings.subagent.save')}</Button>
+        <Button size="sm" variant="primary" disabled={loading || !loaded || saving || modelUnavailable || !isDirty || Object.keys(errors).length > 0}
+          onClick={() => onSave({ ...toConfig(draft), model: selectedModel })}>{saving ? t('settings.subagent.saving') : t('settings.subagent.save')}</Button>
       </footer>
     </div>
   );

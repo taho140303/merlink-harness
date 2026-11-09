@@ -1,4 +1,6 @@
-// UI-only intent. Nothing in this module is sent to the backend or persisted.
+import { backendClient, type BackendClient } from '@/shared/backend/client';
+
+// Values are persisted by the Tauri backend; the browser preview fails closed without IPC.
 export const DEFAULT_SUBAGENT_CONFIG = {
   maxSubagents: 6,
   rejectedThreshold: 3,
@@ -39,7 +41,7 @@ export function validateSubagentDraft(draft: SubagentDraft): Partial<Record<Nume
     const raw = draft[key].trim();
     const { min, max } = NUMERIC_LIMITS[key];
     if (raw === '') errors[key] = 'required';
-    else if (!/^-?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) errors[key] = 'integer';
+    else if (!/^-?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) > 2_147_483_647) errors[key] = 'integer';
     else if (Number(raw) < min) errors[key] = 'minimum';
     else if (max !== undefined && Number(raw) > max) errors[key] = 'maximum';
   }
@@ -48,6 +50,16 @@ export function validateSubagentDraft(draft: SubagentDraft): Partial<Record<Nume
     errors.outlineLookback = 'lookback';
   }
   return errors;
+}
+
+export async function loadSubagentConfig(client: BackendClient = backendClient): Promise<SubagentConfig> {
+  const response = await client.getRuntimeAndProviderConfig();
+  return response.subagentConfig;
+}
+
+export async function saveSubagentConfig(config: SubagentConfig, client: BackendClient = backendClient): Promise<SubagentConfig> {
+  const response = await client.updateRuntimeAndProviderConfig({ subagentConfig: config });
+  return response.subagentConfig;
 }
 
 export function toConfig(draft: SubagentDraft): SubagentConfig {

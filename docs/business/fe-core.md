@@ -208,13 +208,13 @@ Chapter Detail dùng `buildSceneBlocks(chapter)` (`scenePreview.ts`) để tạo
 | WF-03 | `[GAP]` | Hiển thị trạng thái “workflow đang chạy”, “đang hủy”, “seal pending”, “seal failed” | Không có | 3.9 | không có | |
 | WF-04 | `[GAP]` | Nút yêu cầu hủy; hủy có kiểm soát, không rollback mutation đã applied | Không có | 3.9 | không có | |
 | WF-05 | `[GAP]` | Resume available, completed, failed; hiển thị trạng thái vòng chưa seal | Không có | 3.9 | không có | |
-| WF-06 | `[MOCK]` | Có tab Settings cấu hình subagent: maxSubagents, rejectedThreshold, outlineCapacity, outlineLookback, contextMargin, units, model | UI-only, không persist, không chạy | 3.9 | `SubagentOrchestrationTab.tsx:1`, `subagentConfig.ts:1` | không phải workflow UI |
+| WF-06 | `[IMPLEMENTED]` | Có tab Settings cấu hình subagent: maxSubagents, rejectedThreshold, outlineCapacity, outlineLookback, contextMargin, units, model | Đọc/ghi qua IPC #38/#39; backend persist `provider_config` và ánh xạ vào planner mỗi lần chạy workflow | 3.9 | `SubagentOrchestrationTab.tsx`, `subagentConfig.ts`, `SettingsDialog.tsx`, `ipc/config_commands.rs` | lỗi backend hiển thị, không báo lưu giả |
 
 ### 6.2 Ghi chú
 
 - `DRAFT_LOCK_TIMEOUT` là thời gian chờ lấy khóa, không phải thời gian thực thi workflow. UI không được hiển thị “quá 30 giây là workflow bị dừng”.
 - Không có draft lock, busy state, read-only snapshot, cancel request, seal state hoặc resume state trong FE.
-- Tab Settings subagent chỉ là mock; comment tại `src/features/settings/subagentConfig.ts:1` ghi rõ “UI-only intent. Nothing in this module is sent to the backend or persisted.”
+- Tab Settings subagent không còn là mock: mở tab sẽ nạp cấu hình qua `get_runtime_and_provider_config`; nút Lưu chỉ bật khi dữ liệu đã tải, hợp lệ và có thay đổi; lưu thất bại giữ nguyên bản nháp và hiển thị lỗi. Giá trị model đã lưu nhưng không còn trong catalog cục bộ được hiển thị nguyên trạng kèm cảnh báo và chặn Lưu, không tự đổi sang `chat`.
 
 ## 7. Start/Commit
 
@@ -761,6 +761,6 @@ Phân loại ban đầu lấy từ báo cáo local agent; đã kiểm tra lại 
 | Không có `scene_versions` thật | Không có API/DB; fixture `buildPreviewVersions` |
 | Known 1280 header gap | Đo tại 1280px với Chat mở: `scrollWidth` 464 / `clientWidth` 453 |
 | Character store mock | `src/features/characters/store.ts`, `CharacterListView.tsx:13-25` |
-| Subagent settings UI-only | `src/features/settings/subagentConfig.ts:1` |
+| Subagent settings persist qua IPC | `src/features/settings/subagentConfig.ts` (`loadSubagentConfig`, `saveSubagentConfig`), `SettingsDialog.tsx` |
 | Breakpoint 1280 | `src/shared/hooks/useMediaQuery.ts:23` |
 | Chỉ localStorage theme/locale | `src/app/root.tsx:41`, `src/shared/i18n/store.ts:8`, `src/shared/hooks/useTheme.ts:14` |

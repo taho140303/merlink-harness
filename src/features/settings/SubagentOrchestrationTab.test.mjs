@@ -15,7 +15,7 @@ const vite = await createServer({
 after(async () => { await vite.close(); });
 const { SubagentOrchestrationTab, getSubagentModelOptions } = await vite.ssrLoadModule('/src/features/settings/SubagentOrchestrationTab.tsx');
 const { SettingsSidebar } = await vite.ssrLoadModule('/src/features/settings/SettingsSidebar.tsx');
-const { DEFAULT_SUBAGENT_CONFIG, toDraft, validateSubagentDraft } =
+const { DEFAULT_SUBAGENT_CONFIG, toDraft, validateSubagentDraft, loadSubagentConfig, saveSubagentConfig } =
   await vite.ssrLoadModule('/src/features/settings/subagentConfig.ts');
 const { dict } = await vite.ssrLoadModule('/src/shared/i18n/dict.ts');
 
@@ -24,6 +24,47 @@ function render(draft = toDraft(DEFAULT_SUBAGENT_CONFIG)) {
     draft, saved: DEFAULT_SUBAGENT_CONFIG, onDraftChange: () => {}, onSave: () => {},
   }));
 }
+
+test('loads and persists config through backend IPC and preserves failures', async () => {
+  const calls = [];
+  const saved = { ...DEFAULT_SUBAGENT_CONFIG, maxSubagents: 2 };
+  const client = {
+    getRuntimeAndProviderConfig: async () => ({ subagentConfig: saved }),
+    updateRuntimeAndProviderConfig: async (request) => {
+      calls.push(request);
+      return { subagentConfig: request.subagentConfig };
+    },
+  };
+  assert.deepEqual(await loadSubagentConfig(client), saved);
+  assert.deepEqual(await saveSubagentConfig({ ...saved, maxSubagents: 4 }, client), { ...saved, maxSubagents: 4 });
+  assert.deepEqual(calls, [{ subagentConfig: { ...saved, maxSubagents: 4 } }]);
+  await assert.rejects(saveSubagentConfig(saved, {
+    updateRuntimeAndProviderConfig: async () => { throw new Error('backend unavailable'); },
+  }), /backend unavailable/);
+});
+
+test('never silently changes a saved model absent from the local catalog', () => {
+  const model = 'provider/removed-model';
+  const html = renderToStaticMarkup(createElement(SubagentOrchestrationTab, {
+    draft: { ...toDraft(DEFAULT_SUBAGENT_CONFIG), model },
+    saved: { ...DEFAULT_SUBAGENT_CONFIG, model },
+    onDraftChange: () => {}, onSave: () => {},
+  }));
+  assert.match(html, /value="provider\/removed-model" selected=""/);
+  assert.match(html, /không có trong danh sách model hiện tại/);
+  assert.match(html, /<button[^>]*disabled=""[^>]*>Lưu<\/button>/);
+});
+
+test('disables Save while backend settings are unavailable', () => {
+  const html = renderToStaticMarkup(createElement(SubagentOrchestrationTab, {
+    draft: { ...toDraft(DEFAULT_SUBAGENT_CONFIG), maxSubagents: '2' },
+    saved: DEFAULT_SUBAGENT_CONFIG,
+    loaded: false, error: 'Backend unavailable',
+    onDraftChange: () => {}, onSave: () => {},
+  }));
+  assert.match(html, /role="alert"/);
+  assert.match(html, /<button[^>]*disabled=""[^>]*>Lưu<\/button>/);
+});
 
 test('renders localized settings, all numeric controls, and disabled unchanged Save', () => {
   const html = render();
@@ -77,4 +118,5 @@ test('rejects missing, fractional, negative, out-of-range and unsafe inputs', ()
   assert.equal(validateSubagentDraft({ ...draft, maxSubagents: '7' }).maxSubagents, 'maximum');
   assert.equal(validateSubagentDraft({ ...draft, maxSubagents: '0' }).maxSubagents, 'minimum');
   assert.equal(validateSubagentDraft({ ...draft, outlineCapacity: '999999999999999999999' }).outlineCapacity, 'integer');
+  assert.equal(validateSubagentDraft({ ...draft, chaptersPerSubagent: '2147483648' }).chaptersPerSubagent, 'integer');
 });

@@ -10,7 +10,7 @@ import { GeneralTab } from "@/features/settings/GeneralTab";
 import { AIProvidersTab } from "@/features/settings/AIProvidersTab";
 import { RecycleBinTab } from "@/features/settings/RecycleBinTab";
 import { SubagentOrchestrationTab } from "@/features/settings/SubagentOrchestrationTab";
-import { DEFAULT_SUBAGENT_CONFIG, toDraft, type SubagentConfig } from "@/features/settings/subagentConfig";
+import { DEFAULT_SUBAGENT_CONFIG, loadSubagentConfig, saveSubagentConfig, toDraft, type SubagentConfig } from "@/features/settings/subagentConfig";
 import type { SettingsTabId } from "@/features/settings/types";
 import { useT } from "@/shared/i18n/useT";
 
@@ -22,9 +22,46 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const t = useT();
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
-  // Dialog-lifetime UI state only; intentionally no backend or localStorage writes.
   const [savedSubagentConfig, setSavedSubagentConfig] = useState<SubagentConfig>(DEFAULT_SUBAGENT_CONFIG);
   const [subagentDraft, setSubagentDraft] = useState(() => toDraft(DEFAULT_SUBAGENT_CONFIG));
+  const [subagentLoading, setSubagentLoading] = useState(false);
+  const [subagentLoaded, setSubagentLoaded] = useState(false);
+  const [subagentSaving, setSubagentSaving] = useState(false);
+  const [subagentError, setSubagentError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || activeTab !== "subagent-orchestration") return;
+    let active = true;
+    setSubagentLoading(true);
+    setSubagentLoaded(false);
+    setSubagentError(null);
+    loadSubagentConfig().then((config) => {
+      if (!active) return;
+      setSavedSubagentConfig(config);
+      setSubagentDraft(toDraft(config));
+      setSubagentLoaded(true);
+    }).catch((error: unknown) => {
+      if (active) setSubagentError(error instanceof Error ? error.message : String(error));
+    }).finally(() => {
+      if (active) setSubagentLoading(false);
+    });
+    return () => { active = false; };
+  }, [open, activeTab]);
+
+  const handleSaveSubagent = async (config: SubagentConfig) => {
+    if (subagentSaving || !subagentLoaded) return;
+    setSubagentSaving(true);
+    setSubagentError(null);
+    try {
+      const saved = await saveSubagentConfig(config);
+      setSavedSubagentConfig(saved);
+      setSubagentDraft(toDraft(saved));
+    } catch (error) {
+      setSubagentError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubagentSaving(false);
+    }
+  };
 
   useEffect(() => {
     const openRecycleBin = () => {
@@ -51,7 +88,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           {activeTab === "ai-providers" && <AIProvidersTab />}
           {activeTab === "subagent-orchestration" && (
             <SubagentOrchestrationTab draft={subagentDraft} saved={savedSubagentConfig}
-              onDraftChange={setSubagentDraft} onSave={setSavedSubagentConfig} />
+              loading={subagentLoading} loaded={subagentLoaded} saving={subagentSaving} error={subagentError}
+              onDraftChange={setSubagentDraft} onSave={handleSaveSubagent} />
           )}
           {activeTab === "recycle-bin" && <RecycleBinTab />}
         </main>
