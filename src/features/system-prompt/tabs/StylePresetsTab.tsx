@@ -5,9 +5,16 @@ import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
 import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
-import type { NarrativeWeight, TonePace } from '../types';
+import type { NarrativeWeight, RhetoricalUsage, StylePresetRhetoricalDevice, TonePace } from '../types';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/components/ui/dialog';
+import { Info } from 'lucide-react';
 
 const WEIGHT_PCT: Record<NarrativeWeight, number> = { NONE: 0, LOW: 33, MEDIUM: 66, HIGH: 100 };
+const RHETORICAL_ORDER: Record<RhetoricalUsage, number> = { primary: 0, secondary: 1, avoid: 2 };
+
+export function sortRhetoricalDevices(items: StylePresetRhetoricalDevice[]): StylePresetRhetoricalDevice[] {
+  return [...items].sort((a, b) => RHETORICAL_ORDER[a.usageType] - RHETORICAL_ORDER[b.usageType]);
+}
 
 const PACE_COLOR: Record<TonePace, string> = {
   VERY_LOW: 'bg-surface-muted text-fg-muted  ',
@@ -106,21 +113,14 @@ export function StylePresetsTab() {
       ) : (
         filteredPresets.map((preset) => {
           const expanded = expandedPresetId === preset.id;
-          const rds = expanded ? stylePresetRhetoricalDevices.filter((r) => r.presetId === preset.id) : [];
+          const rds = expanded ? sortRhetoricalDevices(stylePresetRhetoricalDevices.filter((r) => r.presetId === preset.id)) : [];
           const vocab = expanded ? stylePresetVocabItems.filter((v) => v.presetId === preset.id) : [];
           const focus = expanded ? stylePresetFocusItems.filter((f) => f.presetId === preset.id) : [];
           const narratives = expanded ? stylePresetNarratives.filter((n) => n.stylePresetId === preset.id) : [];
 
           return (
-            <details
-              key={preset.id}
-              onToggle={(event) => {
-                const isOpen = event.currentTarget.open;
-                setExpandedPresetId((current) => isOpen ? preset.id : current === preset.id ? null : current);
-              }}
-              className="group tier-card rounded-card"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
+            <div key={preset.id} className="tier-card rounded-card">
+              <div className="flex items-center justify-between gap-2 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold text-fg">
@@ -147,12 +147,20 @@ export function StylePresetsTab() {
                     {t('sp.style.toneEmotion')}: {preset.toneEmotion}
                   </p>
                 </div>
-                <span className="text-xs text-fg-subtle transition-transform group-open:rotate-180">
-                  ▾
-                </span>
-              </summary>
+                <button type="button" onClick={() => setExpandedPresetId(preset.id)}
+                  title={t('sp.style.details')} aria-label={`${t('sp.style.details')}: ${humanize(preset.code.split('/').pop() ?? preset.code)}`}
+                  className="focus-ring shrink-0 rounded-lg p-2 text-fg-muted hover:bg-surface-muted hover:text-fg">
+                  <Info aria-hidden="true" className="h-4 w-4" />
+                </button>
+              </div>
 
-              {expanded && <div className="space-y-5 border-t border-line px-4 pb-4 pt-4 ">
+              {expanded && <Dialog open onOpenChange={(open) => { if (!open) setExpandedPresetId(null); }}>
+                <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto p-0">
+                  <div className="border-b border-line px-5 py-4 pr-12">
+                    <DialogTitle className="text-base font-semibold text-fg">{humanize(preset.code.split('/').pop() ?? preset.code)}</DialogTitle>
+                    <DialogDescription className="mt-1 text-xs text-fg-muted">{preset.category} · {preset.toneEmotion}</DialogDescription>
+                  </div>
+              <div className="space-y-5 px-5 pb-5 pt-4">
                 {/* Sensory */}
                 <div>
                   <div className="mb-2 flex items-center gap-1.5">
@@ -315,8 +323,10 @@ export function StylePresetsTab() {
                     </div>
                   </div>
                 )}
-              </div>}
-            </details>
+              </div>
+                </DialogContent>
+              </Dialog>}
+            </div>
           );
         })
       )}
