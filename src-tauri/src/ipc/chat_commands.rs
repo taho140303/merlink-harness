@@ -154,13 +154,34 @@ pub fn exec_create_or_load_chat_session(
     // Fetch conversation message history
     let messages = orchestrator.fetch_recent_session_messages(&session_id, Uuid::nil(), 100)?;
 
-    // Check for interrupted turn alert
+    // Check for interrupted turn alert (be-core.md §11.2.2)
     let mut interrupted_turn_alert = None;
     if ws_snap.status == DraftRuntimeStatus::SealPendingRetry {
         interrupted_turn_alert = Some("Draft version sealing is pending retry from previous turn.".to_string());
-    } else if let Some(last_msg) = messages.last() {
-        if last_msg.role == "user" {
-            interrupted_turn_alert = Some("Previous conversation turn was interrupted before response completed.".to_string());
+    } else {
+        // Only raise interruptedTurnAlert if an unsealed turn had applied tool writes (§11.2.2)
+        let unsealed_stmt = conn.prepare(
+            "SELECT 1 FROM messages m
+             WHERE m.session_id = ?1
+               AND m.turn_id IS NOT NULL
+               AND m.role = 'tool'
+               AND (
+                   (json_extract(m.payload_json, '$.writes_draft_state') = 1 AND json_extract(m.payload_json, '$.has_applied_write') = 1)
+                   OR json_extract(m.payload_json, '$.status') = 'applied'
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM draft_versions dv
+                   WHERE dv.draft_session_id = ?2
+                     AND dv.turn_id = m.turn_id
+               )
+             LIMIT 1",
+        );
+        if let Ok(mut stmt) = unsealed_stmt {
+            if let Ok(exists) = stmt.exists(params![session_id, draft_session_id.to_string()]) {
+                if exists {
+                    interrupted_turn_alert = Some("Previous conversation turn was interrupted before response completed.".to_string());
+                }
+            }
         }
     }
 
@@ -376,7 +397,7 @@ pub async fn exec_send_chat_message(
     )?;
 
     // Run AI ReAct turn
-    orchestrator
+    let res = orchestrator
         .run_ai_turn(
             draft_session_id,
             &req.session_id,
@@ -388,7 +409,20 @@ pub async fn exec_send_chat_message(
             stream_tx,
             CancellationToken::new(),
         )
-        .await
+        .await;
+
+    if res.is_err() {
+        // If turn failed fatally before sealing any version or mutating state,
+        // clean up the orphaned user message so the session does not have half-baked failed turns
+        if let Ok(conn) = orchestrator.pool().get() {
+            let _ = conn.execute(
+                "DELETE FROM messages WHERE id = ?1",
+                params![user_message_id.to_string()],
+            );
+        }
+    }
+
+    res
 }
 
 // ============================================================================
