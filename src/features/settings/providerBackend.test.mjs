@@ -602,3 +602,16 @@ describe("P5S6-VISUAL: UI layout, responsive width, and strict write scope", () 
     assert.match(formHtml, /grid grid-cols-2/);
   });
 });
+
+
+it("does not claim a key is stored when only a stale masked label exists", () => {
+  const html = renderToStaticMarkup(createElement(ProviderFormModule.ProviderForm, {
+    initialData: {
+      id: "custom-provider", name: "Custom", status: "connected",
+      hasApiKey: false, maskedApiKey: "••••••••",
+    },
+    onCancel: () => {}, onSave: () => {},
+  }));
+  assert.ok(!html.includes("Stored securely"));
+  assert.ok(!html.includes("•••••••• (KEYCHAIN)"));
+});

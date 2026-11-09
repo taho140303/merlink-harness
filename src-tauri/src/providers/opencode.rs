@@ -4,7 +4,7 @@
 //! MUST ALWAYS inject `permission: { "*": "deny" }` into every outbound request body
 //! to strictly forbid remote arbitrary code/tool execution by the model server.
 
-use crate::providers::redaction::{redact_sensitive_strings, SecretKey};
+use crate::providers::redaction::{describe_request_error, redact_sensitive_strings, SecretKey};
 use crate::providers::traits::{
     LlmProvider, ProviderChatRequest, ProviderChatResponse, ProviderError, ProviderMessage,
     ProviderStreamChunk, ProviderStreamRequest, ProviderStreamSummary, ProviderToolCall,
@@ -287,7 +287,7 @@ impl LlmProvider for OpenCodeProvider {
                 match res {
                     Ok(resp) => resp,
                     Err(err) => {
-                        let msg = redact_sensitive_strings(&err.to_string());
+                        let msg = describe_request_error(&err);
                         if err.is_timeout() || err.is_connect() {
                             return Err(ProviderError::Unreachable { status: None, message: msg });
                         }
@@ -367,7 +367,7 @@ impl LlmProvider for OpenCodeProvider {
                 match res {
                     Ok(resp) => resp,
                     Err(err) => {
-                        let msg = redact_sensitive_strings(&err.to_string());
+                        let msg = describe_request_error(&err);
                         if err.is_timeout() || err.is_connect() {
                             return Err(ProviderError::Unreachable { status: None, message: msg });
                         }
@@ -459,7 +459,7 @@ impl LlmProvider for OpenCodeProvider {
                     }
                 }
                 Some(Err(err)) => {
-                    let msg = redact_sensitive_strings(&err.to_string());
+                    let msg = describe_request_error(&err);
                     return Err(ProviderError::Unreachable {
                         status: None,
                         message: msg,

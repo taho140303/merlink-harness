@@ -377,7 +377,7 @@ export type ProviderFormData = Omit<AIProviderItem, "status"> & {
 export interface ProviderFormProps {
   initialData?: ProviderFormData | null;
   onCancel: () => void;
-  onSave: (provider: AIProviderItem) => void;
+  onSave: (provider: AIProviderItemExtended) => void;
   client?: BackendClient;
   credentialStorage?: CredentialStorageType;
 }
@@ -402,7 +402,7 @@ export function ProviderForm({
 
   // Transient state for raw API key - cleared immediately after submit (P5S6-N)
   const [apiKey, setApiKey] = useState("");
-  const hasExistingKey = Boolean(initialData?.hasApiKey || initialData?.maskedApiKey);
+  const hasExistingKey = Boolean(initialData?.hasApiKey);
 
   const [customizedOpen, setCustomizedOpen] = useState(Boolean(initialData?.isCustom));
   const [displayName, setDisplayName] = useState(initialData?.name || "");
@@ -506,11 +506,12 @@ export function ProviderForm({
     const targetName =
       displayName || (providerMode === "custom" ? "Custom Provider" : providerType);
 
+    let savedConfig: ProviderConfigResultDto;
     try {
       if (activeClient.status !== "available") {
         throw new Error("Backend is unavailable; provider settings were not saved");
       }
-      await updateProviderConfig(
+      savedConfig = await updateProviderConfig(
         {
           providerId: targetId,
           apiKey: enteredKey || undefined,
@@ -530,6 +531,9 @@ export function ProviderForm({
     onSave({
       id: targetId,
       name: targetName,
+      hasApiKey: savedConfig.hasApiKey,
+      maskedApiKey: savedConfig.maskedApiKey,
+      credentialStorage: savedConfig.credentialStorage,
       status: testStatus === "error" ? "connected" : "connected",
       isCustom: providerMode === "custom",
       providerType,

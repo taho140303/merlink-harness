@@ -200,14 +200,14 @@ export function AIProvidersTab({
     }
   };
 
-  const handleSave = async (savedItem: AIProviderItem) => {
+  const handleSave = async (savedItem: AIProviderItemExtended) => {
     // Secret safety: ensure raw apiKey is never saved in frontend state
     const safeItem: AIProviderItemExtended = {
       ...savedItem,
       status: "connected",
-      hasApiKey: Boolean(savedItem.apiKey || (editingProvider && editingProvider.hasApiKey)),
-      maskedApiKey: "••••••••",
-      credentialStorage: credentialStorage,
+      hasApiKey: Boolean(savedItem.hasApiKey),
+      maskedApiKey: savedItem.hasApiKey ? "••••••••" : "",
+      credentialStorage: savedItem.credentialStorage ?? "NONE",
       apiKey: undefined,
     };
 

@@ -3,8 +3,8 @@
 //! - `test_provider_connection`: verifies endpoint reachability + credentials.
 //! - `fetch_provider_models`: lists models served by an endpoint.
 //!
-//! Strategy: `GET {base}/models` first; if the endpoint has no listing route
-//! (404/405) fall back to a minimal 1-token completion on the chosen protocol.
+//! Model discovery uses GET /models. Connection tests perform a minimal
+//! completion: public model listings do not prove chat authentication.
 //! The API key comes from the request (form value) or the credential manager and is
 //! never echoed back; all error text passes through the redactor.
 
@@ -154,47 +154,47 @@ pub async fn probe_provider(
     };
 
     let map_send_err = |e: reqwest::Error| {
-        let msg = state.redactor.redact(&e.to_string());
+        let msg = state.redactor.redact(&crate::providers::redaction::describe_request_error(&e));
         ProbeProviderResultDto::fail("unreachable", "provider_unreachable", msg)
     };
 
     // Normalize configured adapter endpoints before probing (Ollama uses /api/tags).
     let (models_url, completion_url) = probe_paths(&base, provider_id);
-    let resp = match auth(client.get(models_url)).send().await {
-        Ok(r) => r,
-        Err(e) => return map_send_err(e),
-    };
-    let status = resp.status();
-    if status.is_success() {
-        let body: Value = resp.json().await.unwrap_or(Value::Null);
-        let models = extract_models(&body);
-        return ProbeProviderResultDto {
-            ok: true,
-            status: "connected".into(),
-            error: None,
-            code: None,
-            models,
-        };
-    }
-    if status.as_u16() == 401 || status.as_u16() == 403 {
-        return ProbeProviderResultDto::fail(
-            "auth_failed",
-            "provider_auth_failed",
-            format!("Authentication failed (HTTP {})", status.as_u16()),
-        );
-    }
-    if !(status.as_u16() == 404 || status.as_u16() == 405 || status.as_u16() == 501) {
-        let body = resp.text().await.unwrap_or_default();
-        let snippet: String = body.chars().take(200).collect();
-        return ProbeProviderResultDto::fail(
-            "error",
-            "provider_error",
-            state
-                .redactor
-                .redact(&format!("HTTP {}: {}", status.as_u16(), snippet)),
-        );
-    }
     if require_model_list {
+        let resp = match auth(client.get(models_url)).send().await {
+            Ok(r) => r,
+            Err(e) => return map_send_err(e),
+        };
+        let status = resp.status();
+        if status.is_success() {
+            let body: Value = resp.json().await.unwrap_or(Value::Null);
+            let models = extract_models(&body);
+            return ProbeProviderResultDto {
+                ok: true,
+                status: "connected".into(),
+                error: None,
+                code: None,
+                models,
+            };
+        }
+        if status.as_u16() == 401 || status.as_u16() == 403 {
+            return ProbeProviderResultDto::fail(
+                "auth_failed",
+                "provider_auth_failed",
+                format!("Authentication failed (HTTP {})", status.as_u16()),
+            );
+        }
+        if !(status.as_u16() == 404 || status.as_u16() == 405 || status.as_u16() == 501) {
+            let body = resp.text().await.unwrap_or_default();
+            let snippet: String = body.chars().take(200).collect();
+            return ProbeProviderResultDto::fail(
+                "error",
+                "provider_error",
+                state
+                    .redactor
+                    .redact(&format!("HTTP {}: {}", status.as_u16(), snippet)),
+            );
+        }
         return ProbeProviderResultDto::fail(
             "error",
             "models_unsupported",
@@ -202,7 +202,7 @@ pub async fn probe_provider(
         );
     }
 
-    // 2) Fallback: minimal completion
+    // Verify credentials and model access on the same operation used by chat.
     let model = req
         .model_name
         .clone()
@@ -212,7 +212,7 @@ pub async fn probe_provider(
         return ProbeProviderResultDto::fail(
             "error",
             "validation_failed",
-            "No /models route and no model name set for a test completion",
+            "Select a model before testing the connection",
         );
     };
     let (path, body) = match protocol {
@@ -284,6 +284,50 @@ pub async fn fetch_provider_models(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn public_models_endpoint_does_not_prove_chat_authentication() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut request = Vec::new();
+            let mut buf = [0; 1024];
+            while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = socket.read(&mut buf).unwrap();
+                assert!(n > 0);
+                request.extend_from_slice(&buf[..n]);
+            }
+            let header_end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+            let length = String::from_utf8_lossy(&request[..header_end]).lines()
+                .find_map(|line| line.to_lowercase().strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+                .unwrap_or(0);
+            while request.len() < header_end + length {
+                let n = socket.read(&mut buf).unwrap();
+                assert!(n > 0);
+                request.extend_from_slice(&buf[..n]);
+            }
+            let is_listing = request.starts_with(b"GET /v1/models ");
+            let (status, body) = if is_listing {
+                ("200 OK", r#"{"data":[{"id":"custom-model"}]}"#)
+            } else {
+                ("401 Unauthorized", r#"{"error":{"code":"invalid_api_key"}}"#)
+            };
+            write!(socket, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+        });
+        let state = RuntimeConfigState::default();
+        let result = probe_provider(&state, &ProbeProviderReq {
+            provider_id: "custom-provider".into(),
+            endpoint_url: Some(endpoint),
+            model_name: Some("custom-model".into()),
+            ..Default::default()
+        }, false).await;
+        server.join().unwrap();
+        assert!(!result.ok, "Public model listing must not report chat authentication success");
+        assert_eq!(result.code.as_deref(), Some("provider_auth_failed"));
+    }
 
     #[test]
     fn extracts_openai_and_gemini_shapes() {

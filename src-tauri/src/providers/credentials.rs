@@ -216,3 +216,18 @@ impl CredentialManager {
         }
     }
 }
+
+#[cfg(test)]
+mod native_backend_tests {
+    #[test]
+    fn desktop_credentials_must_not_use_mock_storage() {
+        // Creating an entry does not read or overwrite any real provider key.
+        // An unavailable OS service is allowed: the manager falls back to RAM.
+        if let Ok(entry) = keyring::Entry::new("com.merlink.harness.test", "backend-check") {
+            assert!(
+                !entry.get_credential().is::<keyring::mock::MockCredential>(),
+                "Desktop builds must enable a native keyring backend; mock entries lose saved keys"
+            );
+        }
+    }
+}

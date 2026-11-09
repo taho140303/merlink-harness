@@ -31,7 +31,8 @@ async-trait = "0.1.92"
 unicode-segmentation = "1.13.3"
 ts-rs = { version = "12.0.1", features = ["serde-compat", "uuid-impl", "chrono-impl", "serde-json-impl"] }
 dashmap = "6.2.1"
-keyring = "3.6.3"
+# Explicit native backends: keyring has no default features and otherwise uses a mock store.
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2.5"

@@ -54,6 +54,17 @@ pub mod providers {
     pub use crate::traits;
 }
 
+#[path = "../src/domain/business_flow.rs"]
+pub mod business_flow;
+
+#[path = "../src/domain/workflow_planner.rs"]
+pub mod workflow_planner;
+
+pub mod domain {
+    pub use crate::business_flow;
+    pub use crate::workflow_planner;
+}
+
 #[path = "../src/ipc/config_commands.rs"]
 pub mod config_commands;
 
@@ -738,4 +749,73 @@ fn test_t_ipc_01_comprehensive_security_invariants() {
     let logged_string = redactor.redact(&simulated_http_err);
     assert!(!logged_string.contains("sk-secret1234567890123456"));
     assert!(logged_string.contains(REDACTED_PLACEHOLDER));
+}
+
+#[path = "../src/ipc/provider_probe_commands.rs"]
+pub mod provider_probe_commands;
+
+#[tokio::test]
+async fn custom_provider_chat_sends_the_key_saved_for_its_provider_id() {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+        let mut request = Vec::new();
+        let mut buf = [0; 1024];
+        while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+            let n = socket.read(&mut buf).unwrap();
+            assert!(n > 0);
+            request.extend_from_slice(&buf[..n]);
+        }
+        let header_end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        let length = String::from_utf8_lossy(&request[..header_end]).lines()
+            .find_map(|line| line.to_lowercase().strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+            .unwrap_or(0);
+        while request.len() < header_end + length {
+            let n = socket.read(&mut buf).unwrap();
+            assert!(n > 0);
+            request.extend_from_slice(&buf[..n]);
+        }
+        let headers = String::from_utf8_lossy(&request).to_lowercase();
+        assert!(headers.starts_with("post /v1/chat/completions "));
+        assert!(headers.contains("authorization: bearer synthetic-custom-key\r\n"));
+        let body = r#"{"choices":[{"index":0,"message":{"role":"assistant","content":"OK"},"finish_reason":"stop"}]}"#;
+        write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+    });
+    let state = RuntimeConfigState::new(CredentialManager::new_with_session_only(), Arc::new(Redactor::new()));
+    exec_set_provider_api_key(&state, &SetProviderApiKeyReq {
+        provider_id: "provider-custom".into(), api_key: "synthetic-custom-key".into(),
+    }).unwrap();
+    exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
+        active_provider_id: Some("provider-custom".into()), endpoint_url: Some(endpoint),
+        model_name: Some("custom-model".into()), ..Default::default()
+    }).unwrap();
+    let response = state.selected_provider().unwrap().chat_with_tools(&ProviderChatRequest {
+        model: "ignored".into(), messages: vec![ProviderMessage::user("Hello")],
+        tools: None, temperature: None, max_tokens: Some(1),
+    }, CancellationToken::new()).await.unwrap();
+    server.join().unwrap();
+    assert_eq!(response.content.as_deref(), Some("OK"));
+}
+
+#[tokio::test]
+async fn request_timeout_reports_actionable_cause() {
+    use std::time::Duration;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}/v1/chat/completions", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        let (_socket, _) = listener.accept().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    });
+    let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_millis(100)).build().unwrap();
+    let provider = OpenCodeProvider::with_client(endpoint, None, client);
+    let err = provider.chat_with_tools(&ProviderChatRequest {
+        model: "test".into(), messages: vec![ProviderMessage::user("ping")],
+        tools: None, temperature: None, max_tokens: Some(1),
+    }, CancellationToken::new()).await.unwrap_err();
+    server.abort();
+    let ipc = err.to_ipc_error();
+    assert!(ipc.message.contains("timed out"), "Actual timeout cause must survive IPC: {}", ipc.message);
 }

@@ -106,3 +106,24 @@ impl Redactor {
 pub fn redact_sensitive_strings(text: &str) -> String {
     GLOBAL_REDACTOR.redact(text)
 }
+
+/// Preserve transport causes (timeout, DNS, TLS, proxy) instead of displaying
+/// only reqwest's outer "error sending request" message. Never include headers.
+pub fn describe_request_error(error: &reqwest::Error) -> String {
+    use std::error::Error;
+    let category = if error.is_timeout() {
+        "Request timed out"
+    } else if error.is_connect() {
+        "Connection failed"
+    } else {
+        "HTTP request failed"
+    };
+    let mut message = format!("{category}: {error}");
+    let mut source = error.source();
+    while let Some(cause) = source {
+        message.push_str(": ");
+        message.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    redact_sensitive_strings(&message)
+}
