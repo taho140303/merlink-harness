@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, Loader2, Paperclip } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { ToolCallsPopover } from "./ToolCallsPopover";
 import type { ChatMessage } from "./types";
 import { useT } from "@/shared/i18n/useT";
+import { splitChatAttachmentContent } from "./attachmentContent";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -18,6 +19,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
   const [liveSeconds, setLiveSeconds] = useState(message.thinkingSeconds ?? 1);
 
   const isAssistant = message.role === "assistant";
+  const userContent = isAssistant ? null : splitChatAttachmentContent(message.content);
 
   useEffect(() => {
     if (!message.isThinking) {
@@ -101,7 +103,19 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
 
             <div className="relative z-10 text-xs leading-relaxed text-fg sm:text-sm">
               {!isAssistant ? (
-                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                <>
+                  {userContent?.text && <p className="whitespace-pre-wrap break-words">{userContent.text}</p>}
+                  {Boolean(userContent?.names.length) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {userContent?.names.map((name, index) => (
+                        <span key={`${name}-${index}`} className="inline-flex max-w-full items-center gap-1 rounded-lg border border-accent/20 bg-surface-card px-2 py-1 text-xs">
+                          <Paperclip aria-hidden="true" className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -130,7 +144,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
       )}
 
       {/* 4. Action bar cho assistant khi đã có nội dung */}
-      {isAssistant && !message.isThinking && Boolean(message.content) && (
+      {isAssistant && !message.isThinking && (Boolean(message.content) || Boolean(message.toolCalls?.length)) && (
         <div className="flex items-center gap-2 pt-0.5 pl-1">
           <button
             type="button"

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { NavLink } from "react-router";
-import { History as HistoryIcon, Folder, ChevronDown } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router";
+import { History as HistoryIcon, Folder, ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import { useT } from "@/shared/i18n/useT";
 import { backendClient, type BackendClient } from "@/shared/backend/client";
 import type { SessionSummaryDto } from "@/shared/backend/generated";
 import type { ChatItem } from "../types";
+import { toast } from "@/shared/components/ui/toast";
+import { redactSensitiveString } from "@/shared/backend/adapter";
 
 function formatSessionTime(value: string): string {
   const date = new Date(value);
@@ -13,15 +15,12 @@ function formatSessionTime(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: "numeric", day: "numeric" }).format(date);
 }
 
-/** `displayName` is returned by the backend session list but is not yet in generated.ts. */
-type SessionSummaryWithTitle = SessionSummaryDto & { displayName?: string | null };
-
 export function isSidebarSessionVisible(session: SessionSummaryDto): boolean {
   return (session.messageCount ?? 0) >= 2;
 }
 
 export function mapSessionSummaryToChatItem(session: SessionSummaryDto): ChatItem {
-  const storedTitle = (session as SessionSummaryWithTitle).displayName?.trim();
+  const storedTitle = session.displayName?.trim();
   return {
     id: session.sessionId,
     title: storedTitle || `Chat ${session.sessionId.slice(0, 6)}`,
@@ -48,8 +47,12 @@ const rowIdle = "text-fg-muted hover:bg-surface-muted hover:text-fg";
 
 export function SidebarHistory({ collapsed, onExpand, client = backendClient }: SidebarHistoryProps) {
   const t = useT();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [groupByProject, setGroupByProject] = useState(false);
   const [history, setHistory] = useState<ChatItem[]>([]);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const loadHistory = useCallback(async () => {
     if (client.status === "unavailable") return;
@@ -79,6 +82,59 @@ export function SidebarHistory({ collapsed, onExpand, client = backendClient }: 
   const toggleProject = (projectId: string) => {
     setOpenProjects((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
   };
+
+  const handleSoftDelete = async (chat: ChatItem) => {
+    try {
+      await client.manageChatSessions({ action: "soft_delete", sessionIds: [chat.id] });
+      setHistory((items) => items.filter((item) => item.id !== chat.id));
+      window.dispatchEvent(new Event("merlink:chat-history-changed"));
+      window.dispatchEvent(new Event("merlink:open-recycle-bin"));
+      if (location.pathname === `/chat/${chat.id}`) navigate("/");
+    } catch (error) {
+      toast({ title: redactSensitiveString(String(error)), variant: "error" });
+    }
+  };
+
+  const handleRename = async (chat: ChatItem) => {
+    const name = renameValue.trim();
+    if (!name || name.length > 120) return;
+    try {
+      await client.manageChatSessions({ action: "rename", sessionIds: [chat.id], displayName: name });
+      setHistory((items) => items.map((item) => item.id === chat.id ? { ...item, title: name } : item));
+      setRenamingId(null);
+    } catch (error) {
+      toast({ title: redactSensitiveString(String(error)), variant: "error" });
+    }
+  };
+
+  const renderChatRow = (chat: ChatItem) => (
+    <div key={chat.id} className="group flex w-full items-center rounded-lg">
+      {renamingId === chat.id ? (
+        <form className="flex min-w-0 flex-1 items-center gap-1" onSubmit={(event) => { event.preventDefault(); void handleRename(chat); }}>
+          <input autoFocus value={renameValue} maxLength={120} onChange={(event) => setRenameValue(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Escape") setRenamingId(null); }}
+            aria-label={t("sidebar.renameSession")} className="tier-input focus-ring min-w-0 flex-1 rounded px-1.5 py-1 text-xs" />
+          <button type="submit" aria-label={t("common.save")} className="focus-ring rounded p-1 text-emerald-600"><Check className="h-3.5 w-3.5" /></button>
+          <button type="button" onClick={() => setRenamingId(null)} aria-label={t("common.cancel")} className="focus-ring rounded p-1 text-fg-muted"><X className="h-3.5 w-3.5" /></button>
+        </form>
+      ) : (
+        <>
+          <NavLink to={`/chat/${chat.id}`} className={({ isActive }) => cn(rowBase, "min-w-0 flex-1", isActive ? rowActive : rowIdle)}>
+            <span className="truncate">{formatTitle(chat.title)}</span>
+            <span className="shrink-0 text-xs text-fg-subtle">{chat.time}</span>
+          </NavLink>
+          <div className="flex shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+            <button type="button" title={t("sidebar.renameSession")} aria-label={t("sidebar.renameSession")}
+              onClick={() => { setRenamingId(chat.id); setRenameValue(chat.title); }}
+              className="focus-ring rounded p-1 text-fg-muted hover:text-fg"><Pencil className="h-3.5 w-3.5" /></button>
+            <button type="button" title={t("sidebar.deleteSession")} aria-label={t("sidebar.deleteSession")}
+              onClick={() => void handleSoftDelete(chat)}
+              className="focus-ring rounded p-1 text-fg-muted hover:text-rose-500"><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   // Nhóm theo projectId nhưng hiển thị projectName
   const projectGroups = history.reduce<Record<string, { projectName: string; chats: ChatItem[] }>>(
@@ -163,34 +219,14 @@ export function SidebarHistory({ collapsed, onExpand, client = backendClient }: 
 
                 {isOpen && (
                   <div className="ml-3 space-y-0.5 border-l border-line pl-2">
-                    {group.chats.map((chat) => (
-                      <NavLink
-                        key={chat.id}
-                        to={`/chat/${chat.id}`}
-                        className={({ isActive }) =>
-                          cn(rowBase, isActive ? rowActive : rowIdle)
-                        }
-                      >
-                        <span className="truncate">{formatTitle(chat.title)}</span>
-                        <span className="shrink-0 text-xs text-fg-subtle">{chat.time}</span>
-                      </NavLink>
-                    ))}
+                    {group.chats.map(renderChatRow)}
                   </div>
                 )}
               </div>
             );
           })
         ) : (
-          history.map((chat) => (
-            <NavLink
-              key={chat.id}
-              to={`/chat/${chat.id}`}
-              className={({ isActive }) => cn(rowBase, isActive ? rowActive : rowIdle)}
-            >
-              <span className="truncate">{formatTitle(chat.title)}</span>
-              <span className="shrink-0 text-xs text-fg-subtle">{chat.time}</span>
-            </NavLink>
-          ))
+          history.map(renderChatRow)
         )}
       </div>
     </div>

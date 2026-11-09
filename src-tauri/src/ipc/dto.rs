@@ -480,6 +480,9 @@ pub struct SessionSummaryDto {
     pub project_id: Option<Uuid>,
     pub status: String,
     pub updated_at: String,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
     /// Session title derived from the first user message (max 10 characters).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
@@ -533,6 +536,24 @@ pub struct ListChatSessionsReq {
     pub has_messages: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_message_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trash_only: Option<bool>,
+}
+
+/// Auxiliary command for durable chat session management.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ManageChatSessionsReq {
+    pub action: String,
+    pub session_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ManageChatSessionsResp {
+    pub affected_count: usize,
 }
 
 /// Command 2: `list_chat_sessions` Response

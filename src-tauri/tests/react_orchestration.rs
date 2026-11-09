@@ -321,14 +321,14 @@ use uuid::Uuid;
 use crate::business_flow::{BusinessFlowData, ProvenanceSource, TrackedField};
 use crate::chat_commands::{
     exec_cancel_chat_turn, exec_create_or_load_chat_session, exec_list_chat_sessions,
-    exec_regenerate_draft_phase, exec_send_chat_message,
+    exec_manage_chat_sessions, exec_regenerate_draft_phase, exec_send_chat_message,
 };
 use crate::chat_orchestrator::{ChatOrchestrator, OrchestratorConfig};
 use crate::db::configure_connection;
 use crate::draft_runtime::{DraftRuntimeRegistry, WorkingState};
 use crate::draft_service::DraftService;
 use crate::dto::{
-    CancelChatTurnReq, CreateOrLoadChatSessionReq, ListChatSessionsReq,
+    CancelChatTurnReq, CreateOrLoadChatSessionReq, ListChatSessionsReq, ManageChatSessionsReq,
     RegenerateDraftPhaseReq, SendChatMessageReq,
 };
 use crate::error::ErrorCode;
@@ -344,7 +344,7 @@ use crate::traits::{
 // ============================================================================
 
 pub struct MockLlmProvider {
-    responses: Mutex<VecDeque<ProviderChatResponse>>,
+    responses: Mutex<VecDeque<Result<ProviderChatResponse, ProviderError>>>,
     recorded_requests: Mutex<Vec<ProviderChatRequest>>,
 }
 
@@ -357,7 +357,11 @@ impl MockLlmProvider {
     }
 
     pub fn queue_response(&self, resp: ProviderChatResponse) {
-        self.responses.lock().unwrap().push_back(resp);
+        self.responses.lock().unwrap().push_back(Ok(resp));
+    }
+
+    pub fn queue_error(&self, error: ProviderError) {
+        self.responses.lock().unwrap().push_back(Err(error));
     }
 
     pub fn recorded_requests(&self) -> Vec<ProviderChatRequest> {
@@ -383,7 +387,7 @@ impl LlmProvider for MockLlmProvider {
         self.recorded_requests.lock().unwrap().push(req.clone());
 
         if let Some(resp) = self.responses.lock().unwrap().pop_front() {
-            Ok(resp)
+            resp
         } else {
             Ok(ProviderChatResponse {
                 content: Some("Default mock response".to_string()),
@@ -926,6 +930,7 @@ fn test_IPC_CMD_002_list_chat_sessions() {
         cursor: None,
         has_messages: None,
         min_message_count: None,
+        trash_only: None,
     };
 
     let list_res = exec_list_chat_sessions(&orchestrator, &req).unwrap();
@@ -951,6 +956,51 @@ fn test_list_chat_sessions_minimum_two_messages() {
     assert_eq!(result.items.len(), 1);
     assert_eq!(result.items[0].session_id, two_message_session);
     assert_eq!(result.items[0].message_count, Some(2));
+}
+
+#[test]
+fn test_chat_trash_rename_soft_delete_restore_and_permanent_delete() {
+    let (pool, registry, _draft_svc, _patch_svc, orchestrator, _tmp) = setup_test_context();
+    let (unfinished, _, _) = create_test_session(&pool, &registry);
+    let (completed, completed_draft, _) = create_test_session(&pool, &registry);
+    let turn = Uuid::new_v4();
+    orchestrator.save_message(Uuid::new_v4(), &unfinished, turn, "user", "One", None).unwrap();
+    orchestrator.save_message(Uuid::new_v4(), &completed, turn, "user", "Two", None).unwrap();
+    orchestrator.save_message(Uuid::new_v4(), &completed, turn, "assistant", "Reply", None).unwrap();
+
+    let trash_req = ListChatSessionsReq { trash_only: Some(true), ..Default::default() };
+    let initial_trash = exec_list_chat_sessions(&orchestrator, &trash_req).unwrap();
+    assert_eq!(initial_trash.items.len(), 1);
+    assert_eq!(initial_trash.items[0].session_id, unfinished);
+    assert!(initial_trash.items[0].deleted_at.is_none());
+
+    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "rename".into(), session_ids: vec![completed.clone()], display_name: Some("Tên mới".into()),
+    }).unwrap();
+    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "soft_delete".into(), session_ids: vec![completed.clone()], display_name: None,
+    }).unwrap();
+    let trash = exec_list_chat_sessions(&orchestrator, &trash_req).unwrap();
+    assert_eq!(trash.items.len(), 2);
+    assert!(trash.items.iter().any(|item| item.session_id == completed && item.deleted_at.is_some() && item.display_name.as_deref() == Some("Tên mới")));
+
+    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "restore".into(), session_ids: vec![completed.clone()], display_name: None,
+    }).unwrap();
+    assert!(exec_list_chat_sessions(&orchestrator, &trash_req).unwrap().items.iter().all(|item| item.session_id != completed));
+
+    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "soft_delete".into(), session_ids: vec![completed.clone()], display_name: None,
+    }).unwrap();
+    let deleted = exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
+        action: "permanent_delete".into(), session_ids: vec![unfinished.clone(), completed.clone()], display_name: None,
+    }).unwrap();
+    assert_eq!(deleted.affected_count, 2);
+    let conn = pool.get().unwrap();
+    let old_sessions: i64 = conn.query_row("SELECT COUNT(*) FROM sessions WHERE id IN (?1, ?2)", params![unfinished, completed], |row| row.get(0)).unwrap();
+    assert_eq!(old_sessions, 0);
+    let preserved_project_draft: i64 = conn.query_row("SELECT COUNT(*) FROM draft_sessions WHERE id = ?1", [completed_draft.to_string()], |row| row.get(0)).unwrap();
+    assert_eq!(preserved_project_draft, 1);
 }
 
 /// `IPC-CMD-003`: `send_chat_message`
@@ -980,6 +1030,36 @@ async fn test_IPC_CMD_003_send_chat_message() {
 
     assert_eq!(res.assistant_text, "Xin chào! Tôi có thể giúp gì cho bạn?");
     assert_eq!(res.progress.current_phase, 0);
+}
+
+#[tokio::test]
+async fn test_failed_tool_call_remains_in_history_when_followup_provider_request_fails() {
+    let (pool, registry, _draft_svc, _patch_svc, orchestrator, _tmp) = setup_test_context();
+    let (session_id, _, _) = create_test_session(&pool, &registry);
+    let provider = Arc::new(MockLlmProvider::new());
+    provider.queue_response(ProviderChatResponse {
+        content: None,
+        tool_calls: vec![ProviderToolCall {
+            id: "failed-tool".into(),
+            name: "nonexistent_tool".into(),
+            arguments: serde_json::json!({}),
+        }],
+        finish_reason: Some("tool_calls".into()),
+        usage: None,
+    });
+    provider.queue_error(ProviderError::Unreachable { status: None, message: "offline".into() });
+
+    let result = exec_send_chat_message(&orchestrator, provider, &SendChatMessageReq {
+        session_id: session_id.clone(), content: "Try a tool".into(),
+        system_language: "vi".into(), feedback_context: None,
+    }, None).await;
+    assert_eq!(result.unwrap_err().code, ErrorCode::ProviderUnreachable);
+
+    let messages = orchestrator.fetch_recent_session_messages(&session_id, Uuid::nil(), 10).unwrap();
+    assert_eq!(messages.len(), 2, "both the user request and failed tool audit should survive");
+    assert_eq!(messages[1].role, "assistant");
+    assert_eq!(messages[1].tool_calls.as_ref().unwrap().len(), 1);
+    assert_eq!(messages[1].tool_calls.as_ref().unwrap()[0].status, "rejected");
 }
 
 /// `IPC-CMD-004`: `cancel_chat_turn`

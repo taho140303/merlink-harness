@@ -4,13 +4,23 @@ import { Sparkles, ChevronDown, Paperclip, ArrowUp, X, MessageSquareQuote } from
 import { ContextUsagePopover } from "./ContextUsagePopover";
 import { ModelSelectorPopover } from "./ModelSelectorPopover";
 import { useT } from "@/shared/i18n/useT";
+import { toast } from "@/shared/components/ui/toast";
 import type { FeedbackContext } from "@/features/draft/types";
+import { serializeChatAttachments } from "./attachmentContent";
 
 interface ChatInputBarProps {
   feedbackContext?: FeedbackContext | null;
   onClearFeedback?: () => void;
   onSend?: (text: string) => void;
   disabled?: boolean;
+}
+
+interface AttachedTextFile { name: string; content: string; size: number }
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
+
+export function acceptsChatAttachment(file: Pick<File, "name" | "size">): boolean {
+  return /\.(md|json)$/i.test(file.name) && file.size <= MAX_ATTACHMENT_BYTES;
 }
 
 export function ChatInputBar({
@@ -21,7 +31,10 @@ export function ChatInputBar({
 }: ChatInputBarProps) {
   const t = useT();
   const [prompt, setPrompt] = useState("");
+  const [attachments, setAttachments] = useState<AttachedTextFile[]>([]);
+  const [isReadingFile, setIsReadingFile] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const MAX_HEIGHT = 208;
 
   useEffect(() => {
@@ -41,14 +54,38 @@ export function ChatInputBar({
   }, [feedbackContext]);
 
   const handleSend = () => {
-    if (disabled || !prompt.trim()) return;
-    onSend?.(prompt);
+    if (disabled || isReadingFile || (!prompt.trim() && attachments.length === 0)) return;
+    onSend?.(serializeChatAttachments(prompt, attachments.map(({ name, content }) => ({ name, content }))));
     setPrompt("");
+    setAttachments([]);
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
       inputRef.current.style.overflowY = "hidden";
     }
     onClearFeedback?.();
+  };
+
+  const handleFiles = async (files: FileList | null) => {
+    const picked = Array.from(files ?? []);
+    if (!picked.length) return;
+    const remaining = MAX_ATTACHMENTS - attachments.length;
+    if (picked.length > remaining || picked.some((file) => !acceptsChatAttachment(file))) {
+      toast({ title: t("chat.attachInvalid"), variant: "error" });
+      return;
+    }
+    setIsReadingFile(true);
+    try {
+      const next = await Promise.all(picked.map(async (file) => ({
+        name: file.name.replace(/[\r\n]/g, " "),
+        content: await file.text(),
+        size: file.size,
+      })));
+      setAttachments((current) => [...current, ...next]);
+    } catch {
+      toast({ title: t("chat.attachReadFailed"), variant: "error" });
+    } finally {
+      setIsReadingFile(false);
+    }
   };
 
   return (
@@ -109,10 +146,31 @@ export function ChatInputBar({
         />
       </div>
 
+      {attachments.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5 px-2">
+          {attachments.map((file, index) => (
+            <span key={`${file.name}-${index}`} className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-muted px-2 py-1 text-xs text-fg-muted">
+              <span className="max-w-36 truncate">{file.name}</span>
+              <button type="button" onClick={() => setAttachments((current) => current.filter((_, i) => i !== index))}
+                aria-label={`${t("common.remove")}: ${file.name}`} className="focus-ring rounded p-0.5 hover:text-fg">
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex items-center justify-between border-t border-line pt-2.5">
         <div className="flex items-center gap-2">
+          <input ref={fileRef} type="file" accept=".md,.json,text/markdown,application/json" multiple
+            className="sr-only" tabIndex={-1} aria-hidden="true"
+            onChange={(event) => { void handleFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
           <button
             type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={disabled || isReadingFile || attachments.length >= MAX_ATTACHMENTS}
+            title={t("chat.attachTooltip")}
+            aria-label={t("chat.attachTooltip")}
             className="focus-ring flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-medium text-fg-muted hover:bg-surface-muted hover:text-fg transition-colors"
           >
             <Paperclip aria-hidden="true" className="h-3.5 w-3.5" />
@@ -132,7 +190,7 @@ export function ChatInputBar({
         <div className="flex items-center gap-2">
           <ModelSelectorPopover />
           <ContextUsagePopover />
-          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={disabled || !prompt.trim()} aria-label={t("chat.send")} title={t("chat.send")}>
+          <Button type="button" variant="primary" size="icon" onClick={handleSend} disabled={disabled || isReadingFile || (!prompt.trim() && attachments.length === 0)} aria-label={t("chat.send")} title={t("chat.send")}>
             <ArrowUp aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>

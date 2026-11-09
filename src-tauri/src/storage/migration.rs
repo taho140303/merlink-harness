@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 7;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 8;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -18,6 +18,7 @@ pub const MIGRATION_0004_SQL: &str = include_str!("../../migrations/0004_seed_st
 pub const MIGRATION_0005_SQL: &str = include_str!("../../migrations/0005_seed_prompts.sql");
 pub const MIGRATION_0006_SQL: &str = include_str!("../../migrations/0006_seed_prompt_read_tools.sql");
 pub const MIGRATION_0007_SQL: &str = include_str!("../../migrations/0007_fix_prompt_identity.sql");
+pub const MIGRATION_0008_SQL: &str = include_str!("../../migrations/0008_session_trash.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -111,6 +112,7 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         5 => Ok(MIGRATION_0005_SQL),
         6 => Ok(MIGRATION_0006_SQL),
         7 => Ok(MIGRATION_0007_SQL),
+        8 => Ok(MIGRATION_0008_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -197,6 +199,30 @@ mod prompt_seed_tests {
     }
 }
 
+#[cfg(test)]
+mod session_trash_migration_tests {
+    use super::*;
+
+    #[test]
+    fn test_existing_session_survives_soft_delete_column_migration() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        for version in 1..=7 {
+            conn.execute_batch(get_migration_sql(version).unwrap()).unwrap();
+        }
+        conn.execute("INSERT INTO sessions (id, display_name, created_at) VALUES ('legacy-chat', 'Legacy', '2026-01-01')", []).unwrap();
+
+        run_migrations(&mut conn).unwrap();
+
+        let (title, deleted_at): (String, Option<String>) = conn.query_row(
+            "SELECT display_name, deleted_at FROM sessions WHERE id = 'legacy-chat'", [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(title, "Legacy");
+        assert_eq!(deleted_at, None);
+        assert_eq!(get_user_version(&conn).unwrap(), 8);
+    }
+}
+
 /// Run migrations including physical backup creation when upgrading an existing non-empty DB (§3.4, DB-P02, MIG-02).
 pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) -> Result<(), DbError> {
     let current_version = get_user_version(conn)?;
@@ -222,7 +248,7 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 /// Verify schema structure, constraints, indexes, and referential integrity (§3.5, MIG-05).
 ///
 /// Checks:
-/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (7)
+/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (8)
 /// 2. PRAGMA quick_check(1) == "ok"
 /// 3. Exactly 66 target tables exist and NO `_schema_migrations` table
 /// 4. Mandatory columns, types, NOT NULL and CHECK constraints:

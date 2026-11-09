@@ -18,6 +18,8 @@ import type {
   ChatSessionInitDto,
   ListChatSessionsReq,
   ChatSessionListDto,
+  ManageChatSessionsReq,
+  ManageChatSessionsResp,
   SendChatMessageReq,
   SendChatTurnResponseDto,
   CancelChatTurnReq,
@@ -284,6 +286,10 @@ export class BackendClient {
     req: ListChatSessionsReq = {}
   ): Promise<ChatSessionListDto> {
     return this.execute("list_chat_sessions", req);
+  }
+
+  public async manageChatSessions(req: ManageChatSessionsReq): Promise<ManageChatSessionsResp> {
+    return this.execute("manage_chat_sessions", req);
   }
 
   public async sendChatMessage(

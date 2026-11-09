@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Dialog-lifetime UI state only; intentionally no backend or localStorage writes.
   const [savedSubagentConfig, setSavedSubagentConfig] = useState<SubagentConfig>(DEFAULT_SUBAGENT_CONFIG);
   const [subagentDraft, setSubagentDraft] = useState(() => toDraft(DEFAULT_SUBAGENT_CONFIG));
+
+  useEffect(() => {
+    const openRecycleBin = () => {
+      setActiveTab("recycle-bin");
+      onOpenChange(true);
+    };
+    window.addEventListener("merlink:open-recycle-bin", openRecycleBin);
+    const closeSettings = () => onOpenChange(false);
+    window.addEventListener("merlink:close-settings", closeSettings);
+    return () => {
+      window.removeEventListener("merlink:open-recycle-bin", openRecycleBin);
+      window.removeEventListener("merlink:close-settings", closeSettings);
+    };
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

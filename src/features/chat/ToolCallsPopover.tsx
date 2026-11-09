@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Wrench, CheckCircle2, Terminal } from "lucide-react";
+import { Wrench, CheckCircle2, CircleX, Clock3, Terminal } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
-import { Popover } from "@/shared/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/components/ui/dialog";
 import type { ToolCallItem } from "./types";
 import { useT } from "@/shared/i18n/useT";
 
@@ -11,6 +11,7 @@ interface ToolCallsPopoverProps {
 
 export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
   const translate = useT();
+  const [open, setOpen] = useState(false);
   const [activeToolId, setActiveToolId] = useState<string>(toolCalls[0]?.id || "");
 
   if (!toolCalls || toolCalls.length === 0) return null;
@@ -18,15 +19,18 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
   const activeTool = toolCalls.find((t) => t.id === activeToolId) || toolCalls[0];
 
   return (
-    <Popover
-      label={translate("chat.executedTools")}
-      align="start"
-      side="top"
-      trigger={<span className="flex h-7 items-center gap-1.5 rounded-lg border border-line px-2 text-xs font-medium text-fg-muted transition-colors"><Wrench aria-hidden="true" className="h-3.5 w-3.5" /><span className="text-xs font-semibold">{translate("chat.toolCount", { count: toolCalls.length })}</span></span>}
-      triggerClassName="rounded-lg"
-      contentClassName="w-96 p-3"
-    >
-      <div className="flex items-center justify-between border-b border-line pb-2 px-1">
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label={translate("chat.executedTools")}
+        className="focus-ring flex h-7 items-center gap-1.5 rounded-lg border border-line px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted">
+        <Wrench aria-hidden="true" className="h-3.5 w-3.5" />
+        <span className="text-xs font-semibold">{translate("chat.toolCount", { count: toolCalls.length })}</span>
+        {toolCalls.some((tool) => tool.status === "error") && <CircleX aria-hidden="true" className="h-3 w-3 text-rose-500" />}
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="w-[min(90vw,36rem)] max-w-xl p-4">
+        <DialogTitle className="sr-only">{translate("chat.executedTools")}</DialogTitle>
+        <DialogDescription className="sr-only">{translate("chat.toolCount", { count: toolCalls.length })}</DialogDescription>
+      <div className="flex items-center justify-between border-b border-line pb-2 px-1 pr-8">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-fg">
           <Terminal aria-hidden="true" className="h-3.5 w-3.5 text-accent" />
           <span>{translate("chat.executedTools")} ({toolCalls.length})</span>
@@ -47,7 +51,11 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
               )}
             >
               <span className="truncate">{tool.name}</span>
-              <CheckCircle2 aria-hidden="true" className="h-3 w-3 text-emerald-500 shrink-0" />
+              {tool.status === "error"
+                ? <CircleX aria-hidden="true" className="h-3 w-3 shrink-0 text-rose-500" />
+                : tool.status === "pending"
+                  ? <Clock3 aria-hidden="true" className="h-3 w-3 shrink-0 text-amber-500" />
+                  : <CheckCircle2 aria-hidden="true" className="h-3 w-3 shrink-0 text-emerald-500" />}
             </button>
           ))}
         </div>
@@ -57,6 +65,9 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
             <span className="block mb-0.5 text-fg-subtle">{translate("chat.input")}</span>
             <pre className="overflow-x-auto rounded-lg bg-surface-muted p-2 text-fg-muted">{JSON.stringify(activeTool.parameters, null, 2)}</pre>
           </div>
+          <p className={cn("font-sans font-medium", activeTool.status === "error" ? "text-rose-500" : "text-fg-muted")}>
+            {activeTool.status === "error" ? translate("chat.toolFailed") : activeTool.status === "pending" ? translate("chat.toolPending") : translate("chat.toolSucceeded")}
+          </p>
           {activeTool.result && (
             <div>
               <span className="block mb-0.5 text-fg-subtle">{translate("chat.output")}</span>
@@ -65,6 +76,8 @@ export function ToolCallsPopover({ toolCalls }: ToolCallsPopoverProps) {
           )}
         </div>
       </div>
-    </Popover>
+      </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -34,7 +34,7 @@ import {
   type DraftVersionSummaryDto,
   type ToolCallItemDto,
 } from "@/shared/backend/types";
-import type { ChatMessage, ToolCallItem } from "./types";
+import type { ChatMessage } from "./types";
 import type { FeedbackContext } from "@/features/draft/types";
 import { useT } from "@/shared/i18n/useT";
 import { useLocale } from "@/shared/i18n/store";
@@ -84,7 +84,11 @@ function mapDtoToChatMessage(dto: ChatMessageDto): ChatMessage {
       parameters: tc.parameters ?? {},
       result: tc.result ?? undefined,
       executionTimeMs: tc.executionTimeMs ?? undefined,
-      status: tc.status === "error" ? "error" : "success",
+      status: tc.status === "success" || tc.status === "applied"
+        ? "success"
+        : tc.status === "pending" || tc.status === "pending_confirmation"
+          ? "pending"
+          : "error",
     })),
     timestamp: dto.timestamp || "Vừa xong",
   };
@@ -341,7 +345,7 @@ export class ChatBackendController {
       return response;
     } catch (err: any) {
       if (generation !== this.turnGeneration) throw err;
-      // P5S2-N: Provider failure NEVER marks chat turn saved or sealed!
+      // A failed provider turn may still contain a durable tool audit.
       const errMsg = err?.message ?? "Chat turn execution failed";
       const finalSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       this.updateState({
@@ -423,7 +427,7 @@ export class ChatBackendController {
                   id: event.data.toolCallId,
                   name: event.data.toolCode,
                   parameters: {},
-                  status: "success",
+                  status: "pending",
                 },
               ],
             };
@@ -450,7 +454,11 @@ export class ChatBackendController {
                 tc.id === event.data.toolCallId
                   ? {
                       ...tc,
-                      status: event.data.status === "rejected" ? "error" : "success",
+                      status: event.data.status === "applied"
+                        ? "success"
+                        : event.data.status === "pending" || event.data.status === "pending_confirmation"
+                          ? "pending"
+                          : "error",
                       result: {
                         status: event.data.status,
                         hasAppliedWrite: event.data.hasAppliedWrite,
@@ -484,7 +492,7 @@ export class ChatBackendController {
         break;
 
       case "turnError":
-        // P5S2-N: Provider failure NEVER marks turn saved
+        // Preserve the provider error while the durable tool audit is reloaded.
         this.updateState({
           isStreaming: false,
           activeTurnId: null,

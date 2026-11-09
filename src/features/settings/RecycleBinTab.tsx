@@ -1,195 +1,197 @@
-import { useState } from 'react';
-import { Search, RotateCcw, Trash2, FolderGit2, User } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Search, RotateCcw, Trash2, MessageSquare, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { DeleteConfirmDialog } from '@/shared/components/ui/delete-confirm-dialog';
+import { toast } from '@/shared/components/ui/toast';
+import { backendClient, type BackendClient } from '@/shared/backend/client';
+import { redactSensitiveString } from '@/shared/backend/adapter';
+import type { SessionSummaryDto } from '@/shared/backend/generated';
 
-type FilterType = 'ALL' | 'PROJECT' | 'CHARACTER';
+type FilterType = 'ALL' | 'SESSION' | 'PROJECT' | 'CHARACTER';
 
-interface DeletedItem {
-  id: string;
-  name: string;
-  type: 'PROJECT' | 'CHARACTER';
-  deletedAt: string;
-  details: string;
+function formatDate(value: string | null | undefined): string {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(undefined, { dateStyle: 'short' }).format(date);
 }
 
-const MOCK_DELETED_ITEMS: DeletedItem[] = [];
+export function isSessionInRecycleBin(session: SessionSummaryDto): boolean {
+  return Boolean(session.deletedAt) || session.messageCount === 1;
+}
 
-export function RecycleBinTab() {
+interface Props { client?: BackendClient }
+
+export function RecycleBinTab({ client = backendClient }: Props) {
   const t = useT();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [search, setSearch] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<DeletedItem | null>(null);
+  const [items, setItems] = useState<SessionSummaryDto[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  
-  // Note: In a real app, state would come from a store or props
-  const [items, setItems] = useState<DeletedItem[]>(MOCK_DELETED_ITEMS);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const collected: SessionSummaryDto[] = [];
+      let cursor: string | undefined;
+      const seen = new Set<string>();
+      do {
+        const page = await client.listChatSessions({ limit: 100, trashOnly: true, ...(cursor ? { cursor } : {}) });
+        collected.push(...page.items.filter(isSessionInRecycleBin));
+        cursor = page.nextCursor ?? undefined;
+        if (cursor && seen.has(cursor)) break;
+        if (cursor) seen.add(cursor);
+      } while (cursor);
+      setItems(collected);
+      setSelectedIds((old) => old.filter((id) => collected.some((item) => item.sessionId === id)));
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void loadItems();
+    window.addEventListener('merlink:chat-history-changed', loadItems);
+    return () => window.removeEventListener('merlink:chat-history-changed', loadItems);
+  }, [loadItems]);
 
   const filteredItems = items.filter((item) => {
-    const matchFilter = filter === 'ALL' || item.type === filter;
-    const matchSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.details.toLowerCase().includes(search.toLowerCase());
-    return matchFilter && matchSearch;
+    if (filter !== 'ALL' && filter !== 'SESSION') return false;
+    const title = item.displayName || `Chat ${item.sessionId.slice(0, 6)}`;
+    return title.toLowerCase().includes(search.toLowerCase());
   });
 
-  const handleRestore = (id: string) => {
-    // Mock restore action
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const requestDelete = (item: DeletedItem) => {
-    setDeleteTarget(item);
-    setDeleteOpen(true);
-  };
-
-  const confirmPermanentDelete = () => {
-    if (deleteTarget) {
-      setItems((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-      setDeleteTarget(null);
+  const handleRestore = async (id: string) => {
+    try {
+      await client.manageChatSessions({ action: 'restore', sessionIds: [id] });
+      await loadItems();
+      window.dispatchEvent(new Event('merlink:chat-history-changed'));
+    } catch (error) {
+      toast({ title: redactSensitiveString(String(error)), variant: 'error' });
     }
   };
 
-  const FILTERS: FilterType[] = ['ALL', 'PROJECT', 'CHARACTER'];
+  const requestDelete = (ids: string[]) => {
+    if (!ids.length) return;
+    setDeleteIds(ids);
+    setDeleteOpen(true);
+  };
+
+  const confirmPermanentDelete = async () => {
+    await client.manageChatSessions({ action: 'permanent_delete', sessionIds: deleteIds });
+    setSelectedIds((old) => old.filter((id) => !deleteIds.includes(id)));
+    setDeleteIds([]);
+    await loadItems();
+    window.dispatchEvent(new Event('merlink:chat-history-changed'));
+  };
+
+  const toggleSelected = (id: string) => setSelectedIds((old) =>
+    old.includes(id) ? old.filter((value) => value !== id) : [...old, id]);
+  const allVisibleSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedIds.includes(item.sessionId));
   const filterLabels: Record<FilterType, string> = {
     ALL: t('recycleBin.filter.all'),
+    SESSION: t('recycleBin.filter.sessions'),
     PROJECT: t('recycleBin.filter.projects'),
     CHARACTER: t('recycleBin.filter.characters'),
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 pr-10 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-3 pr-9">
         <div>
-          <h3 className="text-base font-semibold text-fg">
-            {t('recycleBin.title')}
-          </h3>
-          <p className="text-xs text-fg-muted">
-            {t('recycleBin.subtitle')}
-          </p>
+          <h3 className="text-base font-semibold text-fg">{t('recycleBin.title')}</h3>
+          <p className="mt-1 text-xs text-fg-muted">{t('recycleBin.subtitle')}</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('recycleBin.searchPlaceholder')}
-              className="w-full rounded-xl border border-line bg-surface-card py-1.5 pl-8 pr-3 text-xs text-fg placeholder:text-fg-subtle focus-ring   "
-            />
-          </div>
+        <div className="relative w-48">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
+          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('recycleBin.searchPlaceholder')}
+            className="tier-input focus-ring w-full rounded-xl py-1.5 pl-8 pr-3 text-xs" />
         </div>
-      </div>
+      </header>
 
-      {/* Filter Switch */}
-      <div className="flex w-fit items-center gap-1 rounded-xl bg-surface-muted p-0.5 ">
-        {FILTERS.map((f) => {
-          const count = f === 'ALL' ? items.length : items.filter((i) => i.type === f).length;
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                filter === f
-                  ? 'bg-surface-card text-fg'
-                  : 'text-fg-muted hover:text-fg  ',
-              )}
-            >
-              <span>{filterLabels[f]}</span>
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-0.5 text-xs font-semibold',
-                  filter === f
-                    ? 'bg-accent text-white  '
-                    : 'bg-surface-muted text-fg  ',
-                )}
-              >
-                {count}
-              </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex w-fit items-center gap-1 rounded-xl bg-surface-muted p-0.5">
+          {(['ALL', 'SESSION', 'PROJECT', 'CHARACTER'] as FilterType[]).map((value) => (
+            <button key={value} type="button" onClick={() => setFilter(value)}
+              className={cn('rounded-lg px-3 py-1.5 text-xs font-medium', filter === value ? 'bg-surface-card text-fg' : 'text-fg-muted hover:text-fg')}>
+              {filterLabels[value]} <span className="ml-1">{value === 'ALL' || value === 'SESSION' ? items.length : 0}</span>
             </button>
-          );
-        })}
+          ))}
+        </div>
+        <button type="button" disabled={!selectedIds.length} onClick={() => requestDelete(selectedIds)}
+          className="focus-ring rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-40 dark:hover:bg-rose-950/50">
+          {t('recycleBin.deleteSelected', { count: selectedIds.length })}
+        </button>
       </div>
 
-      {/* List */}
-      <div className="space-y-2">
-        {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface-muted/50 py-12 text-center  ">
-            <Trash2 className="h-8 w-8 text-fg-subtle  mb-2" />
-            <p className="text-sm font-medium text-fg-muted">
-              {t('recycleBin.empty')}
-            </p>
+      {filteredItems.length > 0 && (
+        <label className="flex items-center gap-2 text-xs text-fg-muted">
+          <input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedIds((old) => allVisibleSelected
+            ? old.filter((id) => !filteredItems.some((item) => item.sessionId === id))
+            : Array.from(new Set([...old, ...filteredItems.map((item) => item.sessionId)])))} />
+          {t('recycleBin.selectAll')}
+        </label>
+      )}
+
+      {loading ? <p role="status" className="text-sm text-fg-muted">{t('recycleBin.loading')}</p>
+        : loadError ? <p role="alert" className="text-sm text-rose-500">{t('recycleBin.loadFailed')}</p>
+        : filteredItems.length === 0 ? (
+          <div className="flex flex-col items-center rounded-2xl border border-dashed border-line bg-surface-muted/50 py-12 text-center">
+            <Trash2 className="mb-2 h-8 w-8 text-fg-subtle" />
+            <p className="text-sm font-medium text-fg-muted">{t('recycleBin.empty')}</p>
           </div>
         ) : (
-          filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between gap-3 tier-card rounded-card p-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                  item.type === 'PROJECT' 
-                    ? "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
-                    : "bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400"
-                )}>
-                  {item.type === 'PROJECT' ? <FolderGit2 className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                </div>
-                <div className="min-w-0">
-                  <h4 className="truncate text-xs font-semibold text-fg">
-                    {item.name}
-                  </h4>
-                  <p className="truncate text-xs text-fg-muted">
-                    {item.details}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 shrink-0">
-                <span className="text-xs text-fg-subtle hidden sm:inline-block">
-                  {t('recycleBin.deletedAt')}: {item.deletedAt}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleRestore(item.id)}
-                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-colors"
-                    title={t('recycleBin.restore')}
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t('recycleBin.restore')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => requestDelete(item)}
-                    className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50 transition-colors"
-                    title={t('recycleBin.delete')}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t('recycleBin.delete')}</span>
+          <div className="space-y-2">
+            {filteredItems.map((item) => {
+              const title = item.displayName || `Chat ${item.sessionId.slice(0, 6)}`;
+              return (
+                <div key={item.sessionId} className="tier-card flex items-center gap-3 rounded-card p-3">
+                  <input type="checkbox" checked={selectedIds.includes(item.sessionId)} onChange={() => toggleSelected(item.sessionId)}
+                    aria-label={`${t('recycleBin.selectSession')} ${title}`} />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                    <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-xs font-semibold text-fg">{title}</h4>
+                    <p className="text-xs text-fg-muted">{item.deletedAt ? `${t('recycleBin.deletedAt')}: ${formatDate(item.deletedAt)}` : t('recycleBin.unfinished')}</p>
+                  </div>
+                  {item.deletedAt ? (
+                    <button type="button" onClick={() => void handleRestore(item.sessionId)} title={t('recycleBin.restore')}
+                      className="focus-ring rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50">
+                      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => { navigate(`/chat/${item.sessionId}`); window.dispatchEvent(new Event('merlink:close-settings')); }} title={t('recycleBin.resume')}
+                      className="focus-ring rounded-lg p-1.5 text-fg-muted hover:bg-surface-muted">
+                      <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => requestDelete([item.sessionId])} title={t('recycleBin.delete')}
+                    className="focus-ring rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50">
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
-              </div>
-            </div>
-          ))
+              );
+            })}
+          </div>
         )}
-      </div>
 
-      <DeleteConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen}
         title={t('recycleBin.confirmDeleteTitle')}
-        description={`${deleteTarget?.name ?? ''} — ${t('recycleBin.confirmDeleteDesc')}`}
-        confirmLabel={t('delete.confirm')}
-        cancelLabel={t('common.cancel')}
-        onConfirm={confirmPermanentDelete}
-      />
+        description={`${deleteIds.length} ${t('recycleBin.confirmDeleteDesc')}`}
+        confirmLabel={t('delete.confirm')} cancelLabel={t('common.cancel')}
+        errorMessage={t('recycleBin.deleteFailed')}
+        onConfirm={confirmPermanentDelete} />
     </div>
   );
 }

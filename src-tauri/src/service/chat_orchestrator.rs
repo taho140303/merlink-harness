@@ -616,18 +616,32 @@ impl ChatOrchestrator {
         let assistant_text = match loop_result {
             Ok(txt) => txt,
             Err(err) => {
-                if let Some(ref tx) = stream_tx {
-                    let _ = tx
-                        .send(ChatStreamEvent::TurnError {
-                            turn_id,
-                            error: err.clone(),
-                        })
-                        .await;
-                }
-
                 // If error occurred but we already have applied mutations, still seal TX-01!
                 if state.has_applied_write {
                     let _ = self.seal_turn_version(&entry, draft_session_id, turn_id, user_message_id);
+                }
+                // Keep the tool audit even when the next provider request fails.
+                // The caller removes the user message only when no assistant audit exists.
+                if !state.all_tool_calls.is_empty() {
+                    let audit_text = if state.assistant_text.is_empty() {
+                        if system_language == "vi" {
+                            "Lượt trò chuyện bị gián đoạn sau khi gọi công cụ."
+                        } else {
+                            "The conversation was interrupted after a tool call."
+                        }
+                    } else {
+                        &state.assistant_text
+                    };
+                    self.save_message(
+                        Uuid::new_v4(), session_id, turn_id, "assistant", audit_text,
+                        Some(&serde_json::json!({
+                            "tool_calls": state.all_tool_calls,
+                            "turn_error": err.code,
+                        })),
+                    )?;
+                }
+                if let Some(ref tx) = stream_tx {
+                    let _ = tx.send(ChatStreamEvent::TurnError { turn_id, error: err.clone() }).await;
                 }
                 return Err(err);
             }

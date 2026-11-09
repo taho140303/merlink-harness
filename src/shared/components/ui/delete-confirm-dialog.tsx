@@ -11,7 +11,8 @@ interface DeleteConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  onConfirm: () => void;
+  errorMessage?: string;
+  onConfirm: () => void | Promise<void>;
 }
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -31,6 +32,7 @@ export function DeleteConfirmDialog({
   description,
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
+  errorMessage,
   onConfirm,
 }: DeleteConfirmDialogProps) {
   const t = useT();
@@ -38,23 +40,34 @@ export function DeleteConfirmDialog({
   const errorId = `${inputId}-error`;
   const [code, setCode] = useState<string>(() => generateCode());
   const [input, setInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCode(generateCode());
       setInput('');
+      setSubmitError(false);
     }
   }, [open]);
 
   const matches = input === code;
   const showMismatch = input.length === code.length && !matches;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!matches) return;
-    onConfirm();
-    onOpenChange(false);
+    if (!matches || submitting) return;
+    setSubmitting(true);
+    setSubmitError(false);
+    try {
+      await onConfirm();
+      onOpenChange(false);
+    } catch {
+      setSubmitError(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOpenChange = (o: boolean) => {
@@ -114,13 +127,14 @@ export function DeleteConfirmDialog({
                 {t('delete.codeMismatch')}
               </p>
             ) : null}
+            {submitError && <p role="alert" className="mt-1 text-xs font-medium text-rose-500">{errorMessage || t('delete.failed')}</p>}
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
               {cancelLabel}
             </Button>
-            <Button type="submit" variant="danger" size="sm" disabled={!matches}>
+            <Button type="submit" variant="danger" size="sm" disabled={!matches || submitting}>
               {confirmLabel}
             </Button>
           </div>

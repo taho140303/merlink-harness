@@ -405,10 +405,12 @@ Table sessions {
     project_id uuid [ref: > projects.id, note: 'Mã project mà session này liên kết vào; được gán khi draft của session commit']
     display_name text [note: 'Tiêu đề tóm tắt của phiên chat']
     created_at timestamp [note: 'Thời gian tạo session']
+    deleted_at timestamp [note: 'Thời gian xóa mềm; NULL khi session đang hoạt động']
 
     indexes {
         project_id
         created_at
+        deleted_at
     }
     Note: 'Phiên làm việc / Chat sessions; project_id được gán khi draft của session commit'
 }

@@ -6,7 +6,7 @@ export interface ToolCallItem {
   parameters: Record<string, any>;
   result?: Record<string, any>;
   executionTimeMs?: number;
-  status: "success" | "error";
+  status: "success" | "error" | "pending";
 }
 
 export interface ChatMessage {

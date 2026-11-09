@@ -2,8 +2,9 @@
 //! (`REQ-CMD-001`..`004`, `REQ-CMD-009`, `be-core.md` §10.2.1, `core.md` §3.8).
 
 use std::sync::Arc;
+use std::collections::HashSet;
 use chrono::Utc;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{params, OptionalExtension, TransactionBehavior};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -13,7 +14,7 @@ use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
     CancelChatTurnReq, CancelChatTurnResponseDto, ChatSessionInitDto,
     ChatSessionListDto, ChatStreamEvent, CreateOrLoadChatSessionReq, DraftVersionSummaryDto,
-    ListChatSessionsReq, RegenerateDraftPhaseReq, RegeneratePhaseResponseDto,
+    ListChatSessionsReq, ManageChatSessionsReq, ManageChatSessionsResp, RegenerateDraftPhaseReq, RegeneratePhaseResponseDto,
     SendChatMessageReq, SendChatTurnResponseDto, SessionSummaryDto,
 };
 use crate::providers::traits::LlmProvider;
@@ -67,7 +68,7 @@ pub fn exec_create_or_load_chat_session(
         Some(sid) => {
             // Find existing session
             let mut stmt = conn
-                .prepare("SELECT id, project_id FROM sessions WHERE id = ?1")
+                .prepare("SELECT id, project_id FROM sessions WHERE id = ?1 AND deleted_at IS NULL")
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             let mut rows = stmt
                 .query(params![sid])
@@ -283,6 +284,12 @@ pub fn exec_list_chat_sessions(
     } else {
         String::new()
     };
+    let visibility_filter = if req.trash_only.unwrap_or(false) {
+        " AND s.id NOT LIKE 'detached-%' AND (s.deleted_at IS NOT NULL OR (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) = 1)"
+    } else {
+        " AND s.deleted_at IS NULL"
+    };
+    let query_filter = format!("{visibility_filter}{msg_filter}");
 
     let draft_join = "LEFT JOIN draft_sessions d ON d.id = COALESCE(
         (SELECT ds.id FROM draft_sessions ds WHERE ds.session_id = s.id LIMIT 1),
@@ -292,13 +299,13 @@ pub fn exec_list_chat_sessions(
     let (query, query_params): (String, Vec<rusqlite::types::Value>) = match (&req.project_id, &req.cursor) {
         (Some(pid), Some(cur)) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.project_id = ?1 AND s.created_at < ?2{}
                  ORDER BY s.created_at DESC
                  LIMIT ?3",
-                draft_join, msg_filter
+                draft_join, query_filter
             ),
             vec![
                 pid.to_string().into(),
@@ -308,37 +315,37 @@ pub fn exec_list_chat_sessions(
         ),
         (Some(pid), None) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.project_id = ?1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?2",
-                draft_join, msg_filter
+                draft_join, query_filter
             ),
             vec![pid.to_string().into(), ((limit + 1) as i64).into()],
         ),
         (None, Some(cur)) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE s.created_at < ?1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?2",
-                draft_join, msg_filter
+                draft_join, query_filter
             ),
             vec![cur.clone().into(), ((limit + 1) as i64).into()],
         ),
         (None, None) => (
             format!(
-                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id), s.created_at, s.deleted_at
                  FROM sessions s
                  {}
                  WHERE 1=1{}
                  ORDER BY s.created_at DESC
                  LIMIT ?1",
-                draft_join, msg_filter
+                draft_join, query_filter
             ),
             vec![((limit + 1) as i64).into()],
         ),
@@ -366,6 +373,8 @@ pub fn exec_list_chat_sessions(
         let updated_at: String = row.get(4).unwrap_or_default();
         let display_name: Option<String> = row.get(5).unwrap_or(None);
         let message_count: Option<u32> = row.get(6).ok();
+        let created_at: String = row.get(7).unwrap_or_default();
+        let deleted_at: Option<String> = row.get(8).unwrap_or(None);
 
         items.push(SessionSummaryDto {
             session_id: sid,
@@ -373,6 +382,8 @@ pub fn exec_list_chat_sessions(
             project_id,
             status,
             updated_at,
+            created_at,
+            deleted_at,
             display_name,
             message_count,
         });
@@ -381,7 +392,7 @@ pub fn exec_list_chat_sessions(
     let mut next_cursor = None;
     if items.len() > limit {
         items.truncate(limit);
-        next_cursor = items.last().map(|s| s.updated_at.clone());
+        next_cursor = items.last().map(|s| s.created_at.clone());
     }
 
     Ok(ChatSessionListDto { items, next_cursor })
@@ -417,6 +428,101 @@ pub async fn list_chat_sessions(
     req: ListChatSessionsReq,
 ) -> Result<ChatSessionListDto, IpcError> {
     exec_list_chat_sessions(&orchestrator, &req)
+}
+
+/// Auxiliary command for renaming and managing chat sessions in the recycle bin.
+pub fn exec_manage_chat_sessions(
+    orchestrator: &ChatOrchestrator,
+    req: &ManageChatSessionsReq,
+) -> Result<ManageChatSessionsResp, IpcError> {
+    if req.session_ids.is_empty() || req.session_ids.len() > 100 ||
+        req.session_ids.iter().any(|id| id.trim().is_empty() || id.starts_with("detached-")) ||
+        req.session_ids.iter().collect::<HashSet<_>>().len() != req.session_ids.len() {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Invalid session IDs"));
+    }
+    if !matches!(req.action.as_str(), "rename" | "soft_delete" | "restore" | "permanent_delete") {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported session action"));
+    }
+    if req.action == "rename" && req.session_ids.len() != 1 {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Rename requires one session"));
+    }
+    let title = req.display_name.as_deref().map(str::trim);
+    if req.action == "rename" && !title.is_some_and(|name| !name.is_empty() && name.chars().count() <= 120) {
+        return Err(IpcError::new(ErrorCode::ValidationFailed, "Session name must contain 1 to 120 characters"));
+    }
+
+    let mut conn = orchestrator.pool().get()
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let now = Utc::now().to_rfc3339();
+
+    for id in &req.session_ids {
+        let (deleted_at, message_count): (Option<String>, i64) = tx.query_row(
+            "SELECT s.deleted_at, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) FROM sessions s WHERE s.id = ?1",
+            [id], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+            .ok_or_else(|| IpcError::new(ErrorCode::EntityNotFound, "Chat session does not exist"))?;
+
+        match req.action.as_str() {
+            "rename" if deleted_at.is_none() => {
+                tx.execute("UPDATE sessions SET display_name = ?1 WHERE id = ?2", params![title, id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            }
+            "soft_delete" if deleted_at.is_none() => {
+                tx.execute("UPDATE sessions SET deleted_at = ?1 WHERE id = ?2", params![now, id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            }
+            "restore" if deleted_at.is_some() => {
+                tx.execute("UPDATE sessions SET deleted_at = NULL WHERE id = ?1", [id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            }
+            "permanent_delete" if deleted_at.is_some() || message_count == 1 => {
+                // A project may still need its committed draft. Re-home that draft
+                // before removing the chat transcript and its original session.
+                let project_drafts: Vec<(String, String)> = {
+                    let mut stmt = tx.prepare("SELECT id, project_id FROM draft_sessions WHERE session_id = ?1 AND project_id IS NOT NULL")
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                    let rows = stmt.query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                    rows.collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+                };
+                for (draft_id, project_id) in project_drafts {
+                    let detached_id = format!("detached-{}", Uuid::now_v7());
+                    tx.execute("INSERT INTO sessions (id, project_id, display_name, created_at, deleted_at) VALUES (?1, ?2, NULL, ?3, ?3)",
+                        params![detached_id, project_id, now])
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                    tx.execute("UPDATE draft_sessions SET session_id = ?1 WHERE id = ?2", params![detached_id, draft_id])
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                    tx.execute("UPDATE draft_versions SET chat_message_id = NULL WHERE draft_session_id = ?1", [draft_id])
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                }
+
+                for table in ["workflow_task_receipts", "workflow_round_receipts", "pending_patches", "draft_versions"] {
+                    tx.execute(&format!("DELETE FROM {table} WHERE draft_session_id IN (SELECT id FROM draft_sessions WHERE session_id = ?1)"), [id])
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                }
+                tx.execute("DELETE FROM draft_sessions WHERE session_id = ?1", [id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                tx.execute("DELETE FROM messages WHERE session_id = ?1", [id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                tx.execute("DELETE FROM sessions WHERE id = ?1", [id])
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            }
+            _ => return Err(IpcError::new(ErrorCode::ValidationFailed, "Session action is not allowed in its current state")),
+        }
+    }
+    tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    Ok(ManageChatSessionsResp { affected_count: req.session_ids.len() })
+}
+
+#[tauri::command]
+pub async fn manage_chat_sessions(
+    orchestrator: tauri::State<'_, Arc<ChatOrchestrator>>,
+    req: ManageChatSessionsReq,
+) -> Result<ManageChatSessionsResp, IpcError> {
+    exec_manage_chat_sessions(&orchestrator, &req)
 }
 
 // ============================================================================
@@ -491,12 +597,14 @@ pub async fn exec_send_chat_message(
         .await;
 
     if res.is_err() {
-        // If turn failed fatally before sealing any version or mutating state,
-        // clean up the orphaned user message so the session does not have half-baked failed turns
+        // A failed turn with tool calls has an assistant audit record. Keep its
+        // matching user message; only remove a truly orphaned request.
         if let Ok(conn) = orchestrator.pool().get() {
             let _ = conn.execute(
-                "DELETE FROM messages WHERE id = ?1",
-                params![user_message_id.to_string()],
+                "DELETE FROM messages WHERE id = ?1 AND NOT EXISTS (
+                    SELECT 1 FROM messages WHERE turn_id = ?2 AND role = 'assistant'
+                )",
+                params![user_message_id.to_string(), turn_id.to_string()],
             );
         }
     }

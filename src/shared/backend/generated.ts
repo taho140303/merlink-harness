@@ -367,6 +367,8 @@ export interface SessionSummaryDto {
   projectId?: string | null;
   status: string;
   updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
   displayName?: string | null;
   messageCount?: number | null;
 }
@@ -398,6 +400,17 @@ export interface ListChatSessionsReq {
   cursor?: string | null;
   hasMessages?: boolean | null;
   minMessageCount?: number | null;
+  trashOnly?: boolean | null;
+}
+
+export interface ManageChatSessionsReq {
+  action: "rename" | "soft_delete" | "restore" | "permanent_delete";
+  sessionIds: string[];
+  displayName?: string | null;
+}
+
+export interface ManageChatSessionsResp {
+  affectedCount: number;
 }
 
 export interface ChatSessionListDto {
@@ -1126,4 +1139,4 @@ export const IPC_COMMAND_NAMES = [
   "set_provider_api_key",
 ] as const;
 
-export type IpcCommandName = (typeof IPC_COMMAND_NAMES)[number];
+export type IpcCommandName = (typeof IPC_COMMAND_NAMES)[number] | "manage_chat_sessions";
