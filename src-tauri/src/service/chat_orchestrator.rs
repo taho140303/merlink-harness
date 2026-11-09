@@ -476,6 +476,10 @@ impl ChatOrchestrator {
         let composed = self
             .composer
             .compose(&script, system_language, project_lang)?;
+        if !composed.tools.iter().any(|tool| tool.name == "get_field_null") {
+            return Err(IpcError::new(ErrorCode::ValidationFailed,
+                "Chat prompt is missing the required get_field_null tool"));
+        }
 
         // 3. Assemble conversation history for provider request
         let mut messages = vec![ProviderMessage::system(composed.prompt.clone())];
@@ -609,6 +613,10 @@ impl ChatOrchestrator {
     ) -> Result<String, IpcError> {
         let max_iter = self.config.max_iterations;
         let rejected_limit = self.config.consecutive_rejected_limit;
+        // A model may answer without calling any tools. Read missing fields at the
+        // backend boundary on every turn, then refresh after state changes so the
+        // model never relies on a stale pre-write question list.
+        let mut last_null_field_state: Option<BusinessFlowData> = None;
 
         for _ in 0..max_iter {
             if cancel_token.is_cancelled() {
@@ -616,6 +624,39 @@ impl ChatOrchestrator {
             }
 
             let current = entry.get_snapshot();
+            if composed.tools.iter().any(|tool| tool.name == "get_field_null")
+                && last_null_field_state.as_ref() != Some(&current.business_flow_data)
+            {
+                let call = ProviderToolCall {
+                    id: Uuid::new_v4().to_string(),
+                    name: "get_field_null".to_string(),
+                    arguments: serde_json::json!({"limit": 3}),
+                };
+                let started = std::time::Instant::now();
+                if let Some(tx) = stream_tx {
+                    let _ = tx.send(ChatStreamEvent::ToolCallStarted {
+                        turn_id, tool_call_id: call.id.clone(), tool_code: call.name.clone(),
+                    }).await;
+                }
+                let result = read_tool_result(&call.name, &call.arguments, &current.business_flow_data, system_language);
+                state.all_tool_calls.push(ToolCallItemDto {
+                    id: call.id.clone(), name: call.name.clone(), parameters: call.arguments.clone(),
+                    result: Some(result.clone()), execution_time_ms: Some(started.elapsed().as_millis() as u64),
+                    status: "success".to_string(),
+                });
+                messages.push(ProviderMessage {
+                    role: "assistant".to_string(), content: String::new(), name: None,
+                    tool_calls: Some(vec![call.clone()]), tool_call_id: None,
+                });
+                messages.push(ProviderMessage::tool_result(call.id.clone(), call.name.clone(), result.to_string()));
+                if let Some(tx) = stream_tx {
+                    let _ = tx.send(ChatStreamEvent::ToolCallCompleted {
+                        turn_id, tool_call_id: call.id, tool_code: call.name,
+                        status: "applied".to_string(), has_applied_write: state.has_applied_write,
+                    }).await;
+                }
+                last_null_field_state = Some(current.business_flow_data.clone());
+            }
             messages[0].content = render_chat_prompt(
                 &composed.prompt, &current.business_flow_data, &current.pending_patches,
             );
@@ -1401,17 +1442,57 @@ mod chat_context_regression_tests {
             if let ChatStreamEvent::AssistantDelta { delta, .. } = event { visible_text.push(delta); }
         }
         assert_eq!(visible_text, vec!["Đã lưu các mục tiêu bạn đưa ra."]);
-        assert_eq!(state.all_tool_calls[0].result.as_ref().unwrap()["results"][0]["error"], "missing_or_invalid_declared_source");
-        assert_eq!(state.all_tool_calls[1].result.as_ref().unwrap()["input_schema"]["properties"]["target"]["type"], "object");
+        let calls = &state.all_tool_calls;
+        assert_eq!(calls.iter().find(|call| call.id == "call-1").unwrap().result.as_ref().unwrap()["results"][0]["error"], "missing_or_invalid_declared_source");
+        assert_eq!(calls.iter().find(|call| call.id == "call-2").unwrap().result.as_ref().unwrap()["input_schema"]["properties"]["target"]["type"], "object");
         assert_eq!(entry.get_snapshot().business_flow_data.require.project.target.chapter_count.value, Some(120));
         assert!(state.has_applied_write);
-        let questions = &state.all_tool_calls[3].result.as_ref().unwrap()["questions"];
+        let questions = &calls.iter().find(|call| call.id == "call-4").unwrap().result.as_ref().unwrap()["questions"];
         assert!(!questions.to_string().contains("target."));
+        let automatic_reads: Vec<_> = calls.iter().filter(|call| call.name == "get_field_null" && call.id != "call-4").collect();
+        assert_eq!(automatic_reads.len(), 2, "read before the first request and again after the write");
+        assert!(!automatic_reads[1].result.as_ref().unwrap()["questions"].to_string().contains("target."));
         let requests = provider.requests.lock().unwrap();
         assert!(requests[3].messages[0].content.contains("2400"));
         assert!(!requests[3].messages[0].content.contains("{{story_context}}"));
         assert!(requests.iter().flat_map(|r| &r.messages).filter(|m| m.role == "tool").all(|m| !m.content.contains("authenticated_effect")));
         assert!(orchestrator.composer.compose(&["out_of_scope"], "vi", "VI").unwrap().tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_every_chat_request_reads_null_fields_even_without_model_tool_calls() {
+        use crate::providers::traits::ProviderChatResponse;
+        let tmp = tempfile::tempdir().unwrap();
+        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
+        let registry = Arc::new(DraftRuntimeRegistry::new());
+        let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
+        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
+        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let id = Uuid::new_v4();
+        registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
+        let entry = registry.get(&id).unwrap();
+        let composed = orchestrator.composer.compose(&["tool_library", "story_context"], "vi", "VI").unwrap();
+        assert!(composed.tools.iter().any(|tool| tool.name == "get_field_null"));
+        let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
+            ProviderChatResponse { content: Some("Xin chào".into()), ..Default::default() },
+            ProviderChatResponse { content: Some("Đã ghi nhận".into()), ..Default::default() },
+        ].into()) };
+        for (index, text) in ["Chào", "Tên arc không cần đặt"].iter().enumerate() {
+            let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user(*text)];
+            let mut state = TurnState::default();
+            orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
+                &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
+            assert_eq!(state.all_tool_calls.len(), 1, "turn {index} must audit the read");
+            assert_eq!(state.all_tool_calls[0].name, "get_field_null");
+            assert_eq!(state.all_tool_calls[0].result.as_ref().unwrap()["status"], "applied");
+            let requests = provider.requests.lock().unwrap();
+            let request = &requests[index];
+            assert_eq!(request.messages[2].tool_calls.as_ref().unwrap()[0].id,
+                state.all_tool_calls[0].id);
+            assert_eq!(request.messages[3].tool_call_id.as_deref(), Some(state.all_tool_calls[0].id.as_str()));
+            assert_eq!(request.messages[3].role, "tool");
+        }
     }
 
     #[test]
