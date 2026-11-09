@@ -895,6 +895,7 @@ export interface UpdateRuntimeConfigReq {
   activeProviderId?: string | null;
   modelName?: string | null;
   endpointUrl?: string | null;
+  removeProviderId?: string | null;
 }
 
 export interface SetProviderApiKeyReq {

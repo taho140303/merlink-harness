@@ -13,19 +13,31 @@ use crate::ipc::dto::{
 use crate::providers::credentials::{CredentialManager, CredentialStorageMode};
 use crate::providers::redaction::Redactor;
 use parking_lot::RwLock;
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::Arc;
 use crate::providers::traits::{LlmProvider, ProviderChatRequest, ProviderChatResponse, ProviderError, ProviderStreamChunk, ProviderStreamRequest, ProviderStreamSummary};
 use tokio_util::sync::CancellationToken;
 use tokio::sync::mpsc;
 
 /// In-memory runtime state for provider settings and runtime subagent options (`CI-10`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderRuntimeSettings {
     pub provider_id: String,
     pub name: String,
     pub endpoint_url: Option<String>,
     pub model_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PersistedRuntimeConfig {
+    version: u8,
+    subagent_config: SubagentConfigDto,
+    active_provider_id: String,
+    providers: HashMap<String, ProviderRuntimeSettings>,
 }
 
 /// Shared runtime configuration state across IPC calls.
@@ -36,6 +48,8 @@ pub struct RuntimeConfigState {
     pub providers: RwLock<HashMap<String, ProviderRuntimeSettings>>,
     pub credential_manager: CredentialManager,
     pub redactor: Arc<Redactor>,
+    persistence_path: Option<PathBuf>,
+    update_lock: Mutex<()>,
 }
 
 impl Default for RuntimeConfigState {
@@ -54,7 +68,61 @@ impl RuntimeConfigState {
             providers: RwLock::new(providers),
             credential_manager,
             redactor,
+            persistence_path: None,
+            update_lock: Mutex::new(()),
         }
+    }
+
+    /// Load non-secret provider settings from the app data directory.
+    /// Credentials remain exclusively in the OS Keychain or session memory.
+    pub fn with_persistence(path: PathBuf) -> Result<Self, IpcError> {
+        let state = Self::default();
+        if path.exists() {
+            let bytes = std::fs::read(&path)
+                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot read provider settings: {e}")))?;
+            let saved: PersistedRuntimeConfig = serde_json::from_slice(&bytes)
+                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid provider settings: {e}")))?;
+            if saved.version != 1 {
+                return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported provider settings version"));
+            }
+            validate_subagent_config(&saved.subagent_config)?;
+            if !saved.active_provider_id.is_empty() && !saved.providers.contains_key(&saved.active_provider_id) {
+                return Err(IpcError::new(ErrorCode::ValidationFailed, "Active provider is missing from saved settings"));
+            }
+            *state.subagent_config.write() = saved.subagent_config;
+            *state.active_provider_id.write() = saved.active_provider_id;
+            *state.providers.write() = saved.providers;
+        }
+        Ok(Self { persistence_path: Some(path), ..state })
+    }
+
+    fn persist_config(&self, config: &PersistedRuntimeConfig) -> Result<(), IpcError> {
+        let Some(path) = &self.persistence_path else { return Ok(()); };
+        let bytes = serde_json::to_vec(config)
+            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot encode provider settings: {e}")))?;
+        let parent = path.parent().ok_or_else(|| IpcError::new(ErrorCode::InternalError, "Provider settings path has no parent"))?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot create settings directory: {e}")))?;
+        let temp_path = path.with_extension(format!("tmp-{}", uuid::Uuid::new_v4()));
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let result = (|| -> std::io::Result<()> {
+            let mut file = options.open(&temp_path)?;
+            file.write_all(&bytes)?;
+            file.sync_all()?;
+            std::fs::rename(&temp_path, path)?;
+            Ok(())
+        })();
+        if let Err(err) = result {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(IpcError::new(ErrorCode::InternalError, format!("Cannot save provider settings: {err}")));
+        }
+        Ok(())
     }
 
     /// Resolve the selected provider for both chat and scene generation.
@@ -163,6 +231,45 @@ mod provider_selection_tests {
     use super::*;
 
     #[test]
+    fn test_provider_config_persists_across_restart_without_secret() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("provider-config.json");
+        let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
+        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
+            active_provider_id: Some("custom".into()),
+            endpoint_url: Some("https://example.com/v1".into()),
+            model_name: Some("story-model".into()),
+            ..UpdateRuntimeConfigReq::default()
+        }).unwrap();
+        drop(state);
+
+        let restored = RuntimeConfigState::with_persistence(path.clone()).unwrap();
+        assert_eq!(&*restored.active_provider_id.read(), "custom");
+        assert_eq!(restored.providers.read()["custom"].model_name.as_deref(), Some("story-model"));
+        assert!(!std::fs::read_to_string(path).unwrap().contains("api_key"));
+    }
+
+    #[test]
+    fn test_removed_provider_stays_removed_after_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("provider-config.json");
+        let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
+        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
+            active_provider_id: Some("custom".into()),
+            endpoint_url: Some("https://example.com/v1".into()),
+            model_name: Some("story-model".into()),
+            ..UpdateRuntimeConfigReq::default()
+        }).unwrap();
+        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
+            remove_provider_id: Some("custom".into()),
+            ..UpdateRuntimeConfigReq::default()
+        }).unwrap();
+        let restored = RuntimeConfigState::with_persistence(path).unwrap();
+        assert!(restored.providers.read().is_empty());
+        assert!(restored.active_provider_id.read().is_empty());
+    }
+
+    #[test]
     fn test_selected_provider_uses_configured_model_and_endpoint() {
         let state = RuntimeConfigState::default();
         assert!(state.providers.read().is_empty());
@@ -238,37 +345,45 @@ pub fn exec_update_runtime_and_provider_config(
     state: &RuntimeConfigState,
     req: &UpdateRuntimeConfigReq,
 ) -> Result<RuntimeAndProviderConfigDto, IpcError> {
+    let _guard = state.update_lock.lock();
+    let mut subagent_config = state.subagent_config.read().clone();
+    let mut active_id = state.active_provider_id.read().clone();
+    let mut providers = state.providers.read().clone();
+
     if let Some(subagent_cfg) = &req.subagent_config {
         validate_subagent_config(subagent_cfg)?;
-        *state.subagent_config.write() = subagent_cfg.clone();
+        subagent_config = subagent_cfg.clone();
     }
 
-    if let Some(active_id) = &req.active_provider_id {
-        let trimmed = active_id.trim();
+    let removed_id = req.remove_provider_id.as_deref().map(str::trim).filter(|id| !id.is_empty());
+    if let Some(id) = removed_id {
+        if req.active_provider_id.as_deref().map(str::trim) == Some(id) {
+            return Err(IpcError::new(ErrorCode::ValidationFailed, "Cannot select and remove the same provider"));
+        }
+        providers.remove(id);
+        if active_id == id { active_id.clear(); }
+    }
+
+    if let Some(requested_active_id) = &req.active_provider_id {
+        let trimmed = requested_active_id.trim();
         if trimmed.is_empty() {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
                 "activeProviderId cannot be empty",
             ));
         }
-        {
-            // Custom (OpenAI-compatible) providers are registered on first save.
-            let mut providers_guard = state.providers.write();
-            providers_guard.entry(trimmed.to_string()).or_insert_with(|| ProviderRuntimeSettings {
-                provider_id: trimmed.to_string(),
-                name: trimmed.to_string(),
-                endpoint_url: None,
-                model_name: None,
-            });
-        }
-        *state.active_provider_id.write() = trimmed.to_string();
+        // Custom (OpenAI-compatible) providers are registered on first save.
+        providers.entry(trimmed.to_string()).or_insert_with(|| ProviderRuntimeSettings {
+            provider_id: trimmed.to_string(),
+            name: trimmed.to_string(),
+            endpoint_url: None,
+            model_name: None,
+        });
+        active_id = trimmed.to_string();
     }
 
-    let active_id = state.active_provider_id.read().clone();
-
     if req.model_name.is_some() || req.endpoint_url.is_some() {
-        let mut providers_guard = state.providers.write();
-        let entry = providers_guard.get_mut(&active_id).ok_or_else(|| {
+        let entry = providers.get_mut(&active_id).ok_or_else(|| {
             IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")
         })?;
 
@@ -280,8 +395,20 @@ pub fn exec_update_runtime_and_provider_config(
         }
     }
 
+    state.persist_config(&PersistedRuntimeConfig {
+        version: 1,
+        subagent_config: subagent_config.clone(),
+        active_provider_id: active_id.clone(),
+        providers: providers.clone(),
+    })?;
+    *state.subagent_config.write() = subagent_config.clone();
+    *state.active_provider_id.write() = active_id;
+    *state.providers.write() = providers;
+    if let Some(id) = removed_id {
+        state.credential_manager.delete_api_key(id);
+    }
+
     // Return current state snapshot
-    let subagent_config = state.subagent_config.read().clone();
     let providers = state.build_provider_statuses();
     let credential_storage_mode = state.credential_storage_mode().to_string();
 

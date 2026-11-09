@@ -65,7 +65,10 @@ impl AppBootstrap {
         // 2. Runtime registries and configurations
         let drafts = Arc::new(DraftRuntimeRegistry::new());
         let writing_state = Arc::new(std::sync::RwLock::new(WritingGenerationState::default()));
-        let config = Arc::new(RuntimeConfigState::default());
+        let config = Arc::new(
+            RuntimeConfigState::with_persistence(app_data_dir.join("provider-config.json"))
+                .map_err(|e| crate::error::AppError::Internal(e.to_string()))?
+        );
         let app_shutdown_token = CancellationToken::new();
 
         // 3. Application Services

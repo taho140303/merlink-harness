@@ -507,19 +507,21 @@ export function ProviderForm({
       displayName || (providerMode === "custom" ? "Custom Provider" : providerType);
 
     try {
-      if (activeClient.status === "available") {
-        await updateProviderConfig(
-          {
-            providerId: targetId,
-            apiKey: enteredKey || undefined,
-            endpointUrl: baseUrl,
-            modelName: models[0]?.id || models[0]?.name,
-          },
-          activeClient
-        );
+      if (activeClient.status !== "available") {
+        throw new Error("Backend is unavailable; provider settings were not saved");
       }
+      await updateProviderConfig(
+        {
+          providerId: targetId,
+          apiKey: enteredKey || undefined,
+          endpointUrl: baseUrl,
+          modelName: models[0]?.id || models[0]?.name,
+        },
+        activeClient
+      );
     } catch (err: any) {
       setTestErrorMessage(redactSensitiveString(err.message || "Failed to save provider config"));
+      return;
     } finally {
       setIsSubmitting(false);
     }

@@ -817,6 +817,7 @@ fn P2S5_P_all_40_command_dto_pairs_typecheck_and_roundtrip_camelcase() {
         active_provider_id: Some("ollama".to_string()),
         model_name: Some("llama3".to_string()),
         endpoint_url: None,
+        remove_provider_id: None,
     };
     let resp39 = resp38.clone();
     assert!(serde_json::to_string(&req39)

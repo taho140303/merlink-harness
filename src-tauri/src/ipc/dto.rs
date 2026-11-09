@@ -1306,6 +1306,8 @@ pub struct UpdateRuntimeConfigReq {
     pub model_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remove_provider_id: Option<String>,
 }
 
 /// Command 40: `set_provider_api_key` Request

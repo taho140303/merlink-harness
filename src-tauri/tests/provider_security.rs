@@ -610,6 +610,7 @@ fn test_ipc_cmd_039_update_runtime_and_provider_config() {
         active_provider_id: Some("opencode".to_string()),
         model_name: Some("gpt-4o".to_string()),
         endpoint_url: Some("https://api.openai.com/v1".to_string()),
+        remove_provider_id: None,
     };
 
     let updated = exec_update_runtime_and_provider_config(&state, &update_req)

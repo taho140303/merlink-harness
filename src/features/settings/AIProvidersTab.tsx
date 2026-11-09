@@ -21,6 +21,7 @@ import { useT } from "@/shared/i18n/useT";
 import type { AIProviderItem } from "./types";
 import { useModelCatalogStore } from "./modelCatalogStore";
 import { backendClient, type BackendClient } from "@/shared/backend/client";
+import { redactSensitiveString } from "@/shared/backend/adapter";
 import type { RuntimeAndProviderConfigDto } from "@/shared/backend/generated";
 
 // Re-export public interfaces for external callers and tests
@@ -235,8 +236,14 @@ export function AIProvidersTab({
     setDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
+    try {
+      await (client || backendClient).updateRuntimeAndProviderConfig({ removeProviderId: deleteTarget.id });
+    } catch (error) {
+      toast({ title: redactSensitiveString(String(error)), variant: "error" });
+      return;
+    }
     useModelCatalogStore.getState().removeProvider(deleteTarget.id);
     setProviders((prev) => prev.filter((p) => p.id !== deleteTarget.id));
     toast({ title: t("common.deleted"), variant: "success" });
