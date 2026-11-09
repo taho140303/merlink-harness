@@ -531,6 +531,8 @@ pub struct ListChatSessionsReq {
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_messages: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_message_count: Option<u32>,
 }
 
 /// Command 2: `list_chat_sessions` Response

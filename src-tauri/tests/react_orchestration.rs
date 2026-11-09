@@ -925,11 +925,32 @@ fn test_IPC_CMD_002_list_chat_sessions() {
         limit: Some(10),
         cursor: None,
         has_messages: None,
+        min_message_count: None,
     };
 
     let list_res = exec_list_chat_sessions(&orchestrator, &req).unwrap();
     assert_eq!(list_res.items.len(), 1);
     assert_eq!(list_res.items[0].project_id, Some(proj_id));
+}
+
+#[test]
+fn test_list_chat_sessions_minimum_two_messages() {
+    let (pool, registry, _draft_svc, _patch_svc, orchestrator, _tmp) = setup_test_context();
+    let (one_message_session, _, _) = create_test_session(&pool, &registry);
+    let (two_message_session, _, _) = create_test_session(&pool, &registry);
+    let turn_id = Uuid::new_v4();
+    orchestrator.save_message(Uuid::new_v4(), &one_message_session, turn_id, "user", "Hello", None).unwrap();
+    orchestrator.save_message(Uuid::new_v4(), &two_message_session, turn_id, "user", "Hello", None).unwrap();
+    orchestrator.save_message(Uuid::new_v4(), &two_message_session, turn_id, "assistant", "Hi", None).unwrap();
+
+    let result = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
+        min_message_count: Some(2),
+        limit: Some(100),
+        ..Default::default()
+    }).unwrap();
+    assert_eq!(result.items.len(), 1);
+    assert_eq!(result.items[0].session_id, two_message_session);
+    assert_eq!(result.items[0].message_count, Some(2));
 }
 
 /// `IPC-CMD-003`: `send_chat_message`

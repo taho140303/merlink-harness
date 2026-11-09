@@ -12,11 +12,17 @@ const vite = await createServer({
 });
 after(async () => vite.close());
 
-const { mapSessionSummaryToChatItem } = await vite.ssrLoadModule(
+const { mapSessionSummaryToChatItem, isSidebarSessionVisible } = await vite.ssrLoadModule(
   "/src/features/navigation/components/SidebarHistory.tsx",
 );
 
 describe("Sidebar chat history", () => {
+  it("shows only sessions with at least two persisted messages", () => {
+    assert.equal(isSidebarSessionVisible({ messageCount: 0 }), false);
+    assert.equal(isSidebarSessionVisible({ messageCount: 1 }), false);
+    assert.equal(isSidebarSessionVisible({ messageCount: 2 }), true);
+    assert.equal(isSidebarSessionVisible({}), false);
+  });
   it("maps persisted sessions to chat routes and safe display metadata", () => {
     const item = mapSessionSummaryToChatItem({
       sessionId: "12345678-abcd-4000-8000-000000000000",

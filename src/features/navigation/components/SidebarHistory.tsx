@@ -16,6 +16,10 @@ function formatSessionTime(value: string): string {
 /** `displayName` is returned by the backend session list but is not yet in generated.ts. */
 type SessionSummaryWithTitle = SessionSummaryDto & { displayName?: string | null };
 
+export function isSidebarSessionVisible(session: SessionSummaryDto): boolean {
+  return (session.messageCount ?? 0) >= 2;
+}
+
 export function mapSessionSummaryToChatItem(session: SessionSummaryDto): ChatItem {
   const storedTitle = (session as SessionSummaryWithTitle).displayName?.trim();
   return {
@@ -50,10 +54,8 @@ export function SidebarHistory({ collapsed, onExpand, client = backendClient }: 
   const loadHistory = useCallback(async () => {
     if (client.status === "unavailable") return;
     try {
-      const result = await client.listChatSessions({ limit: 100, hasMessages: true });
-      const validItems = (result.items || []).filter(
-        (session) => session.messageCount === undefined || session.messageCount === null || session.messageCount > 0,
-      );
+      const result = await client.listChatSessions({ limit: 100, minMessageCount: 2 });
+      const validItems = (result.items || []).filter(isSidebarSessionVisible);
       setHistory(validItems.map(mapSessionSummaryToChatItem));
     } catch (error) {
       console.warn("Failed to load chat history from backend:", error);

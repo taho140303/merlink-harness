@@ -397,6 +397,7 @@ export interface ListChatSessionsReq {
   limit?: number | null;
   cursor?: string | null;
   hasMessages?: boolean | null;
+  minMessageCount?: number | null;
 }
 
 export interface ChatSessionListDto {

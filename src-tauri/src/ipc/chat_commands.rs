@@ -276,10 +276,12 @@ pub fn exec_list_chat_sessions(
 
     let limit = req.limit.unwrap_or(20).clamp(1, 100) as usize;
     let filter_has_messages = req.has_messages.unwrap_or(false);
-    let msg_filter = if filter_has_messages {
-        " AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id)"
+    let msg_filter = if let Some(minimum) = req.min_message_count {
+        format!(" AND (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) >= {}", minimum.clamp(1, 1000))
+    } else if filter_has_messages {
+        " AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id)".to_string()
     } else {
-        ""
+        String::new()
     };
 
     let draft_join = "LEFT JOIN draft_sessions d ON d.id = COALESCE(
