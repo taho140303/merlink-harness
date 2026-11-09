@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Tags } from 'lucide-react';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { cn } from '@/shared/utils/cn';
 import { ThemeBlock } from './ThemeBlock';
 import { SegmentBlock } from './SegmentBlock';
@@ -16,6 +17,7 @@ interface ArcCardProps {
 
 export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFeedback }: ArcCardProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
   
   const handleAttach = (e: React.MouseEvent) => {
     if (isFeedbackMode && onAttachFeedback) {
@@ -70,7 +72,7 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
                 <Tags className="h-3.5 w-3.5 text-fg-subtle" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">Motif:</span>
                 <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                  {arc.motif.displayName} ({arc.motif.category})
+                  {arc.motif.displayName} ({enumLabel('MotifsType', arc.motif.category)})
                 </span>
                 {arc.motif.note && (
                   <span className="text-sm text-fg-subtle italic">— {arc.motif.note}</span>

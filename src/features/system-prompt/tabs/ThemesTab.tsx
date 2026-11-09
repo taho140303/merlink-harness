@@ -1,7 +1,7 @@
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
-import { humanize } from '../shared/humanize';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
 import type { ThemeArgumentRole, ThemeResolutionType } from '../types';
 
@@ -31,6 +31,7 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function ThemesTab() {
+  const enumLabel = useDbEnumLabel();
   const { themeArguments, themes } = useSystemPromptCatalog();
   const t = useT();
 
@@ -69,7 +70,7 @@ export function ThemesTab() {
                 <span
                   className={cn('rounded-full px-2 py-0.5 text-xs font-medium', RES_COLOR[th.resolutionType])}
                 >
-                  {humanize(th.resolutionType)}
+                  {enumLabel('ThemeResolutionType', th.resolutionType)}
                 </span>
               </div>
             </div>
@@ -122,10 +123,10 @@ export function ThemesTab() {
                             ROLE_COLOR[a.role],
                           )}
                         >
-                          {humanize(a.role)}
+                          {enumLabel('ThemeArgumentRole', a.role)}
                         </span>
                         <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
-                          {t('sp.themes.answerMode')}: {humanize(a.answerMode)}
+                          {t('sp.themes.answerMode')}: {enumLabel('ThemeAnswerMode', a.answerMode)}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-fg-muted">{a.note}</p>

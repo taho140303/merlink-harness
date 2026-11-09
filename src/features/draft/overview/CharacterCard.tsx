@@ -1,6 +1,7 @@
 import { User, Eye } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import type { DraftCharacter } from '../types';
 
 interface CharacterCardProps {
@@ -13,6 +14,7 @@ interface CharacterCardProps {
 
 export function CharacterCard({ character, onView, canViewDetail = true, isFeedbackMode, onAttachFeedback }: CharacterCardProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
   
   const handleAttach = (e: React.MouseEvent) => {
     if (isFeedbackMode && onAttachFeedback) {
@@ -48,7 +50,7 @@ export function CharacterCard({ character, onView, canViewDetail = true, isFeedb
               ? "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300"
               : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
           )}>
-            {character.gender}
+            {enumLabel('gender', character.gender)}
           </span>
         </div>
       </div>

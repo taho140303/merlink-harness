@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { PanelRightClose, BookOpen, Layers, Users, Calendar, Clock, ExternalLink } from "lucide-react";
 import type { ProjectItem } from "./types";
 import { useT } from "@/shared/i18n/useT";
+import { useDbEnumLabel } from "@/shared/i18n/dbEnums";
 
 interface ProjectDetailSidebarProps {
   project: ProjectItem | null;
@@ -37,6 +38,7 @@ function getPyramidRows(genres: string[]): string[][] {
 export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarProps) {
   const navigate = useNavigate();
   const t = useT();
+  const enumLabel = useDbEnumLabel();
 
   if (!project) return null;
 
@@ -81,7 +83,7 @@ export function ProjectDetailSidebar({ project, onClose }: ProjectDetailSidebarP
 
           <div className="mt-2">
             <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white   ">
-              {project.status}
+              {enumLabel('ContentStatus', project.status.toUpperCase().replaceAll(' ', '_'))}
             </span>
           </div>
         </div>

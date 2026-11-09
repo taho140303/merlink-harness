@@ -1,5 +1,6 @@
 import { Globe2, Shield, BookOpen } from 'lucide-react';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { cn } from '@/shared/utils/cn';
 import type { DraftWorldSettings } from '../types';
 
@@ -11,6 +12,7 @@ interface WorldSettingsBlockProps {
 
 export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback }: WorldSettingsBlockProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
 
   const handleAttach = (e: React.MouseEvent, tag: string, title: string, id: string) => {
     if (isFeedbackMode && onAttachFeedback) {
@@ -56,7 +58,7 @@ export function WorldSettingsBlock({ settings, isFeedbackMode, onAttachFeedback 
             <span className="text-sm font-semibold uppercase tracking-wider text-fg-subtle">{t('draft.world.access')}</span>
             <div className="mt-1 flex items-start gap-2 text-lg leading-relaxed text-fg-muted  w-full">
               <Shield className="h-5 w-5 shrink-0 text-emerald-500 mt-1" />
-              <p className="flex-1">{settings.access}</p>
+              <p className="flex-1">{enumLabel('LocationAccess', settings.access)}</p>
             </div>
           </div>
         </div>

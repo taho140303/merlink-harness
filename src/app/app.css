@@ -52,42 +52,29 @@ html.dark body {
   color: var(--color-fg);
 }
 
-/* 
-  Neumorphic Shadows for Light Theme (70% opacity + Glassmorphism)
-*/
+/* Opaque shell surfaces keep WebKitGTK text on a sharp paint layer. */
 .neu-flat {
-  background: rgba(238, 242, 247, 0.7); 
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: #eef2f7;
   box-shadow: -8px -8px 12px rgba(255, 255, 255, 0.95),
               8px 8px 12px rgba(166, 175, 195, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .neu-pressed {
-  background: rgba(238, 242, 247, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #eef2f7;
   box-shadow: inset -5px -5px 12px rgba(255, 255, 255, 0.95),
               inset 5px 5px 12px rgba(166, 175, 195, 0.45);
 }
 
-/* 
-  Neumorphic Shadows for Dark Theme (70% opacity + Glassmorphism)
-*/
 html.dark .neu-flat {
-  background: rgba(18, 20, 26, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: #12151c;
   box-shadow: -6px -6px 12px rgba(255, 255, 255, 0.06),
               8px 8px 15px rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 html.dark .neu-pressed {
-  background: rgba(16, 18, 23, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #101217;
   box-shadow: inset -4px -4px 10px rgba(255, 255, 255, 0.05),
               inset 5px 5px 12px rgba(0, 0, 0, 0.9);
 }
@@ -160,12 +147,10 @@ html.dark .neu-pressed {
    Design System v1 — Tier 2 surfaces (flat-bordered) + focus + motion
    ========================================================================== */
 
-/* Panel lớn: nền bán trong suốt + hairline + blur */
+/* Panel lớn: nền rõ nét + hairline */
 .tier-panel {
-  background-color: color-mix(in srgb, var(--color-surface-panel) 82%, transparent);
+  background-color: var(--color-surface-panel);
   border: 1px solid var(--color-line);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Card nội dung: đục vừa phải, không bóng */

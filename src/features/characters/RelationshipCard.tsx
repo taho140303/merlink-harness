@@ -2,6 +2,7 @@ import type { CharacterRelationship, IntensityLevel, RelationshipStates } from '
 import { useCharacterStore } from './store';
 import { IntensitySlider } from './shared/IntensitySlider';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import type { TKey } from '@/shared/i18n/dict';
 
 const roleColor: Record<string, string> = {
@@ -32,6 +33,7 @@ export function RelationshipCard({ relationship }: { relationship: CharacterRela
   const isEditing = useCharacterStore((s) => s.isEditing);
   const patch = useCharacterStore((s) => s.patchCharacter);
   const t = useT();
+  const enumLabel = useDbEnumLabel();
 
   const setState = (key: keyof RelationshipStates, level: IntensityLevel) =>
     patch((c) => {
@@ -51,14 +53,14 @@ export function RelationshipCard({ relationship }: { relationship: CharacterRela
               roleColor[relationship.role] || 'bg-surface-muted text-fg'
             }`}
           >
-            {relationship.role}
+            {enumLabel('Hierarchy', relationship.role)}
           </span>
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
               categoryColor[relationship.category] || 'bg-surface-muted text-fg'
             }`}
           >
-            {relationship.category}
+            {enumLabel('CategoryGroup', relationship.category)}
           </span>
         </div>
       </div>

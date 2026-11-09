@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ChevronRight, LayoutGrid, Network } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
-import { humanize } from '../shared/humanize';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
-import { MotifCanvas } from '../canvas/MotifCanvas';
 import type { Motif, MotifCategory } from '../types';
+
+const MotifCanvas = lazy(() => import('../canvas/MotifCanvas').then((module) => ({ default: module.MotifCanvas })));
 
 const CATEGORY_COLOR: Record<MotifCategory, string> = {
   character_arc: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
@@ -37,6 +38,7 @@ export function MotifsTab({ activeChild, onSelectChild }: MotifsTabProps) {
  * ============================================================ */
 
 function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
+  const enumLabel = useDbEnumLabel();
   const { genres, motifApplicableGenres, motifs } = useSystemPromptCatalog();
   const t = useT();
   const genreById = new Map(genres.map((g) => [g.id, g]));
@@ -77,7 +79,7 @@ function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
                     CATEGORY_COLOR[mo.category],
                   )}
                 >
-                  {humanize(mo.category)}
+                  {enumLabel('MotifsType', mo.category)}
                 </span>
               </div>
 
@@ -121,6 +123,7 @@ function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
  * ============================================================ */
 
 function MotifDetailView({ motif }: { motif: Motif }) {
+  const enumLabel = useDbEnumLabel();
   const { components, constraints, emotionalRanges, eventBlockEmotionals, eventBlocks, eventTransitions, genres, motifApplicableGenres, motifConstraints, stateDownByRules, stateRules, states } = useSystemPromptCatalog();
   const t = useT();
   const [viewMode, setViewMode] = useState<'default' | 'canvas'>('default');
@@ -180,7 +183,7 @@ function MotifDetailView({ motif }: { motif: Motif }) {
                 CATEGORY_COLOR[motif.category],
               )}
             >
-              {humanize(motif.category)}
+              {enumLabel('MotifsType', motif.category)}
             </span>
             {motif.isSystem && (
               <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
@@ -246,16 +249,18 @@ function MotifDetailView({ motif }: { motif: Motif }) {
       </div>
 
       {viewMode === 'canvas' ? (
-        <MotifCanvas
-          motif={motif}
-          eventBlocks={motifEventBlocks}
-          eventTransitions={eventTransitions.filter((et) =>
-            motifEventBlocks.some((eb) => eb.id === et.fromEventBlockId),
-          )}
-          componentById={componentById}
-          stateById={stateById}
-          emotionsForEventBlock={emotionsForEventBlock}
-        />
+        <Suspense fallback={<p role="status" className="text-sm text-fg-muted">Đang mở sơ đồ…</p>}>
+          <MotifCanvas
+            motif={motif}
+            eventBlocks={motifEventBlocks}
+            eventTransitions={eventTransitions.filter((et) =>
+              motifEventBlocks.some((eb) => eb.id === et.fromEventBlockId),
+            )}
+            componentById={componentById}
+            stateById={stateById}
+            emotionsForEventBlock={emotionsForEventBlock}
+          />
+        </Suspense>
       ) : (
         <>
           {/* Motif Constraints */}

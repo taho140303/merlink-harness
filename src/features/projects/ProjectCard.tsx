@@ -1,6 +1,7 @@
 import { Eye, Trash2 } from "lucide-react";
 import type { ProjectItem } from "./types";
 import { useT } from "@/shared/i18n/useT";
+import { useDbEnumLabel } from "@/shared/i18n/dbEnums";
 
 interface ProjectCardProps {
   project: ProjectItem;
@@ -10,8 +11,9 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onDelete, onOverview }: ProjectCardProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
   return (
-    <div className="group relative flex rounded-shell-sm p-5 neu-flat transition-colors duration-300 hover:scale-[1.01]">
+    <div className="group relative flex rounded-shell-sm p-5 neu-flat transition-colors duration-300">
       <button
         type="button"
         onClick={() => onDelete(project)}
@@ -38,7 +40,7 @@ export function ProjectCard({ project, onDelete, onOverview }: ProjectCardProps)
           </div>
           <div className="mt-2">
             <span className="rounded-lg px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-indigo-600 neu-pressed dark:text-indigo-400">
-              {project.status}
+              {enumLabel('ContentStatus', project.status.toUpperCase().replaceAll(' ', '_'))}
             </span>
           </div>
           <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-fg-muted -subtle">

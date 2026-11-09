@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Layers, ChevronDown, RotateCcw, ArrowRight, Check, MessageSquareQuote, CheckCircle2, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import type { DraftVersion } from './types';
 
 export interface DraftToolbarProps {
@@ -45,6 +46,7 @@ export function DraftToolbar({
   manualRepairMessage,
 }: DraftToolbarProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
   const [versionOpen, setVersionOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -111,7 +113,7 @@ export function DraftToolbar({
                   <div className="flex flex-col text-left">
                     <span className="font-mono">{v.version}</span>
                     {(v as any).reason && (
-                      <span className="text-[10px] text-fg-subtle line-clamp-1">{(v as any).reason}</span>
+                      <span className="text-[10px] text-fg-subtle line-clamp-1">{enumLabel('DraftVersionReason', (v as any).reason)}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

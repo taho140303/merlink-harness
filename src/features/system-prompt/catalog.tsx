@@ -28,6 +28,16 @@ export interface SystemPromptCatalog {
   themeArguments: T.ThemeArgument[];
 }
 
+export type SystemPromptTab = 'motifs' | 'stylePresets' | 'narrativeDirectives' | 'themes' | 'genres';
+
+const tabKeys: Record<SystemPromptTab, readonly (keyof SystemPromptCatalog)[]> = {
+  motifs: ['motifs', 'genres', 'motifApplicableGenres', 'components', 'states', 'stateRules', 'stateDownByRules', 'emotionalRanges', 'eventBlocks', 'eventTransitions', 'constraints', 'motifConstraints', 'eventBlockEmotionals'],
+  stylePresets: ['stylePresets', 'rhetoricalDevices', 'stylePresetRhetoricalDevices', 'stylePresetVocabItems', 'stylePresetFocusItems', 'stylePresetNarratives', 'narrativeDirectives'],
+  narrativeDirectives: ['narratorConfigs', 'narrativeDirectives'],
+  themes: ['themes', 'themeArguments'],
+  genres: ['genres', 'motifs', 'motifApplicableGenres'],
+};
+
 const catalogKeys = [
   'motifs', 'genres', 'motifApplicableGenres', 'components', 'states',
   'stateRules', 'stateDownByRules', 'emotionalRanges', 'eventBlocks',
@@ -60,18 +70,18 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   return normalized;
 }
 
-export async function loadSystemPromptCatalog(): Promise<SystemPromptCatalog> {
-  const raw = await invoke<Record<string, Record<string, unknown>[]>>('get_system_prompt_catalog');
+export async function loadSystemPromptCatalog(tab: SystemPromptTab): Promise<Partial<SystemPromptCatalog>> {
+  const raw = await invoke<Record<string, Record<string, unknown>[]>>('get_system_prompt_catalog', { tab });
   const result: Record<string, unknown> = {};
-  for (const key of catalogKeys) {
+  for (const key of tabKeys[tab]) {
     if (!Array.isArray(raw[key])) throw new Error(`Catalog response is missing ${key}`);
     result[key] = raw[key].map(normalizeRow);
   }
   // Theme scope is a display-only projection derived from its arc association.
-  const catalog = result as unknown as SystemPromptCatalog;
-  catalog.themes = catalog.themes.map((theme) => ({
-    ...theme,
-    scope: theme.arcId ? 'ARC' : 'PROJECT',
-  }));
+  const catalog = result as Partial<SystemPromptCatalog>;
+  if (catalog.themes) catalog.themes = catalog.themes.map((theme) => ({
+      ...theme,
+      scope: theme.arcId ? 'ARC' : 'PROJECT',
+    }));
   return catalog;
 }

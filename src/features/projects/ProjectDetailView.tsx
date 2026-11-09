@@ -8,6 +8,7 @@ import { useIsCompact } from "@/shared/hooks/useMediaQuery";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/components/ui/dialog";
 import { Segmented } from "@/shared/components/ui/segmented";
 import { useT } from "@/shared/i18n/useT";
+import { useDbEnumLabel } from "@/shared/i18n/dbEnums";
 import { backendClient, type BackendClient } from "@/shared/backend/client";
 import type { CharacterLibraryItemDto } from "@/shared/backend/generated";
 import { ProjectChatPane } from "./ProjectChatPane";
@@ -27,6 +28,7 @@ export function ProjectDetailView({
   client: propClient,
 }: ProjectDetailViewProps = {}) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
   const isCompact = useIsCompact();
   const navigate = useNavigate();
   const { projectId: routeProjectId } = useParams();
@@ -254,7 +256,7 @@ export function ProjectDetailView({
                       {project.title}
                     </h2>
                     <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase text-white">
-                      {project.status}
+                      {enumLabel('ContentStatus', project.status.toUpperCase().replaceAll(' ', '_'))}
                     </span>
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-fg-muted">

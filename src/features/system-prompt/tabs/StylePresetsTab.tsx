@@ -3,6 +3,7 @@ import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
 import type { NarrativeWeight, TonePace } from '../types';
 
@@ -17,11 +18,12 @@ const PACE_COLOR: Record<TonePace, string> = {
 };
 
 function WeightMeter({ label, weight }: { label: string; weight: NarrativeWeight }) {
+  const enumLabel = useDbEnumLabel();
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs text-fg-muted">
         <span>{label}</span>
-        <span className="font-semibold text-fg-muted">{weight}</span>
+        <span className="font-semibold text-fg-muted">{enumLabel('NarrativeWeight', weight)}</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted ">
         <div
@@ -46,9 +48,11 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function StylePresetsTab() {
+  const enumLabel = useDbEnumLabel();
   const { narrativeDirectives, rhetoricalDevices, stylePresetFocusItems, stylePresetNarratives, stylePresetRhetoricalDevices, stylePresetVocabItems, stylePresets } = useSystemPromptCatalog();
   const t = useT();
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [expandedPresetId, setExpandedPresetId] = useState<string | null>(null);
   const categories = Array.from(new Set(stylePresets.map((preset) => preset.category))).sort();
 
   const filteredPresets = categoryFilter === 'ALL'
@@ -101,14 +105,19 @@ export function StylePresetsTab() {
         </div>
       ) : (
         filteredPresets.map((preset) => {
-          const rds = stylePresetRhetoricalDevices.filter((r) => r.presetId === preset.id);
-          const vocab = stylePresetVocabItems.filter((v) => v.presetId === preset.id);
-          const focus = stylePresetFocusItems.filter((f) => f.presetId === preset.id);
-          const narratives = stylePresetNarratives.filter((n) => n.stylePresetId === preset.id);
+          const expanded = expandedPresetId === preset.id;
+          const rds = expanded ? stylePresetRhetoricalDevices.filter((r) => r.presetId === preset.id) : [];
+          const vocab = expanded ? stylePresetVocabItems.filter((v) => v.presetId === preset.id) : [];
+          const focus = expanded ? stylePresetFocusItems.filter((f) => f.presetId === preset.id) : [];
+          const narratives = expanded ? stylePresetNarratives.filter((n) => n.stylePresetId === preset.id) : [];
 
           return (
             <details
               key={preset.id}
+              onToggle={(event) => {
+                const isOpen = event.currentTarget.open;
+                setExpandedPresetId((current) => isOpen ? preset.id : current === preset.id ? null : current);
+              }}
               className="group tier-card rounded-card"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
@@ -126,7 +135,7 @@ export function StylePresetsTab() {
                         PACE_COLOR[preset.tonePace],
                       )}
                     >
-                      {humanize(preset.tonePace)}
+                      {enumLabel('TonePace', preset.tonePace)}
                     </span>
                     {preset.isSystem && (
                       <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
@@ -143,7 +152,7 @@ export function StylePresetsTab() {
                 </span>
               </summary>
 
-              <div className="space-y-5 border-t border-line px-4 pb-4 pt-4 ">
+              {expanded && <div className="space-y-5 border-t border-line px-4 pb-4 pt-4 ">
                 {/* Sensory */}
                 <div>
                   <div className="mb-2 flex items-center gap-1.5">
@@ -176,7 +185,7 @@ export function StylePresetsTab() {
                         {t('sp.style.sentenceLength')}
                       </p>
                       <p className="text-xs font-semibold text-fg">
-                        {humanize(preset.syntaxSentence)}
+                        {enumLabel('SentenceLength', preset.syntaxSentence)}
                       </p>
                     </div>
                     <div>
@@ -184,7 +193,7 @@ export function StylePresetsTab() {
                         {t('sp.style.sentenceStructure')}
                       </p>
                       <p className="text-xs font-semibold text-fg">
-                        {humanize(preset.syntaxStructure)}
+                        {enumLabel('SentenceStructure', preset.syntaxStructure)}
                       </p>
                     </div>
                     <WeightMeter label={t('sp.style.sentenceVariation')} weight={preset.syntaxVariation} />
@@ -215,7 +224,7 @@ export function StylePresetsTab() {
                             className="flex flex-wrap items-start gap-2 rounded-lg border border-line bg-surface-muted px-2.5 py-2 text-xs  "
                           >
                             <span className={cn('rounded-full px-2 py-0.5 font-medium', usageColor)}>
-                              {t(`sp.style.usage.${r.usageType}`)}
+                              {enumLabel('RhetoricalUsage', r.usageType)}
                             </span>
                             <span className="font-semibold text-fg">
                               {dev?.description || humanize(dev?.code ?? '')}
@@ -298,7 +307,7 @@ export function StylePresetsTab() {
                               </p>
                             </div>
                             <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
-                              {sn.weight}
+                              {enumLabel('NarrativeWeight', sn.weight)}
                             </span>
                           </div>
                         );
@@ -306,7 +315,7 @@ export function StylePresetsTab() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
             </details>
           );
         })

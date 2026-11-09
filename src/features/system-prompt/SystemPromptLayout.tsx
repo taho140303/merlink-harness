@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronRight, Lock } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { Tabs } from '@/shared/components/ui/tabs';
 import { truncate } from '@/shared/utils/string';
 import { useT } from '@/shared/i18n/useT';
 import type { TKey } from '@/shared/i18n/dict';
-import { MotifsTab } from './tabs/MotifsTab';
-import { StylePresetsTab } from './tabs/StylePresetsTab';
-import { NarrativeDirectivesTab } from './tabs/NarrativeDirectivesTab';
-import { ThemesTab } from './tabs/ThemesTab';
-import { GenresTab } from './tabs/GenresTab';
-import { emptyCatalog, loadSystemPromptCatalog, SystemPromptCatalogProvider } from './catalog';
+import { emptyCatalog, loadSystemPromptCatalog, SystemPromptCatalogProvider, type SystemPromptTab } from './catalog';
 
-type SpTab = 'motifs' | 'stylePresets' | 'narrativeDirectives' | 'themes' | 'genres';
+const MotifsTab = lazy(() => import('./tabs/MotifsTab').then((module) => ({ default: module.MotifsTab })));
+const StylePresetsTab = lazy(() => import('./tabs/StylePresetsTab').then((module) => ({ default: module.StylePresetsTab })));
+const NarrativeDirectivesTab = lazy(() => import('./tabs/NarrativeDirectivesTab').then((module) => ({ default: module.NarrativeDirectivesTab })));
+const ThemesTab = lazy(() => import('./tabs/ThemesTab').then((module) => ({ default: module.ThemesTab })));
+const GenresTab = lazy(() => import('./tabs/GenresTab').then((module) => ({ default: module.GenresTab })));
+
+type SpTab = SystemPromptTab;
 
 const TAB_LABELS: Record<SpTab, TKey> = {
   motifs: 'sp.tab.motifs',
@@ -30,12 +31,18 @@ export function SystemPromptLayout() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [refreshToken, setRefreshToken] = useState(0);
+  const loadedTabs = useRef(new Set<SpTab>());
 
   useEffect(() => {
+    if (loadedTabs.current.has(tab)) {
+      setCatalogLoading(false);
+      return;
+    }
     let cancelled = false;
-    loadSystemPromptCatalog().then((data) => {
+    loadSystemPromptCatalog(tab).then((data) => {
       if (cancelled) return;
-      setCatalog(data);
+      setCatalog((current) => ({ ...current, ...data }));
+      loadedTabs.current.add(tab);
       setCatalogError(null);
     }).catch((error: unknown) => {
       if (!cancelled) setCatalogError(error instanceof Error ? error.message : String(error));
@@ -46,10 +53,9 @@ export function SystemPromptLayout() {
   }, [tab, refreshToken]);
 
   const handleTabChange = (newTab: SpTab) => {
-    if (newTab === tab) setRefreshToken((n) => n + 1);
-    else setTab(newTab);
+    if (newTab !== tab) setTab(newTab);
     setActiveChild(null);
-    setCatalogLoading(true);
+    setCatalogLoading(!loadedTabs.current.has(newTab));
   };
 
   return (
@@ -101,7 +107,7 @@ export function SystemPromptLayout() {
           </div>
           <p className="mt-1 text-xs text-fg-muted">{t('sp.subtitle')}</p>
         </div>
-        <button type="button" onClick={() => { setCatalogLoading(true); setRefreshToken((n) => n + 1); }} className="rounded-lg border border-line px-3 py-1.5 text-xs text-fg-muted hover:text-fg">Tải lại</button>
+        <button type="button" onClick={() => { loadedTabs.current.delete(tab); setCatalogLoading(true); setRefreshToken((n) => n + 1); }} className="rounded-lg border border-line px-3 py-1.5 text-xs text-fg-muted hover:text-fg">Tải lại</button>
       </div>
 
       {/* Tabs */}
@@ -119,6 +125,7 @@ export function SystemPromptLayout() {
       <div className="mt-6">
         {catalogLoading && <p role="status" className="mb-4 text-sm text-fg-muted">Đang tải dữ liệu tham chiếu…</p>}
         {catalogError && <p role="alert" className="mb-4 text-sm text-red-600">Không tải được dữ liệu tham chiếu: {catalogError}</p>}
+        {!catalogLoading && !catalogError && <Suspense fallback={<p role="status" className="text-sm text-fg-muted">Đang mở tab…</p>}>
         {tab === 'motifs' && (
           <MotifsTab activeChild={activeChild} onSelectChild={setActiveChild} />
         )}
@@ -126,6 +133,7 @@ export function SystemPromptLayout() {
         {tab === 'narrativeDirectives' && <NarrativeDirectivesTab />}
         {tab === 'themes' && <ThemesTab />}
         {tab === 'genres' && <GenresTab />}
+        </Suspense>}
       </div>
       </SystemPromptCatalogProvider>
     </div>

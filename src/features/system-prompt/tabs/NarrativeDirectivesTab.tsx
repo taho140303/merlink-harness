@@ -2,37 +2,12 @@ import { useState } from 'react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
-import { humanize } from '../shared/humanize';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
 import type {
   DirectiveCategory,
   GrammaticalPerson,
-  PovScope,
 } from '../types';
-
-const PERSON_LABEL: Record<GrammaticalPerson, string> = {
-  FIRST_PERSON: 'First-person',
-  SECOND_PERSON: 'Second-person',
-  THIRD_PERSON: 'Third-person',
-};
-
-const SCOPE_LABEL: Record<PovScope, string> = {
-  SINGLE_POV: 'Single POV',
-  MULTIPLE_POV: 'Multiple POV',
-  SHIFTING_OMNISCIENT: 'Shifting omniscient',
-};
-
-const PERSON_DESC: Record<GrammaticalPerson, string> = {
-  FIRST_PERSON: 'Narrator is a direct participant or witness, using I/me.',
-  SECOND_PERSON: 'Narrator addresses the reader or a character as "you".',
-  THIRD_PERSON: 'Narrator stands outside the story, using he/she/they.',
-};
-
-const SCOPE_DESC: Record<PovScope, string> = {
-  SINGLE_POV: 'One fixed viewpoint throughout the story.',
-  MULTIPLE_POV: 'Rotate viewpoints between characters across chapters or scenes.',
-  SHIFTING_OMNISCIENT: 'Omniscient narrator freely moves attention between characters.',
-};
 
 const CATEGORY_COLOR: Record<DirectiveCategory, string> = {
   PROSE_PRINCIPLE: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
@@ -62,6 +37,7 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function NarrativeDirectivesTab() {
+  const enumLabel = useDbEnumLabel();
   const { narrativeDirectives, narratorConfigs } = useSystemPromptCatalog();
   const t = useT();
   const [personFilter, setPersonFilter] = useState<PersonFilter>('ALL');
@@ -154,22 +130,20 @@ export function NarrativeDirectivesTab() {
                   <div className="flex items-center gap-1.5">
                     <span className="text-fg-subtle">{t('sp.narrator.person')}:</span>
                     <span className="font-medium text-fg">
-                      {PERSON_LABEL[nc.person]}
+                      {enumLabel('GrammaticalPerson', nc.person)}
                     </span>
-                    <InfoTooltip content={PERSON_DESC[nc.person]} />
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-fg-subtle">{t('sp.narrator.personSubtype')}:</span>
                     <span className="font-medium text-fg">
-                      {humanize(nc.personSubtype)}
+                      {enumLabel('PersonSubtype', nc.personSubtype)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-fg-subtle">{t('sp.narrator.povScope')}:</span>
                     <span className="font-medium text-fg">
-                      {SCOPE_LABEL[nc.povScope]}
+                      {enumLabel('PovScope', nc.povScope)}
                     </span>
-                    <InfoTooltip content={SCOPE_DESC[nc.povScope]} />
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     <span
@@ -213,7 +187,7 @@ export function NarrativeDirectivesTab() {
                     CATEGORY_COLOR[category],
                   )}
                 >
-                  {humanize(category)}
+                  {enumLabel('DirectiveCategory', category)}
                 </span>
               </div>
               <ul className="space-y-1.5">

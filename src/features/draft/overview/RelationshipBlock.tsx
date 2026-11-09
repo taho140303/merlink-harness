@@ -1,6 +1,7 @@
 import { HeartHandshake, Shield, Sparkles } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
+import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import type { DraftRelationship } from '../types';
 
 interface RelationshipBlockProps {
@@ -29,6 +30,7 @@ export function RelationshipBlock({
   onAttachFeedback,
 }: RelationshipBlockProps) {
   const t = useT();
+  const enumLabel = useDbEnumLabel();
 
   return (
     <div className="space-y-4">
@@ -84,7 +86,7 @@ export function RelationshipBlock({
                       roleBadgeColor[rel.role.hierarchy] || 'bg-surface-muted text-fg'
                     )}
                   >
-                    {rel.role.hierarchy}
+                    {enumLabel('Hierarchy', rel.role.hierarchy)}
                   </span>
                   <span
                     className={cn(
@@ -92,7 +94,7 @@ export function RelationshipBlock({
                       categoryBadgeColor[rel.role.category] || 'bg-surface-muted text-fg'
                     )}
                   >
-                    {rel.role.category}
+                    {enumLabel('CategoryGroup', rel.role.category)}
                   </span>
                 </div>
               </div>
