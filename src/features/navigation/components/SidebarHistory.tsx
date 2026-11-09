@@ -50,8 +50,11 @@ export function SidebarHistory({ collapsed, onExpand, client = backendClient }: 
   const loadHistory = useCallback(async () => {
     if (client.status === "unavailable") return;
     try {
-      const result = await client.listChatSessions({ limit: 100 });
-      setHistory((result.items || []).map(mapSessionSummaryToChatItem));
+      const result = await client.listChatSessions({ limit: 100, hasMessages: true });
+      const validItems = (result.items || []).filter(
+        (session) => session.messageCount === undefined || session.messageCount === null || session.messageCount > 0,
+      );
+      setHistory(validItems.map(mapSessionSummaryToChatItem));
     } catch (error) {
       console.warn("Failed to load chat history from backend:", error);
     }

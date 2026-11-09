@@ -173,6 +173,7 @@ fn P2S5_P_all_40_command_dto_pairs_typecheck_and_roundtrip_camelcase() {
         project_id: Some(dummy_uuid),
         limit: Some(10),
         cursor: None,
+        has_messages: None,
     };
     let resp2 = ChatSessionListDto {
         items: vec![SessionSummaryDto {
@@ -182,6 +183,7 @@ fn P2S5_P_all_40_command_dto_pairs_typecheck_and_roundtrip_camelcase() {
             status: "editing".to_string(),
             updated_at: "2026-11-08T00:00:00Z".to_string(),
             display_name: Some("Hello worl".to_string()),
+            message_count: None,
         }],
         next_cursor: None,
     };

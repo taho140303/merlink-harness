@@ -225,16 +225,24 @@ pub fn exec_list_chat_sessions(
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
     let limit = req.limit.unwrap_or(20).clamp(1, 100) as usize;
+    let filter_has_messages = req.has_messages.unwrap_or(false);
+    let msg_filter = if filter_has_messages {
+        " AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id)"
+    } else {
+        ""
+    };
 
     let (query, query_params): (String, Vec<rusqlite::types::Value>) = match (&req.project_id, &req.cursor) {
         (Some(pid), Some(cur)) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
-             FROM sessions s
-             LEFT JOIN draft_sessions d ON s.id = d.session_id
-             WHERE s.project_id = ?1 AND s.created_at < ?2
-             ORDER BY s.created_at DESC
-             LIMIT ?3"
-                .to_string(),
+            format!(
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                 FROM sessions s
+                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 WHERE s.project_id = ?1 AND s.created_at < ?2{}
+                 ORDER BY s.created_at DESC
+                 LIMIT ?3",
+                msg_filter
+            ),
             vec![
                 pid.to_string().into(),
                 cur.clone().into(),
@@ -242,32 +250,39 @@ pub fn exec_list_chat_sessions(
             ],
         ),
         (Some(pid), None) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
-             FROM sessions s
-             LEFT JOIN draft_sessions d ON s.id = d.session_id
-             WHERE s.project_id = ?1
-             ORDER BY s.created_at DESC
-             LIMIT ?2"
-                .to_string(),
+            format!(
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                 FROM sessions s
+                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 WHERE s.project_id = ?1{}
+                 ORDER BY s.created_at DESC
+                 LIMIT ?2",
+                msg_filter
+            ),
             vec![pid.to_string().into(), ((limit + 1) as i64).into()],
         ),
         (None, Some(cur)) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
-             FROM sessions s
-             LEFT JOIN draft_sessions d ON s.id = d.session_id
-             WHERE s.created_at < ?1
-             ORDER BY s.created_at DESC
-             LIMIT ?2"
-                .to_string(),
+            format!(
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                 FROM sessions s
+                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 WHERE s.created_at < ?1{}
+                 ORDER BY s.created_at DESC
+                 LIMIT ?2",
+                msg_filter
+            ),
             vec![cur.clone().into(), ((limit + 1) as i64).into()],
         ),
         (None, None) => (
-            "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name
-             FROM sessions s
-             LEFT JOIN draft_sessions d ON s.id = d.session_id
-             ORDER BY s.created_at DESC
-             LIMIT ?1"
-                .to_string(),
+            format!(
+                "SELECT s.id, d.id, s.project_id, COALESCE(d.status, 'editing'), COALESCE(d.updated_at, s.created_at), s.display_name, (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id)
+                 FROM sessions s
+                 LEFT JOIN draft_sessions d ON s.id = d.session_id
+                 WHERE 1=1{}
+                 ORDER BY s.created_at DESC
+                 LIMIT ?1",
+                msg_filter
+            ),
             vec![((limit + 1) as i64).into()],
         ),
     };
@@ -293,6 +308,7 @@ pub fn exec_list_chat_sessions(
         let status: String = row.get(3).unwrap_or_else(|_| "editing".to_string());
         let updated_at: String = row.get(4).unwrap_or_default();
         let display_name: Option<String> = row.get(5).unwrap_or(None);
+        let message_count: Option<u32> = row.get(6).ok();
 
         items.push(SessionSummaryDto {
             session_id: sid,
@@ -301,6 +317,7 @@ pub fn exec_list_chat_sessions(
             status,
             updated_at,
             display_name,
+            message_count,
         });
     }
 

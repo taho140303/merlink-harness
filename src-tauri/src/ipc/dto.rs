@@ -479,6 +479,8 @@ pub struct SessionSummaryDto {
     /// Session title derived from the first user message (max 10 characters).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub message_count: Option<u32>,
 }
 
 // ============================================================================
@@ -523,6 +525,8 @@ pub struct ListChatSessionsReq {
     pub limit: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_messages: Option<bool>,
 }
 
 /// Command 2: `list_chat_sessions` Response

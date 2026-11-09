@@ -919,6 +919,7 @@ fn test_IPC_CMD_002_list_chat_sessions() {
         project_id: Some(proj_id),
         limit: Some(10),
         cursor: None,
+        has_messages: None,
     };
 
     let list_res = exec_list_chat_sessions(&orchestrator, &req).unwrap();

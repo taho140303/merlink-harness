@@ -367,6 +367,8 @@ export interface SessionSummaryDto {
   projectId?: string | null;
   status: string;
   updatedAt: string;
+  displayName?: string | null;
+  messageCount?: number | null;
 }
 
 // ============================================================================
@@ -394,6 +396,7 @@ export interface ListChatSessionsReq {
   projectId?: string | null;
   limit?: number | null;
   cursor?: string | null;
+  hasMessages?: boolean | null;
 }
 
 export interface ChatSessionListDto {
