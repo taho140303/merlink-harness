@@ -5,17 +5,12 @@ import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
 import { useDbEnumLabel } from '@/shared/i18n/dbEnums';
 import { useSystemPromptCatalog } from '../catalog';
-import type { NarrativeWeight, RhetoricalUsage, StylePresetRhetoricalDevice, TonePace } from '../types';
+import type { NarrativeWeight, TonePace } from '../types';
+import { sortRhetoricalDevices, STYLE_PRESET_CATEGORY_KEYS } from '../stylePresetUtils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/components/ui/dialog';
 import { Info } from 'lucide-react';
 
 const WEIGHT_PCT: Record<NarrativeWeight, number> = { NONE: 0, LOW: 33, MEDIUM: 66, HIGH: 100 };
-const RHETORICAL_ORDER: Record<RhetoricalUsage, number> = { primary: 0, secondary: 1, avoid: 2 };
-
-export function sortRhetoricalDevices(items: StylePresetRhetoricalDevice[]): StylePresetRhetoricalDevice[] {
-  return [...items].sort((a, b) => RHETORICAL_ORDER[a.usageType] - RHETORICAL_ORDER[b.usageType]);
-}
-
 const PACE_COLOR: Record<TonePace, string> = {
   VERY_LOW: 'bg-surface-muted text-fg-muted  ',
   LOW: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
@@ -61,6 +56,10 @@ export function StylePresetsTab() {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [expandedPresetId, setExpandedPresetId] = useState<string | null>(null);
   const categories = Array.from(new Set(stylePresets.map((preset) => preset.category))).sort();
+  const categoryLabel = (category: string) => {
+    const key = STYLE_PRESET_CATEGORY_KEYS[category];
+    return key ? t(key) : t('sp.common.category');
+  };
 
   const filteredPresets = categoryFilter === 'ALL'
     ? stylePresets
@@ -86,7 +85,7 @@ export function StylePresetsTab() {
                 : 'text-fg-muted hover:text-fg -subtle '
             )}
           >
-            All
+            {t('sp.style.allCategories')}
           </button>
           {categories.map(cat => (
             <button
@@ -100,7 +99,7 @@ export function StylePresetsTab() {
                   : 'text-fg-muted hover:text-fg -subtle '
               )}
             >
-              {humanize(cat)}
+              {categoryLabel(cat)}
             </button>
           ))}
         </div>
@@ -127,7 +126,7 @@ export function StylePresetsTab() {
                       {humanize(preset.code.split('/').pop() ?? preset.code)}
                     </h4>
                     <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
-                      {preset.category}
+                      {categoryLabel(preset.category)}
                     </span>
                     <span
                       className={cn(
@@ -158,7 +157,7 @@ export function StylePresetsTab() {
                 <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto p-0">
                   <div className="border-b border-line px-5 py-4 pr-12">
                     <DialogTitle className="text-base font-semibold text-fg">{humanize(preset.code.split('/').pop() ?? preset.code)}</DialogTitle>
-                    <DialogDescription className="mt-1 text-xs text-fg-muted">{preset.category} · {preset.toneEmotion}</DialogDescription>
+                    <DialogDescription className="mt-1 text-xs text-fg-muted">{categoryLabel(preset.category)} · {preset.toneEmotion}</DialogDescription>
                   </div>
               <div className="space-y-5 px-5 pb-5 pt-4">
                 {/* Sensory */}
