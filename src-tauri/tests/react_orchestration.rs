@@ -236,6 +236,9 @@ pub mod cascade_delete;
 #[path = "../src/domain/tools/write_tools.rs"]
 pub mod write_tools;
 
+#[path = "../src/domain/tools/read_tools.rs"]
+pub mod read_tools;
+
 pub mod domain {
     pub use crate::business_flow;
     pub use crate::cascade_delete;
@@ -246,6 +249,7 @@ pub mod domain {
     pub use crate::word_count;
     pub mod tools {
         pub use crate::registry;
+        pub use crate::read_tools;
         pub use crate::write_tools;
     }
 }
@@ -651,7 +655,7 @@ async fn test_P3S7_N_three_consecutive_rejections_stops_loop_requests_clarificat
         .unwrap();
 
     assert!(result.assistant_text.contains("Tôi gặp khó khăn khi thao tác"));
-    assert!(result.sealed_version.is_none(), "No version should be sealed when no mutations applied");
+    assert!(result.sealed_version.is_some(), "Initial system language should be sealed on the first turn");
 
     // Verify messages saved
     let conn = pool.get().unwrap();
@@ -772,6 +776,7 @@ async fn test_P3S7_CANCEL_mid_turn_seals_applied_changes_and_marks_cancelled() {
     let provider = Arc::new(MockLlmProvider::new());
     let user_msg_id = Uuid::new_v4();
     let turn_id = Uuid::new_v4();
+    orchestrator.save_message(user_msg_id, &sess_id, turn_id, "user", "Cancel me", None).unwrap();
 
     // Running turn with pre-cancelled token
     let res = orchestrator

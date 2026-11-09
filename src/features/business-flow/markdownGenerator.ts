@@ -86,8 +86,8 @@ export function generateRequireMarkdown(
   const characters = data?.require?.character ?? [];
   const genres = project?.genres ?? [];
 
-  const displayName = readText(project?.display_name);
-  const language = readText(project?.language);
+  const displayName = readText(project?.display_name) || (lang === 'vi' ? 'chưa có tên' : 'untitled');
+  const language = readText(project?.language).toUpperCase() || (lang === 'vi' ? 'VI' : 'EN');
   const arcCount = readNumber(project?.target?.arc_count);
   const chapterCount = readNumber(project?.target?.chapter_count);
   const wordPerChapter = readNumber(project?.target?.word_per_chapter_count);
@@ -105,7 +105,7 @@ export function generateRequireMarkdown(
     // Overview Section
     const overviewLines = [
       '## Overview',
-      `Dự án tên ${formatVal(displayName)}, sử dụng ngôn ngữ sáng tác là ${formatVal(languageLabel)}. Mục tiêu quy mô tác phẩm được thiết lập gồm ${formatVal(arcCount)} phân đoạn arc lớn, dự kiến đạt ${formatVal(chapterCount)} chương với mật độ bình quân ${formatVal(wordPerChapter)} từ mỗi chương.`,
+      `Dự án tên ${formatVal(displayName)} , sử dụng ngôn ngữ sáng tác là ${formatVal(languageLabel)}. Mục tiêu quy mô tác phẩm được thiết lập gồm ${formatVal(arcCount)} phân đoạn arc lớn, dự kiến đạt ${formatVal(chapterCount)} chương với mật độ bình quân ${formatVal(wordPerChapter)} từ mỗi chương.`,
     ];
 
     // Content Section

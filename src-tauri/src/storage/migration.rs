@@ -8,13 +8,16 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 4;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 7;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
 pub const MIGRATION_0002_SQL: &str = include_str!("../../migrations/0002_seed_reference_data.sql");
 pub const MIGRATION_0003_SQL: &str = include_str!("../../migrations/0003_sf06_b_plus.sql");
 pub const MIGRATION_0004_SQL: &str = include_str!("../../migrations/0004_seed_style_presets.sql");
+pub const MIGRATION_0005_SQL: &str = include_str!("../../migrations/0005_seed_prompts.sql");
+pub const MIGRATION_0006_SQL: &str = include_str!("../../migrations/0006_seed_prompt_read_tools.sql");
+pub const MIGRATION_0007_SQL: &str = include_str!("../../migrations/0007_fix_prompt_identity.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -105,6 +108,9 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         2 => Ok(MIGRATION_0002_SQL),
         3 => Ok(MIGRATION_0003_SQL),
         4 => Ok(MIGRATION_0004_SQL),
+        5 => Ok(MIGRATION_0005_SQL),
+        6 => Ok(MIGRATION_0006_SQL),
+        7 => Ok(MIGRATION_0007_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -168,6 +174,29 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
     Ok(())
 }
 
+#[cfg(test)]
+mod prompt_seed_tests {
+    use super::*;
+
+    #[test]
+    fn test_prompt_seed_contains_merlink_identity_and_callable_tools() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let identity: String = conn.query_row(
+            "SELECT content FROM prompt_blocks WHERE prompt_code = 'introduction'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert!(identity.contains("Merlink Harness"));
+        let tool_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM prompt_block_tools",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(tool_count, 8);
+    }
+}
+
 /// Run migrations including physical backup creation when upgrading an existing non-empty DB (§3.4, DB-P02, MIG-02).
 pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) -> Result<(), DbError> {
     let current_version = get_user_version(conn)?;
@@ -193,7 +222,7 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 /// Verify schema structure, constraints, indexes, and referential integrity (§3.5, MIG-05).
 ///
 /// Checks:
-/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (4)
+/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (7)
 /// 2. PRAGMA quick_check(1) == "ok"
 /// 3. Exactly 66 target tables exist and NO `_schema_migrations` table
 /// 4. Mandatory columns, types, NOT NULL and CHECK constraints:

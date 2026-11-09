@@ -93,7 +93,7 @@ fn P2S3_P_disposable_new_db_has_exactly_66_target_tables_composite_fks_and_pragm
     assert_eq!(foreign_keys, 1, "foreign_keys must be ON (1)");
 
     let user_version = get_user_version(&conn).expect("user_version");
-    assert_eq!(user_version, 4);
+    assert_eq!(user_version, MAX_SUPPORTED_SCHEMA_VERSION);
     let style_preset_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM style_presets", [], |row| row.get(0))
         .expect("seeded style presets");
@@ -231,9 +231,9 @@ fn P2S3_B_simulated_upgrade_keeps_old_receipts_byte_identical_and_new_fields_nul
         [legacy_task_id, draft_id, run_id]
     ).unwrap();
 
-    // Now upgrade through v3 to v4
+    // Now upgrade through all registered migrations.
     run_migrations(&mut conn).unwrap();
-    assert_eq!(get_user_version(&conn).unwrap(), 4);
+    assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
 
     // Query upgraded receipt
     let (id, task_ident, in_fp, out_fp, round_id, task_idx, evidence): (
