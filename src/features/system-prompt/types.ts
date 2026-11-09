@@ -200,7 +200,6 @@ export interface Theme {
   id: string;
   code: string;
   scope: ThemeScope;
-  projectId: string;
   arcId?: string;
   parentThemeId?: string;
   question: string;

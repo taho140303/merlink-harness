@@ -4,21 +4,7 @@ import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
-import {
-  components,
-  constraints,
-  emotionalRanges,
-  eventBlockEmotionals,
-  eventBlocks,
-  eventTransitions,
-  genres,
-  motifApplicableGenres,
-  motifConstraints,
-  motifs,
-  stateDownByRules,
-  stateRules,
-  states,
-} from '../mockData';
+import { useSystemPromptCatalog } from '../catalog';
 import { MotifCanvas } from '../canvas/MotifCanvas';
 import type { Motif, MotifCategory } from '../types';
 
@@ -35,6 +21,7 @@ interface MotifsTabProps {
 }
 
 export function MotifsTab({ activeChild, onSelectChild }: MotifsTabProps) {
+  const { motifs } = useSystemPromptCatalog();
   if (activeChild) {
     const motif = motifs.find((m) => m.id === activeChild.id);
     if (motif) {
@@ -50,6 +37,7 @@ export function MotifsTab({ activeChild, onSelectChild }: MotifsTabProps) {
  * ============================================================ */
 
 function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
+  const { genres, motifApplicableGenres, motifs } = useSystemPromptCatalog();
   const t = useT();
   const genreById = new Map(genres.map((g) => [g.id, g]));
 
@@ -62,6 +50,7 @@ function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
   return (
     <div className="space-y-4">
       <p className="text-xs text-fg-muted">{t('sp.motifs.clickHint')}</p>
+      {motifs.length === 0 && <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">Chưa có motif trong cơ sở dữ liệu.</p>}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {motifs.map((mo) => {
@@ -132,6 +121,7 @@ function MotifListView({ onSelect }: { onSelect: (motif: Motif) => void }) {
  * ============================================================ */
 
 function MotifDetailView({ motif }: { motif: Motif }) {
+  const { components, constraints, emotionalRanges, eventBlockEmotionals, eventBlocks, eventTransitions, genres, motifApplicableGenres, motifConstraints, stateDownByRules, stateRules, states } = useSystemPromptCatalog();
   const t = useT();
   const [viewMode, setViewMode] = useState<'default' | 'canvas'>('default');
 

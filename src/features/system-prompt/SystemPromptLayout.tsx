@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronRight, Lock } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { Tabs } from '@/shared/components/ui/tabs';
@@ -10,6 +10,7 @@ import { StylePresetsTab } from './tabs/StylePresetsTab';
 import { NarrativeDirectivesTab } from './tabs/NarrativeDirectivesTab';
 import { ThemesTab } from './tabs/ThemesTab';
 import { GenresTab } from './tabs/GenresTab';
+import { emptyCatalog, loadSystemPromptCatalog, SystemPromptCatalogProvider } from './catalog';
 
 type SpTab = 'motifs' | 'stylePresets' | 'narrativeDirectives' | 'themes' | 'genres';
 
@@ -25,10 +26,30 @@ export function SystemPromptLayout() {
   const t = useT();
   const [tab, setTab] = useState<SpTab>('motifs');
   const [activeChild, setActiveChild] = useState<{ id: string; name: string } | null>(null);
+  const [catalog, setCatalog] = useState(emptyCatalog);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSystemPromptCatalog().then((data) => {
+      if (cancelled) return;
+      setCatalog(data);
+      setCatalogError(null);
+    }).catch((error: unknown) => {
+      if (!cancelled) setCatalogError(error instanceof Error ? error.message : String(error));
+    }).finally(() => {
+      if (!cancelled) setCatalogLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [tab, refreshToken]);
 
   const handleTabChange = (newTab: SpTab) => {
-    setTab(newTab);
+    if (newTab === tab) setRefreshToken((n) => n + 1);
+    else setTab(newTab);
     setActiveChild(null);
+    setCatalogLoading(true);
   };
 
   return (
@@ -80,6 +101,7 @@ export function SystemPromptLayout() {
           </div>
           <p className="mt-1 text-xs text-fg-muted">{t('sp.subtitle')}</p>
         </div>
+        <button type="button" onClick={() => { setCatalogLoading(true); setRefreshToken((n) => n + 1); }} className="rounded-lg border border-line px-3 py-1.5 text-xs text-fg-muted hover:text-fg">Tải lại</button>
       </div>
 
       {/* Tabs */}
@@ -93,7 +115,10 @@ export function SystemPromptLayout() {
       />
 
       {/* Content */}
+      <SystemPromptCatalogProvider value={catalog}>
       <div className="mt-6">
+        {catalogLoading && <p role="status" className="mb-4 text-sm text-fg-muted">Đang tải dữ liệu tham chiếu…</p>}
+        {catalogError && <p role="alert" className="mb-4 text-sm text-red-600">Không tải được dữ liệu tham chiếu: {catalogError}</p>}
         {tab === 'motifs' && (
           <MotifsTab activeChild={activeChild} onSelectChild={setActiveChild} />
         )}
@@ -102,6 +127,7 @@ export function SystemPromptLayout() {
         {tab === 'themes' && <ThemesTab />}
         {tab === 'genres' && <GenresTab />}
       </div>
+      </SystemPromptCatalogProvider>
     </div>
   );
 }

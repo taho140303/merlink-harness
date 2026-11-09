@@ -2,7 +2,7 @@ import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
-import { themeArguments, themes } from '../mockData';
+import { useSystemPromptCatalog } from '../catalog';
 import type { ThemeArgumentRole, ThemeResolutionType } from '../types';
 
 const RES_COLOR: Record<ThemeResolutionType, string> = {
@@ -31,6 +31,7 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function ThemesTab() {
+  const { themeArguments, themes } = useSystemPromptCatalog();
   const t = useT();
 
   const argsForTheme = (themeId: string) =>
@@ -41,6 +42,7 @@ export function ThemesTab() {
   return (
     <div className="space-y-6">
       <SectionTitle title={t('sp.themes.title')} description={t('sp.themes.desc')} />
+      {themes.length === 0 && <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-fg-muted">Chưa có chủ đề trong cơ sở dữ liệu.</p>}
 
       {themes.map((th) => {
         const args = argsForTheme(th.id);

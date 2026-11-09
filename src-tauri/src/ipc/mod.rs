@@ -9,6 +9,7 @@ pub mod draft_commands;
 pub mod dto;
 pub mod patch_commands;
 pub mod provider_probe_commands;
+pub mod system_prompt_commands;
 pub mod project_commands;
 pub mod workflow_commands;
 pub mod writing_generation_commands;

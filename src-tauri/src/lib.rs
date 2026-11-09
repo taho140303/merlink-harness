@@ -185,6 +185,7 @@ pub fn create_builder() -> tauri::Builder<tauri::Wry> {
             // Auxiliary diagnostics (outside the 40-command master catalog)
             crate::ipc::provider_probe_commands::test_provider_connection,
             crate::ipc::provider_probe_commands::fetch_provider_models,
+            crate::ipc::system_prompt_commands::get_system_prompt_catalog,
         ])
 }
 

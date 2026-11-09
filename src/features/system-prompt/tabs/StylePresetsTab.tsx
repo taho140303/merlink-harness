@@ -3,15 +3,7 @@ import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
-import {
-  narrativeDirectives,
-  rhetoricalDevices,
-  stylePresetFocusItems,
-  stylePresetNarratives,
-  stylePresetRhetoricalDevices,
-  stylePresetVocabItems,
-  stylePresets,
-} from '../mockData';
+import { useSystemPromptCatalog } from '../catalog';
 import type { NarrativeWeight, TonePace } from '../types';
 
 const WEIGHT_PCT: Record<NarrativeWeight, number> = { NONE: 0, LOW: 33, MEDIUM: 66, HIGH: 100 };
@@ -23,9 +15,6 @@ const PACE_COLOR: Record<TonePace, string> = {
   FAST: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
   VERY_FAST: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
 };
-
-// Extract unique categories for the filter
-const CATEGORIES = Array.from(new Set(stylePresets.map(p => p.category))).sort();
 
 function WeightMeter({ label, weight }: { label: string; weight: NarrativeWeight }) {
   return (
@@ -57,8 +46,10 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function StylePresetsTab() {
+  const { narrativeDirectives, rhetoricalDevices, stylePresetFocusItems, stylePresetNarratives, stylePresetRhetoricalDevices, stylePresetVocabItems, stylePresets } = useSystemPromptCatalog();
   const t = useT();
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const categories = Array.from(new Set(stylePresets.map((preset) => preset.category))).sort();
 
   const filteredPresets = categoryFilter === 'ALL'
     ? stylePresets
@@ -86,7 +77,7 @@ export function StylePresetsTab() {
           >
             All
           </button>
-          {CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <button
               key={cat}
               type="button"
@@ -124,7 +115,7 @@ export function StylePresetsTab() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold text-fg">
-                      {preset.code}
+                      {humanize(preset.code.split('/').pop() ?? preset.code)}
                     </h4>
                     <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
                       {preset.category}
@@ -227,7 +218,7 @@ export function StylePresetsTab() {
                               {t(`sp.style.usage.${r.usageType}`)}
                             </span>
                             <span className="font-semibold text-fg">
-                              {humanize(dev?.code ?? '')}
+                              {dev?.description || humanize(dev?.code ?? '')}
                             </span>
                             {r.customInstruction && (
                               <span className="text-fg-muted">

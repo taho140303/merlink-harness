@@ -8,12 +8,13 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 3;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 4;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
 pub const MIGRATION_0002_SQL: &str = include_str!("../../migrations/0002_seed_reference_data.sql");
 pub const MIGRATION_0003_SQL: &str = include_str!("../../migrations/0003_sf06_b_plus.sql");
+pub const MIGRATION_0004_SQL: &str = include_str!("../../migrations/0004_seed_style_presets.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -103,6 +104,7 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         1 => Ok(MIGRATION_0001_SQL),
         2 => Ok(MIGRATION_0002_SQL),
         3 => Ok(MIGRATION_0003_SQL),
+        4 => Ok(MIGRATION_0004_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -191,7 +193,7 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 /// Verify schema structure, constraints, indexes, and referential integrity (§3.5, MIG-05).
 ///
 /// Checks:
-/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (3)
+/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (4)
 /// 2. PRAGMA quick_check(1) == "ok"
 /// 3. Exactly 66 target tables exist and NO `_schema_migrations` table
 /// 4. Mandatory columns, types, NOT NULL and CHECK constraints:

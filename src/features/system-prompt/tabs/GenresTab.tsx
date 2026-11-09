@@ -1,6 +1,6 @@
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
-import { genres, motifApplicableGenres, motifs } from '../mockData';
+import { useSystemPromptCatalog } from '../catalog';
 
 function SectionTitle({ title, description }: { title: string; description: string }) {
   return (
@@ -15,6 +15,7 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function GenresTab() {
+  const { genres, motifApplicableGenres, motifs } = useSystemPromptCatalog();
   const t = useT();
 
 

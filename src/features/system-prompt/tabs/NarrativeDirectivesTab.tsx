@@ -3,7 +3,7 @@ import { cn } from '@/shared/utils/cn';
 import { useT } from '@/shared/i18n/useT';
 import { InfoTooltip } from '../shared/InfoTooltip';
 import { humanize } from '../shared/humanize';
-import { narrativeDirectives, narratorConfigs } from '../mockData';
+import { useSystemPromptCatalog } from '../catalog';
 import type {
   DirectiveCategory,
   GrammaticalPerson,
@@ -62,6 +62,7 @@ function SectionTitle({ title, description }: { title: string; description: stri
 }
 
 export function NarrativeDirectivesTab() {
+  const { narrativeDirectives, narratorConfigs } = useSystemPromptCatalog();
   const t = useT();
   const [personFilter, setPersonFilter] = useState<PersonFilter>('ALL');
 

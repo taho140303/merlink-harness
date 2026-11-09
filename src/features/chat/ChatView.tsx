@@ -60,6 +60,16 @@ export interface ChatBackendState {
   lastError: string | null;
 }
 
+function withStartupTimeout<T>(promise: Promise<T>, step: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Chat startup timed out while ${step} (15s)`)), 15_000);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 function mapDtoToChatMessage(dto: ChatMessageDto): ChatMessage {
   return {
     id: dto.id,
@@ -652,9 +662,9 @@ export function ChatView({
       // Configuration and persisted messages are both required before revealing
       // the chat. Fetch configuration first so a failed setup cannot create a
       // throwaway session on every retry.
-      void backendClient.getRuntimeAndProviderConfig({}).then(() => {
+      void withStartupTimeout(backendClient.getRuntimeAndProviderConfig({}), "loading runtime configuration").then(() => {
         if (cancelled) return null;
-        return controller.initSession({ sessionId });
+        return withStartupTimeout(controller.initSession({ sessionId }), "loading the chat session");
       }).then((state) => {
         if (cancelled || !state) return;
         if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
@@ -676,8 +686,8 @@ export function ChatView({
 
   const retryInitialization = useCallback((forceNew = false) => {
     beginChatStartup?.();
-    void backendClient.getRuntimeAndProviderConfig({}).then(() =>
-      controller.initSession({ sessionId }, forceNew),
+    void withStartupTimeout(backendClient.getRuntimeAndProviderConfig({}), "loading runtime configuration").then(() =>
+      withStartupTimeout(controller.initSession({ sessionId }, forceNew), "loading the chat session"),
     ).then((state) => {
       if (state.initialized) window.dispatchEvent(new Event("merlink:chat-history-changed"));
       finishChatStartup?.();
