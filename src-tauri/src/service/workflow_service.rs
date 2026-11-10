@@ -1054,6 +1054,66 @@ impl WorkflowService {
         }
     }
 
+    /// Arc windows derived from the real `chapter_phase` Arc codes. Event-block chapter ranges are
+    /// honoured when present; otherwise the confirmed chapter target is split across the arcs in
+    /// order. Never invents codes that do not exist in the draft.
+    pub fn draft_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
+        let codes: Vec<String> = flow
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .map(|arc| arc.code.clone())
+            .collect();
+        if codes.is_empty() {
+            return Vec::new();
+        }
+        let chapter_count = flow.require.project.target.chapter_count.value.unwrap_or(0) as i32;
+        let per_arc = if chapter_count > 0 {
+            (chapter_count + codes.len() as i32 - 1) / codes.len() as i32
+        } else {
+            0
+        };
+        let mut ranges = Vec::new();
+        let mut start = 1;
+        for (index, code) in codes.iter().enumerate() {
+            let from_event_blocks = flow
+                .optional
+                .overview_phase
+                .arcs
+                .iter()
+                .find(|arc| arc.code == *code)
+                .map(|arc| {
+                    let mut lo = i32::MAX;
+                    let mut hi = 0;
+                    for block in &arc.motif.event_blocks {
+                        if let Some(value) = block.start_chapter.value {
+                            lo = lo.min(value as i32);
+                        }
+                        if let Some(value) = block.end_chapter.value {
+                            hi = hi.max(value as i32);
+                        }
+                    }
+                    (lo, hi)
+                })
+                .filter(|(lo, hi)| *lo != i32::MAX && *hi >= *lo)
+                .map(|(lo, hi)| (lo, hi));
+            if let Some((lo, hi)) = from_event_blocks {
+                ranges.push((code.clone(), lo, hi));
+                start = start.max(hi + 1);
+            } else if chapter_count > 0 && start <= chapter_count {
+                let end = if index == codes.len() - 1 {
+                    chapter_count
+                } else {
+                    (start + per_arc.max(1) - 1).min(chapter_count)
+                };
+                ranges.push((code.clone(), start, end));
+                start = end + 1;
+            }
+        }
+        ranges
+    }
+
     /// Deterministic Arc window fallback from the confirmed target counts (no entity names
     /// are fabricated: the codes only identify planning scopes, never draft entities).
     fn planned_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
@@ -1184,6 +1244,9 @@ impl WorkflowService {
                 let mut arc_ranges = extract_arc_chapter_ranges(flow)
                     .map_err(|e| invalid(e.to_string()))?;
                 if arc_ranges.is_empty() {
+                    arc_ranges = Self::draft_arc_ranges(flow);
+                }
+                if arc_ranges.is_empty() {
                     arc_ranges = Self::planned_arc_ranges(flow);
                 }
                 if arc_ranges.is_empty() {
@@ -1238,8 +1301,11 @@ impl WorkflowService {
             }
             3 => {
                 // Phase 3 Stage 1: chapter probes over the Arc ranges actually present in the draft.
-                let arc_ranges = extract_arc_chapter_ranges(flow)
+                let mut arc_ranges = extract_arc_chapter_ranges(flow)
                     .map_err(|e| invalid(e.to_string()))?;
+                if arc_ranges.is_empty() {
+                    arc_ranges = Self::draft_arc_ranges(flow);
+                }
                 if arc_ranges.is_empty() {
                     return Err(invalid(
                         "Phase 3 requires at least one Arc with chapters in the draft".into(),
@@ -1281,8 +1347,11 @@ impl WorkflowService {
             }
             4 => {
                 // Phase 4: scene configuration over the Arc ranges actually present in the draft.
-                let arc_ranges = extract_arc_chapter_ranges(flow)
+                let mut arc_ranges = extract_arc_chapter_ranges(flow)
                     .map_err(|e| invalid(e.to_string()))?;
+                if arc_ranges.is_empty() {
+                    arc_ranges = Self::draft_arc_ranges(flow);
+                }
                 if arc_ranges.is_empty() {
                     return Err(invalid(
                         "Phase 4 requires at least one Arc with chapters in the draft".into(),

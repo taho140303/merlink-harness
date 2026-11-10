@@ -1248,3 +1248,26 @@ async fn phase_prompts_expose_callable_write_tools() {
         "add_theme must be offered to the model"
     );
 }
+
+#[test]
+fn planning_uses_real_chapter_arc_codes() {
+    use crate::business_flow::{
+        BusinessFlowData, ChapterPhaseArcItem, RequireProjectTarget, TrackedField,
+    };
+    let mut flow = BusinessFlowData::default();
+    flow.require.project.target = RequireProjectTarget {
+        arc_count: TrackedField::user(2),
+        chapter_count: TrackedField::user(12),
+        word_per_chapter_count: TrackedField::user(3000),
+    };
+    flow.optional.chapter_phase.arcs = vec![
+        ChapterPhaseArcItem { code: "arc-1".into(), chapters: Vec::new() },
+        ChapterPhaseArcItem { code: "arc-2".into(), chapters: Vec::new() },
+    ];
+
+    let ranges = WorkflowService::draft_arc_ranges(&flow);
+    assert_eq!(ranges.len(), 2);
+    assert_eq!(ranges[0], ("arc-1".to_string(), 1, 6));
+    assert_eq!(ranges[1], ("arc-2".to_string(), 7, 12));
+    assert!(ranges.iter().all(|(code, _, _)| !code.starts_with("planned_arc")));
+}

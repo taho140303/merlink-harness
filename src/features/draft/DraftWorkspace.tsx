@@ -1029,21 +1029,42 @@ export function DraftWorkspace({
       .finally(() => setRunProgress(null));
   };
 
+  const advanceStep = () => {
+    if (currentStep === 'overview') setCurrentStep('chapter');
+    else if (currentStep === 'chapter') setCurrentStep('world');
+    else if (currentStep === 'world') setCurrentStep('scene');
+    else if (currentStep === 'scene') {
+      setCurrentStep('character');
+      setCurrentSubStep('appearance');
+    } else if (currentStep === 'character') {
+      if (currentSubStep === 'appearance') setCurrentSubStep('psychological');
+      else if (currentSubStep === 'psychological') setCurrentSubStep('lifeExperience');
+      else if (currentSubStep === 'lifeExperience') setCurrentStep('relationship');
+    }
+  };
+
+  // Advancing a step generates that phase first; only a successful run moves on.
   const executeNext = () => {
     setConfirmOpen(false);
-    triggerTransition(() => {
-      if (currentStep === 'overview') setCurrentStep('chapter');
-      else if (currentStep === 'chapter') setCurrentStep('world');
-      else if (currentStep === 'world') setCurrentStep('scene');
-      else if (currentStep === 'scene') {
-        setCurrentStep('character');
-        setCurrentSubStep('appearance');
-      } else if (currentStep === 'character') {
-        if (currentSubStep === 'appearance') setCurrentSubStep('psychological');
-        else if (currentSubStep === 'psychological') setCurrentSubStep('lifeExperience');
-        else if (currentSubStep === 'lifeExperience') setCurrentStep('relationship');
-      }
-    });
+    if (controllerState.workflowStatus === 'running') return;
+    const phase = phaseForStep[currentStep];
+    const subphase = currentStep === 'character'
+      ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
+      : null;
+    setTransitionPhase('loading');
+    controller
+      .startOrResumeWorkflow(phase, subphase)
+      .then(async () => {
+        await controller.loadWorkspaceState();
+        advanceStep();
+      })
+      .catch(() => {
+        /* stay on the current step and let the toolbar surface the failure */
+      })
+      .finally(() => {
+        setTransitionPhase('idle');
+        setLoadingIdx(0);
+      });
   };
 
   const handleStart = () => {
