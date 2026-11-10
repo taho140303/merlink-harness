@@ -727,6 +727,14 @@ export function ChatView({
   };
 
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [suggestionSeen, setSuggestionSeen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem('merlink.draftSuggestionSeen') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [feedbackContext, setFeedbackContext] = useState<FeedbackContext | null>(null);
   const [keyboardRatio, setKeyboardRatio] = useState<number | null>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
@@ -743,6 +751,9 @@ export function ChatView({
     }
     if (isDraftOpen) {
       setIsDraftOpen(false);
+    } else if (suggestionSeen) {
+      // The suggestion dialog is a one-time onboarding step.
+      setIsDraftOpen(true);
     } else {
       setIsSuggestionOpen(true);
     }
@@ -750,6 +761,12 @@ export function ChatView({
 
   const handleSuggestionConfirm = (suggestion?: string) => {
     setIsSuggestionOpen(false);
+    setSuggestionSeen(true);
+    try {
+      window.localStorage.setItem('merlink.draftSuggestionSeen', '1');
+    } catch {
+      /* storage unavailable: keep the dialog for this session only */
+    }
     if (!draftReady) return;
     setIsDraftOpen(true);
     if (suggestion && suggestion.trim()) {

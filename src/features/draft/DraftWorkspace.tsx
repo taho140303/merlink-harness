@@ -410,6 +410,42 @@ export class DraftBackendController {
   }
 
   /**
+   * Regenerates the current planning phase, keeping user-protected fields intact.
+   */
+  public async regeneratePhase(phase: number, subphase?: number | null): Promise<any> {
+    this.updateState({ workflowStatus: 'running' });
+    try {
+      const regenerateFn = this.client.regenerateDraftPhase
+        ? this.client.regenerateDraftPhase.bind(this.client)
+        : null;
+      if (!regenerateFn) throw new Error('regenerateDraftPhase not supported on client');
+      // Step 1: clear the AI-generated fields of this phase while keeping user data.
+      const cleared = await regenerateFn({
+        draftSessionId: this.state.draftSessionId,
+        phase,
+        subphase: subphase ?? null,
+        systemLanguage: 'vi',
+      });
+      if (cleared?.sealedVersion) {
+        this.updateState({
+          headVersionSeq: cleared.sealedVersion.seq,
+          currentVersionLabel: cleared.sealedVersion.displayLabel,
+        });
+      }
+      // Step 2: run the phase again so the model produces fresh content.
+      const regenerated = await this.startOrResumeWorkflow(phase, subphase);
+      // startOrResumeWorkflow already reduced the summary into workflowStatus.
+      this.updateState({
+        pendingPatches: regenerated.pendingPatches ?? this.state.pendingPatches,
+      });
+      return { cleared, regenerated };
+    } catch (err: any) {
+      this.updateState({ workflowStatus: 'failed', lastError: err });
+      throw err;
+    }
+  }
+
+  /**
    * Applies workflow execution summary into controller state.
    */
   public applyWorkflowExecutionResult(res: WorkflowExecutionSummaryDto) {
@@ -1019,9 +1055,16 @@ export function DraftWorkspace({
   };
 
   const executeRegenerate = () => {
-    triggerTransition(() => {
-      // Regenerate logic
-    });
+    setRegenerateConfirmOpen(false);
+    const phase = phaseForStep[currentStep];
+    const subphase = currentStep === 'character'
+      ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
+      : null;
+    controller
+      .regeneratePhase(phase, subphase)
+      .catch(() => {
+        /* controller state already exposes the failure */
+      });
   };
 
   const handleAttachFeedback = (id: string, tag: string, title: string) => {
