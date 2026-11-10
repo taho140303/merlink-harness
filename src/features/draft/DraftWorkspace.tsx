@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { MessageSquareQuote, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { DraftHeader } from './DraftHeader';
@@ -890,14 +890,17 @@ export function DraftWorkspace({
     controller.loadPendingPatches();
   }, [controller]);
 
+  // Defer the heavy JSON so a completed phase does not block input or animation frames.
+  const deferredBusinessFlowData = useDeferredValue(
+    controllerState.businessFlowData ?? propBusinessFlowData
+  );
   const overview = useMemo(() => {
     if (propOverview) return propOverview;
-    const activeBfd = controllerState.businessFlowData ?? propBusinessFlowData;
-    if (activeBfd) {
-      return mapBusinessFlowDataToDraftOverview(activeBfd, DRAFT_OVERVIEW);
+    if (deferredBusinessFlowData) {
+      return mapBusinessFlowDataToDraftOverview(deferredBusinessFlowData, DRAFT_OVERVIEW);
     }
     return DRAFT_OVERVIEW;
-  }, [propOverview, controllerState.businessFlowData, propBusinessFlowData]);
+  }, [propOverview, deferredBusinessFlowData]);
 
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
@@ -1030,18 +1033,35 @@ export function DraftWorkspace({
     return overview.versionHistory || [];
   }, [controllerState.versions, overview.versionHistory]);
 
+  // Reveal arcs in small batches instead of mounting the whole outline in one commit.
+  const ARC_BATCH_SIZE = 2;
+  const [visibleArcCount, setVisibleArcCount] = useState(ARC_BATCH_SIZE);
+  useEffect(() => {
+    setVisibleArcCount(ARC_BATCH_SIZE);
+  }, [overview.arcs.length, currentStep]);
+  useEffect(() => {
+    if (visibleArcCount >= overview.arcs.length) return;
+    const timer = setTimeout(
+      () => setVisibleArcCount((count) => Math.min(count + ARC_BATCH_SIZE, overview.arcs.length)),
+      16,
+    );
+    return () => clearTimeout(timer);
+  }, [visibleArcCount, overview.arcs.length]);
+
   const phaseOverview = useMemo(() => {
     const isStepOverview = currentStep === 'overview';
     const isStepRelationship = currentStep === 'relationship';
 
+    const revealedArcs = overview.arcs.slice(0, visibleArcCount);
+
     return {
       ...overview,
       arcs: isStepOverview
-        ? overview.arcs.map((arc) => ({
+        ? revealedArcs.map((arc) => ({
             ...arc,
             chapters: undefined,
           }))
-        : overview.arcs,
+        : revealedArcs,
       worldSettings: ['world', 'scene', 'character', 'relationship'].includes(currentStep)
         ? overview.worldSettings
         : undefined,
@@ -1079,7 +1099,10 @@ export function DraftWorkspace({
       }),
       relationships: isStepRelationship ? overview.relationships : undefined,
     };
-  }, [overview, currentStep, currentSubStep]);
+  }, [overview, currentStep, currentSubStep, visibleArcCount]);
+
+  // Keep typing/scrolling responsive while a large outline tree is committed.
+  const deferredPhaseOverview = useDeferredValue(phaseOverview);
 
   const isFading = transitionPhase === 'fade-out' || transitionPhase === 'loading';
 
@@ -1168,7 +1191,7 @@ export function DraftWorkspace({
           )}
         >
           <DraftOverviewBlock
-            overview={phaseOverview}
+            overview={deferredPhaseOverview}
             currentStep={currentStep}
             currentSubStep={currentSubStep}
             isFeedbackMode={isFeedbackMode}
