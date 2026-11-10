@@ -25,6 +25,27 @@ pub async fn exec_start_or_resume_workflow(
     service.start_or_resume_workflow(req, event_tx).await
 }
 
+/// Append a structured line to `<home>/.merlink/logs/backend.log` so a failed
+/// workflow can be diagnosed from outside the terminal output.
+fn log_workflow_error(stage: &str, error: &IpcError) {
+    use std::io::Write;
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else { return };
+    let dir = home.join(".merlink").join("logs");
+    if std::fs::create_dir_all(&dir).is_err() { return; }
+    let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("backend.log"))
+    else { return; };
+    let line = serde_json::json!({
+        "at": chrono::Utc::now().to_rfc3339(),
+        "stage": stage,
+        "code": format!("{:?}", error.code),
+        "message": error.message,
+    });
+    let _ = writeln!(file, "{line}");
+}
+
 #[tauri::command]
 pub async fn start_or_resume_workflow(
     service: tauri::State<'_, Arc<WorkflowService>>,
@@ -40,8 +61,20 @@ pub async fn start_or_resume_workflow(
         }
     });
     let saved = config.subagent_config.read().clone();
-    let planner_config = workflow_config_from_subagent(&saved)?;
-    service.start_or_resume_workflow_with_config(&req, Some(tx), planner_config).await
+    let planner_config = match workflow_config_from_subagent(&saved) {
+        Ok(value) => value,
+        Err(error) => {
+            log_workflow_error("planner_config", &error);
+            return Err(error);
+        }
+    };
+    let result = service
+        .start_or_resume_workflow_with_config(&req, Some(tx), planner_config)
+        .await;
+    if let Err(error) = &result {
+        log_workflow_error("workflow_run", error);
+    }
+    result
 }
 
 // ============================================================================

@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 19;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 20;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -30,6 +30,7 @@ pub const MIGRATION_0016_SQL: &str = include_str!("../../migrations/0016_seed_ph
 pub const MIGRATION_0017_SQL: &str = include_str!("../../migrations/0017_tool_call_schemas.sql");
 pub const MIGRATION_0018_SQL: &str = include_str!("../../migrations/0018_character_coverage.sql");
 pub const MIGRATION_0019_SQL: &str = include_str!("../../migrations/0019_fix_character_instruction.sql");
+pub const MIGRATION_0020_SQL: &str = include_str!("../../migrations/0020_seed_themes.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -135,6 +136,7 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         17 => Ok(MIGRATION_0017_SQL),
         18 => Ok(MIGRATION_0018_SQL),
         19 => Ok(MIGRATION_0019_SQL),
+        20 => Ok(MIGRATION_0020_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -228,6 +230,12 @@ mod prompt_seed_tests {
             ).unwrap();
             assert!(linked > 0, "{code} must grant at least one tool");
         }
+        let theme_count: i64 = conn.query_row("SELECT COUNT(*) FROM themes", [], |row| row.get(0)).unwrap();
+        assert_eq!(theme_count, 85, "theme catalog must be seeded from docs/temp_seed/system/theme.md");
+        let parent_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM themes WHERE parent_theme_id IS NULL", [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(parent_count, 12, "12 parent themes expected");
         let ui_only: i64 = conn.query_row(
             "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id WHERE t.code IN ('commit_draft','confirm_phase','lock_scene','write_scene_content')",
             [],
