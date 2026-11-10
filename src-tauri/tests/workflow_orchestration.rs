@@ -1221,3 +1221,30 @@ async fn workflow_plan_uses_draft_arcs_not_fixture_codes() {
         "planner must not fabricate arc_01"
     );
 }
+
+#[tokio::test]
+async fn phase_prompts_expose_callable_write_tools() {
+    let fixture = setup_test_fixture();
+    for phase in 1..=6 {
+        let (prompt, schemas) = fixture
+            .workflow_service
+            .compose_phase_prompt(phase)
+            .expect("phase prompt must compose");
+        assert!(
+            prompt.contains(&format!("# planning_phase_{phase}")),
+            "phase {phase} block must be included"
+        );
+        assert!(!schemas.is_empty(), "phase {phase} must grant tool schemas");
+    }
+    let (phase1_prompt, phase1_tools) = fixture.workflow_service.compose_phase_prompt(1).unwrap();
+    assert!(phase1_prompt.contains("add_arc"), "phase 1 must document add_arc");
+    assert!(phase1_prompt.contains("add_theme"), "phase 1 must document add_theme");
+    assert!(
+        phase1_tools.iter().any(|tool| tool["name"] == "add_arc"),
+        "add_arc must be offered to the model"
+    );
+    assert!(
+        phase1_tools.iter().any(|tool| tool["name"] == "add_theme"),
+        "add_theme must be offered to the model"
+    );
+}

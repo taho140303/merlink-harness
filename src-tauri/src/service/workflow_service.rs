@@ -1040,6 +1040,20 @@ impl WorkflowService {
         }
     }
 
+    /// Field-level guidance for the tools of each phase. The JSON schema is permissive, so the
+    /// model needs the documented parameter names to call the write handlers correctly.
+    fn phase_tool_guidance(phase: i32) -> &'static str {
+        match phase {
+            1 => "Tool guide: add_arc(code?, display_name, summary, position, declared_sources); set_arc(code, display_name?, summary?, position?, declared_sources); set_arc_motif(code, motif_code?, note?, declared_sources); add_arc_event_block(arc_code, code?, event_block_code?, start_chapter?, end_chapter?, summary?, declared_sources); add_theme(arc_code, code?, parent_theme_code?, question?, resolution_type?, resolution?, message?, declared_sources); add_theme_argument(theme_code, character_code?, role=PRIMARY|ANTITHESIS|CAUTIONARY|WITNESS, answer_mode, note?, declared_sources). Target Arc count: use require.project.target.arc_count exactly.",
+            2 => "Tool guide: add_chapter(arc_code, code?, display_name, position, summary, declared_sources); set_chapter(code, display_name?, position?, summary?, declared_sources); add_scene(chapter_code, code?, display_name, position, summary, declared_sources). chapter.position is unique across the whole project. Total chapters must equal require.project.target.chapter_count.",
+            3 => "Tool guide: add_world_setting(code?, parent_code?, display_name, type=REALM|WORLD|REGION|COUNTRY|CITY|TOWN|FACILITY|STREET|ROOM, description?, access?, declared_sources); add_lore_entry(code?, world_setting_code, display_name, type=CULTURE|HISTORY|FACTION|ITEM, description?, data?, declared_sources). Write parents before children.",
+            4 => "Tool guide: set_scene_config(scene_code, style_preset_code?, narrator_config_code?, world_setting_code?, declared_sources); add_scene_character(scene_code, character_code, is_pov?, declared_sources); add_scene_lore_entry(scene_code, lore_entry_code, usage?, reveal_to_reader?, reveal_to_pov?, declared_sources). Limited narrators need exactly one is_pov; omniscient needs none.",
+            5 => "Tool guide: add_character_appearance(character_code, species?, gender_identity?, height?, weight?, hair_color_code?, skin_tone_code?, outfit_style?, default_summary?, declared_sources); add_character_psychological(character_code, the_wound?, the_lie?, fundamental_fear?, moral_alignment?, moral_code?, cognitive_bias?, breaking_point?, external_want?, internal_need?, internal_conflict?, social_mask_persona_type?, social_mask_verbal_style?, defense_primary_reaction?, defense_stress_trigger?, defense_coping_strategy?, declared_sources); add_character_memory(character_code, code?, display_name?, summary?, source_scene_code?, declared_sources); add_character_competence(character_code, code?, domain_code?, level_code?, scene_code, capabilities?, limitations?, declared_sources). Competence scene_code is mandatory and must reference an existing scene.",
+            6 => "Tool guide: add_relationship(code?, from_code, to_code, motif_code?, declared_sources); add_relationship_role(relationship_code, category_code?, hierarchy?, is_primary?, declared_sources); set_relationship_state(relationship_code, scene_code, trust?, affection?, hostility?, fear?, respect?, familiarity?, dependency? with NONE|LOW|MODERATE|HIGH|ABSOLUTE, declared_sources).",
+            _ => "",
+        }
+    }
+
     /// Deterministic Arc window fallback from the confirmed target counts (no entity names
     /// are fabricated: the codes only identify planning scopes, never draft entities).
     fn planned_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
@@ -1068,7 +1082,7 @@ impl WorkflowService {
 
     /// Compose the phase system prompt and the tool schemas granted to it
     /// (`prompt_blocks` + `prompt_block_tools`, `core.md` §3.8).
-    fn compose_phase_prompt(
+    pub fn compose_phase_prompt(
         &self,
         phase: i32,
     ) -> Result<(String, Vec<Value>), IpcError> {
@@ -1138,6 +1152,11 @@ impl WorkflowService {
                 })
             })
             .collect();
+
+        let guidance = Self::phase_tool_guidance(phase);
+        if !guidance.is_empty() {
+            sections.push(format!("# Tool guidance\n{guidance}"));
+        }
 
         Ok((sections.join("\n\n"), schemas))
     }

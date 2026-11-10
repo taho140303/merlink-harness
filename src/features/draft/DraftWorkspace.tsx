@@ -1224,6 +1224,11 @@ export function DraftWorkspace({
             onRegenerate={handleRegenerate}
             onRunPhase={handleRunPhase}
             runProgress={runProgress}
+            workflowError={
+              controllerState.lastError
+                ? String((controllerState.lastError as { message?: string }).message ?? controllerState.lastError)
+                : null
+            }
             onNext={currentStep !== 'relationship' ? () => setConfirmOpen(true) : undefined}
             onStart={currentStep === 'relationship' ? handleStart : undefined}
             isFeedbackMode={isFeedbackMode}

@@ -12,6 +12,7 @@ export interface DraftToolbarProps {
   onRegenerate: () => void;
   onRunPhase?: () => void;
   runProgress?: string | null;
+  workflowError?: string | null;
   onNext?: () => void;
   onStart?: () => void;
   isFeedbackMode: boolean;
@@ -35,6 +36,7 @@ export function DraftToolbar({
   onRegenerate,
   onRunPhase,
   runProgress,
+  workflowError,
   onNext,
   onStart,
   isFeedbackMode,
@@ -144,6 +146,12 @@ export function DraftToolbar({
       )}
 
       {/* Workflow Status Indicators (phase5_sprint3_deep2-F2) */}
+      {workflowStatus === 'failed' && workflowError && (
+        <div role="alert" className="mt-1 max-w-[420px] truncate text-[11px] text-rose-500" title={workflowError}>
+          {workflowError}
+        </div>
+      )}
+
       {workflowStatus === 'requires_replan' && (
         <div
           role="status"
