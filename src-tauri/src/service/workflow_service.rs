@@ -1043,6 +1043,7 @@ impl WorkflowService {
     /// Field-level guidance for the tools of each phase. The JSON schema is permissive, so the
     /// model needs the documented parameter names to call the write handlers correctly.
     fn phase_tool_guidance(phase: i32) -> &'static str {
+        const CHARACTER_RULE: &str = "Character rule: every character named by the author must exist in require.character. Before referencing a character in a scene, theme argument or relationship, check it exists and call add_character(code?, display_name, nickname?, biological_sex=MALE|FEMALE|NONE, motif_code?, role?, notes?, declared_sources) when missing. Never drop secondary characters and never invent a name the author did not confirm. ";
         match phase {
             1 => "Tool guide: add_arc(code?, display_name, summary, position, declared_sources); set_arc(code, display_name?, summary?, position?, declared_sources); set_arc_motif(code, motif_code?, note?, declared_sources); add_arc_event_block(arc_code, code?, event_block_code?, start_chapter?, end_chapter?, summary?, declared_sources); add_theme(arc_code, code?, parent_theme_code?, question?, resolution_type?, resolution?, message?, declared_sources); add_theme_argument(theme_code, character_code?, role=PRIMARY|ANTITHESIS|CAUTIONARY|WITNESS, answer_mode, note?, declared_sources). Target Arc count: use require.project.target.arc_count exactly.",
             2 => "Tool guide: add_chapter(arc_code, code?, display_name, position, summary, declared_sources); set_chapter(code, display_name?, position?, summary?, declared_sources); add_scene(chapter_code, code?, display_name, position, summary, declared_sources). chapter.position is unique across the whole project. Total chapters must equal require.project.target.chapter_count.",
@@ -1155,7 +1156,10 @@ impl WorkflowService {
 
         let guidance = Self::phase_tool_guidance(phase);
         if !guidance.is_empty() {
-            sections.push(format!("# Tool guidance\n{guidance}"));
+            sections.push(format!(
+                "# Tool guidance\n{CHARACTER_RULE}{guidance}",
+                CHARACTER_RULE = "Character rule: every character named by the author must exist in require.character. Before referencing a character in a scene, theme argument or relationship, check it exists and call add_character(code?, display_name, nickname?, biological_sex=MALE|FEMALE|NONE, motif_code?, role?, notes?, declared_sources) when missing. Never drop secondary characters and never invent a name the author did not confirm. "
+            ));
         }
 
         Ok((sections.join("\n\n"), schemas))
