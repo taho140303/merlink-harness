@@ -1069,7 +1069,7 @@ impl ToolExecutor {
     fn handle_add_chapter(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1103,22 +1103,42 @@ impl ToolExecutor {
             }
         };
 
+        let source = *declared_sources
+            .get("display_name")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let code = call
             .parameters
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{}-c{}", arc_code, arc_chap.chapters.len() + 1));
+            .unwrap_or_else(|| unique_child_code(
+                arc_chap.chapters.iter().map(|chapter| chapter.code.as_str()),
+                &format!("{arc_code}-c"),
+                arc_chap.chapters.len() + 1,
+            ));
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let position = call
+            .parameters
+            .get("position")
+            .and_then(|value| value.as_u64())
+            .map(|value| TrackedField::new(value as u32, source))
+            .unwrap_or_default();
 
         let chap = ChapterPhaseChapterItem {
             code: code.clone(),
-            display_name: TrackedField::user(
-                call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Chapter").to_string(),
-            ),
-            position: TrackedField::unset(),
-            summary: TrackedField::unset(),
+            display_name: text("display_name"),
+            position,
+            summary: text("summary"),
             scenes: Vec::new(),
-            source: Some(ProvenanceSource::User),
+            source: Some(source),
         };
 
         arc_chap.chapters.push(chap);
@@ -1127,7 +1147,7 @@ impl ToolExecutor {
             status: "applied".to_string(),
             patch_id: None,
             error: None,
-            candidates: None,
+            candidates: Some(vec![code]),
         });
     }
 
@@ -1183,12 +1203,40 @@ impl ToolExecutor {
             );
             results.push(res);
         }
+        if let Some(v) = call.parameters.get("summary").and_then(|v| v.as_str()) {
+            let res = evaluate_single_field(
+                call.caller,
+                "chapter",
+                chap_code,
+                "summary",
+                v.to_string(),
+                &base_chap.summary,
+                &mut cand_chap.summary,
+                declared_sources,
+                pending_patches,
+            );
+            results.push(res);
+        }
+        if let Some(v) = call.parameters.get("position").and_then(|v| v.as_u64()) {
+            let res = evaluate_single_field(
+                call.caller,
+                "chapter",
+                chap_code,
+                "position",
+                v as u32,
+                &base_chap.position,
+                &mut cand_chap.position,
+                declared_sources,
+                pending_patches,
+            );
+            results.push(res);
+        }
     }
 
     fn handle_add_scene(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1222,24 +1270,42 @@ impl ToolExecutor {
             }
         };
 
+        let source = *declared_sources
+            .get("display_name")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let code = call
             .parameters
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{}-s{}", chap_code, chap.scenes.len() + 1));
-
-        let ws_code = call.parameters.get("world_setting_code").and_then(|v| v.as_str()).map(|s| s.to_string());
+            .unwrap_or_else(|| unique_child_code(
+                chap.scenes.iter().map(|scene| scene.code.as_str()),
+                &format!("{chap_code}-s"),
+                chap.scenes.len() + 1,
+            ));
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let position = call
+            .parameters
+            .get("position")
+            .and_then(|value| value.as_u64())
+            .map(|value| TrackedField::new(value as u32, source))
+            .unwrap_or_default();
 
         let sc = ChapterPhaseSceneItem {
             code: code.clone(),
-            display_name: TrackedField::user(
-                call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Scene").to_string(),
-            ),
-            position: TrackedField::unset(),
-            summary: TrackedField::unset(),
-            world_setting_code: ws_code.map(TrackedField::user).unwrap_or_else(TrackedField::unset),
-            source: Some(ProvenanceSource::User),
+            display_name: text("display_name"),
+            position,
+            summary: text("summary"),
+            world_setting_code: text("world_setting_code"),
+            source: Some(source),
         };
 
         chap.scenes.push(sc);
@@ -1248,7 +1314,7 @@ impl ToolExecutor {
             status: "applied".to_string(),
             patch_id: None,
             error: None,
-            candidates: None,
+            candidates: Some(vec![code]),
         });
     }
 
@@ -1314,6 +1380,34 @@ impl ToolExecutor {
                 v.to_string(),
                 &base_sc.world_setting_code,
                 &mut cand_sc.world_setting_code,
+                declared_sources,
+                pending_patches,
+            );
+            results.push(res);
+        }
+        if let Some(v) = call.parameters.get("summary").and_then(|v| v.as_str()) {
+            let res = evaluate_single_field(
+                call.caller,
+                "scene",
+                sc_code,
+                "summary",
+                v.to_string(),
+                &base_sc.summary,
+                &mut cand_sc.summary,
+                declared_sources,
+                pending_patches,
+            );
+            results.push(res);
+        }
+        if let Some(v) = call.parameters.get("position").and_then(|v| v.as_u64()) {
+            let res = evaluate_single_field(
+                call.caller,
+                "scene",
+                sc_code,
+                "position",
+                v as u32,
+                &base_sc.position,
+                &mut cand_sc.position,
                 declared_sources,
                 pending_patches,
             );
@@ -1679,60 +1773,102 @@ impl ToolExecutor {
     fn handle_add_relationship(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let from = call.parameters.get("from_character_code").and_then(|v| v.as_str());
-        let to = call.parameters.get("to_character_code").and_then(|v| v.as_str());
+        let from = call
+            .parameters
+            .get("from_code")
+            .or_else(|| call.parameters.get("from_character_code"))
+            .and_then(|v| v.as_str());
+        let to = call
+            .parameters
+            .get("to_code")
+            .or_else(|| call.parameters.get("to_character_code"))
+            .and_then(|v| v.as_str());
 
-        if from.is_none() || to.is_none() {
+        let (Some(from), Some(to)) = (from, to) else {
+            results.push(field_rejection("characters", "missing_target_code"));
+            return;
+        };
+        for code in [from, to] {
+            if !candidate.require.character.iter().any(|character| character.code == code) {
+                results.push(field_rejection("characters", "target_code_not_found"));
+                return;
+            }
+        }
+
+        let source = *declared_sources
+            .get("code")
+            .or_else(|| declared_sources.get("display_name"))
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let motif_code = call
+            .parameters
+            .get("motif_code")
+            .and_then(|v| v.as_str())
+            .filter(|value| !value.trim().is_empty());
+
+        // The (from, to) pair is unique: reuse a populated relationship instead of pushing a
+        // duplicate code that later fails validation.
+        if let Some(existing) = candidate
+            .optional
+            .relationship_phase
+            .relationship
+            .iter_mut()
+            .find(|item| item.character.from_code == from && item.character.to_code == to)
+        {
+            if let Some(motif) = motif_code {
+                existing.motif.code = TrackedField::new(motif.to_string(), source);
+            }
             results.push(FieldResult {
-                field: "characters".to_string(),
-                status: "rejected".to_string(),
+                field: "code".to_string(),
+                status: "applied".to_string(),
                 patch_id: None,
-                error: Some("missing_target_code".to_string()),
-                candidates: None,
+                error: None,
+                candidates: Some(vec![existing.code.clone()]),
             });
             return;
         }
-        let (from, to) = (from.unwrap(), to.unwrap());
 
         let code = call
             .parameters
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("rel_{}_{}", from, to));
+            .unwrap_or_else(|| format!("rel_{from}_{to}"));
 
-        let rel = RelationshipPhaseItem {
+        let mut motif_section = RelationshipMotifSection::default();
+        if let Some(motif_value) = motif_code {
+            motif_section.code = TrackedField::new(motif_value.to_string(), source);
+        }
+
+        candidate.optional.relationship_phase.relationship.push(RelationshipPhaseItem {
             code: code.clone(),
-            motif: RelationshipMotifSection::default(),
+            motif: motif_section,
             character: RelationshipCharacterPairSection {
                 from_code: from.to_string(),
                 to_code: to.to_string(),
                 scenes: Vec::new(),
                 roles: Vec::new(),
             },
-            source: Some(ProvenanceSource::User),
-        };
-
-        candidate.optional.relationship_phase.relationship.push(rel);
+            source: Some(source),
+        });
         results.push(FieldResult {
             field: "code".to_string(),
             status: "applied".to_string(),
             patch_id: None,
             error: None,
-            candidates: None,
+            candidates: Some(vec![code]),
         });
     }
 
     fn handle_set_relationship_state(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1741,50 +1877,103 @@ impl ToolExecutor {
         let rel_code = call.parameters.get("relationship_code").and_then(|v| v.as_str());
         let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str());
 
-        if rel_code.is_none() || sc_code.is_none() {
-            results.push(FieldResult {
-                field: "relationship_code".to_string(),
-                status: "rejected".to_string(),
-                patch_id: None,
-                error: Some("missing_target_code".to_string()),
-                candidates: None,
-            });
+        let (Some(rel_code), Some(sc_code)) = (rel_code, sc_code) else {
+            results.push(field_rejection("relationship_code", "missing_target_code"));
+            return;
+        };
+
+        let scene_exists = candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .flat_map(|arc| arc.chapters.iter())
+            .flat_map(|chapter| chapter.scenes.iter())
+            .any(|scene| scene.code == sc_code)
+            || candidate
+                .optional
+                .scene_config_phase
+                .arcs
+                .iter()
+                .flat_map(|arc| arc.chapters.iter())
+                .flat_map(|chapter| chapter.scenes.iter())
+                .any(|scene| scene.code == sc_code);
+        if !scene_exists {
+            results.push(field_rejection("scene_code", "target_code_not_found"));
             return;
         }
 
-        let (rel_code, sc_code) = (rel_code.unwrap(), sc_code.unwrap());
-        let rel = match candidate.optional.relationship_phase.relationship.iter_mut().find(|r| r.code == rel_code) {
-            Some(r) => r,
+        let rel = match candidate
+            .optional
+            .relationship_phase
+            .relationship
+            .iter_mut()
+            .find(|item| item.code == rel_code)
+        {
+            Some(rel) => rel,
             None => {
-                results.push(FieldResult {
-                    field: "relationship_code".to_string(),
-                    status: "rejected".to_string(),
-                    patch_id: None,
-                    error: Some("target_code_not_found".to_string()),
-                    candidates: None,
-                });
+                results.push(field_rejection("relationship_code", "target_code_not_found"));
                 return;
             }
         };
 
-        let trust = call.parameters.get("trust").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let affection = call.parameters.get("affection").and_then(|v| v.as_str()).map(|s| s.to_string());
+        const DIMENSIONS: [&str; 7] = [
+            "trust", "affection", "hostility", "fear", "respect", "dependency", "familiarity",
+        ];
+        let mut values: std::collections::BTreeMap<&str, (String, ProvenanceSource)> =
+            std::collections::BTreeMap::new();
+        for dimension in DIMENSIONS {
+            if let Some(value) = call.parameters.get(dimension).and_then(|v| v.as_str()) {
+                let normalized = value.trim().to_ascii_uppercase();
+                if !matches!(
+                    normalized.as_str(),
+                    "NONE" | "LOW" | "MODERATE" | "HIGH" | "ABSOLUTE"
+                ) {
+                    results.push(field_rejection(dimension, "invalid_enum"));
+                    return;
+                }
+                let source = *declared_sources
+                    .get(dimension)
+                    .unwrap_or(&ProvenanceSource::AiGenerated);
+                values.insert(dimension, (normalized, source));
+            }
+        }
+        if values.is_empty() {
+            results.push(field_rejection("state", "no_supported_fields"));
+            return;
+        }
 
-        let state_item = RelationshipSceneStateItem {
-            scene_code: sc_code.to_string(),
-            trust: trust.map(TrackedField::user).unwrap_or_else(TrackedField::unset),
-            affection: affection.map(TrackedField::user).unwrap_or_else(TrackedField::unset),
-            hostility: TrackedField::unset(),
-            fear: TrackedField::unset(),
-            respect: TrackedField::unset(),
-            dependency: TrackedField::unset(),
-            familiarity: TrackedField::unset(),
-            source: Some(ProvenanceSource::User),
+        // Merge into the existing scene state instead of replacing it.
+        let position = rel
+            .character
+            .scenes
+            .iter()
+            .position(|state| state.scene_code == sc_code);
+        let state = match position {
+            Some(index) => &mut rel.character.scenes[index],
+            None => {
+                rel.character.scenes.push(RelationshipSceneStateItem {
+                    scene_code: sc_code.to_string(),
+                    ..Default::default()
+                });
+                rel.character.scenes.last_mut().unwrap()
+            }
         };
-
-        rel.character.scenes.retain(|s| s.scene_code != sc_code);
-        rel.character.scenes.push(state_item);
-
+        for (dimension, (value, source)) in values {
+            let assigned: Option<&mut TrackedField<String>> = match dimension {
+                "trust" => Some(&mut state.trust),
+                "affection" => Some(&mut state.affection),
+                "hostility" => Some(&mut state.hostility),
+                "fear" => Some(&mut state.fear),
+                "respect" => Some(&mut state.respect),
+                "dependency" => Some(&mut state.dependency),
+                _ => Some(&mut state.familiarity),
+            };
+            if let Some(field) = assigned {
+                *field = TrackedField::new(value, source);
+            }
+        }
+        state.source = Some(ProvenanceSource::AiGenerated);
         results.push(FieldResult {
             field: "state".to_string(),
             status: "applied".to_string(),
@@ -2267,6 +2456,21 @@ fn field_rejection(field: &str, error: &str) -> FieldResult {
     }
 }
 
+fn unique_child_code<'a>(
+    existing: impl Iterator<Item = &'a str>,
+    prefix: &str,
+    mut next: usize,
+) -> String {
+    let taken: std::collections::BTreeSet<&str> = existing.collect();
+    loop {
+        let candidate = format!("{prefix}{next}");
+        if !taken.contains(candidate.as_str()) {
+            return candidate;
+        }
+        next += 1;
+    }
+}
+
 fn evaluate_single_field<T: Clone + PartialEq + Serialize>(
     caller: CallerCategory,
     target_type: &str,
@@ -2647,5 +2851,172 @@ pub fn register_all_write_tools(registry: &mut ToolRegistry) {
                 true,
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod phase6_7_handlers {
+    use super::*;
+
+    fn state_with_cast_and_scene() -> BusinessFlowData {
+        let mut state = BusinessFlowData::default();
+        state.require.character.push(RequireCharacterItem {
+            code: "char_a".into(),
+            display_name: TrackedField::user("A".to_string()),
+            ..Default::default()
+        });
+        state.require.character.push(RequireCharacterItem {
+            code: "char_b".into(),
+            display_name: TrackedField::user("B".to_string()),
+            ..Default::default()
+        });
+        state.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
+            code: "arc_one".into(),
+            chapters: vec![ChapterPhaseChapterItem {
+                code: "arc_one-c1".into(),
+                position: TrackedField::user(1),
+                scenes: vec![ChapterPhaseSceneItem {
+                    code: "arc_one-c1-s1".into(),
+                    position: TrackedField::user(1),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+        });
+        state
+    }
+
+    fn sources(pairs: &[(&str, &str)]) -> BTreeMap<String, ProvenanceSource> {
+        pairs
+            .iter()
+            .map(|(field, source)| {
+                (
+                    (*field).to_string(),
+                    if *source == "user" {
+                        ProvenanceSource::User
+                    } else {
+                        ProvenanceSource::AiGenerated
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn call(name: &str, parameters: serde_json::Value, declared: &[(&str, &str)]) -> ToolCall {
+        ToolCall {
+            name: name.into(),
+            caller: CallerCategory::AiCaller,
+            parameters,
+            declared_sources: Some(sources(declared)),
+            declared_source: None,
+        }
+    }
+
+    #[test]
+    fn relationship_accepts_aliases_rejects_ghosts_and_records_all_dimensions() {
+        let executor = ToolExecutor::default();
+        let mut state = state_with_cast_and_scene();
+
+        let add = call(
+            "add_relationship",
+            serde_json::json!({"from_code": "char_a", "to_code": "char_b", "motif_code": "allies"}),
+            &[("code", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "alias pair must be written: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let code = state.optional.relationship_phase.relationship[0].code.clone();
+        assert_eq!(state.optional.relationship_phase.relationship[0].motif.code.value.as_deref(), Some("allies"));
+
+        // Duplicate pair reuses the existing relationship instead of pushing a second one.
+        let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied());
+        assert_eq!(outcome.mutated_state().unwrap().optional.relationship_phase.relationship.len(), 1);
+
+        let ghost = call(
+            "add_relationship",
+            serde_json::json!({"from_code": "char_a", "to_code": "char_ghost"}),
+            &[("code", "ai_generated")],
+        );
+        let rejected = executor.execute_call(&ghost, &ExecutionGuard::new(&state));
+        assert_eq!(rejected.status, "rejected");
+        assert!(rejected.results[0].error.as_deref() == Some("target_code_not_found"));
+
+        let state_call = call(
+            "set_relationship_state",
+            serde_json::json!({
+                "relationship_code": code,
+                "scene_code": "arc_one-c1-s1",
+                "trust": "HIGH", "affection": "MODERATE", "hostility": "LOW",
+                "fear": "NONE", "respect": "HIGH", "dependency": "LOW", "familiarity": "ABSOLUTE"
+            }),
+            &[
+                ("trust", "ai_generated"), ("affection", "ai_generated"), ("hostility", "ai_generated"),
+                ("fear", "ai_generated"), ("respect", "ai_generated"), ("dependency", "ai_generated"),
+                ("familiarity", "ai_generated"),
+            ],
+        );
+        let outcome = executor.execute_call(&state_call, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "seven dimensions must apply: {outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        let scene_state = &updated.optional.relationship_phase.relationship[0].character.scenes[0];
+        assert_eq!(scene_state.familiarity.value.as_deref(), Some("ABSOLUTE"));
+        assert_eq!(scene_state.dependency.value.as_deref(), Some("LOW"));
+
+        // Invalid enum and unknown scene are rejected, and the existing values are preserved.
+        let invalid = call(
+            "set_relationship_state",
+            serde_json::json!({"relationship_code": code, "scene_code": "arc_one-c1-s1", "trust": "VERY_HIGH"}),
+            &[("trust", "ai_generated")],
+        );
+        assert_eq!(executor.execute_call(&invalid, &ExecutionGuard::new(&state)).status, "rejected");
+        let wrong_scene = call(
+            "set_relationship_state",
+            serde_json::json!({"relationship_code": code, "scene_code": "missing", "trust": "LOW"}),
+            &[("trust", "ai_generated")],
+        );
+        assert_eq!(executor.execute_call(&wrong_scene, &ExecutionGuard::new(&state)).status, "rejected");
+    }
+
+    #[test]
+    fn chapters_and_scenes_write_position_summary_and_return_codes() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        state.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
+            code: "arc_one".into(),
+            chapters: Vec::new(),
+        });
+
+        let add_chapter = call(
+            "add_chapter",
+            serde_json::json!({
+                "arc_code": "arc_one", "display_name": "Chương 1",
+                "position": 1, "summary": "Mở đầu"
+            }),
+            &[("display_name", "ai_generated"), ("position", "ai_generated"), ("summary", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&add_chapter, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "chapter must be written: {outcome:?}");
+        assert_eq!(outcome.results[0].candidates.as_ref().unwrap()[0], "arc_one-c1");
+        state = outcome.mutated_state().unwrap().clone();
+        let chapter = &state.optional.chapter_phase.arcs[0].chapters[0];
+        assert_eq!(chapter.position.value, Some(1));
+        assert_eq!(chapter.summary.value.as_deref(), Some("Mở đầu"));
+        assert_eq!(chapter.display_name.source, Some(ProvenanceSource::AiGenerated));
+
+        let add_scene = call(
+            "add_scene",
+            serde_json::json!({
+                "chapter_code": "arc_one-c1", "display_name": "Cảnh 1",
+                "position": 1, "summary": "Gặp gỡ"
+            }),
+            &[("display_name", "ai_generated"), ("position", "ai_generated"), ("summary", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&add_scene, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "scene must be written: {outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        let scene = &updated.optional.chapter_phase.arcs[0].chapters[0].scenes[0];
+        assert_eq!(scene.position.value, Some(1));
+        assert_eq!(scene.summary.value.as_deref(), Some("Gặp gỡ"));
     }
 }

@@ -198,6 +198,13 @@ impl LlmWorkflowTaskExecutor {
         let tools: Vec<ProviderToolDefinition> = ctx
             .tool_schemas
             .iter()
+            .filter(|schema| {
+                // Read tools are executed by the read-tools layer, not this executor; the
+                // workflow injects the state slice instead so the model never gets a call
+                // that can only fail.
+                let name = schema.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+                !(name.starts_with("get_") || name.starts_with("search_") || name.starts_with("lookup_"))
+            })
             .filter_map(|schema| {
                 Some(ProviderToolDefinition {
                     name: schema.get("name")?.as_str()?.to_string(),
@@ -224,19 +231,35 @@ impl LlmWorkflowTaskExecutor {
         let mut state: BusinessFlowData = ctx.snapshot.business_flow_data.clone();
         let mut messages = vec![
             ProviderMessage::system(format!(
-                "{}\n\nTask scope: {}\nCall the provided tools to write the required data. When the scope is complete, reply with a short confirmation and no tool calls. Never invent entity codes; use catalog search tools first.",
-                ctx.phase_prompt, ctx.task_spec.assigned_scope
+                "{prompt}\n\nTask scope: {scope}\nCall the provided tools to write the required data. \
+When the scope is complete, reply with a short confirmation and no tool calls. \
+Use only entity codes shown in the context or returned by a previous tool call. \
+Headless workflow: the author already authorized automatic writes for this scope; record \
+generated content with declared_sources = ai_generated instead of asking for confirmation.",
+                prompt = ctx
+                    .phase_prompt
+                    .replace("{{story_context}}", &render_story_context(&ctx.snapshot.business_flow_data)),
+                scope = ctx.task_spec.assigned_scope
             )),
             ProviderMessage::user(format!(
                 "Hãy thực hiện task '{}' trong phạm vi được giao.",
                 ctx.task_spec.task_kind
             )),
         ];
+        let task_start = state.clone();
         let mut mutations: Vec<PatchOp> = Vec::new();
         let mut applied = 0u32;
         let executor = ToolExecutor::default();
+        let pair_count = ctx
+            .task_spec
+            .assigned_scope
+            .get("pairs")
+            .and_then(|value| value.as_array())
+            .map(|pairs| pairs.len())
+            .unwrap_or(0);
+        let max_turns = (2 * pair_count + 6).clamp(6, 24);
 
-        for _ in 0..8 {
+        for _ in 0..max_turns {
             if ctx.cancel_token.is_cancelled() {
                 return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
             }
@@ -267,14 +290,10 @@ impl LlmWorkflowTaskExecutor {
 
             for call in &response.tool_calls {
                 let tool_call = to_tool_call(call);
-                let before = state.clone();
                 let outcome = executor.execute_call(&tool_call, &ExecutionGuard::new(&state));
                 let mut result_note = format!("status={}", outcome.status);
                 if outcome.is_applied() {
                     if let Some(next) = outcome.mutated_state() {
-                        let patch = canonical_diff(&before, next)
-                            .map_err(|code| IpcError::new(code, "Canonical diff failed after tool call"))?;
-                        mutations.extend(patch.ops);
                         applied += 1;
                         state = next.clone();
                     }
@@ -290,6 +309,14 @@ impl LlmWorkflowTaskExecutor {
                     result_note,
                 ));
             }
+        }
+
+        // One canonical diff for the whole task: per-call diffs emit duplicate paths for
+        // array-level entities and the round-trip verifier rejects those.
+        if applied > 0 {
+            let patch = canonical_diff(&task_start, &state)
+                .map_err(|code| IpcError::new(code, "Canonical diff failed for task writes"))?;
+            mutations = patch.ops;
         }
 
         Ok(TaskExecutionOutput {
@@ -313,7 +340,8 @@ impl LlmWorkflowTaskExecutor {
 
         let system = format!(
             "{}\n\n{}\n\n{}",
-            ctx.phase_prompt,
+            ctx.phase_prompt
+                .replace("{{story_context}}", &render_story_context(&ctx.snapshot.business_flow_data)),
             probe_system_prompt(&ctx.system_language),
             probe_output_contract()
         );
@@ -381,6 +409,108 @@ fn artifact_error(error: ArtifactError, context: &str) -> IpcError {
     IpcError::new(
         ErrorCode::ValidationFailed,
         format!("Invalid Phase 3 {context}: {error}"),
+    )
+}
+
+/// Compact, deterministic State slice injected where `{{story_context}}` is used by chat.
+fn render_story_context(flow: &BusinessFlowData) -> String {
+    let project = &flow.require.project;
+    let name = project.display_name.value.clone().unwrap_or_default();
+    let language = project.language.value.clone().unwrap_or_default();
+    let arc_target = project.target.arc_count.value.unwrap_or(0);
+    let chapter_target = project.target.chapter_count.value.unwrap_or(0);
+
+    let characters: Vec<String> = flow
+        .require
+        .character
+        .iter()
+        .map(|character| {
+            format!(
+                "{} | {} | sex={} | motif={}",
+                character.code,
+                character.display_name.value.clone().unwrap_or_default(),
+                character.biological_sex.value.clone().unwrap_or_default(),
+                character.motif_code.value.clone().unwrap_or_default(),
+            )
+        })
+        .collect();
+
+    let mut arcs: Vec<String> = Vec::new();
+    for arc in &flow.optional.overview_phase.arcs {
+        if let Some(code) = flow
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .find(|chapter_arc| chapter_arc.code == arc.code)
+            .map(|chapter_arc| chapter_arc.code.clone())
+        {
+            let positions: Vec<String> = flow
+                .optional
+                .chapter_phase
+                .arcs
+                .iter()
+                .find(|chapter_arc| chapter_arc.code == code)
+                .map(|chapter_arc| {
+                    chapter_arc
+                        .chapters
+                        .iter()
+                        .filter_map(|chapter| {
+                            chapter.position.value.map(|position| {
+                                format!(
+                                    "{}:{}:{}",
+                                    position,
+                                    chapter.code,
+                                    chapter.display_name.value.clone().unwrap_or_default()
+                                )
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            arcs.push(format!("{code} (chapters: {})", positions.join(", ")));
+        }
+    }
+
+    let scenes: Vec<String> = flow
+        .optional
+        .chapter_phase
+        .arcs
+        .iter()
+        .flat_map(|arc| arc.chapters.iter())
+        .flat_map(|chapter| {
+            chapter.scenes.iter().map(move |scene| {
+                format!(
+                    "{}:{}:{}",
+                    scene.code,
+                    scene.display_name.value.clone().unwrap_or_default(),
+                    chapter.code
+                )
+            })
+        })
+        .collect();
+
+    let world_codes: Vec<String> = flow
+        .optional
+        .world_building_phase
+        .world_settings
+        .iter()
+        .map(|node| {
+            format!(
+                "{}:{}:{}",
+                node.code,
+                node.display_name.value.clone().unwrap_or_default(),
+                node.setting_type.value.clone().unwrap_or_default()
+            )
+        })
+        .collect();
+
+    format!(
+        "Project: {name} | language={language} | arc_count={arc_target} | chapter_count={chapter_target}\nCharacters:\n{characters}\nArcs and chapters:\n{arcs}\nWorld settings:\n{world_codes}\nScenes:\n{scenes}",
+        characters = if characters.is_empty() { "(none)".to_string() } else { characters.join("\n") },
+        arcs = if arcs.is_empty() { "(none)".to_string() } else { arcs.join("\n") },
+        world_codes = if world_codes.is_empty() { "(none)".to_string() } else { world_codes.join(", ") },
+        scenes = if scenes.is_empty() { "(none)".to_string() } else { scenes.join(", ") },
     )
 }
 

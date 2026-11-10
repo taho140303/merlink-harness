@@ -598,20 +598,26 @@ pub fn canonical_diff(
     );
 
     // Chapter Phase Arcs & Chapters & Scenes
-    diff_chapter_phase_arcs(
-        "/optional/chapter_phase/arcs",
-        &s_before.optional.chapter_phase.arcs,
-        &s_after.optional.chapter_phase.arcs,
-        &mut ops,
-    );
+    // Chapter Phase: one array replacement keeps the round-trip verifier exact while the
+    // fine-grained per-entity encoding is still being extended.
+    if s_before.optional.chapter_phase.arcs != s_after.optional.chapter_phase.arcs {
+        ops.push(PatchOp::ReplaceOrderedArray {
+            path: "/optional/chapter_phase/arcs".to_string(),
+            precondition: json!(s_before.optional.chapter_phase.arcs),
+            value: json!(s_after.optional.chapter_phase.arcs),
+        });
+    }
 
-    // World Building Phase
-    diff_world_settings(
-        "/optional/world_building_phase/world_settings",
-        &s_before.optional.world_building_phase.world_settings,
-        &s_after.optional.world_building_phase.world_settings,
-        &mut ops,
-    );
+    // World Building Phase (world settings + nested lore)
+    if s_before.optional.world_building_phase.world_settings
+        != s_after.optional.world_building_phase.world_settings
+    {
+        ops.push(PatchOp::ReplaceOrderedArray {
+            path: "/optional/world_building_phase/world_settings".to_string(),
+            precondition: json!(s_before.optional.world_building_phase.world_settings),
+            value: json!(s_after.optional.world_building_phase.world_settings),
+        });
+    }
 
     // Scene Config Phase
     diff_scene_config_phase(
@@ -621,13 +627,34 @@ pub fn canonical_diff(
         &mut ops,
     );
 
-    // Character Life Experience Phase (memories & competences)
-    diff_character_life_experience(
-        "/optional/character_life_experience_phase/character",
-        &s_before.optional.character_life_experience_phase.character,
-        &s_after.optional.character_life_experience_phase.character,
-        &mut ops,
-    );
+    // Character appearance / psychology / life experience phases.
+    if s_before.optional.character_appearance_phase.character
+        != s_after.optional.character_appearance_phase.character
+    {
+        ops.push(PatchOp::ReplaceOrderedArray {
+            path: "/optional/character_appearance_phase/character".to_string(),
+            precondition: json!(s_before.optional.character_appearance_phase.character),
+            value: json!(s_after.optional.character_appearance_phase.character),
+        });
+    }
+    if s_before.optional.character_psychological_phase.character
+        != s_after.optional.character_psychological_phase.character
+    {
+        ops.push(PatchOp::ReplaceOrderedArray {
+            path: "/optional/character_psychological_phase/character".to_string(),
+            precondition: json!(s_before.optional.character_psychological_phase.character),
+            value: json!(s_after.optional.character_psychological_phase.character),
+        });
+    }
+    if s_before.optional.character_life_experience_phase.character
+        != s_after.optional.character_life_experience_phase.character
+    {
+        ops.push(PatchOp::ReplaceOrderedArray {
+            path: "/optional/character_life_experience_phase/character".to_string(),
+            precondition: json!(s_before.optional.character_life_experience_phase.character),
+            value: json!(s_after.optional.character_life_experience_phase.character),
+        });
+    }
 
     // Relationship Phase
     diff_relationship_phase(
