@@ -970,18 +970,27 @@ export function DraftWorkspace({
     relationship: 6,
   };
 
+  const [runProgress, setRunProgress] = useState<string | null>(null);
+
   const handleRunPhase = () => {
     if (controllerState.workflowStatus === 'running') return;
     const phase = phaseForStep[currentStep];
     const subphase = currentStep === 'character'
       ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
       : null;
+    setRunProgress(null);
     controller
-      .startOrResumeWorkflow(phase, subphase)
+      .startOrResumeWorkflow(phase, subphase, (event) => {
+        // Only small progress strings cross into React state; no outline re-mapping per event.
+        if (event.event === 'taskCompleted') {
+          setRunProgress(`${event.data.completedTasks}/${event.data.totalTasks}`);
+        }
+      })
       .then(() => controller.loadWorkspaceState())
       .catch(() => {
         /* controller state already exposes the failure */
-      });
+      })
+      .finally(() => setRunProgress(null));
   };
 
   const executeNext = () => {
@@ -1214,6 +1223,7 @@ export function DraftWorkspace({
             onRestoreVersion={(seq) => controller.restoreDraftVersion(seq)}
             onRegenerate={handleRegenerate}
             onRunPhase={handleRunPhase}
+            runProgress={runProgress}
             onNext={currentStep !== 'relationship' ? () => setConfirmOpen(true) : undefined}
             onStart={currentStep === 'relationship' ? handleStart : undefined}
             isFeedbackMode={isFeedbackMode}
