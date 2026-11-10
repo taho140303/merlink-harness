@@ -652,7 +652,9 @@ impl ChatOrchestrator {
                 // separately, within the same three-question budget.
                 let scalar_count = result["questions"].as_array().map_or(0, Vec::len);
                 let remaining = 3usize.saturating_sub(scalar_count);
-                if remaining > 0 && composed.tools.iter().any(|tool| tool.name == "get_array_element_fields") {
+                // Array-element probing runs every turn, not only when scalar questions
+                // remain: empty arrays and per-element gaps are invisible to get_field_null.
+                if composed.tools.iter().any(|tool| tool.name == "get_array_element_fields") {
                     let data = &current.business_flow_data;
                     let mut gaps = Vec::new();
                     if data.require.project.genres.is_empty() {
@@ -665,7 +667,10 @@ impl ChatOrchestrator {
                     ) {
                         gaps.push(("require.character", Some(character.code.as_str())));
                     }
-                    let mut question_budget = remaining;
+                    if gaps.is_empty() {
+                        gaps.push(("require.character", None));
+                    }
+                    let mut question_budget = remaining.max(1);
                     for (path, code) in gaps {
                         if question_budget == 0 { break; }
                         let args = serde_json::json!({"array_path":path, "code":code, "limit":question_budget});
@@ -1522,9 +1527,14 @@ mod chat_context_regression_tests {
             let mut state = TurnState::default();
             orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
                 &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
-            assert_eq!(state.all_tool_calls.len(), 1, "turn {index} must audit the read");
+            // Every turn audits both the scalar-null read and the array-element read.
+            assert!(state.all_tool_calls.len() >= 2, "turn {index} must audit both reads");
             assert_eq!(state.all_tool_calls[0].name, "get_field_null");
             assert_eq!(state.all_tool_calls[0].result.as_ref().unwrap()["status"], "applied");
+            assert!(
+                state.all_tool_calls.iter().any(|call| call.name == "get_array_element_fields"),
+                "turn {index} must also probe array element fields"
+            );
             let requests = provider.requests.lock().unwrap();
             let request = &requests[index];
             assert_eq!(request.messages[2].tool_calls.as_ref().unwrap()[0].id,

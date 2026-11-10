@@ -56,9 +56,15 @@ export function ArcCard({ arc, isExpanded, onToggle, isFeedbackMode, onAttachFee
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
-            {t('draft.arc.segmentsCount', { count: arc.segmentsCount })}
-          </span>
+          {arc.chapters && arc.chapters.length > 0 ? (
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+              {arc.chapters.length} chương
+            </span>
+          ) : (
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted  ">
+              {t('draft.arc.segmentsCount', { count: arc.segmentsCount })}
+            </span>
+          )}
           {isExpanded ? <ChevronUp aria-hidden="true" className="h-4 w-4 text-fg-subtle" /> : <ChevronDown aria-hidden="true" className="h-4 w-4 text-fg-subtle" />}
         </div>
       </button>

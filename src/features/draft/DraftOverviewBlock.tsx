@@ -68,6 +68,15 @@ export function DraftOverviewBlock({
   const canViewCharacterDetail = ['character', 'relationship'].includes(currentStep);
 
   // Tự động chuyển tab tương ứng khi tiến trình bước sang giai đoạn mới
+  // On the chapter step the chapter list is the content, so reveal each Arc instead of
+  // leaving every card collapsed (which looked like "no chapters were generated").
+  const arcIdsKey = overview.arcs.map((arc) => arc.id).join('|');
+  useEffect(() => {
+    if (currentStep === 'chapter') {
+      setExpandedArcs(new Set(arcIdsKey ? arcIdsKey.split('|') : []));
+    }
+  }, [currentStep, arcIdsKey]);
+
   useEffect(() => {
     if (currentStep === 'world') setActiveTab('world');
     else if (currentStep === 'scene') setActiveTab('scene');
