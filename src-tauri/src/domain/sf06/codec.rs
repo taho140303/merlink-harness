@@ -989,6 +989,13 @@ fn diff_world_settings(
                 &after_ws.description,
                 ops,
             );
+            if before_ws.lore_entries != after_ws.lore_entries {
+                ops.push(PatchOp::ReplaceOrderedArray {
+                    path: format!("{ws_path}/lore_entries"),
+                    precondition: json!(before_ws.lore_entries),
+                    value: json!(after_ws.lore_entries),
+                });
+            }
         }
     }
 }

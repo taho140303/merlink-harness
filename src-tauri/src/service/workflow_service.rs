@@ -41,11 +41,13 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::domain::fingerprint::state_data_hash;
+use crate::domain::phase3_artifact::WorldProbeReportV1;
+use crate::domain::phase3_merge::{merge_probe_reports, MergedCandidates};
 use crate::domain::sf06::codec::{decode_evidence, replay, PatchOp, PatchV2};
 use crate::domain::workflow_planner::{
     extract_arc_chapter_ranges, format_arc_chapter_task_identity, plan_arc_outline_runs,
     plan_chapter_phase_with_context, plan_character_subphase, plan_relationship_phase,
-    plan_world_write_by_depth, WorkflowConfig, WorkflowTaskKind,
+    WorkflowConfig, WorkflowTaskKind,
 };
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
@@ -154,6 +156,76 @@ pub struct ActiveWorkflowState {
     pub last_sealed_version: Arc<RwLock<Option<DraftVersionSummaryDto>>>,
     pub error_injection: Arc<RwLock<WorkflowErrorInjection>>,
     pub applied_task_order: Arc<parking_lot::Mutex<Vec<usize>>>,
+}
+
+/// Converts merged candidates into Phase 3 write rounds: parents first, then lore.
+fn build_world_write_rounds(merged: &MergedCandidates) -> Vec<Vec<PlannedTaskSpec>> {
+    let mut rounds = Vec::new();
+    let mut depth = 0u32;
+    loop {
+        let layer = merged.world_layer(depth);
+        if layer.is_empty() {
+            break;
+        }
+        let candidates: Vec<Value> = layer
+            .iter()
+            .map(|candidate| {
+                json!({
+                    "tempKey": candidate.temp_key,
+                    "parentTempKey": candidate.parent_temp_key,
+                    "existingParentCode": candidate.existing_parent_code,
+                    "displayName": candidate.display_name,
+                    "type": candidate.setting_type,
+                    "description": candidate.description,
+                    "access": candidate.access,
+                })
+            })
+            .collect();
+        rounds.push(vec![PlannedTaskSpec {
+            phase: 3,
+            subphase: None,
+            task_kind: "world_write".to_string(),
+            assigned_scope: json!({
+                "groupKey": format!("depth_{depth}"),
+                "range": [1, candidates.len()],
+                "candidates": { "worldSettings": candidates, "loreEntries": [] },
+            }),
+            dependencies: vec![],
+            deterministic_identity: Some(format!("p3:s0:world_write:depth={depth}")),
+        }]);
+        depth += 1;
+    }
+
+    if !merged.lore_entries.is_empty() {
+        let lore: Vec<Value> = merged
+            .lore_entries
+            .iter()
+            .map(|entry| {
+                json!({
+                    "tempKey": entry.temp_key,
+                    "worldTempKey": entry.world_temp_key,
+                    "existingWorldCode": entry.existing_world_code,
+                    "displayName": entry.display_name,
+                    "type": entry.lore_type,
+                    "description": entry.description,
+                    "data": entry.data,
+                })
+            })
+            .collect();
+        rounds.push(vec![PlannedTaskSpec {
+            phase: 3,
+            subphase: None,
+            task_kind: "world_write".to_string(),
+            assigned_scope: json!({
+                "groupKey": "lore",
+                "range": [1, lore.len()],
+                "candidates": { "worldSettings": [], "loreEntries": lore },
+            }),
+            dependencies: vec![],
+            deterministic_identity: Some("p3:s0:world_write:lore".to_string()),
+        }]);
+    }
+    rounds
 }
 
 /// Builds the task executor for one workflow run (production installs a live LLM executor).
@@ -353,7 +425,7 @@ impl WorkflowService {
         let plan_generation = 1i64;
 
         let working_state = runtime_entry.get_snapshot();
-        let plan_rounds = self.build_rounds_for_phase(
+        let mut plan_rounds = self.build_rounds_for_phase(
             req.phase,
             req.subphase,
             &working_state,
@@ -478,7 +550,13 @@ impl WorkflowService {
             None => self.task_executor.read().clone(),
         };
 
-        for (round_idx, round_tasks) in plan_rounds.iter().enumerate() {
+        let mut probe_reports: Vec<(String, String)> = Vec::new();
+        let mut replan_reason: Option<String> = None;
+        let mut round_cursor = 0usize;
+        while round_cursor < plan_rounds.len() {
+            let round_idx = round_cursor;
+            let round_tasks = plan_rounds[round_cursor].clone();
+            round_cursor += 1;
             if cancel_requested.load(Ordering::SeqCst) || cancel_token.is_cancelled() {
                 overall_status = "cancelled".to_string();
                 break;
@@ -635,6 +713,12 @@ impl WorkflowService {
 
                 prev_flow_data = next_flow_data;
 
+                if let Some(artifact) = &out.artifact {
+                    if let Ok(report) = serde_json::from_value::<WorldProbeReportV1>(artifact.clone()) {
+                        probe_reports.push((out.task_identity.clone(), report.report_text));
+                    }
+                }
+
                 completed_task_outcomes.push(CompletedTaskOutcome {
                     task_index: out.task_index,
                     task_spec: out.task_spec,
@@ -747,6 +831,30 @@ impl WorkflowService {
                 overall_status = "cancelled".to_string();
                 break;
             }
+
+            // After the last probe round, merge the sealed reports and append the write rounds.
+            if req.phase == 3
+                && round_tasks.iter().all(|task| task.task_kind == "world_probe")
+                && round_cursor == plan_rounds.len()
+            {
+                let existing_codes: Vec<String> = runtime_entry
+                    .get_snapshot()
+                    .business_flow_data
+                    .optional
+                    .world_building_phase
+                    .world_settings
+                    .iter()
+                    .map(|node| node.code.clone())
+                    .collect();
+                match merge_probe_reports(&probe_reports, &existing_codes) {
+                    Ok(merged) => plan_rounds.extend(build_world_write_rounds(&merged)),
+                    Err(error) => {
+                        overall_status = "requires_replan".to_string();
+                        replan_reason = Some(format!("phase3_merge_failed: {error}"));
+                        break;
+                    }
+                }
+            }
         }
 
         // 7. Cleanup and Finish Event
@@ -769,7 +877,7 @@ impl WorkflowService {
             workflow_run_id,
             plan_generation: plan_generation as i32,
             status: overall_status,
-            recovery_reason: None,
+            recovery_reason: replan_reason,
             completed_tasks: completed_tasks_count,
             total_tasks,
             last_sealed_version: last_version,
@@ -1148,43 +1256,6 @@ impl WorkflowService {
                     rounds.push(round_specs);
                 }
 
-                // Stage 3 write rounds are planned only from world settings that already exist in
-                // the draft (parent layers first). Probed candidates are written by a later pass
-                // once the pure merger has produced the consumed input; never fabricate nodes here.
-                let nodes: Vec<(String, Option<String>)> = flow
-                    .optional
-                    .world_building_phase
-                    .world_settings
-                    .iter()
-                    .map(|node| (node.code.clone(), node.parent_code.value.clone()))
-                    .collect();
-
-                if !nodes.is_empty() {
-                    let depth_plans =
-                        plan_world_write_by_depth(&nodes, cfg.unit_world_lore, cfg.max_parallel)
-                            .map_err(|e| invalid(e.to_string()))?;
-
-                    for plan in depth_plans {
-                        for r in plan.rounds {
-                            let mut round_specs = Vec::new();
-                            for t in r.tasks {
-                                let task_id = t.task_identity.clone().ok_or_else(|| {
-                                    invalid("Phase 3 write task is missing its canonical identity".into())
-                                })?;
-
-                                round_specs.push(PlannedTaskSpec {
-                                    phase: 3,
-                                    subphase: None,
-                                    task_kind: "world_write".to_string(),
-                                    assigned_scope: json!({ "groupKey": t.group_key, "range": [t.lo, t.hi] }),
-                                    dependencies: vec![],
-                                    deterministic_identity: Some(task_id),
-                                });
-                            }
-                            rounds.push(round_specs);
-                        }
-                    }
-                }
             }
             4 => {
                 // Phase 4: scene configuration over the Arc ranges actually present in the draft.

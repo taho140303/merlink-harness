@@ -27,6 +27,8 @@ use crate::service::workflow_service::{
 pub struct LlmWorkflowTaskExecutor {
     provider: Arc<dyn LlmProvider>,
     artifact_budget: usize,
+    /// Maps probe `tempKey`s to the draft `code`s allocated while writing Phase 3 candidates.
+    world_codes: std::sync::Mutex<std::collections::HashMap<String, String>>,
 }
 
 impl LlmWorkflowTaskExecutor {
@@ -34,6 +36,7 @@ impl LlmWorkflowTaskExecutor {
         Self {
             provider,
             artifact_budget: DEFAULT_MAX_ARTIFACT_BUDGET,
+            world_codes: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
 
@@ -41,7 +44,149 @@ impl LlmWorkflowTaskExecutor {
         Self {
             provider,
             artifact_budget,
+            world_codes: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
+    }
+
+    /// Writes the merged Phase 3 candidates through the backend tool executor, parents first.
+    /// Candidate content was authored by the probe LLM; this step only allocates codes and
+    /// produces canonical patches, so it never lets the model invent draft identity.
+    fn write_world_candidates(
+        &self,
+        ctx: &TaskExecutionContext,
+    ) -> Result<TaskExecutionOutput, IpcError> {
+        let empty = Vec::new();
+        let scope = &ctx.task_spec.assigned_scope;
+        let worlds = scope
+            .pointer("/candidates/worldSettings")
+            .and_then(|value| value.as_array())
+            .unwrap_or(&empty);
+        let lores = scope
+            .pointer("/candidates/loreEntries")
+            .and_then(|value| value.as_array())
+            .unwrap_or(&empty);
+
+        let executor = ToolExecutor::default();
+        let mut state = ctx.snapshot.business_flow_data.clone();
+        let mut mutations: Vec<PatchOp> = Vec::new();
+        let mut applied = 0u32;
+
+        for candidate in worlds {
+            if ctx.cancel_token.is_cancelled() {
+                return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
+            }
+            let temp_key = candidate.get("tempKey").and_then(|v| v.as_str()).unwrap_or_default();
+            if temp_key.is_empty() || self.world_codes.lock().unwrap().contains_key(temp_key) {
+                continue;
+            }
+            let display_name = candidate.get("displayName").and_then(|v| v.as_str()).unwrap_or("Setting");
+            let parent_code = candidate
+                .get("existingParentCode")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .or_else(|| {
+                    candidate
+                        .get("parentTempKey")
+                        .and_then(|v| v.as_str())
+                        .and_then(|parent| self.world_codes.lock().unwrap().get(parent).cloned())
+                });
+            let mut parameters = serde_json::json!({
+                "code": unique_code(&state, display_name),
+                "display_name": display_name,
+                "type": candidate.get("type").and_then(|v| v.as_str()).unwrap_or("CITY"),
+                "declared_sources": {"display_name": "ai_generated"},
+            });
+            if let Some(parent) = parent_code {
+                parameters["parent_code"] = serde_json::Value::String(parent);
+            }
+            for key in ["description", "access"] {
+                if let Some(value) = candidate.get(key).and_then(|v| v.as_str()) {
+                    parameters[key] = serde_json::Value::String(value.to_string());
+                }
+            }
+            let code = parameters["code"].as_str().unwrap_or_default().to_string();
+            let call = ToolCall {
+                name: "add_world_setting".to_string(),
+                caller: CallerCategory::AiCaller,
+                parameters,
+                declared_sources: None,
+                declared_source: None,
+            };
+            let before = state.clone();
+            let outcome = executor.execute_call(&call, &ExecutionGuard::new(&state));
+            if outcome.is_applied() {
+                if let Some(next) = outcome.mutated_state() {
+                    mutations.extend(
+                        canonical_diff(&before, next)
+                            .map_err(|code| IpcError::new(code, "Canonical diff failed"))?
+                            .ops,
+                    );
+                    state = next.clone();
+                    applied += 1;
+                    self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
+                }
+            }
+        }
+
+        for lore in lores {
+            let temp_key = lore.get("tempKey").and_then(|v| v.as_str()).unwrap_or_default();
+            if temp_key.is_empty() || self.world_codes.lock().unwrap().contains_key(temp_key) {
+                continue;
+            }
+            let world_code = lore
+                .get("existingWorldCode")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .or_else(|| {
+                    lore.get("worldTempKey")
+                        .and_then(|v| v.as_str())
+                        .and_then(|world| self.world_codes.lock().unwrap().get(world).cloned())
+                });
+            let Some(world_code) = world_code else { continue };
+            let display_name = lore.get("displayName").and_then(|v| v.as_str()).unwrap_or("Lore");
+            let mut parameters = serde_json::json!({
+                "code": unique_lore_code(&state, display_name),
+                "world_setting_code": world_code,
+                "display_name": display_name,
+                "type": lore.get("type").and_then(|v| v.as_str()).unwrap_or("HISTORY"),
+                "data": lore.get("data").cloned().unwrap_or_else(|| serde_json::json!({})),
+                "declared_sources": {"display_name": "ai_generated"},
+            });
+            if let Some(description) = lore.get("description").and_then(|v| v.as_str()) {
+                parameters["description"] = serde_json::Value::String(description.to_string());
+            }
+            let code = parameters["code"].as_str().unwrap_or_default().to_string();
+            let call = ToolCall {
+                name: "add_lore_entry".to_string(),
+                caller: CallerCategory::AiCaller,
+                parameters,
+                declared_sources: None,
+                declared_source: None,
+            };
+            let before = state.clone();
+            let outcome = executor.execute_call(&call, &ExecutionGuard::new(&state));
+            if outcome.is_applied() {
+                if let Some(next) = outcome.mutated_state() {
+                    mutations.extend(
+                        canonical_diff(&before, next)
+                            .map_err(|code| IpcError::new(code, "Canonical diff failed"))?
+                            .ops,
+                    );
+                    state = next.clone();
+                    applied += 1;
+                    self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
+                }
+            }
+        }
+
+        Ok(TaskExecutionOutput {
+            task_index: ctx.task_index,
+            task_spec: ctx.task_spec.clone(),
+            task_identity: ctx.task_identity.clone(),
+            mutations,
+            applied_write_count: applied,
+            artifact: None,
+        })
     }
 
     /// Runs a bounded ReAct tool loop for planning tasks. Every mutation is produced by the
@@ -226,6 +371,7 @@ impl WorkflowTaskExecutor for LlmWorkflowTaskExecutor {
     ) -> Result<TaskExecutionOutput, IpcError> {
         match ctx.task_spec.task_kind.as_str() {
             "world_probe" => self.probe(ctx).await,
+            "world_write" => self.write_world_candidates(ctx),
             _ => self.write_through_tools(ctx).await,
         }
     }
@@ -236,6 +382,49 @@ fn artifact_error(error: ArtifactError, context: &str) -> IpcError {
         ErrorCode::ValidationFailed,
         format!("Invalid Phase 3 {context}: {error}"),
     )
+}
+
+fn slugify(value: &str) -> String {
+    let mut slug = String::new();
+    for ch in value.chars() {
+        if ch.is_alphanumeric() {
+            slug.push(ch.to_lowercase().next().unwrap_or(ch));
+        } else if !slug.ends_with('_') {
+            slug.push('_');
+        }
+    }
+    let trimmed = slug.trim_matches('_').to_string();
+    if trimmed.is_empty() { "world".to_string() } else { trimmed }
+}
+
+fn unique_code(state: &BusinessFlowData, display_name: &str) -> String {
+    let base = format!("ws_{}", slugify(display_name));
+    unique_among(state.optional.world_building_phase.world_settings.iter().map(|w| w.code.as_str()), &base)
+}
+
+fn unique_lore_code(state: &BusinessFlowData, display_name: &str) -> String {
+    let base = format!("lore_{}", slugify(display_name));
+    let existing = state
+        .optional
+        .world_building_phase
+        .world_settings
+        .iter()
+        .flat_map(|world| world.lore_entries.iter().map(|lore| lore.code.as_str()));
+    unique_among(existing, &base)
+}
+
+fn unique_among<'a>(existing: impl Iterator<Item = &'a str>, base: &str) -> String {
+    let taken: std::collections::BTreeSet<&str> = existing.collect();
+    if !taken.contains(base) {
+        return base.to_string();
+    }
+    for suffix in 2.. {
+        let candidate = format!("{base}_{suffix}");
+        if !taken.contains(candidate.as_str()) {
+            return candidate;
+        }
+    }
+    base.to_string()
 }
 
 /// Converts a provider tool call into the typed tool-call contract, lifting the declared
@@ -574,6 +763,31 @@ mod tests {
             .expect("tool loop must succeed");
         assert!(output.applied_write_count >= 1, "applied tool call must be counted");
         assert!(!output.mutations.is_empty(), "applied mutation must produce patch ops");
+    }
+
+    #[tokio::test]
+    async fn world_write_creates_parent_child_and_lore_through_tool_executor() {
+        let (provider, mut ctx) = probe_context("{}");
+        ctx.task_spec.task_kind = "world_write".into();
+        ctx.task_spec.assigned_scope = json!({
+            "groupKey": "depth_0",
+            "range": [1, 2],
+            "candidates": {
+                "worldSettings": [
+                    {"tempKey": "w1", "displayName": "Realm", "type": "REALM"},
+                    {"tempKey": "w2", "parentTempKey": "w1", "displayName": "City", "type": "CITY", "description": "Port"}
+                ],
+                "loreEntries": [
+                    {"tempKey": "l1", "worldTempKey": "w2", "displayName": "Fire", "type": "HISTORY", "data": {}}
+                ]
+            }
+        });
+        let output = LlmWorkflowTaskExecutor::new(provider as Arc<dyn LlmProvider>)
+            .execute_task(&ctx)
+            .await
+            .expect("world write must succeed");
+        assert_eq!(output.applied_write_count, 3, "two worlds and one lore must be written");
+        assert!(!output.mutations.is_empty(), "writes must produce canonical patch ops");
     }
 
     #[tokio::test]

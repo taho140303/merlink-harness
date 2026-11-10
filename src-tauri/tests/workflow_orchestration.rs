@@ -49,6 +49,9 @@ pub mod workflow_planner;
 #[path = "../src/domain/phase3_artifact.rs"]
 pub mod phase3_artifact;
 
+#[path = "../src/domain/phase3_merge.rs"]
+pub mod phase3_merge;
+
 #[path = "../src/domain/sf06/manifest.rs"]
 pub mod manifest;
 
@@ -127,6 +130,7 @@ pub mod domain {
     pub use crate::fingerprint;
     pub use crate::invariants;
     pub use crate::phase3_artifact;
+    pub use crate::phase3_merge;
     pub use crate::progress_engine;
     pub use crate::word_count;
     pub use crate::workflow_planner;
@@ -194,6 +198,7 @@ use std::time::Duration;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection};
+use phase3_artifact::WorldProbeReportV1;
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -746,11 +751,44 @@ async fn P4S1_FAILED_TASK_stops_round_and_reports_failed() {
     assert!(finished_event.is_some(), "WorkflowFinished(failed) event must be emitted");
 }
 
+/// Returns a valid ProbeCandidatesV1 artifact for probe tasks so the merger can plan writes.
+struct ProbeArtifactExecutor;
+
+#[async_trait::async_trait]
+impl WorkflowTaskExecutor for ProbeArtifactExecutor {
+    async fn execute_task(
+        &self,
+        ctx: &TaskExecutionContext,
+    ) -> Result<TaskExecutionOutput, IpcError> {
+        let artifact = if ctx.task_spec.task_kind == "world_probe" {
+            let report_text = r#"{"schemaVersion":1,"worldSettings":[{"tempKey":"w1","displayName":"Probe Realm","type":"REALM"},{"tempKey":"w2","parentTempKey":"w1","displayName":"Probe City","type":"CITY"}],"loreEntries":[]}"#;
+            Some(serde_json::to_value(WorldProbeReportV1::new(
+                ctx.task_spec.assigned_scope.to_string(),
+                report_text,
+            ))
+            .unwrap())
+        } else {
+            None
+        };
+        Ok(TaskExecutionOutput {
+            task_index: ctx.task_index,
+            task_spec: ctx.task_spec.clone(),
+            task_identity: ctx.task_identity.clone(),
+            mutations: Vec::new(),
+            applied_write_count: 0,
+            artifact,
+        })
+    }
+}
+
 /// Acceptance Test: `P4S1-PHASE3-PARENT-FIRST`
 /// Verifies Phase 3 stages: probe -> merge -> parent-first write by hierarchy tree depth.
 #[tokio::test]
 async fn P4S1_PHASE3_PARENT_FIRST_probe_merge_depth_ordered_write() {
     let fixture = setup_test_fixture();
+    fixture
+        .workflow_service
+        .set_task_executor(Arc::new(ProbeArtifactExecutor));
     let draft_session_id = Uuid::new_v4();
     {
         let conn = fixture.pool.get().unwrap();

@@ -1408,7 +1408,7 @@ impl ToolExecutor {
     fn handle_add_world_setting(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1425,13 +1425,28 @@ impl ToolExecutor {
         let disp = call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Setting").to_string();
         let st_type = call.parameters.get("type").and_then(|v| v.as_str()).unwrap_or("LOCATION").to_string();
 
+        let source = declared_sources
+            .get("display_name")
+            .copied()
+            .unwrap_or(ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
         let ws = WorldSettingItem {
             code: code.clone(),
-            parent_code: parent_code.map(TrackedField::user).unwrap_or_else(TrackedField::unset),
-            display_name: TrackedField::user(disp),
-            setting_type: TrackedField::user(st_type),
-            description: TrackedField::unset(),
-            access: TrackedField::unset(),
+            parent_code: parent_code
+                .map(|value| TrackedField::new(value, source))
+                .unwrap_or_default(),
+            display_name: TrackedField::new(disp, source),
+            setting_type: TrackedField::new(st_type, source),
+            description: text("description"),
+            access: text("access"),
             spatial_features: TrackedField::unset(),
             sensory_visual: TrackedField::unset(),
             sensory_auditory: TrackedField::unset(),
@@ -1439,7 +1454,7 @@ impl ToolExecutor {
             sensory_olfactory: TrackedField::unset(),
             sensory_gustatory: TrackedField::unset(),
             lore_entries: Vec::new(),
-            source: Some(ProvenanceSource::User),
+            source: Some(source),
         };
 
         candidate.optional.world_building_phase.world_settings.push(ws);
@@ -1509,7 +1524,7 @@ impl ToolExecutor {
     fn handle_add_lore_entry(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1543,17 +1558,38 @@ impl ToolExecutor {
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("lore-{}", ws.lore_entries.len() + 1));
 
+        let source = declared_sources
+            .get("display_name")
+            .copied()
+            .unwrap_or(ProvenanceSource::AiGenerated);
+        let description = call
+            .parameters
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| TrackedField::new(value.to_string(), source))
+            .unwrap_or_default();
+        let data = call
+            .parameters
+            .get("data")
+            .filter(|value| value.is_object())
+            .cloned()
+            .map(|value| TrackedField::new(value, source))
+            .unwrap_or_default();
         let lore = LoreEntryItem {
             code: code.clone(),
-            display_name: TrackedField::user(
+            display_name: TrackedField::new(
                 call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Lore").to_string(),
+                source,
             ),
-            lore_type: TrackedField::user(
+            lore_type: TrackedField::new(
                 call.parameters.get("type").and_then(|v| v.as_str()).unwrap_or("CONCEPT").to_string(),
+                source,
             ),
-            description: TrackedField::unset(),
-            data: TrackedField::unset(),
-            source: Some(ProvenanceSource::User),
+            description,
+            data,
+            source: Some(source),
         };
 
         ws.lore_entries.push(lore);
