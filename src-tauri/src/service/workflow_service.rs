@@ -1290,6 +1290,8 @@ impl WorkflowService {
                                 "arcCode": arc,
                                 "readRange": run.read,
                                 "writeRange": [run.write.0, run.write.1],
+                                "arcsTarget": flow.require.project.target.arc_count.value.unwrap_or(0),
+                                "chaptersTarget": flow.require.project.target.chapter_count.value.unwrap_or(0),
                             }),
                             dependencies: vec![],
                             deterministic_identity: Some(task_id),

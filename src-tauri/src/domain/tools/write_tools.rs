@@ -966,48 +966,74 @@ impl ToolExecutor {
     fn handle_add_arc(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
+        let source = *declared_sources
+            .get("display_name")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let code = call
             .parameters
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("arc-{}", candidate.optional.overview_phase.arcs.len() + 1));
-
-        let mut arc = OverviewArcItem {
-            code: code.clone(),
-            display_name: TrackedField::unset(),
-            summary: TrackedField::unset(),
-            position: TrackedField::unset(),
-            motif: ArcMotifSection::default(),
-            themes: ArcThemeSection::default(),
-            source: Some(ProvenanceSource::User),
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
         };
-
-        if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
-            arc.display_name = TrackedField::user(v.to_string());
-            results.push(FieldResult {
-                field: "display_name".to_string(),
-                status: "applied".to_string(),
-                patch_id: None,
-                error: None,
-                candidates: None,
+        let position = call
+            .parameters
+            .get("position")
+            .and_then(|value| value.as_u64())
+            .map(|value| TrackedField::new(value as u32, source))
+            .unwrap_or_default();
+        let mut motif = ArcMotifSection::default();
+        if let Some(motif_code) = call
+            .parameters
+            .get("motif_code")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            motif.code = TrackedField::new(motif_code.to_string(), source);
+        }
+        motif.note = text("motif_note");
+        candidate.optional.overview_phase.arcs.push(OverviewArcItem {
+            code: code.clone(),
+            display_name: text("display_name"),
+            summary: text("summary"),
+            position,
+            motif,
+            themes: ArcThemeSection::default(),
+            source: Some(source),
+        });
+        if !candidate.optional.chapter_phase.arcs.iter().any(|container| container.code == code) {
+            candidate.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
+                code: code.clone(),
+                chapters: Vec::new(),
             });
         }
-
-        candidate.optional.overview_phase.arcs.push(arc);
-        candidate.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
-            code: code.clone(),
-            chapters: Vec::new(),
-        });
-        candidate.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-            code,
-            chapters: Vec::new(),
+        if !candidate.optional.scene_config_phase.arcs.iter().any(|container| container.code == code) {
+            candidate.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
+                code: code.clone(),
+                chapters: Vec::new(),
+            });
+        }
+        results.push(FieldResult {
+            field: "code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![code]),
         });
     }
 
@@ -1986,7 +2012,7 @@ impl ToolExecutor {
     fn handle_add_scene_character(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2046,7 +2072,7 @@ impl ToolExecutor {
     fn handle_add_scene_lore_entry(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2164,7 +2190,7 @@ impl ToolExecutor {
     fn handle_add_arc_event_block(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2198,36 +2224,56 @@ impl ToolExecutor {
             }
         };
 
+        let source = *declared_sources
+            .get("summary")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let code = call
             .parameters
             .get("event_block_code")
+            .or_else(|| call.parameters.get("code"))
             .and_then(|v| v.as_str())
-            .unwrap_or("eb-1");
-
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{arc_code}-eb-{}", arc.motif.event_blocks.len() + 1));
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let number = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_u64())
+                .map(|value| TrackedField::new(value as u32, source))
+                .unwrap_or_default()
+        };
         arc.motif.event_blocks.push(ArcEventBlockItem {
-            code: code.to_string(),
-            event_block_code: TrackedField::user(code.to_string()),
-            start_chapter_code: TrackedField::unset(),
-            end_chapter_code: TrackedField::unset(),
-            start_chapter: TrackedField::unset(),
-            end_chapter: TrackedField::unset(),
-            summary: TrackedField::unset(),
-            source: Some(ProvenanceSource::User),
+            code: code.clone(),
+            event_block_code: TrackedField::new(code.clone(), source),
+            start_chapter_code: text("start_chapter_code"),
+            end_chapter_code: text("end_chapter_code"),
+            start_chapter: number("start_chapter"),
+            end_chapter: number("end_chapter"),
+            summary: text("summary"),
+            source: Some(source),
         });
 
         results.push(FieldResult {
-            field: "event_block_code".to_string(),
+            field: "code".to_string(),
             status: "applied".to_string(),
             patch_id: None,
             error: None,
-            candidates: None,
+            candidates: Some(vec![code]),
         });
     }
 
     fn handle_add_character_memory(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2279,7 +2325,7 @@ impl ToolExecutor {
     fn handle_add_character_competence(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2338,7 +2384,7 @@ impl ToolExecutor {
     fn handle_add_theme(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2372,23 +2418,45 @@ impl ToolExecutor {
             }
         };
 
-        let question = call.parameters.get("question").and_then(|v| v.as_str()).unwrap_or("");
-        arc.themes.question = TrackedField::user(question.to_string());
-        arc.themes.source = Some(ProvenanceSource::User);
+        let source = *declared_sources.get("question").unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let theme_code = call
+            .parameters
+            .get("theme_code")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{arc_code}-theme"));
+        arc.themes.code = Some(theme_code.clone());
+        arc.themes.parent_theme_code = text("parent_theme_code");
+        arc.themes.question = text("question");
+        arc.themes.message = text("message");
+        arc.themes.resolution.resolution_type = text("resolution_type");
+        arc.themes.resolution.content = text("resolution");
+        arc.themes.source = Some(source);
 
         results.push(FieldResult {
-            field: "question".to_string(),
+            field: "theme_code".to_string(),
             status: "applied".to_string(),
             patch_id: None,
             error: None,
-            candidates: None,
+            candidates: Some(vec![theme_code]),
         });
     }
 
     fn handle_add_theme_argument(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2409,27 +2477,40 @@ impl ToolExecutor {
         }
 
         let (theme_code, char_code) = (theme_code.unwrap(), char_code.unwrap());
+        let source = *declared_sources
+            .get("role")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
         let arc = candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.themes.code.as_deref() == Some(theme_code) || a.code == theme_code);
 
         match arc {
             Some(a) => {
+                let code = format!("{theme_code}-arg-{}", a.themes.arguments.len() + 1);
                 a.themes.arguments.push(ThemeArgumentItem {
-                    code: Some(format!("arg-{}", a.themes.arguments.len() + 1)),
-                    character_code: TrackedField::user(char_code.to_string()),
-                    character_display_name: TrackedField::unset(),
-                    role: TrackedField::unset(),
-                    answer_mode: TrackedField::unset(),
-                    note: TrackedField::unset(),
-                    required_knowledge: TrackedField::unset(),
-                    required_competence: TrackedField::unset(),
-                    source: Some(ProvenanceSource::User),
+                    code: Some(code.clone()),
+                    character_code: TrackedField::new(char_code.to_string(), source),
+                    character_display_name: text("character_display_name"),
+                    role: text("role"),
+                    answer_mode: text("answer_mode"),
+                    note: text("note"),
+                    required_knowledge: text("required_knowledge"),
+                    required_competence: text("required_competence"),
+                    source: Some(source),
                 });
                 results.push(FieldResult {
-                    field: "character_code".to_string(),
+                    field: "code".to_string(),
                     status: "applied".to_string(),
                     patch_id: None,
                     error: None,
-                    candidates: None,
+                    candidates: Some(vec![code]),
                 });
             }
             None => {
@@ -3018,5 +3099,98 @@ mod phase6_7_handlers {
         let scene = &updated.optional.chapter_phase.arcs[0].chapters[0].scenes[0];
         assert_eq!(scene.position.value, Some(1));
         assert_eq!(scene.summary.value.as_deref(), Some("Gặp gỡ"));
+    }
+}
+
+#[cfg(test)]
+mod phase1_handlers {
+    use super::*;
+
+    fn call(name: &str, parameters: serde_json::Value) -> ToolCall {
+        ToolCall {
+            name: name.into(),
+            caller: CallerCategory::AiCaller,
+            parameters,
+            declared_sources: Some(
+                [("display_name".to_string(), ProvenanceSource::AiGenerated),
+                 ("question".to_string(), ProvenanceSource::AiGenerated),
+                 ("summary".to_string(), ProvenanceSource::AiGenerated),
+                 ("role".to_string(), ProvenanceSource::AiGenerated)]
+                    .into_iter()
+                    .collect(),
+            ),
+            declared_source: None,
+        }
+    }
+
+    #[test]
+    fn arc_theme_arguments_and_event_blocks_are_written_with_all_fields() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        state.require.character.push(RequireCharacterItem {
+            code: "char_a".into(),
+            display_name: TrackedField::user("A".to_string()),
+            ..Default::default()
+        });
+
+        let outcome = executor.execute_call(
+            &call("add_arc", serde_json::json!({
+                "code": "arc-1", "display_name": "Khởi đầu", "summary": "Mở màn",
+                "position": 1, "motif_code": "opening"
+            })),
+            &ExecutionGuard::new(&state),
+        );
+        assert!(outcome.is_applied(), "arc must apply: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let arc = &state.optional.overview_phase.arcs[0];
+        assert_eq!(arc.position.value, Some(1));
+        assert_eq!(arc.summary.value.as_deref(), Some("Mở màn"));
+        assert_eq!(arc.motif.code.value.as_deref(), Some("opening"));
+        assert_eq!(state.optional.chapter_phase.arcs.len(), 1, "chapter container created");
+
+        let outcome = executor.execute_call(
+            &call("add_theme", serde_json::json!({
+                "arc_code": "arc-1", "theme_code": "theme-1",
+                "question": "Tham vọng có đáng đánh đổi?", "message": "Cái giá của tham vọng",
+                "resolution": "Chọn buông bỏ", "resolution_type": "RESOLVED"
+            })),
+            &ExecutionGuard::new(&state),
+        );
+        assert!(outcome.is_applied(), "theme must apply: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let theme = &state.optional.overview_phase.arcs[0].themes;
+        assert_eq!(theme.code.as_deref(), Some("theme-1"));
+        assert_eq!(theme.question.value.as_deref(), Some("Tham vọng có đáng đánh đổi?"));
+        assert_eq!(theme.message.value.as_deref(), Some("Cái giá của tham vọng"));
+        assert_eq!(theme.resolution.resolution_type.value.as_deref(), Some("RESOLVED"));
+        assert_eq!(theme.resolution.content.value.as_deref(), Some("Chọn buông bỏ"));
+
+        let outcome = executor.execute_call(
+            &call("add_theme_argument", serde_json::json!({
+                "theme_code": "theme-1", "character_code": "char_a",
+                "role": "PRIMARY", "answer_mode": "ACTION", "note": "Hành động"
+            })),
+            &ExecutionGuard::new(&state),
+        );
+        assert!(outcome.is_applied(), "argument must apply: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let argument = &state.optional.overview_phase.arcs[0].themes.arguments[0];
+        assert_eq!(argument.role.value.as_deref(), Some("PRIMARY"));
+        assert_eq!(argument.answer_mode.value.as_deref(), Some("ACTION"));
+
+        let outcome = executor.execute_call(
+            &call("add_arc_event_block", serde_json::json!({
+                "arc_code": "arc-1", "start_chapter": 1, "end_chapter": 25,
+                "summary": "Khối mở đầu"
+            })),
+            &ExecutionGuard::new(&state),
+        );
+        assert!(outcome.is_applied(), "event block must apply: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let block = &state.optional.overview_phase.arcs[0].motif.event_blocks[0];
+        assert_eq!(block.start_chapter.value, Some(1));
+        assert_eq!(block.end_chapter.value, Some(25));
+        assert_eq!(block.summary.value.as_deref(), Some("Khối mở đầu"));
+        assert_eq!(block.code, "arc-1-eb-1");
     }
 }

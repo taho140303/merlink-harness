@@ -849,8 +849,13 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
     assert_eq!(am_count, 2);
 
     // 8. themes & 9. theme_arguments
+    // The theme catalog is also seeded system-wide, so count only this project's themes.
     let th_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM themes", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM themes t JOIN arcs a ON a.id = t.arc_id WHERE a.project_id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(th_count, 2);
 

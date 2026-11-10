@@ -250,14 +250,24 @@ generated content with declared_sources = ai_generated instead of asking for con
         let mut mutations: Vec<PatchOp> = Vec::new();
         let mut applied = 0u32;
         let executor = ToolExecutor::default();
-        let pair_count = ctx
-            .task_spec
-            .assigned_scope
+        let scope = &ctx.task_spec.assigned_scope;
+        let pair_count = scope
             .get("pairs")
             .and_then(|value| value.as_array())
             .map(|pairs| pairs.len())
             .unwrap_or(0);
-        let max_turns = (2 * pair_count + 6).clamp(6, 24);
+        let arcs_target = scope.get("arcsTarget").and_then(|value| value.as_u64()).unwrap_or(0) as usize;
+        let range_size = scope
+            .get("range")
+            .and_then(|value| value.as_array())
+            .filter(|range| range.len() == 2)
+            .and_then(|range| {
+                let lo = range[0].as_u64()?;
+                let hi = range[1].as_u64()?;
+                Some((hi.saturating_sub(lo) + 1) as usize)
+            })
+            .unwrap_or(0);
+        let max_turns = (6 * arcs_target + 2 * pair_count + 2 * range_size + 6).clamp(6, 48);
 
         for _ in 0..max_turns {
             if ctx.cancel_token.is_cancelled() {
@@ -309,6 +319,16 @@ generated content with declared_sources = ai_generated instead of asking for con
                     result_note,
                 ));
             }
+        }
+
+        if applied == 0 && !ctx.task_spec.task_kind.starts_with("world_") {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!(
+                    "Workflow task '{}' produced no writes for scope {}",
+                    ctx.task_spec.task_kind, ctx.task_spec.assigned_scope
+                ),
+            ));
         }
 
         // One canonical diff for the whole task: per-call diffs emit duplicate paths for
