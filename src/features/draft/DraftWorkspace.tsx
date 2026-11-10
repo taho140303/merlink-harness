@@ -545,6 +545,52 @@ function unwrapTracked<T = any>(val: any, fallback: T): T {
   return val !== null && val !== undefined ? val : fallback;
 }
 
+/**
+ * Derives the draft step from the newest draft JSON so reopening a session resumes where the
+ * author left it instead of always starting at Phase 1. Content depth decides the step because
+ * `meta.phase` is not advanced by the workflow.
+ */
+export function deriveStepFromFlow(bfd: any): { step: DraftStep; subStep: CharacterSubStep } {
+  const optional = bfd?.optional ?? {};
+  const relationships = optional.relationship_phase?.relationship;
+  if (Array.isArray(relationships) && relationships.length > 0) {
+    return { step: 'relationship', subStep: 'lifeExperience' };
+  }
+  const life = optional.character_life_experience_phase?.character;
+  const psycho = optional.character_psychological_phase?.character;
+  const appearance = optional.character_appearance_phase?.character;
+  if (Array.isArray(life) && life.length > 0) {
+    return { step: 'character', subStep: 'lifeExperience' };
+  }
+  if (Array.isArray(psycho) && psycho.length > 0) {
+    return { step: 'character', subStep: 'psychological' };
+  }
+  if (Array.isArray(appearance) && appearance.length > 0) {
+    return { step: 'character', subStep: 'appearance' };
+  }
+  const sceneArcs = optional.scene_config_phase?.arcs;
+  const hasSceneConfig =
+    Array.isArray(sceneArcs) &&
+    sceneArcs.some((arc: any) =>
+      (arc?.chapters ?? []).some((chapter: any) => (chapter?.scenes ?? []).length > 0)
+    );
+  if (hasSceneConfig) return { step: 'scene', subStep: 'appearance' };
+  const worldSettings = optional.world_building_phase?.world_settings;
+  if (Array.isArray(worldSettings) && worldSettings.length > 0) {
+    return { step: 'world', subStep: 'appearance' };
+  }
+  const chapterArcs = optional.chapter_phase?.arcs;
+  const hasChapters =
+    Array.isArray(chapterArcs) &&
+    chapterArcs.some((arc: any) => (arc?.chapters ?? []).length > 0);
+  if (hasChapters) return { step: 'chapter', subStep: 'appearance' };
+  const arcs = optional.overview_phase?.arcs;
+  if (Array.isArray(arcs) && arcs.length > 0) {
+    return { step: 'overview', subStep: 'appearance' };
+  }
+  return { step: 'overview', subStep: 'appearance' };
+}
+
 export function mapBusinessFlowDataToDraftOverview(
   bfd: any,
   baseOverview: DraftOverview = DRAFT_OVERVIEW
@@ -940,6 +986,15 @@ export function DraftWorkspace({
 
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
+  const hasAutoPositioned = useRef(false);
+  useEffect(() => {
+    const flow = controllerState.businessFlowData;
+    if (hasAutoPositioned.current || !flow) return;
+    hasAutoPositioned.current = true;
+    const derived = deriveStepFromFlow(flow);
+    setCurrentStep(derived.step);
+    setCurrentSubStep(derived.subStep);
+  }, [controllerState.businessFlowData]);
   const [currentVersion, setCurrentVersion] = useState(
     controllerState.currentVersionLabel || overview.version
   );
@@ -1030,6 +1085,7 @@ export function DraftWorkspace({
   };
 
   const advanceStep = () => {
+    hasAutoPositioned.current = true;
     if (currentStep === 'overview') setCurrentStep('chapter');
     else if (currentStep === 'chapter') setCurrentStep('world');
     else if (currentStep === 'world') setCurrentStep('scene');
