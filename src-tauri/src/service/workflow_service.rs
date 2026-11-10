@@ -1268,24 +1268,29 @@ impl WorkflowService {
 
                     for run in outline_runs {
                         let arc = run.arc_code.as_deref().unwrap_or(&arc_code);
-                        let task_id = format_arc_chapter_task_identity(
-                            phase,
-                            WorkflowTaskKind::OutlineWindow,
-                            arc,
-                            run.write.0,
-                            run.write.1,
-                        )
-                        .unwrap_or_else(|_| {
-                            format!(
-                                "task:p{}:outline_window:{}:{}..={}",
-                                phase, arc, run.write.0, run.write.1
+                        let kind = if phase == 2 { "chapter_outline" } else { "outline_window" };
+                        let task_id = if phase == 2 {
+                            format!("p2:s0:chapter_outline:arc={arc}:ch={}..={}", run.write.0, run.write.1)
+                        } else {
+                            format_arc_chapter_task_identity(
+                                phase,
+                                WorkflowTaskKind::OutlineWindow,
+                                arc,
+                                run.write.0,
+                                run.write.1,
                             )
-                        });
+                            .unwrap_or_else(|_| {
+                                format!(
+                                    "task:p{}:outline_window:{}:{}..={}",
+                                    phase, arc, run.write.0, run.write.1
+                                )
+                            })
+                        };
 
                         let spec = PlannedTaskSpec {
                             phase,
                             subphase: None,
-                            task_kind: "outline_window".to_string(),
+                            task_kind: kind.to_string(),
                             assigned_scope: json!({
                                 "arcCode": arc,
                                 "readRange": run.read,

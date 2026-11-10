@@ -110,9 +110,10 @@ pub fn merge_probe_reports(
 ) -> Result<MergedCandidates, MergeError> {
     let mut worlds: BTreeMap<String, MergedWorldCandidate> = BTreeMap::new();
     // canonical key -> (report label, original description/access signature)
-    let mut world_signatures: BTreeMap<String, (String, String)> = BTreeMap::new();
+    // key -> (report, description?, access?)
+    let mut world_signatures: BTreeMap<String, (String, Option<String>, Option<String>)> = BTreeMap::new();
     let mut lore: BTreeMap<String, MergedLoreCandidate> = BTreeMap::new();
-    let mut lore_signatures: BTreeMap<String, (String, String)> = BTreeMap::new();
+    let mut lore_signatures: BTreeMap<String, (String, Option<String>, Option<Value>)> = BTreeMap::new();
 
     for (report_label, report_text) in reports {
         let report = validate_probe_candidates(report_text, existing_world_codes).map_err(|error| {
@@ -164,24 +165,40 @@ pub fn merge_probe_reports(
             };
             local_to_canonical.insert(temp_key.clone(), key.clone());
 
-            let signature = format!(
-                "{}|{}",
-                description.clone().unwrap_or_default(),
-                access.clone().unwrap_or_default()
-            );
-            match world_signatures.get(&key) {
-                Some((first_report, first_signature)) => {
-                    if *first_signature != signature {
-                        return Err(MergeError::Ambiguous {
-                            kind: "world_setting",
-                            display_name,
-                            first_report: first_report.clone(),
-                            second_report: report_label.clone(),
-                        });
+            match world_signatures.get_mut(&key) {
+                Some((first_report, first_description, first_access)) => {
+                    // A probe that omits an optional field does not conflict with one that
+                    // provides it: keep the known value, only differ when both are known.
+                    for (existing, incoming, label) in [
+                        (&mut *first_description, &description, "description"),
+                        (&mut *first_access, &access, "access"),
+                    ] {
+                        match (&*existing, incoming) {
+                            (Some(known), Some(candidate)) if known != candidate => {
+                                return Err(MergeError::Ambiguous {
+                                    kind: "world_setting",
+                                    display_name: format!("{display_name} ({label})"),
+                                    first_report: first_report.clone(),
+                                    second_report: report_label.clone(),
+                                });
+                            }
+                            (None, Some(candidate)) => *existing = Some(candidate.clone()),
+                            _ => {}
+                        }
+                    }
+                    let stored = worlds.get_mut(&key).expect("merged world exists");
+                    if stored.description.is_none() {
+                        stored.description = description.clone();
+                    }
+                    if stored.access.is_none() {
+                        stored.access = access.clone();
                     }
                 }
                 None => {
-                    world_signatures.insert(key.clone(), (report_label.clone(), signature));
+                    world_signatures.insert(
+                        key.clone(),
+                        (report_label.clone(), description.clone(), access.clone()),
+                    );
                     worlds.entry(key.clone()).or_insert(MergedWorldCandidate {
                         temp_key: key,
                         parent_temp_key: parent_canonical,
@@ -225,20 +242,37 @@ pub fn merge_probe_reports(
                 (None, None) => format!("none|{}|{}", normalize_name(&display_name), lore_type),
             };
 
-            let signature = format!("{}|{}", description.clone().unwrap_or_default(), data);
-            match lore_signatures.get(&key) {
-                Some((first_report, first_signature)) => {
-                    if *first_signature != signature {
-                        return Err(MergeError::Ambiguous {
-                            kind: "lore_entry",
-                            display_name,
-                            first_report: first_report.clone(),
-                            second_report: report_label.clone(),
-                        });
+            match lore_signatures.get_mut(&key) {
+                Some((first_report, first_description, first_data)) => {
+                    let empty_data = data.as_object().map(|object| object.is_empty()).unwrap_or(false);
+                    if let Some(known) = &*first_data {
+                        if !empty_data && known != &data {
+                            return Err(MergeError::Ambiguous {
+                                kind: "lore_entry",
+                                display_name,
+                                first_report: first_report.clone(),
+                                second_report: report_label.clone(),
+                            });
+                        }
+                    } else if !empty_data {
+                        *first_data = Some(data.clone());
+                    }
+                    if first_description.is_none() {
+                        *first_description = description.clone();
+                    }
+                    let stored = lore.get_mut(&key).expect("merged lore exists");
+                    if stored.description.is_none() {
+                        stored.description = description.clone();
+                    }
+                    if stored.data.is_null() || stored.data.as_object().map(|o| o.is_empty()).unwrap_or(false) {
+                        stored.data = data.clone();
                     }
                 }
                 None => {
-                    lore_signatures.insert(key.clone(), (report_label.clone(), signature));
+                    lore_signatures.insert(
+                        key.clone(),
+                        (report_label.clone(), description.clone(), Some(data.clone())),
+                    );
                     lore.entry(key.clone()).or_insert(MergedLoreCandidate {
                         temp_key: key,
                         world_temp_key: parent_canonical,

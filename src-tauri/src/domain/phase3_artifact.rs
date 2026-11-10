@@ -616,7 +616,10 @@ pub fn validate_probe_candidates(report_text: &str, existing_world_codes: &[Stri
     let report: Value = serde_json::from_str(report_text)
         .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
     let object = report.as_object().ok_or_else(|| ArtifactError::Serialization("ProbeCandidatesV1 must be an object".into()))?;
-    if object.len() != 3 || object.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+    if !object.contains_key("worldSettings")
+        || !object.contains_key("loreEntries")
+        || object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+    {
         return Err(ArtifactError::Serialization("Invalid ProbeCandidatesV1 version or keys".into()));
     }
     let worlds = object.get("worldSettings").and_then(Value::as_array)
@@ -629,8 +632,14 @@ pub fn validate_probe_candidates(report_text: &str, existing_world_codes: &[Stri
         let entry = item.as_object().ok_or_else(|| ArtifactError::Serialization("World candidate must be an object".into()))?;
         let get = |key: &str| entry.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty());
         let key = get("tempKey").ok_or_else(|| ArtifactError::Serialization("Missing world tempKey".into()))?;
-        if get("displayName").is_none() || !matches!(get("type"), Some("REALM" | "WORLD" | "REGION" | "COUNTRY" | "CITY" | "TOWN" | "FACILITY" | "STREET" | "ROOM"))
-            || entry.get("access").is_some() && !matches!(get("access"), Some("PUBLIC" | "PRIVATE" | "SECRET" | "LOCKED" | "GUARDED" | "RESTRICTED")) {
+        let access_value = entry
+            .get("access")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if get("displayName").is_none()
+            || !matches!(get("type"), Some("REALM" | "WORLD" | "REGION" | "COUNTRY" | "CITY" | "TOWN" | "FACILITY" | "STREET" | "ROOM"))
+            || access_value.is_some() && !matches!(access_value, Some("PUBLIC" | "PRIVATE" | "SECRET" | "LOCKED" | "GUARDED" | "RESTRICTED")) {
             return Err(ArtifactError::Serialization("Invalid world candidate fields or enum".into()));
         }
         let parent = get("parentTempKey");

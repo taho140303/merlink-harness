@@ -2012,7 +2012,7 @@ impl ToolExecutor {
     fn handle_add_scene_character(
         &self,
         call: &ToolCall,
-        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        _declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2072,7 +2072,7 @@ impl ToolExecutor {
     fn handle_add_scene_lore_entry(
         &self,
         call: &ToolCall,
-        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        _declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2273,7 +2273,7 @@ impl ToolExecutor {
     fn handle_add_character_memory(
         &self,
         call: &ToolCall,
-        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        _declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2325,7 +2325,7 @@ impl ToolExecutor {
     fn handle_add_character_competence(
         &self,
         call: &ToolCall,
-        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        _declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,

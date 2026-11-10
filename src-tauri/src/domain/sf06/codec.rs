@@ -869,6 +869,7 @@ fn diff_overview_arcs(
     }
 }
 
+#[allow(dead_code)]
 fn diff_chapter_phase_arcs(
     path: &str,
     before: &[crate::domain::business_flow::ChapterPhaseArcItem],
@@ -973,6 +974,7 @@ fn diff_chapter_phase_arcs(
     }
 }
 
+#[allow(dead_code)]
 fn diff_world_settings(
     path: &str,
     before: &[crate::domain::business_flow::WorldSettingItem],
@@ -1043,6 +1045,7 @@ fn diff_scene_config_phase(
     });
 }
 
+#[allow(dead_code)]
 fn diff_character_life_experience(
     path: &str,
     before: &[crate::domain::business_flow::CharacterLifeExperienceItem],

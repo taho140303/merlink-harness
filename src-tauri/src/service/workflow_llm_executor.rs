@@ -241,10 +241,7 @@ generated content with declared_sources = ai_generated instead of asking for con
                     .replace("{{story_context}}", &render_story_context(&ctx.snapshot.business_flow_data)),
                 scope = ctx.task_spec.assigned_scope
             )),
-            ProviderMessage::user(format!(
-                "Hãy thực hiện task '{}' trong phạm vi được giao.",
-                ctx.task_spec.task_kind
-            )),
+            ProviderMessage::user(task_instruction(ctx)),
         ];
         let task_start = state.clone();
         let mut mutations: Vec<PatchOp> = Vec::new();
@@ -359,7 +356,7 @@ generated content with declared_sources = ai_generated instead of asking for con
         let existing_codes = existing_world_codes(&ctx.snapshot.business_flow_data);
 
         let system = format!(
-            "{}\n\n{}\n\n{}",
+            "{}\n\n{}\n\n{}\n\nĐây là workflow tự động không có người dùng trong lượt: không hỏi xác nhận, chỉ trả đúng một JSON object.",
             ctx.phase_prompt
                 .replace("{{story_context}}", &render_story_context(&ctx.snapshot.business_flow_data)),
             probe_system_prompt(&ctx.system_language),
@@ -430,6 +427,58 @@ fn artifact_error(error: ArtifactError, context: &str) -> IpcError {
         ErrorCode::ValidationFailed,
         format!("Invalid Phase 3 {context}: {error}"),
     )
+}
+
+/// Explicit per-kind instruction so the model knows exactly what the assigned scope needs.
+fn task_instruction(ctx: &TaskExecutionContext) -> String {
+    let scope = &ctx.task_spec.assigned_scope;
+    let number = |key: &str| scope.get(key).and_then(|value| value.as_u64());
+    let range = |key: &str| {
+        scope
+            .get(key)
+            .and_then(|value| value.as_array())
+            .filter(|array| array.len() == 2)
+            .and_then(|array| Some((array[0].as_u64()?, array[1].as_u64()?)))
+    };
+    match ctx.task_spec.task_kind.as_str() {
+        "outline_window" => {
+            let arcs = number("arcsTarget").unwrap_or(1).max(1);
+            format!(
+                "Hãy viết dàn ý Arc cho phạm vi được giao. Mục tiêu toàn dự án là {arcs} Arc. Mỗi Arc bắt buộc có: display_name, summary, position, motif_code, ít nhất một event block (start_chapter/end_chapter/summary), theme gồm question, message, resolution (kèm resolution_type) và 2-4 luận điểm (add_theme_argument) cho các nhân vật đã có. Gọi add_arc trước để lấy code, rồi add_theme/add_theme_argument/add_arc_event_block với code đó."
+            )
+        }
+        "chapter_outline" => {
+            let (lo, hi) = range("writeRange").unwrap_or((1, 1));
+            let count = hi.saturating_sub(lo) + 1;
+            let arc = scope.get("arcCode").and_then(|value| value.as_str()).unwrap_or("arc");
+            format!(
+                "Hãy tạo đúng {count} chương cho Arc '{arc}', position {lo}..={hi}. Dùng add_chapter với arc_code='{arc}', position và summary cho từng chương. Sau mỗi chương, tạo ít nhất một cảnh bằng add_scene (chapter_code là code trả về, position bắt đầu từ 1, có summary). Không bỏ trống cảnh và không tạo chương ngoài khoảng position được giao."
+            )
+        }
+        "world_probe" => "Thăm dò bối cảnh theo phạm vi chương được giao và trả về JSON đúng hợp đồng.".to_string(),
+        "scene_config" => {
+            let (lo, hi) = range("range").unwrap_or((1, 1));
+            format!(
+                "Cấu hình cảnh cho chương {lo}..={hi}: với từng cảnh gọi set_scene_config (world_setting_code, style_preset_code, narrator_config_code), add_scene_character cho mọi nhân vật có mặt (kèm is_pov đúng ngôi kể) và add_scene_lore_entry khi cảnh dùng lore."
+            )
+        }
+        "char_profile" => {
+            let sub = ctx.subphase.unwrap_or(1);
+            format!(
+                "Hoàn thiện hồ sơ nhân vật sub-phase {sub}. 5.1: add_character_appearance/set_character_appearance. 5.2: add_character_psychological. 5.3: add_character_memory và add_character_competence (domain_code, scene_code bắt buộc, kèm capabilities/limitations). Chỉ ghi cho các nhân vật trong assigned scope."
+            )
+        }
+        "rel_matrix" => {
+            let pairs = scope.get("pairs").and_then(|value| value.as_array()).cloned().unwrap_or_default();
+            let listed = pairs.iter().filter_map(|pair| pair.as_array()).filter(|pair| pair.len()==2)
+                .map(|pair| format!("{}->{}", pair[0].as_str().unwrap_or(""), pair[1].as_str().unwrap_or("")))
+                .collect::<Vec<_>>().join(", ");
+            format!(
+                "Tạo quan hệ có hướng cho các cặp: {listed}. Mỗi cặp gọi add_relationship(from_code, to_code, motif_code), add_relationship_role nếu cần, và set_relationship_state cho các cảnh có thay đổi (ghi đủ 7 chiều với enum NONE/LOW/MODERATE/HIGH/ABSOLUTE)."
+            )
+        }
+        _ => format!("Hãy thực hiện task '{}' trong phạm vi được giao.", ctx.task_spec.task_kind),
+    }
 }
 
 /// Compact, deterministic State slice injected where `{{story_context}}` is used by chat.
