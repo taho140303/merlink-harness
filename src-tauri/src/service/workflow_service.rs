@@ -85,6 +85,10 @@ pub struct TaskExecutionContext {
     pub snapshot: Arc<WorkingState>,
     pub system_language: String,
     pub cancel_token: CancellationToken,
+    /// Composed system prompt for this phase (shared blocks + `planning_phase_n`).
+    pub phase_prompt: String,
+    /// Tool schemas granted by `prompt_block_tools` for this phase.
+    pub tool_schemas: Vec<Value>,
 }
 
 /// Execution output produced by a subagent task.
@@ -356,6 +360,8 @@ impl WorkflowService {
             &cfg,
         )?;
 
+        let (phase_prompt, tool_schemas) = self.compose_phase_prompt(req.phase)?;
+
         let total_rounds = plan_rounds.len() as u32;
         let total_tasks: u32 = plan_rounds.iter().map(|r| r.len() as u32).sum();
 
@@ -514,6 +520,8 @@ impl WorkflowService {
                     snapshot: snapshot.clone(),
                     system_language: req.system_language.clone(),
                     cancel_token: cancel_token.clone(),
+                    phase_prompt: phase_prompt.clone(),
+                    tool_schemas: tool_schemas.clone(),
                 };
 
                 let err_inj = *error_injection.read();
@@ -924,6 +932,108 @@ impl WorkflowService {
         }
     }
 
+    /// Deterministic Arc window fallback from the confirmed target counts (no entity names
+    /// are fabricated: the codes only identify planning scopes, never draft entities).
+    fn planned_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
+        let arc_count = flow.require.project.target.arc_count.value.unwrap_or(0) as i32;
+        let chapter_count = flow.require.project.target.chapter_count.value.unwrap_or(0) as i32;
+        if arc_count <= 0 || chapter_count <= 0 {
+            return Vec::new();
+        }
+        let per_arc = (chapter_count + arc_count - 1) / arc_count;
+        let mut ranges = Vec::new();
+        let mut start = 1;
+        for index in 0..arc_count {
+            if start > chapter_count {
+                break;
+            }
+            let end = if index == arc_count - 1 {
+                chapter_count
+            } else {
+                (start + per_arc.max(1) - 1).min(chapter_count)
+            };
+            ranges.push((format!("planned_arc_{}", index + 1), start, end));
+            start = end + 1;
+        }
+        ranges
+    }
+
+    /// Compose the phase system prompt and the tool schemas granted to it
+    /// (`prompt_blocks` + `prompt_block_tools`, `core.md` §3.8).
+    fn compose_phase_prompt(
+        &self,
+        phase: i32,
+    ) -> Result<(String, Vec<Value>), IpcError> {
+        let conn = self
+            .pool
+            .get()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        let phase_code = format!("planning_phase_{phase}");
+        let codes = [
+            "introduction".to_string(),
+            "invariant_rule".to_string(),
+            "planning_mode".to_string(),
+            phase_code.clone(),
+            "exception_handling".to_string(),
+            "out_of_scope".to_string(),
+            "tool_library".to_string(),
+            "story_context".to_string(),
+        ];
+
+        let mut sections = Vec::with_capacity(codes.len());
+        for code in &codes {
+            let content: Option<String> = conn
+                .query_row(
+                    "SELECT content FROM prompt_blocks WHERE prompt_code = ?1",
+                    params![code],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            if let Some(content) = content.filter(|text| !text.trim().is_empty()) {
+                sections.push(format!("# {code}\n{content}"));
+            }
+        }
+        if !sections.iter().any(|section| section.starts_with(&format!("# {phase_code}"))) {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!("Prompt block '{phase_code}' is not seeded; run pending migrations"),
+            ));
+        }
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT t.code, t.description, t.input_schema
+                 FROM prompt_block_tools pbt
+                 JOIN prompt_blocks pb ON pb.id = pbt.prompt_block_id
+                 JOIN tools t ON t.id = pbt.tool_id
+                 WHERE pb.prompt_code = ?1 AND t.input_schema IS NOT NULL
+                 ORDER BY t.code",
+            )
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        let schemas = stmt
+            .query_map(params![phase_code], |row| {
+                let code: String = row.get(0)?;
+                let description: Option<String> = row.get(1)?;
+                let schema: String = row.get(2)?;
+                Ok((code, description, schema))
+            })
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+            .filter_map(Result::ok)
+            .filter_map(|(code, description, schema)| {
+                serde_json::from_str::<Value>(&schema).ok().map(|parameters| {
+                    json!({
+                        "name": code,
+                        "description": description.unwrap_or_default(),
+                        "parameters": parameters,
+                    })
+                })
+            })
+            .collect();
+
+        Ok((sections.join("\n\n"), schemas))
+    }
+
     // Helper: Plan rounds for a phase according to SSOT domain planner rules
     fn build_rounds_for_phase(
         &self,
@@ -939,11 +1049,17 @@ impl WorkflowService {
         match phase {
             1 | 2 => {
                 // Phase 1–2: sequential outline windows over the Arc ranges in the draft.
-                let arc_ranges = extract_arc_chapter_ranges(flow)
+                // Before Phase 1 writes anything, fall back to the user-confirmed target
+                // allocation so the phase can actually run on a fresh draft.
+                let mut arc_ranges = extract_arc_chapter_ranges(flow)
                     .map_err(|e| invalid(e.to_string()))?;
                 if arc_ranges.is_empty() {
+                    arc_ranges = Self::planned_arc_ranges(flow);
+                }
+                if arc_ranges.is_empty() {
                     return Err(invalid(
-                        "Phase 1–2 requires at least one Arc with chapters in the draft".into(),
+                        "Phase 1–2 requires either an Arc outline or a confirmed target arc/chapter count"
+                            .into(),
                     ));
                 }
 
@@ -1152,13 +1268,29 @@ impl WorkflowService {
             }
             6 => {
                 // Phase 6: relationship matrix over the directed pairs in the draft.
-                let pairs: Vec<(String, String)> = flow
+                let mut pairs: Vec<(String, String)> = flow
                     .optional
                     .relationship_phase
                     .relationship
                     .iter()
                     .map(|item| (item.character.from_code.clone(), item.character.to_code.clone()))
                     .collect();
+                if pairs.is_empty() {
+                    // Phase 6 creates the relationship matrix, so plan over character pairs.
+                    let codes: Vec<String> = flow
+                        .require
+                        .character
+                        .iter()
+                        .map(|character| character.code.clone())
+                        .collect();
+                    for from in &codes {
+                        for to in &codes {
+                            if from != to {
+                                pairs.push((from.clone(), to.clone()));
+                            }
+                        }
+                    }
+                }
                 if pairs.is_empty() {
                     return Err(invalid(
                         "Phase 6 requires at least one relationship pair in the draft".into(),
@@ -1188,6 +1320,16 @@ impl WorkflowService {
                 }
             }
             _ => unreachable!(),
+        }
+
+        // Mutating phases allocate entity codes/counters, which are not commutative across
+        // parallel tasks; run one task per round so canonical patches apply deterministically.
+        if phase != 3 {
+            rounds = rounds
+                .into_iter()
+                .flatten()
+                .map(|task| vec![task])
+                .collect();
         }
 
         Ok(rounds)

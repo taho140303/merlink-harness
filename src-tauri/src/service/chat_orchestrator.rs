@@ -462,6 +462,7 @@ impl ChatOrchestrator {
             "introduction",
             "invariant_rule",
             "planning_mode",
+            "planning_phase_0",
             "exception_handling",
             "out_of_scope",
             "tool_library",

@@ -8,11 +8,17 @@
 use std::sync::Arc;
 
 
+use crate::domain::business_flow::{BusinessFlowData, ProvenanceSource};
 use crate::domain::phase3_artifact::{
     validate_probe_candidates, ArtifactError, WorldProbeReportV1, DEFAULT_MAX_ARTIFACT_BUDGET,
 };
+use crate::domain::sf06::codec::{canonical_diff, PatchOp};
+use crate::domain::tools::registry::CallerCategory;
+use crate::domain::tools::write_tools::{ExecutionGuard, ToolCall, ToolExecutor};
 use crate::error::{ErrorCode, IpcError};
-use crate::providers::traits::{LlmProvider, ProviderChatRequest, ProviderMessage};
+use crate::providers::traits::{
+    LlmProvider, ProviderChatRequest, ProviderMessage, ProviderToolCall, ProviderToolDefinition,
+};
 use crate::service::workflow_service::{
     TaskExecutionContext, TaskExecutionOutput, WorkflowTaskExecutor,
 };
@@ -38,6 +44,119 @@ impl LlmWorkflowTaskExecutor {
         }
     }
 
+    /// Runs a bounded ReAct tool loop for planning tasks. Every mutation is produced by the
+    /// backend tool executor and converted to a canonical patch, never authored by the model.
+    async fn write_through_tools(
+        &self,
+        ctx: &TaskExecutionContext,
+    ) -> Result<TaskExecutionOutput, IpcError> {
+        let tools: Vec<ProviderToolDefinition> = ctx
+            .tool_schemas
+            .iter()
+            .filter_map(|schema| {
+                Some(ProviderToolDefinition {
+                    name: schema.get("name")?.as_str()?.to_string(),
+                    description: schema
+                        .get("description")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                    parameters: schema.get("parameters")?.clone(),
+                })
+            })
+            .collect();
+        if tools.is_empty() {
+            return Ok(TaskExecutionOutput {
+                task_index: ctx.task_index,
+                task_spec: ctx.task_spec.clone(),
+                task_identity: ctx.task_identity.clone(),
+                mutations: Vec::new(),
+                applied_write_count: 0,
+                artifact: None,
+            });
+        }
+
+        let mut state: BusinessFlowData = ctx.snapshot.business_flow_data.clone();
+        let mut messages = vec![
+            ProviderMessage::system(format!(
+                "{}\n\nTask scope: {}\nCall the provided tools to write the required data. When the scope is complete, reply with a short confirmation and no tool calls. Never invent entity codes; use catalog search tools first.",
+                ctx.phase_prompt, ctx.task_spec.assigned_scope
+            )),
+            ProviderMessage::user(format!(
+                "Hãy thực hiện task '{}' trong phạm vi được giao.",
+                ctx.task_spec.task_kind
+            )),
+        ];
+        let mut mutations: Vec<PatchOp> = Vec::new();
+        let mut applied = 0u32;
+        let executor = ToolExecutor::default();
+
+        for _ in 0..8 {
+            if ctx.cancel_token.is_cancelled() {
+                return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
+            }
+            let request = ProviderChatRequest {
+                model: "chat".to_string(),
+                messages: messages.clone(),
+                tools: Some(tools.clone()),
+                temperature: Some(0.2),
+                max_tokens: Some(4096),
+            };
+            let response = self
+                .provider
+                .chat_with_tools(&request, ctx.cancel_token.clone())
+                .await
+                .map_err(|error| error.to_ipc_error())?;
+
+            if response.tool_calls.is_empty() {
+                break;
+            }
+
+            messages.push(ProviderMessage {
+                role: "assistant".to_string(),
+                content: response.content.clone().unwrap_or_default(),
+                name: None,
+                tool_calls: Some(response.tool_calls.clone()),
+                tool_call_id: None,
+            });
+
+            for call in &response.tool_calls {
+                let tool_call = to_tool_call(call);
+                let before = state.clone();
+                let outcome = executor.execute_call(&tool_call, &ExecutionGuard::new(&state));
+                let mut result_note = format!("status={}", outcome.status);
+                if outcome.is_applied() {
+                    if let Some(next) = outcome.mutated_state() {
+                        let patch = canonical_diff(&before, next)
+                            .map_err(|code| IpcError::new(code, "Canonical diff failed after tool call"))?;
+                        mutations.extend(patch.ops);
+                        applied += 1;
+                        state = next.clone();
+                    }
+                } else if outcome.is_pending() {
+                    result_note.push_str(" pending_confirmation");
+                }
+                if let Some(results) = serde_json::to_value(&outcome.results).ok() {
+                    result_note.push_str(&format!(" results={results}"));
+                }
+                messages.push(ProviderMessage::tool_result(
+                    call.id.clone(),
+                    call.name.clone(),
+                    result_note,
+                ));
+            }
+        }
+
+        Ok(TaskExecutionOutput {
+            task_index: ctx.task_index,
+            task_spec: ctx.task_spec.clone(),
+            task_identity: ctx.task_identity.clone(),
+            mutations,
+            applied_write_count: applied,
+            artifact: None,
+        })
+    }
+
     async fn probe(
         &self,
         ctx: &TaskExecutionContext,
@@ -47,7 +166,12 @@ impl LlmWorkflowTaskExecutor {
         let chapters = chapter_context(&ctx.snapshot.business_flow_data, lo, hi);
         let existing_codes = existing_world_codes(&ctx.snapshot.business_flow_data);
 
-        let system = probe_system_prompt(&ctx.system_language);
+        let system = format!(
+            "{}\n\n{}\n\n{}",
+            ctx.phase_prompt,
+            probe_system_prompt(&ctx.system_language),
+            probe_output_contract()
+        );
         let user = probe_user_prompt(&scope, &chapters, &existing_codes);
 
         let request = ProviderChatRequest {
@@ -102,17 +226,7 @@ impl WorkflowTaskExecutor for LlmWorkflowTaskExecutor {
     ) -> Result<TaskExecutionOutput, IpcError> {
         match ctx.task_spec.task_kind.as_str() {
             "world_probe" => self.probe(ctx).await,
-            // Write stages consume a ratified merger artifact that this executor does not
-            // fabricate. Returning a zero-mutation outcome keeps the round truthful: no
-            // candidate may be claimed as written without an executed tool call.
-            _ => Ok(TaskExecutionOutput {
-                task_index: ctx.task_index,
-                task_spec: ctx.task_spec.clone(),
-                task_identity: ctx.task_identity.clone(),
-                mutations: Vec::new(),
-                applied_write_count: 0,
-                artifact: None,
-            }),
+            _ => self.write_through_tools(ctx).await,
         }
     }
 }
@@ -122,6 +236,49 @@ fn artifact_error(error: ArtifactError, context: &str) -> IpcError {
         ErrorCode::ValidationFailed,
         format!("Invalid Phase 3 {context}: {error}"),
     )
+}
+
+/// Converts a provider tool call into the typed tool-call contract, lifting the declared
+/// provenance parameters the model supplied inside `parameters`.
+fn to_tool_call(call: &ProviderToolCall) -> ToolCall {
+    let mut parameters = call.arguments.clone();
+    let declared_sources = parameters
+        .get("declared_sources")
+        .and_then(|value| value.as_object())
+        .map(|map| {
+            map.iter()
+                .filter_map(|(field, source)| {
+                    source
+                        .as_str()
+                        .and_then(parse_source)
+                        .map(|parsed| (field.clone(), parsed))
+                })
+                .collect::<std::collections::BTreeMap<String, ProvenanceSource>>()
+        });
+    let declared_source = parameters
+        .get("declared_source")
+        .and_then(|value| value.as_str())
+        .and_then(parse_source);
+    if let Some(object) = parameters.as_object_mut() {
+        object.remove("declared_sources");
+        object.remove("declared_source");
+    }
+    ToolCall {
+        name: call.name.clone(),
+        caller: CallerCategory::AiCaller,
+        parameters,
+        declared_sources,
+        declared_source,
+    }
+}
+
+fn parse_source(raw: &str) -> Option<ProvenanceSource> {
+    match raw {
+        "user" => Some(ProvenanceSource::User),
+        "ai_generated" => Some(ProvenanceSource::AiGenerated),
+        "user_edited" => Some(ProvenanceSource::UserEdited),
+        _ => None,
+    }
 }
 
 /// Accepts either `{range:[lo,hi]}` or `{contextRange:[lo,hi]}` task scopes.
@@ -185,6 +342,10 @@ fn existing_world_codes(flow: &crate::domain::business_flow::BusinessFlowData) -
         .iter()
         .map(|node| node.code.clone())
         .collect()
+}
+
+fn probe_output_contract() -> String {
+    "Chỉ trả về một JSON object đúng shape ProbeCandidatesV1, không markdown.".to_string()
 }
 
 fn probe_system_prompt(system_language: &str) -> String {
@@ -315,6 +476,8 @@ mod tests {
             snapshot: Arc::new(working),
             system_language: "vi".into(),
             cancel_token: CancellationToken::new(),
+            phase_prompt: "Phase prompt".into(),
+            tool_schemas: Vec::new(),
         };
         (provider, ctx)
     }
@@ -349,10 +512,75 @@ mod tests {
         assert!(executor(provider).execute_task(&ctx).await.is_err());
     }
 
+    struct ScriptedProvider {
+        responses: std::sync::Mutex<std::collections::VecDeque<ProviderChatResponse>>,
+    }
+
+    #[async_trait::async_trait]
+    impl LlmProvider for ScriptedProvider {
+        fn provider_id(&self) -> &'static str {
+            "scripted"
+        }
+
+        async fn chat_with_tools(
+            &self,
+            _req: &ProviderChatRequest,
+            _cancel: CancellationToken,
+        ) -> Result<ProviderChatResponse, crate::providers::traits::ProviderError> {
+            Ok(self
+                .responses
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap_or_default())
+        }
+
+        async fn stream_completion(
+            &self,
+            _req: &ProviderStreamRequest,
+            _tx: mpsc::Sender<ProviderStreamChunk>,
+            _cancel: CancellationToken,
+        ) -> Result<ProviderStreamSummary, crate::providers::traits::ProviderError> {
+            Err(crate::providers::traits::ProviderError::Internal("not used".into()))
+        }
+    }
+
+    #[tokio::test]
+    async fn write_task_applies_tool_calls_through_backend_and_returns_patches() {
+        let calls = std::sync::Mutex::new(std::collections::VecDeque::from(vec![
+            ProviderChatResponse {
+                content: Some("add arc".into()),
+                tool_calls: vec![ProviderToolCall {
+                    id: "call-1".into(),
+                    name: "add_arc".into(),
+                    arguments: json!({
+                        "code": "arc_test",
+                        "display_name": "Arc Test",
+                        "declared_sources": {"display_name": "ai_generated"}
+                    }),
+                }],
+                ..Default::default()
+            },
+            ProviderChatResponse::default(),
+        ]));
+        let provider = Arc::new(ScriptedProvider { responses: calls });
+        let (_, mut ctx) = probe_context("{}");
+        ctx.task_spec.task_kind = "outline_window".into();
+        ctx.tool_schemas = vec![json!({"name": "add_arc", "description": "Add arc", "parameters": {"type": "object"}})];
+
+        let output = LlmWorkflowTaskExecutor::new(provider as Arc<dyn LlmProvider>)
+            .execute_task(&ctx)
+            .await
+            .expect("tool loop must succeed");
+        assert!(output.applied_write_count >= 1, "applied tool call must be counted");
+        assert!(!output.mutations.is_empty(), "applied mutation must produce patch ops");
+    }
+
     #[tokio::test]
     async fn non_probe_tasks_never_claim_fabricated_mutations() {
         let (provider, mut ctx) = probe_context("{}");
         ctx.task_spec.task_kind = "world_write".into();
+        ctx.tool_schemas = Vec::new();
         let output = executor(provider).execute_task(&ctx).await.expect("outcome");
         assert!(output.mutations.is_empty());
         assert_eq!(output.applied_write_count, 0);

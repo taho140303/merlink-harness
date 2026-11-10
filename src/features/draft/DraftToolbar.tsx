@@ -10,6 +10,7 @@ export interface DraftToolbarProps {
   versionHistory: DraftVersion[];
   onVersionChange: (v: string) => void;
   onRegenerate: () => void;
+  onRunPhase?: () => void;
   onNext?: () => void;
   onStart?: () => void;
   isFeedbackMode: boolean;
@@ -31,6 +32,7 @@ export function DraftToolbar({
   versionHistory,
   onVersionChange,
   onRegenerate,
+  onRunPhase,
   onNext,
   onStart,
   isFeedbackMode,

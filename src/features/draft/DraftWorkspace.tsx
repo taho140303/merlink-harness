@@ -932,8 +932,8 @@ export function DraftWorkspace({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isFeedbackMode]);
 
-  // Transition states — loading 3s on initial overview
-  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading'>('loading');
+  // Transitions are instant: phase data comes from the backend, not a timed animation.
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading'>('idle');
   const [loadingIdx, setLoadingIdx] = useState(0);
 
   const loadingMessages = [
@@ -951,26 +951,34 @@ export function DraftWorkspace({
     return () => clearInterval(interval);
   }, [transitionPhase, loadingMessages.length]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTransitionPhase('idle');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const triggerTransition = (action: () => void) => {
-    if (transitionPhase !== 'idle') return;
-    setTransitionPhase('fade-out');
+    action();
+    setTransitionPhase('idle');
+  };
 
-    setTimeout(() => {
-      action();
-      setLoadingIdx(0);
-      setTransitionPhase('loading');
+  // Phase number for the current workspace step (`core.md` §3.2); running a phase
+  // executes the segmented workflow with the seeded phase prompt.
+  const phaseForStep: Record<DraftStep, number> = {
+    overview: 1,
+    chapter: 2,
+    world: 3,
+    scene: 4,
+    character: 5,
+    relationship: 6,
+  };
 
-      setTimeout(() => {
-        setTransitionPhase('idle');
-      }, 3000);
-    }, 400);
+  const handleRunPhase = () => {
+    if (controllerState.workflowStatus === 'running') return;
+    const phase = phaseForStep[currentStep];
+    const subphase = currentStep === 'character'
+      ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
+      : null;
+    controller
+      .startOrResumeWorkflow(phase, subphase)
+      .then(() => controller.loadWorkspaceState())
+      .catch(() => {
+        /* controller state already exposes the failure */
+      });
   };
 
   const executeNext = () => {
@@ -1182,6 +1190,7 @@ export function DraftWorkspace({
             onVersionChange={setCurrentVersion}
             onRestoreVersion={(seq) => controller.restoreDraftVersion(seq)}
             onRegenerate={handleRegenerate}
+            onRunPhase={handleRunPhase}
             onNext={currentStep !== 'relationship' ? () => setConfirmOpen(true) : undefined}
             onStart={currentStep === 'relationship' ? handleStart : undefined}
             isFeedbackMode={isFeedbackMode}

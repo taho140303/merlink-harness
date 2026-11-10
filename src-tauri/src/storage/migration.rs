@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 15;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 16;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -26,6 +26,7 @@ pub const MIGRATION_0012_SQL: &str = include_str!("../../migrations/0012_clarify
 pub const MIGRATION_0011_SQL: &str = include_str!("../../migrations/0011_clarify_planning_scope.sql");
 pub const MIGRATION_0014_SQL: &str = include_str!("../../migrations/0014_seed_system_catalogs.sql");
 pub const MIGRATION_0015_SQL: &str = include_str!("../../migrations/0015_phase0_catalog_tools.sql");
+pub const MIGRATION_0016_SQL: &str = include_str!("../../migrations/0016_seed_phase_prompts.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -127,6 +128,7 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         13 => Ok(MIGRATION_0013_SQL),
         14 => Ok(MIGRATION_0014_SQL),
         15 => Ok(MIGRATION_0015_SQL),
+        16 => Ok(MIGRATION_0016_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -204,12 +206,28 @@ mod prompt_seed_tests {
             |row| row.get(0),
         ).unwrap();
         assert!(identity.contains("Merlink Harness"));
-        let tool_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM prompt_block_tools",
+        let phase_blocks: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM prompt_blocks WHERE prompt_code LIKE 'planning_phase_%' OR prompt_code = 'writing_chapter'",
             [],
             |row| row.get(0),
         ).unwrap();
-        assert_eq!(tool_count, 12);
+        assert_eq!(phase_blocks, 8, "every phase prompt must be seeded");
+        for code in [
+            "planning_phase_0", "planning_phase_1", "planning_phase_2", "planning_phase_3",
+            "planning_phase_4", "planning_phase_5", "planning_phase_6", "writing_chapter",
+        ] {
+            let linked: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN prompt_blocks pb ON pb.id = pbt.prompt_block_id WHERE pb.prompt_code = ?1",
+                [code], |row| row.get(0),
+            ).unwrap();
+            assert!(linked > 0, "{code} must grant at least one tool");
+        }
+        let ui_only: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id WHERE t.code IN ('commit_draft','confirm_phase','lock_scene','write_scene_content')",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(ui_only, 0, "UI-only or locked tools must never be granted by prompts");
     }
 }
 
@@ -252,7 +270,7 @@ mod tool_inventory_migration_tests {
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(total, 87);
-        assert_eq!(linked, 12);
+        assert!(linked > 12, "phase prompts must grant tools in addition to the shared blocks");
         assert_eq!(incomplete, 75);
     }
 
@@ -300,7 +318,7 @@ mod chat_contract_migration_tests {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM tools t JOIN prompt_block_tools p ON t.id=p.tool_id WHERE t.code='get_tool_definition'", [], |r| r.get(0)).unwrap();
-        assert_eq!(count, 1);
+        assert!(count >= 1, "get_tool_definition must stay granted to at least one prompt");
         let schema: String = conn.query_row("SELECT input_schema FROM tools WHERE code='set_project'", [], |r| r.get(0)).unwrap();
         let schema: serde_json::Value = serde_json::from_str(&schema).unwrap();
         assert_eq!(schema["examples"][0]["target"]["chapter_count"], 120);
