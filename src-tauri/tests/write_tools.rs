@@ -97,6 +97,33 @@ fn check_predecessor_gates(
 // Acceptance Tests
 // ============================================================================
 
+#[test]
+fn phase_zero_writes_preserve_tolerance_zero_and_genre_source() {
+    let state = BusinessFlowData::new();
+    let guard = ExecutionGuard::new(&state);
+    let project = ToolCall::with_sources("set_project", CallerCategory::AiCaller,
+        serde_json::json!({"target":{"chapter_tolerance":0,"arc_tolerance":5}}),
+        [("target.chapter_tolerance".to_string(), ProvenanceSource::User),
+         ("target.arc_tolerance".to_string(), ProvenanceSource::User)].into());
+    let outcome = ToolExecutor::execute(&project, &guard);
+    assert_eq!(outcome.status, "applied");
+    let updated = outcome.mutated_state().unwrap();
+    assert_eq!(updated.optional.overview_phase.project.target.chapter_tolerance.value, Some(0));
+    assert_eq!(updated.optional.overview_phase.project.target.arc_tolerance.value, Some(5));
+    let genre = ToolCall::with_sources("add_project_genre", CallerCategory::AiCaller,
+        serde_json::json!({"genre_code":"romance","is_primary":true}),
+        [("genre_code".to_string(), ProvenanceSource::AiGenerated)].into());
+    let outcome = ToolExecutor::execute(&genre, &ExecutionGuard::new(updated));
+    assert_eq!(outcome.status, "applied");
+    assert_eq!(outcome.mutated_state().unwrap().require.project.genres[0].code.source,
+        Some(ProvenanceSource::AiGenerated));
+    let missing_source = ToolCall::new("add_project_genre", CallerCategory::AiCaller,
+        serde_json::json!({"genre_code":"fantasy"}));
+    let rejected = ToolExecutor::execute(&missing_source, &ExecutionGuard::new(updated));
+    assert_eq!(rejected.status, "rejected");
+    assert!(updated.require.project.genres.is_empty());
+}
+
 /// `P3S5-P`: Mixed three-field tool returns applied/pending/rejected without corrupting State (`T-PROV-01`).
 ///
 /// Scenario:

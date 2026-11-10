@@ -35,7 +35,7 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::domain::business_flow::{BusinessFlowData, ProvenanceSource, TrackedField};
+use crate::domain::business_flow::{BusinessFlowData, ProvenanceSource};
 use crate::domain::fingerprint::state_data_hash;
 use crate::domain::tools::registry::{CallerCategory, ToolRegistry, ToolType};
 use crate::domain::tools::read_tools::{get_array_element_fields, get_field_null};
@@ -50,6 +50,7 @@ use crate::ipc::dto::{
 use crate::providers::traits::{
     LlmProvider, ProviderChatRequest, ProviderMessage, ProviderToolCall, ProviderToolDefinition,
 };
+use crate::service::chat_catalog;
 use crate::service::draft_runtime::{
     DraftRuntimeEntry, DraftRuntimeRegistry, DRAFT_LOCK_TIMEOUT,
 };
@@ -445,15 +446,8 @@ impl ChatOrchestrator {
         }
 
         // 2. Prompt composition
-        let mut initialized_language = false;
-        entry.mutate_working_state(|ws| {
-            if ws.business_flow_data.require.project.language.value.is_none() {
-                let value = if system_language.eq_ignore_ascii_case("en") { "EN" } else { "VI" };
-                ws.business_flow_data.require.project.language =
-                    TrackedField::new(value.to_string(), ProvenanceSource::System);
-                initialized_language = true;
-            }
-        });
+        // The UI communication language is not an author-confirmed story language.
+        // Keep project.language unset until the author specifies it explicitly.
         let ws_snapshot = entry.get_snapshot();
         let project_lang = ws_snapshot
             .business_flow_data
@@ -473,9 +467,10 @@ impl ChatOrchestrator {
             "tool_library",
             "story_context",
         ];
-        let composed = self
+        let mut composed = self
             .composer
             .compose(&script, system_language, project_lang)?;
+        composed.prompt.push_str("\n\n## Phase 0 collection\nAfter saving facts from the current user turn, check the latest get_field_null and get_array_element_fields observations. If Phase 0 remains incomplete, ask relevant fixed questions from those observations (up to three total), rather than claiming it is complete. A system-sourced project language is only a UI default: ask the author for the story language. Empty project.genres and missing character motif_code require separate array questions. Resolve genre and character_arc motif names to catalog codes using search_genre/search_motif before writing; never invent codes or assert a user-selected genre/motif without their confirmation. Optional target tolerances are not required for Phase 0; save them when provided, including zero.\n");
         if !composed.tools.iter().any(|tool| tool.name == "get_field_null") {
             return Err(IpcError::new(ErrorCode::ValidationFailed,
                 "Chat prompt is missing the required get_field_null tool"));
@@ -493,10 +488,7 @@ impl ChatOrchestrator {
         messages.push(ProviderMessage::user(user_prompt.to_string()));
 
         // 4. Run ReAct Turn Loop
-        let mut state = TurnState {
-            has_applied_write: initialized_language,
-            ..TurnState::default()
-        };
+        let mut state = TurnState::default();
         let loop_result = self
             .run_turn_loop(
                 &entry,
@@ -655,6 +647,44 @@ impl ChatOrchestrator {
                         status: "applied".to_string(), has_applied_write: state.has_applied_write,
                     }).await;
                 }
+                // Empty arrays are not null; read their missing Phase 0 entries
+                // separately, within the same three-question budget.
+                let scalar_count = result["questions"].as_array().map_or(0, Vec::len);
+                let remaining = 3usize.saturating_sub(scalar_count);
+                if remaining > 0 && composed.tools.iter().any(|tool| tool.name == "get_array_element_fields") {
+                    let data = &current.business_flow_data;
+                    let mut gaps = Vec::new();
+                    if data.require.project.genres.is_empty() {
+                        gaps.push(("require.project.genres", None));
+                    }
+                    if data.require.character.is_empty() {
+                        gaps.push(("require.character", None));
+                    } else if let Some(character) = data.require.character.iter().find(|character|
+                        character.biological_sex.value.is_none() || character.motif_code.value.is_none()
+                    ) {
+                        gaps.push(("require.character", Some(character.code.as_str())));
+                    }
+                    let mut question_budget = remaining;
+                    for (path, code) in gaps {
+                        if question_budget == 0 { break; }
+                        let args = serde_json::json!({"array_path":path, "code":code, "limit":question_budget});
+                        let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
+                        question_budget = question_budget.saturating_sub(
+                            observation["questions"].as_array().map_or(0, Vec::len));
+                        let call = ProviderToolCall {
+                            id: Uuid::new_v4().to_string(), name: "get_array_element_fields".to_string(), arguments: args,
+                        };
+                        state.all_tool_calls.push(ToolCallItemDto {
+                            id: call.id.clone(), name: call.name.clone(), parameters: call.arguments.clone(),
+                            result: Some(observation.clone()), execution_time_ms: Some(0), status: "success".to_string(),
+                        });
+                        messages.push(ProviderMessage {
+                            role: "assistant".to_string(), content: String::new(), name: None,
+                            tool_calls: Some(vec![call.clone()]), tool_call_id: None,
+                        });
+                        messages.push(ProviderMessage::tool_result(call.id, call.name, observation.to_string()));
+                    }
+                }
                 last_null_field_state = Some(current.business_flow_data.clone());
             }
             messages[0].content = render_chat_prompt(
@@ -744,6 +774,18 @@ impl ChatOrchestrator {
                             let snap = entry.get_snapshot();
                             let result = if tool_name == "get_tool_definition" {
                                 tool_definition_result(&call.arguments, &composed.tools)
+                            } else if tool_name == "search_genre" || tool_name == "search_motif" {
+                                match self.pool.get() {
+                                    Ok(conn) => {
+                                        let lookup = if tool_name == "search_genre" {
+                                            chat_catalog::search_genre(&conn, &call.arguments)
+                                        } else {
+                                            chat_catalog::search_motif(&conn, &call.arguments)
+                                        };
+                                        lookup.unwrap_or_else(|_| serde_json::json!({"status":"rejected","error":"catalog_lookup_failed"}))
+                                    }
+                                    Err(_) => serde_json::json!({"status":"rejected","error":"catalog_unavailable"}),
+                                }
                             } else {
                                 read_tool_result(&tool_name, &call.arguments, &snap.business_flow_data, system_language)
                             };
@@ -754,99 +796,35 @@ impl ChatOrchestrator {
                                 Some(result),
                             )
                         } else {
-                        let current_snap = entry.get_snapshot();
-                        let guard = ExecutionGuard::with_session(
-                            &current_snap.business_flow_data,
-                            draft_session_id.to_string(),
-                        );
-
-                        let mut tool_req = ToolCall::new(
-                            tool_name.clone(),
-                            CallerCategory::AiCaller,
-                            call.arguments.clone(),
-                        );
-
-                        // Extract declared sources for provenance protection
-                        if let Some(map) = call
-                            .arguments
-                            .get("declared_sources")
-                            .and_then(|v| v.as_object())
-                        {
-                            let mut btree = std::collections::BTreeMap::new();
-                            for (k, v) in map {
-                                if let Ok(src) = serde_json::from_value::<ProvenanceSource>(v.clone()) {
-                                    btree.insert(k.clone(), src);
-                                }
-                            }
-                            tool_req.declared_sources = Some(btree);
-                        } else if let Some(src_val) = call.arguments.get("declared_source") {
-                            if let Ok(src) = serde_json::from_value::<ProvenanceSource>(src_val.clone()) {
-                                tool_req.declared_source = Some(src);
-                            }
-                        }
-
-                        let outcome = ToolExecutor::execute(&tool_req, &guard);
-                        let elapsed = start_time.elapsed().as_millis() as u64;
-
-                        // If tool writes draft state and produced applied mutations, update working state
-                        let is_write = meta.writes_draft_state;
-                        let applied = outcome.is_applied();
-
-                        if is_write && applied {
-                            if let Some(mutated) = outcome.mutated_state() {
-                                entry.mutate_working_state(|ws| {
-                                    ws.business_flow_data = mutated.clone();
-                                });
-                                state.has_applied_write = true;
-                            }
-                        }
-
-                        // If tool produced pending proposals (protected provenance), persist via TX-08
-                        if !outcome.pending_patches().is_empty() {
-                            if let Ok(mut conn) = self.pool.get() {
-                                let cur_ws = entry.get_snapshot();
-                                for proposal in outcome.pending_patches() {
-                                    let params = PersistProposalParams {
-                                        draft_session_id,
-                                        base_version_seq: cur_ws.head_version_seq,
-                                        target_type: proposal.target_type.clone(),
-                                        target_code: proposal.target_code.clone(),
-                                        field_name: proposal.field_name.clone(),
-                                        operation: proposal.operation.clone(),
-                                        previous_value: proposal.previous_value.clone(),
-                                        new_value: proposal.new_value.clone(),
-                                        target_source: Some("user".to_string()),
-                                        eligibility_json: None,
-                                        require_new_origin: false,
+                        // Reference codes must exist in the seeded catalog before a write.
+                        let catalog_field = match tool_name.as_str() {
+                            "add_project_genre" => Some(("genre_code", false)),
+                            "add_character" | "set_character" if call.arguments.get("motif_code").is_some() => Some(("motif_code", true)),
+                            _ => None,
+                        };
+                        if let Some((field, is_motif)) = catalog_field {
+                            if let Some(code) = call.arguments.get(field).and_then(Value::as_str) {
+                                let valid = self.pool.get().ok().and_then(|conn| {
+                                    let result = if is_motif {
+                                        chat_catalog::validate_motif_code(&conn, code)
+                                    } else {
+                                        chat_catalog::validate_genre_code(&conn, code)
                                     };
-                                    if let Ok(res) = persist_proposal_tx(
-                                        &mut conn,
-                                        &params,
-                                        Some(&cur_ws.business_flow_data),
-                                    ) {
-                                        entry.mutate_working_state(|ws| {
-                                            ws.pending_patches.push(PendingPatchDto {
-                                                id: res.patch_id,
-                                                draft_session_id,
-                                                target_code: proposal.target_code.clone(),
-                                                field_path: proposal.field_name.clone().unwrap_or_default(),
-                                                operation: proposal.operation.clone(),
-                                                previous_value: proposal.previous_value.clone(),
-                                                proposed_value: proposal
-                                                    .new_value
-                                                    .clone()
-                                                    .unwrap_or(Value::Null),
-                                                status: "pending".to_string(),
-                                                reason: None,
-                                                created_at: Utc::now().to_rfc3339(),
-                                            });
-                                        });
-                                    }
+                                    result.ok()
+                                }).unwrap_or(false);
+                                if !valid {
+                                    let result = serde_json::json!({"status":"rejected", "error":"unknown_catalog_code", "field":field,
+                                        "recovery": if is_motif {"Search character_arc motifs with search_motif before retrying."} else {"Search genres with search_genre before retrying."}});
+                                    (ToolOutcome::rejected("unknown_catalog_code"), start_time.elapsed().as_millis() as u64, Some(result))
+                                } else {
+                                    self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
                                 }
+                            } else {
+                                self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
                             }
+                        } else {
+                            self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
                         }
-
-                        (outcome, elapsed, None)
                         }
                     }
                 };
@@ -973,6 +951,60 @@ impl ChatOrchestrator {
         }
 
         Ok(state.assistant_text.clone())
+    }
+
+    fn execute_chat_mutation(
+        &self,
+        entry: &Arc<DraftRuntimeEntry>,
+        draft_session_id: Uuid,
+        call: &ProviderToolCall,
+        tool_name: &str,
+        writes_draft_state: bool,
+        state: &mut TurnState,
+        started: std::time::Instant,
+    ) -> (ToolOutcome, u64, Option<Value>) {
+        let snapshot = entry.get_snapshot();
+        let guard = ExecutionGuard::with_session(&snapshot.business_flow_data, draft_session_id.to_string());
+        let mut request = ToolCall::new(tool_name.to_string(), CallerCategory::AiCaller, call.arguments.clone());
+        if let Some(map) = call.arguments.get("declared_sources").and_then(Value::as_object) {
+            let sources = map.iter().filter_map(|(name, value)|
+                serde_json::from_value::<ProvenanceSource>(value.clone()).ok().map(|source| (name.clone(), source))
+            ).collect();
+            request.declared_sources = Some(sources);
+        } else if let Some(value) = call.arguments.get("declared_source") {
+            request.declared_source = serde_json::from_value(value.clone()).ok();
+        }
+        let outcome = ToolExecutor::execute(&request, &guard);
+        if writes_draft_state && outcome.is_applied() {
+            if let Some(mutated) = outcome.mutated_state() {
+                entry.mutate_working_state(|ws| ws.business_flow_data = mutated.clone());
+                state.has_applied_write = true;
+            }
+        }
+        if !outcome.pending_patches().is_empty() {
+            if let Ok(mut conn) = self.pool.get() {
+                let current = entry.get_snapshot();
+                for proposal in outcome.pending_patches() {
+                    let params = PersistProposalParams {
+                        draft_session_id, base_version_seq: current.head_version_seq,
+                        target_type: proposal.target_type.clone(), target_code: proposal.target_code.clone(),
+                        field_name: proposal.field_name.clone(), operation: proposal.operation.clone(),
+                        previous_value: proposal.previous_value.clone(), new_value: proposal.new_value.clone(),
+                        target_source: Some("user".to_string()), eligibility_json: None, require_new_origin: false,
+                    };
+                    if let Ok(saved) = persist_proposal_tx(&mut conn, &params, Some(&current.business_flow_data)) {
+                        entry.mutate_working_state(|ws| ws.pending_patches.push(PendingPatchDto {
+                            id: saved.patch_id, draft_session_id, target_code: proposal.target_code.clone(),
+                            field_path: proposal.field_name.clone().unwrap_or_default(), operation: proposal.operation.clone(),
+                            previous_value: proposal.previous_value.clone(),
+                            proposed_value: proposal.new_value.clone().unwrap_or(Value::Null),
+                            status: "pending".to_string(), reason: None, created_at: Utc::now().to_rfc3339(),
+                        }));
+                    }
+                }
+            }
+        }
+        (outcome, started.elapsed().as_millis() as u64, None)
     }
 
     /// Durable version sealing under TX-01 (`seal_key = "turn:{turn_id}"`).
@@ -1385,6 +1417,7 @@ mod read_tool_tests {
 #[cfg(test)]
 mod chat_context_regression_tests {
     use super::*;
+    use crate::domain::business_flow::TrackedField;
     use serde_json::json;
 
     struct ReplayProvider {
@@ -1474,6 +1507,11 @@ mod chat_context_regression_tests {
         let entry = registry.get(&id).unwrap();
         let composed = orchestrator.composer.compose(&["tool_library", "story_context"], "vi", "VI").unwrap();
         assert!(composed.tools.iter().any(|tool| tool.name == "get_field_null"));
+        for name in ["get_array_element_fields", "search_genre", "search_motif", "add_project_genre"] {
+            assert!(composed.tools.iter().any(|tool| tool.name == name), "missing {name}");
+        }
+        assert_eq!(composed.tools.iter().find(|tool| tool.name == "set_project").unwrap()
+            .parameters["properties"]["target"]["properties"]["chapter_tolerance"]["minimum"], 0);
         let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
             ProviderChatResponse { content: Some("Xin chào".into()), ..Default::default() },
             ProviderChatResponse { content: Some("Đã ghi nhận".into()), ..Default::default() },
@@ -1493,6 +1531,50 @@ mod chat_context_regression_tests {
             assert_eq!(request.messages[3].tool_call_id.as_deref(), Some(state.all_tool_calls[0].id.as_str()));
             assert_eq!(request.messages[3].role, "tool");
         }
+    }
+
+    #[tokio::test]
+    async fn phase_zero_array_gaps_are_visible_without_model_calls() {
+        use crate::domain::business_flow::RequireCharacterItem;
+        use crate::providers::traits::ProviderChatResponse;
+        let tmp = tempfile::tempdir().unwrap();
+        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
+        let registry = Arc::new(DraftRuntimeRegistry::new());
+        let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
+        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
+        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let id = Uuid::new_v4();
+        registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
+        let entry = registry.get(&id).unwrap();
+        entry.mutate_working_state(|ws| {
+            let project = &mut ws.business_flow_data.require.project;
+            project.display_name = TrackedField::user("Truyện".into());
+            project.summary = TrackedField::user("Tóm tắt".into());
+            project.language = TrackedField::user("VI".into());
+            project.target.arc_count = TrackedField::user(1);
+            project.target.chapter_count = TrackedField::user(100);
+            project.target.word_per_chapter_count = TrackedField::user(2000);
+            let mut character = RequireCharacterItem::default();
+            character.code = "hero".into();
+            character.display_name = TrackedField::user("Anh hùng".into());
+            character.biological_sex = TrackedField::user("MALE".into());
+            ws.business_flow_data.require.character.push(character);
+        });
+        let composed = orchestrator.composer.compose(&["tool_library"], "vi", "VI").unwrap();
+        let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
+            ProviderChatResponse { content: Some("Đã hiểu".into()), ..Default::default() },
+        ].into()) };
+        let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user("Xin chào")];
+        let mut state = TurnState::default();
+        orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
+            &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
+        assert_eq!(state.all_tool_calls.iter().map(|call| call.name.as_str()).collect::<Vec<_>>(),
+            vec!["get_field_null", "get_array_element_fields", "get_array_element_fields"]);
+        assert_eq!(state.all_tool_calls[1].parameters["array_path"], "require.project.genres");
+        assert_eq!(state.all_tool_calls[2].result.as_ref().unwrap()["questions"][0]["field"], "motif_code");
+        let requests = provider.requests.lock().unwrap();
+        assert_eq!(requests[0].messages.iter().filter(|m| m.role == "tool").count(), 3);
     }
 
     #[test]

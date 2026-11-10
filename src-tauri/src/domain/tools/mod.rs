@@ -665,7 +665,12 @@ pub fn get_field_null(
     }
 
     // 3. require.project.language
-    if data.require.project.language.value.is_none() {
+    if data.require.project.language.value.as_deref().map_or(true, |value| value.trim().is_empty())
+        || !matches!(data.require.project.language.source,
+            Some(crate::domain::business_flow::ProvenanceSource::User
+                | crate::domain::business_flow::ProvenanceSource::UserEdited
+                | crate::domain::business_flow::ProvenanceSource::AiGenerated))
+    {
         questions.push(FieldNullQuestion {
             field: "require.project.language".to_string(),
             question: if is_vi {
@@ -708,18 +713,6 @@ pub fn get_field_null(
                 "Truyện dự kiến gồm bao nhiêu Arc (phần lớn)?".to_string()
             } else {
                 "How many arcs are planned for the story?".to_string()
-            },
-        });
-    }
-
-    // 7. optional.overview_phase.project.target.chapter_tolerance
-    if data.optional.overview_phase.project.target.chapter_tolerance.value.is_none() {
-        questions.push(FieldNullQuestion {
-            field: "optional.overview_phase.project.target.chapter_tolerance".to_string(),
-            question: if is_vi {
-                "Dung sai số chương cho phép là bao nhiêu?".to_string()
-            } else {
-                "What is the allowed chapter count tolerance?".to_string()
             },
         });
     }
@@ -768,33 +761,14 @@ pub fn get_array_element_fields(
                 match found {
                     Some(char_item) => {
                         let mut questions = Vec::new();
-                        if char_item.display_name.value.is_none() {
+                        if char_item.display_name.value.as_deref().map_or(true, |value| value.trim().is_empty())
+                            && char_item.nickname.value.as_deref().map_or(true, |value| value.trim().is_empty()) {
                             questions.push(ArrayElementFieldQuestion {
                                 field: "display_name".to_string(),
                                 question: if is_vi {
                                     "Tên hiển thị của nhân vật là gì?".to_string()
                                 } else {
                                     "What is the character's display name?".to_string()
-                                },
-                            });
-                        }
-                        if char_item.nickname.value.is_none() {
-                            questions.push(ArrayElementFieldQuestion {
-                                field: "nickname".to_string(),
-                                question: if is_vi {
-                                    "Biệt danh của nhân vật là gì?".to_string()
-                                } else {
-                                    "What is the character's nickname?".to_string()
-                                },
-                            });
-                        }
-                        if char_item.role.value.is_none() {
-                            questions.push(ArrayElementFieldQuestion {
-                                field: "role".to_string(),
-                                question: if is_vi {
-                                    "Vai trò của nhân vật trong truyện là gì?".to_string()
-                                } else {
-                                    "What is the character's role in the story?".to_string()
                                 },
                             });
                         }
@@ -847,19 +821,19 @@ pub fn get_array_element_fields(
                         },
                     },
                     ArrayElementFieldQuestion {
-                        field: "role".to_string(),
-                        question: if is_vi {
-                            "Vai trò của nhân vật là gì (ví dụ: nhân vật chính, phản diện)?".to_string()
-                        } else {
-                            "What is the character's role (e.g. protagonist, antagonist)?".to_string()
-                        },
-                    },
-                    ArrayElementFieldQuestion {
                         field: "biological_sex".to_string(),
                         question: if is_vi {
                             "Giới tính sinh học của nhân vật là gì?".to_string()
                         } else {
                             "What is the character's biological sex?".to_string()
+                        },
+                    },
+                    ArrayElementFieldQuestion {
+                        field: "motif_code".to_string(),
+                        question: if is_vi {
+                            "Mô-típ của nhân vật là gì?".to_string()
+                        } else {
+                            "What is the character's motif?".to_string()
                         },
                     },
                 ];
@@ -912,9 +886,9 @@ pub fn get_array_element_fields(
                     ArrayElementFieldQuestion {
                         field: "code".to_string(),
                         question: if is_vi {
-                            "Mã hoặc tên thể loại cần gắn vào truyện là gì?".to_string()
+                            "Bạn muốn truyện thuộc thể loại nào?".to_string()
                         } else {
-                            "What is the genre code to attach to the project?".to_string()
+                            "What genre would you like for the story?".to_string()
                         },
                     },
                     ArrayElementFieldQuestion {

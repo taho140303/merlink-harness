@@ -401,7 +401,7 @@ fn P4S3_PROJECT_LIST_AND_DETAIL() {
     assert_eq!(p1_item.details.chapters, "1");
     assert_eq!(p1_item.details.characters, "1");
     assert_eq!(p1_item.details.world_lore, "2"); // 1 ws + 1 lore
-    assert_eq!(p1_item.genres, vec!["Fantasy".to_string()]);
+    assert_eq!(p1_item.genres, vec!["Kỳ Ảo".to_string()]);
 
     // 6. Test get_project_detail
     let detail = project_service

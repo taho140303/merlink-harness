@@ -415,11 +415,11 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     // 2. Test CatalogRepo
     let catalog_repo = SqliteCatalogRepo::new(&conn);
 
-    // Reference genres from 0002 migration
+    // Reference genres from migration
     let genres = catalog_repo.list_genres().unwrap();
     assert!(!genres.is_empty());
     let fantasy = catalog_repo.get_genre_by_code("fantasy").unwrap().expect("fantasy genre");
-    assert_eq!(fantasy.display_name, Some("Fantasy".to_string()));
+    assert_eq!(fantasy.display_name, Some("Kỳ Ảo".to_string()));
 
     // Motifs
     let motif = catalog_repo.get_motif_by_code("motif_journey").unwrap().expect("motif journey");
@@ -427,7 +427,7 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     assert!(motif.is_system);
 
     let arc_motifs = catalog_repo.list_motifs(Some("character_arc")).unwrap();
-    assert_eq!(arc_motifs.len(), 1);
+    assert_eq!(arc_motifs.len(), 3);
 
     // Characters (include_deleted check)
     let active_chars = catalog_repo.list_characters(false).unwrap();

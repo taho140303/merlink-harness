@@ -3,6 +3,7 @@
 //! Depends on `domain`, `storage`, and `providers`.
 
 pub mod character_service;
+pub mod chat_catalog;
 pub mod chat_orchestrator;
 pub mod commit_service;
 pub mod draft_runtime;

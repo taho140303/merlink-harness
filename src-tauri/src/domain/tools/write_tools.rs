@@ -904,7 +904,8 @@ impl ToolExecutor {
                 return;
             };
             for name in target.keys() {
-                if !["arc_count", "chapter_count", "word_per_chapter_count"].contains(&name.as_str()) {
+                if !["arc_count", "chapter_count", "word_per_chapter_count",
+                    "arc_tolerance", "chapter_tolerance", "word_per_chapter_tolerance"].contains(&name.as_str()) {
                     results.push(field_rejection(&format!("target.{name}"), "unknown_field"));
                 }
             }
@@ -923,6 +924,27 @@ impl ToolExecutor {
                     results.push(evaluate_single_field(
                         call.caller, "project", "require.project", &field, value,
                         base, candidate_field, declared_sources, pending_patches,
+                    ));
+                }
+            }
+            // Advisory tolerances live outside `require`; zero is meaningful.
+            let base_tolerance = &baseline.optional.overview_phase.project.target;
+            let candidate_tolerance = &mut candidate.optional.overview_phase.project.target;
+            let tolerance_fields = [
+                ("arc_tolerance", &base_tolerance.arc_tolerance, &mut candidate_tolerance.arc_tolerance),
+                ("chapter_tolerance", &base_tolerance.chapter_tolerance, &mut candidate_tolerance.chapter_tolerance),
+                ("word_per_chapter_tolerance", &base_tolerance.word_per_chapter_tolerance, &mut candidate_tolerance.word_per_chapter_tolerance),
+            ];
+            for (name, base, candidate_field) in tolerance_fields {
+                if let Some(value) = target.get(name) {
+                    let field = format!("target.{name}");
+                    let Some(value) = value.as_u64().and_then(|n| u32::try_from(n).ok()) else {
+                        results.push(field_rejection(&field, "expected_nonnegative_integer"));
+                        continue;
+                    };
+                    results.push(evaluate_single_field(
+                        call.caller, "project", "optional.overview_phase.project", &field,
+                        value, base, candidate_field, declared_sources, pending_patches,
                     ));
                 }
             }
@@ -1861,7 +1883,7 @@ impl ToolExecutor {
     fn handle_add_project_genre(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -1881,10 +1903,26 @@ impl ToolExecutor {
             }
         };
 
+        let source = if call.caller.is_ai() {
+            match declared_sources.get("genre_code") {
+                Some(ProvenanceSource::User) => ProvenanceSource::User,
+                Some(ProvenanceSource::AiGenerated) => ProvenanceSource::AiGenerated,
+                _ => {
+                    results.push(field_rejection("genre_code", "missing_or_invalid_declared_source"));
+                    return;
+                }
+            }
+        } else {
+            ProvenanceSource::User
+        };
+        if candidate.require.project.genres.iter().any(|item| item.code.value.as_deref() == Some(genre_code)) {
+            results.push(field_rejection("genre_code", "genre_already_attached"));
+            return;
+        }
         candidate.require.project.genres.push(RequireGenreItem {
-            code: TrackedField::user(genre_code.to_string()),
-            is_primary: TrackedField::user(
-                call.parameters.get("is_primary").and_then(|v| v.as_bool()).unwrap_or(false),
+            code: TrackedField::new(genre_code.to_string(), source),
+            is_primary: TrackedField::new(
+                call.parameters.get("is_primary").and_then(|v| v.as_bool()).unwrap_or(false), source,
             ),
             display_name: TrackedField::unset(),
         });

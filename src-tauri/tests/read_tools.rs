@@ -343,6 +343,25 @@ fn test_P3S4_P_get_field_null_returns_max_three_deterministic_questions() {
     assert_eq!(next_questions[2].field, "require.project.target.arc_count");
 }
 
+#[test]
+fn incomplete_phase_zero_questions_precede_advisory_tolerances() {
+    let mut data = BusinessFlowData::new();
+    data.require.project.display_name = TrackedField::user("Truyện".into());
+    data.require.project.summary = TrackedField::user("Tóm tắt".into());
+    data.require.project.language = TrackedField::new("VI".into(), crate::business_flow::ProvenanceSource::System);
+    data.require.project.target.arc_count = TrackedField::user(1);
+    data.require.project.target.chapter_count = TrackedField::user(100);
+    data.require.project.target.word_per_chapter_count = TrackedField::user(2000);
+    let questions = get_field_null(&data, None, "vi");
+    assert_eq!(questions.iter().map(|q| q.field.as_str()).collect::<Vec<_>>(), vec!["require.project.language"]);
+    let mut character = crate::business_flow::RequireCharacterItem::default();
+    character.code = "protagonist".into();
+    character.display_name = TrackedField::user("Nhân vật chính".into());
+    data.require.character.push(character);
+    let fields = get_array_element_fields(&data, "require.character", Some("protagonist"), None, "vi").unwrap();
+    assert_eq!(fields.iter().map(|q| q.field.as_str()).collect::<Vec<_>>(), vec!["biological_sex", "motif_code"]);
+}
+
 /// `P3S4-N`: AI cannot request UI-only confirm/lock via registry.
 ///
 /// Invariants:
@@ -443,8 +462,8 @@ fn test_P3S4_B_empty_array_and_missing_field_differ() {
         get_array_element_fields(&data, "require.character", None, Some(3), "vi").unwrap();
     assert_eq!(char_creation_fields.len(), 3);
     assert_eq!(char_creation_fields[0].field, "display_name");
-    assert_eq!(char_creation_fields[1].field, "role");
-    assert_eq!(char_creation_fields[2].field, "biological_sex");
+    assert_eq!(char_creation_fields[1].field, "biological_sex");
+    assert_eq!(char_creation_fields[2].field, "motif_code");
 
     // 3. Populate a character with partial fields
     let mut char_item = crate::business_flow::RequireCharacterItem::default();
@@ -462,10 +481,9 @@ fn test_P3S4_B_empty_array_and_missing_field_differ() {
         "vi",
     )
     .unwrap();
-    assert_eq!(element_nulls.len(), 3);
-    assert_eq!(element_nulls[0].field, "nickname");
-    assert_eq!(element_nulls[1].field, "role");
-    assert_eq!(element_nulls[2].field, "biological_sex");
+    assert_eq!(element_nulls.len(), 2);
+    assert_eq!(element_nulls[0].field, "biological_sex");
+    assert_eq!(element_nulls[1].field, "motif_code");
 
     // 5. Querying non-existent character code returns ToolRejection with candidates
     let rejection = get_array_element_fields(

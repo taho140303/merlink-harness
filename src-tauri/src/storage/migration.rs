@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 13;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 15;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -24,6 +24,8 @@ pub const MIGRATION_0010_SQL: &str = include_str!("../../migrations/0010_refine_
 pub const MIGRATION_0013_SQL: &str = include_str!("../../migrations/0013_author_facing_language.sql");
 pub const MIGRATION_0012_SQL: &str = include_str!("../../migrations/0012_clarify_story_summary.sql");
 pub const MIGRATION_0011_SQL: &str = include_str!("../../migrations/0011_clarify_planning_scope.sql");
+pub const MIGRATION_0014_SQL: &str = include_str!("../../migrations/0014_seed_system_catalogs.sql");
+pub const MIGRATION_0015_SQL: &str = include_str!("../../migrations/0015_phase0_catalog_tools.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -123,6 +125,8 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         11 => Ok(MIGRATION_0011_SQL),
         12 => Ok(MIGRATION_0012_SQL),
         13 => Ok(MIGRATION_0013_SQL),
+        14 => Ok(MIGRATION_0014_SQL),
+        15 => Ok(MIGRATION_0015_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -205,7 +209,7 @@ mod prompt_seed_tests {
             [],
             |row| row.get(0),
         ).unwrap();
-        assert_eq!(tool_count, 9);
+        assert_eq!(tool_count, 12);
     }
 }
 
@@ -248,8 +252,8 @@ mod tool_inventory_migration_tests {
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(total, 87);
-        assert_eq!(linked, 9);
-        assert_eq!(incomplete, 78);
+        assert_eq!(linked, 12);
+        assert_eq!(incomplete, 75);
     }
 
     #[test]
@@ -363,6 +367,26 @@ mod planning_scope_migration_tests {
             )
             .unwrap();
         assert_eq!(content, "Author custom planning");
+    }
+}
+
+#[cfg(test)]
+mod system_catalog_migration_tests {
+    use super::*;
+
+    #[test]
+    fn test_system_catalogs_seeded_with_genres_motifs_narrators_and_directives() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let genres: i64 = conn.query_row("SELECT COUNT(*) FROM genres", [], |r| r.get(0)).unwrap();
+        assert_eq!(genres, 50);
+        let motifs: i64 = conn.query_row("SELECT COUNT(*) FROM motifs", [], |r| r.get(0)).unwrap();
+        assert_eq!(motifs, 19);
+        let narrators: i64 = conn.query_row("SELECT COUNT(*) FROM narrator_configs", [], |r| r.get(0)).unwrap();
+        assert_eq!(narrators, 64);
+        let directives: i64 = conn.query_row("SELECT COUNT(*) FROM narrative_directives", [], |r| r.get(0)).unwrap();
+        assert_eq!(directives, 73);
+        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
     }
 }
 

@@ -296,6 +296,8 @@ pub mod draft_service;
 #[path = "../src/service/patch_service.rs"]
 pub mod patch_service;
 
+#[path = "../src/service/chat_catalog.rs"]
+pub mod chat_catalog;
 #[path = "../src/service/chat_orchestrator.rs"]
 pub mod chat_orchestrator;
 
@@ -303,6 +305,7 @@ pub mod chat_orchestrator;
 pub mod chat_commands;
 
 pub mod service {
+    pub use crate::chat_catalog;
     pub use crate::chat_orchestrator;
     pub use crate::draft_runtime;
     pub use crate::draft_service;
@@ -659,7 +662,7 @@ async fn test_P3S7_N_three_consecutive_rejections_stops_loop_requests_clarificat
         .unwrap();
 
     assert!(result.assistant_text.contains("Tôi gặp khó khăn khi thao tác"));
-    assert!(result.sealed_version.is_some(), "Initial system language should be sealed on the first turn");
+    assert!(result.sealed_version.is_none(), "A UI language default must not become a sealed story-language choice");
 
     // Verify messages saved
     let conn = pool.get().unwrap();
@@ -671,10 +674,8 @@ async fn test_P3S7_N_three_consecutive_rejections_stops_loop_requests_clarificat
 
     let parsed: serde_json::Value = serde_json::from_str(&asst_payload).unwrap();
     let tool_calls = parsed["tool_calls"].as_array().unwrap();
-    assert_eq!(tool_calls.len(), 3);
-    for tc in tool_calls {
-        assert_eq!(tc["status"], "rejected");
-    }
+    assert_eq!(tool_calls.iter().filter(|tc| tc["status"] == "rejected").count(), 3);
+    assert!(tool_calls.iter().any(|tc| tc["name"] == "get_field_null" && tc["status"] == "success"));
 }
 
 /// `P3S7-MAX`: Max iterations reached: controlled exit seals applied changes.
@@ -1083,8 +1084,9 @@ async fn test_failed_tool_call_remains_in_history_when_followup_provider_request
     let messages = orchestrator.fetch_recent_session_messages(&session_id, Uuid::nil(), 10).unwrap();
     assert_eq!(messages.len(), 2, "both the user request and failed tool audit should survive");
     assert_eq!(messages[1].role, "assistant");
-    assert_eq!(messages[1].tool_calls.as_ref().unwrap().len(), 1);
-    assert_eq!(messages[1].tool_calls.as_ref().unwrap()[0].status, "rejected");
+    let calls = messages[1].tool_calls.as_ref().unwrap();
+    assert!(calls.iter().any(|call| call.name == "get_field_null" && call.status == "success"));
+    assert!(calls.iter().any(|call| call.id == "failed-tool" && call.status == "rejected"));
 }
 
 /// `IPC-CMD-004`: `cancel_chat_turn`
