@@ -7,6 +7,7 @@ pub mod cascade_delete;
 pub mod code_allocator;
 pub mod fingerprint;
 pub mod invariants;
+pub mod phase_gate;
 pub mod phase3_artifact;
 pub mod phase3_merge;
 pub mod progress_engine;

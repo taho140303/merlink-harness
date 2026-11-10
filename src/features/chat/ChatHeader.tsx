@@ -12,6 +12,8 @@ import {
 
 export interface ChatHeaderProps {
   onToggleDraft: () => void;
+  /** A sealed draft exists: the action opens it instead of building a new one. */
+  draftExists?: boolean;
   isDraftOpen: boolean;
   progressPercent?: number;
   isRequireComplete?: boolean;
@@ -27,6 +29,7 @@ export interface ChatHeaderProps {
 
 export function ChatHeader({
   onToggleDraft,
+  draftExists,
   isDraftOpen,
   progressPercent = 0,
   isRequireComplete: propIsRequireComplete,
@@ -159,7 +162,7 @@ export function ChatHeader({
               )}
             >
               <Pencil className="h-3.5 w-3.5" />
-              <span>{t("chat.draftBuilding")}</span>
+              <span>{draftExists ? t("chat.openDraft") : t("chat.draftBuilding")}</span>
             </button>
           </div>
         </div>

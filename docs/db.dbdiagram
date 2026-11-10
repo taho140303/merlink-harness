@@ -94,8 +94,8 @@
       {
         "name": "projects",
         "schemaName": "public",
-        "x": -309.49173785747143,
-        "y": 644.7962504297784
+        "x": -389.36851281563736,
+        "y": 664.1212773096802
       },
       {
         "name": "character_motifs",
@@ -178,8 +178,8 @@
       {
         "name": "arcs",
         "schemaName": "public",
-        "x": -723.8147713636242,
-        "y": 231.4967317602003
+        "x": -641.3613262455175,
+        "y": 277.8767962719644
       },
       {
         "name": "scenes",
@@ -384,6 +384,24 @@
         "schemaName": "public",
         "x": -1990.6784685091334,
         "y": 2156.197621386796
+      },
+      {
+        "name": "chapter_save_receipts",
+        "schemaName": "public",
+        "x": 3406.93310546875,
+        "y": 818
+      },
+      {
+        "name": "workflow_round_receipts",
+        "schemaName": "public",
+        "x": 4062.84765625,
+        "y": 1888
+      },
+      {
+        "name": "workflow_task_receipts",
+        "schemaName": "public",
+        "x": 4894.96630859375,
+        "y": 360
       }
     ],
     "tableGroupCollapseStates": [],

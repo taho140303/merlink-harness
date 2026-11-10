@@ -19,6 +19,8 @@ pub mod fingerprint;
 pub mod word_count;
 #[path = "../src/domain/progress_engine.rs"]
 pub mod progress_engine;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
 
@@ -27,6 +29,7 @@ pub mod domain {
     pub use crate::code_allocator;
     pub use crate::fingerprint;
     pub use crate::invariants;
+    pub use crate::phase_gate;
     pub use crate::progress_engine;
     pub use crate::word_count;
 }
@@ -984,7 +987,46 @@ async fn IPC_CMD_008_confirm_phase_gating() {
     assert_eq!(resp_p1.phase, 1);
     assert_eq!(resp_p1.sealed_version.reason, "phase_confirm");
 
-    // 2. Subphase invalid for Phase 1
+    // 2. Phase 1 cannot be left while its optional payload is incomplete (3 arcs required).
+    let req_p2 = ConfirmPhaseReq {
+        draft_session_id: draft_id,
+        target_phase: 2,
+        target_subphase: None,
+        pre_draft_suggestion: None,
+    };
+    let err_gate = exec_confirm_phase(&service, &req_p2).await.unwrap_err();
+    assert_eq!(err_gate.code, ErrorCode::ValidationFailed);
+    assert!(
+        err_gate.message.contains("Phase 1 chưa hoàn tất"),
+        "unexpected gate message: {}",
+        err_gate.message
+    );
+
+    // Fill the three required arcs, then the same transition is accepted.
+    let entry = service.get_or_load_runtime_entry(draft_id).unwrap();
+    entry.mutate_working_state(|ws| {
+        for index in 1..=3u32 {
+            let mut arc = domain::business_flow::OverviewArcItem::default();
+            arc.code = format!("arc-{index}");
+            arc.display_name = domain::business_flow::TrackedField::user(format!("Arc {index}"));
+            arc.summary = domain::business_flow::TrackedField::user("Tóm tắt".to_string());
+            arc.motif.code = domain::business_flow::TrackedField::user("chosen_one".to_string());
+            arc.motif.event_blocks.push(domain::business_flow::ArcEventBlockItem {
+                code: format!("eb-{index}"),
+                ..Default::default()
+            });
+            arc.themes.question =
+                domain::business_flow::TrackedField::user("Câu hỏi chủ đề?".to_string());
+            arc.themes.message =
+                domain::business_flow::TrackedField::user("Thông điệp".to_string());
+            ws.business_flow_data.optional.overview_phase.arcs.push(arc);
+        }
+        ws.business_flow_data.meta.phase = 1;
+    });
+    let resp_p2 = exec_confirm_phase(&service, &req_p2).await.unwrap();
+    assert_eq!(resp_p2.phase, 2);
+
+    // 3. Subphase invalid for Phase 1
     let req_invalid_sub = ConfirmPhaseReq {
         draft_session_id: draft_id,
         target_phase: 2,
@@ -994,7 +1036,35 @@ async fn IPC_CMD_008_confirm_phase_gating() {
     let err_sub = exec_confirm_phase(&service, &req_invalid_sub).await.unwrap_err();
     assert_eq!(err_sub.code, ErrorCode::ValidationFailed);
 
-    // 3. Phase 5 requires subphase in 1..=3
+    // 3. Jumping over phases is rejected (Phase 1 -> Phase 5).
+    let req_p5_jump = ConfirmPhaseReq {
+        draft_session_id: draft_id,
+        target_phase: 5,
+        target_subphase: Some(1),
+        pre_draft_suggestion: None,
+    };
+    let err_jump = exec_confirm_phase(&service, &req_p5_jump).await.unwrap_err();
+    assert_eq!(err_jump.code, ErrorCode::ValidationFailed);
+    assert!(err_jump.message.contains("Phase"), "{}", err_jump.message);
+
+    // 4. Phase 5 requires a valid subphase. Move the runtime to phase 5 and verify the subphase
+    // contract is still enforced by the command (re-confirming the current phase is allowed).
+    let entry = service.get_or_load_runtime_entry(draft_id).unwrap();
+    entry.mutate_working_state(|ws| {
+        ws.phase = 5;
+        ws.subphase = None;
+    });
+    let req_p5_missing_sub = ConfirmPhaseReq {
+        draft_session_id: draft_id,
+        target_phase: 5,
+        target_subphase: None,
+        pre_draft_suggestion: None,
+    };
+    assert_eq!(
+        exec_confirm_phase(&service, &req_p5_missing_sub).await.unwrap_err().code,
+        ErrorCode::ValidationFailed
+    );
+
     let req_p5_valid = ConfirmPhaseReq {
         draft_session_id: draft_id,
         target_phase: 5,

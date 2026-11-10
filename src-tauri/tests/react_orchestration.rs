@@ -36,6 +36,8 @@ pub mod word_count;
 
 #[path = "../src/domain/progress_engine.rs"]
 pub mod progress_engine;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
 
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
@@ -245,6 +247,7 @@ pub mod domain {
     pub use crate::code_allocator;
     pub use crate::fingerprint;
     pub use crate::invariants;
+    pub use crate::phase_gate;
     pub use crate::progress_engine;
     pub use crate::word_count;
     pub mod tools {
@@ -485,6 +488,47 @@ fn create_test_session(
 // Tests
 // ============================================================================
 
+/// History window must keep the last 20 author messages and the last 20 assistant messages so
+/// the beginning of a long session is not silently dropped by a flat row limit.
+#[test]
+fn test_history_role_window_keeps_twenty_messages_per_role() {
+    let (pool, registry, _draft_svc, _patch_svc, orchestrator, _tmp) = setup_test_context();
+    let (sess_id, _draft_id, _proj_id) = create_test_session(&pool, &registry);
+    let conn = pool.get().unwrap();
+    let base = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00").unwrap();
+    for index in 0..30 {
+        let stamp = (base + chrono::Duration::seconds(index as i64)).to_rfc3339();
+        for role in ["user", "assistant"] {
+            conn.execute(
+                "INSERT INTO messages (id, session_id, turn_id, role, content, payload_json, created_at)
+                 VALUES (?1, ?2, NULL, ?3, ?4, NULL, ?5)",
+                params![
+                    Uuid::new_v4().to_string(),
+                    sess_id,
+                    role,
+                    format!("{role}-{index}"),
+                    stamp,
+                ],
+            ).unwrap();
+        }
+    }
+
+    let window = orchestrator
+        .fetch_recent_role_window(&sess_id, Uuid::nil(), 20, 20)
+        .unwrap();
+
+    assert_eq!(window.iter().filter(|m| m.role == "user").count(), 20, "last 20 author messages");
+    assert_eq!(window.iter().filter(|m| m.role == "assistant").count(), 20, "last 20 assistant messages");
+    // Message 10..29 survive; messages 0..9 fall out of the per-role window.
+    assert_eq!(window.first().unwrap().content, "user-10");
+    assert!(window.iter().any(|m| m.content == "user-29"));
+    // Chronological order is preserved across the two role queries.
+    let stamps: Vec<&str> = window.iter().map(|m| m.timestamp.as_str()).collect();
+    let mut sorted = stamps.clone();
+    sorted.sort();
+    assert_eq!(stamps, sorted);
+}
+
 /// `phase3_sprint7_deep4-F0`: Predecessor gates verification.
 #[test]
 fn test_phase3_sprint7_deep4_f0_predecessor_gates_check() {
@@ -689,6 +733,7 @@ async fn test_P3S7_MAX_iterations_reached_controlled_exit_seals_applied_changes(
         max_iterations: 3,
         consecutive_rejected_limit: 5,
         draft_lock_timeout: Duration::from_secs(10),
+        ..OrchestratorConfig::default()
     };
 
     let custom_orchestrator = Arc::new(

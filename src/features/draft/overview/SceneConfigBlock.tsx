@@ -163,7 +163,11 @@ function SceneCard({ scene, isFeedbackMode, onAttachFeedback }: { scene: SceneCo
             {t('draft.scene.narrator')}
           </span>
           <p className="mt-1 text-sm font-medium text-fg ">
-            {scene.narratorConfigCode}
+            {scene.narratorConfigCode
+              ? (t(`narrator_config.${scene.narratorConfigCode}.display_name` as any) !== `narrator_config.${scene.narratorConfigCode}.display_name`
+                  ? t(`narrator_config.${scene.narratorConfigCode}.display_name` as any)
+                  : scene.narratorConfigCode)
+              : t('common.unknown')}
           </p>
         </div>
         <div>

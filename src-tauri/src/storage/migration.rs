@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 20;
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 25;
 
 /// Embedded forward-only migration scripts.
 pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
@@ -31,6 +31,11 @@ pub const MIGRATION_0017_SQL: &str = include_str!("../../migrations/0017_tool_ca
 pub const MIGRATION_0018_SQL: &str = include_str!("../../migrations/0018_character_coverage.sql");
 pub const MIGRATION_0019_SQL: &str = include_str!("../../migrations/0019_fix_character_instruction.sql");
 pub const MIGRATION_0020_SQL: &str = include_str!("../../migrations/0020_seed_themes.sql");
+pub const MIGRATION_0021_SQL: &str = include_str!("../../migrations/0021_tool_descriptions_and_schemas.sql");
+pub const MIGRATION_0022_SQL: &str = include_str!("../../migrations/0022_save_approved_outline.sql");
+pub const MIGRATION_0023_SQL: &str = include_str!("../../migrations/0023_tool_schemas_and_catalog_pagination.sql");
+pub const MIGRATION_0024_SQL: &str = include_str!("../../migrations/0024_fix_project_genre_source_schema.sql");
+pub const MIGRATION_0025_SQL: &str = include_str!("../../migrations/0025_ssot_state_rule.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -137,6 +142,11 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
         18 => Ok(MIGRATION_0018_SQL),
         19 => Ok(MIGRATION_0019_SQL),
         20 => Ok(MIGRATION_0020_SQL),
+        21 => Ok(MIGRATION_0021_SQL),
+        22 => Ok(MIGRATION_0022_SQL),
+        23 => Ok(MIGRATION_0023_SQL),
+        24 => Ok(MIGRATION_0024_SQL),
+        25 => Ok(MIGRATION_0025_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -283,9 +293,39 @@ mod tool_inventory_migration_tests {
             "SELECT COUNT(*) FROM tools WHERE display_name IS NULL AND description IS NULL AND input_schema IS NULL",
             [], |row| row.get(0),
         ).unwrap();
-        assert_eq!(total, 87);
+        assert_eq!(total, 88);
         assert!(linked > 12, "phase prompts must grant tools in addition to the shared blocks");
         assert_eq!(incomplete, 0, "every seeded tool must carry a callable schema");
+    }
+
+    #[test]
+    fn test_every_granted_tool_carries_description_for_function_calling() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        // `get_tools_by_prompt` silently drops tools without a description, so a granted tool
+        // with an empty description never reaches the model through function calling.
+        let stripped: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id
+             WHERE trim(coalesce(t.description, '')) = ''",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(stripped, 0, "granted tools must carry a non-empty description");
+        let exposed: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM prompt_block_tools pbt
+             JOIN prompt_blocks pb ON pb.id = pbt.prompt_block_id
+             JOIN tools t ON t.id = pbt.tool_id
+             WHERE pb.prompt_code = 'planning_phase_0'
+               AND trim(coalesce(t.description, '')) <> ''
+               AND json_valid(t.input_schema)
+               AND json_extract(t.input_schema, '$.type') = 'object'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(exposed, 76, "Phase 0 must expose the full planning tool surface");
+        let role_enum: String = conn.query_row(
+            "SELECT json_extract(input_schema, '$.properties.role.enum') FROM tools WHERE code = 'add_theme_argument'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert!(role_enum.contains("PRIMARY") && role_enum.contains("WITNESS"));
     }
 
     #[test]
@@ -299,6 +339,26 @@ mod tool_inventory_migration_tests {
         assert!(content.contains("display_name"));
         assert!(content.contains("xác nhận"));
         assert!(content.contains("trước khi gọi tool ghi"));
+    }
+
+    #[test]
+    fn planning_tool_schemas_expose_the_parameters_the_model_must_send() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+        let schema = |code: &str| -> String {
+            conn.query_row("SELECT input_schema FROM tools WHERE code = ?1", [code], |row| row.get(0))
+                .unwrap()
+        };
+        let add_arc = schema("add_arc");
+        assert!(add_arc.contains("\"motif_code\""), "add_arc must expose motif_code: {add_arc}");
+        let set_motif = schema("set_arc_motif");
+        assert!(set_motif.contains("\"motif_code\"") && set_motif.contains("\"declared_sources\""));
+        let search_genre = schema("search_genre");
+        for key in ["\"code\"", "\"query\"", "\"limit\"", "\"offset\""] {
+            assert!(search_genre.contains(key), "search_genre missing {key}: {search_genre}");
+        }
+        let add_theme = schema("add_theme");
+        assert!(add_theme.contains("\"question\"") && add_theme.contains("\"message\""));
     }
 
     #[test]
@@ -340,6 +400,10 @@ mod chat_contract_migration_tests {
         let (format, content): (String, String) = conn.query_row("SELECT content_format,content FROM prompt_blocks WHERE prompt_code='story_context'", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
         assert_eq!(format, "JSON");
         assert_eq!(content, "{{story_context}}");
+        let introduction: String = conn
+            .query_row("SELECT content FROM prompt_blocks WHERE prompt_code='introduction'", [], |r| r.get(0))
+            .unwrap();
+        assert!(introduction.contains("SSOT"), "global prompt must state the loaded JSON is the SSOT");
     }
 
     #[test]

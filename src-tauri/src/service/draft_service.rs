@@ -744,11 +744,12 @@ impl DraftService {
             total_attributes: 46,
             progress_percentage: (completed as f32 / 46.0) * 100.0,
             is_require_complete: progress_eval.is_require_complete,
-            can_advance_phase: if snapshot.phase == 0 {
-                progress_eval.is_require_complete
-            } else {
-                true
-            },
+            // A phase may only be left when its own optional payload is complete.
+            can_advance_phase: crate::domain::phase_gate::can_advance(
+                &snapshot.business_flow_data,
+                snapshot.phase,
+                snapshot.subphase,
+            ),
             confirmed_count: Some(progress_eval.confirmed_count as u32),
             ai_inferred_count: Some(progress_eval.ai_suggested_count as u32),
         };
@@ -916,6 +917,9 @@ impl DraftService {
                 ws.head_version_seq = Some(seq as i32);
                 if let Ok(bfd) = BusinessFlowData::from_json_str_strict(&data_json) {
                     ws.business_flow_data = bfd;
+                    // Do not mutate the loaded state here: TX-04 compares the runtime hash with the
+                    // sealed head version, so a read-path repair would make every round seal fail
+                    // with "Base data hash mismatch". Repair happens in a sealed version instead.
                 }
             }
         }

@@ -113,17 +113,20 @@ export function NarrativeDirectivesTab() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h4 className="font-semibold text-fg">
-                      {nc.name}
+                      {nc.name?.startsWith('narrator_config.') ? t(nc.name as any) : nc.name}
                     </h4>
                     <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">
                       {nc.code}
                     </p>
                   </div>
-                  <InfoTooltip content={nc.description} className="mt-0.5 shrink-0" />
+                  <InfoTooltip
+                    content={nc.description?.startsWith('narrator_config.') ? t(nc.description as any) : nc.description}
+                    className="mt-0.5 shrink-0"
+                  />
                 </div>
 
                 <p className="mt-2 text-xs leading-relaxed text-fg-muted">
-                  {nc.description}
+                  {nc.description?.startsWith('narrator_config.') ? t(nc.description as any) : nc.description}
                 </p>
 
                 <div className="mt-3 space-y-1.5 border-t border-line pt-2.5 text-xs ">

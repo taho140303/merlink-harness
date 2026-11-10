@@ -18,7 +18,8 @@ use std::collections::BTreeMap;
 
 use crate::domain::business_flow::{
     ArcEventBlockItem, ArcMotifSection, ArcThemeSection, BusinessFlowData,
-    CharacterCompetenceItem, CharacterLifeExperienceItem,
+    CharacterAppearanceItem, CharacterCompetenceItem, CharacterLifeExperienceItem,
+    CharacterPsychologicalItem,
     CharacterMemoryItem, ChapterPhaseArcItem, ChapterPhaseChapterItem,
     ChapterPhaseSceneItem, LoreEntryItem, OverviewArcItem, ProvenanceSource,
     RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem,
@@ -554,6 +555,14 @@ impl ToolExecutor {
                     &mut pending_patches,
                 );
             }
+            "set_arc_motif" => {
+                self.handle_set_arc_motif(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
+                );
+            }
             "add_project_genre" => {
                 self.handle_add_project_genre(
                     call,
@@ -584,6 +593,22 @@ impl ToolExecutor {
                     &mut pending_patches,
                 );
             }
+            "add_character_appearance" | "set_character_appearance" => {
+                self.handle_character_appearance(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
+                );
+            }
+            "add_character_psychological" | "set_character_psychological" => {
+                self.handle_character_psychological(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
+                );
+            }
             "add_character_competence" => {
                 self.handle_add_character_competence(
                     call,
@@ -592,6 +617,14 @@ impl ToolExecutor {
                     &mut candidate_state,
                     &mut results,
                     &mut pending_patches,
+                );
+            }
+            "save_approved_outline" => {
+                self.handle_save_approved_outline(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
                 );
             }
             "add_theme" => {
@@ -963,6 +996,86 @@ impl ToolExecutor {
         self.handle_set_project(call, declared_sources, baseline, candidate, results, pending_patches);
     }
 
+    /// Assign the conflict motif of an existing Arc. The model used to have no schema for this
+    /// tool and no handler at all, so Phase 1 could never satisfy the Arc-motif gate.
+    fn handle_set_arc_motif(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let code = call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("arc_code"))
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let Some(code) = code else {
+            results.push(FieldResult {
+                field: "code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("missing_target_code".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let motif_code = call
+            .parameters
+            .get("motif_code")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let Some(motif_code) = motif_code else {
+            results.push(FieldResult {
+                field: "motif_code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("missing_motif_code".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let Some(arc) = candidate
+            .optional
+            .overview_phase
+            .arcs
+            .iter_mut()
+            .find(|arc| arc.code == code)
+        else {
+            results.push(FieldResult {
+                field: "code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("target_code_not_found".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let source = *declared_sources
+            .get("motif_code")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        arc.motif.code = TrackedField::new(motif_code.to_string(), source);
+        if let Some(note) = call
+            .parameters
+            .get("note")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            arc.motif.note = TrackedField::new(note.to_string(), source);
+        }
+        results.push(FieldResult {
+            field: "motif_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![motif_code.to_string()]),
+        });
+    }
+
     fn handle_add_arc(
         &self,
         call: &ToolCall,
@@ -975,12 +1088,6 @@ impl ToolExecutor {
         let source = *declared_sources
             .get("display_name")
             .unwrap_or(&ProvenanceSource::AiGenerated);
-        let code = call
-            .parameters
-            .get("code")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("arc-{}", candidate.optional.overview_phase.arcs.len() + 1));
         let text = |key: &str| {
             call.parameters
                 .get(key)
@@ -994,17 +1101,135 @@ impl ToolExecutor {
             .parameters
             .get("position")
             .and_then(|value| value.as_u64())
-            .map(|value| TrackedField::new(value as u32, source))
-            .unwrap_or_default();
-        let mut motif = ArcMotifSection::default();
-        if let Some(motif_code) = call
+            .map(|value| TrackedField::new(value as u32, source));
+        let code_param = call
+            .parameters
+            .get("code")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        let motif_code = call
             .parameters
             .get("motif_code")
             .and_then(|value| value.as_str())
             .map(str::trim)
             .filter(|value| !value.is_empty())
-        {
-            motif.code = TrackedField::new(motif_code.to_string(), source);
+            .map(|value| TrackedField::new(value.to_string(), source));
+
+        let protected = |field_source: Option<ProvenanceSource>| {
+            matches!(
+                field_source,
+                Some(ProvenanceSource::User) | Some(ProvenanceSource::UserEdited)
+            )
+        };
+        let merge_text = |current: &mut TrackedField<String>, incoming: TrackedField<String>| {
+            if incoming.value.as_deref().map(str::trim).filter(|v| !v.is_empty()).is_some()
+                && (!protected(current.source) || !protected(Some(source)) || source == ProvenanceSource::User)
+            {
+                *current = incoming;
+            }
+        };
+
+        // Resolve the target Arc by explicit code first, then by position. Regenerating an Arc at
+        // the same position must update it in place: generating a fresh `arc-N` code appended a
+        // second copy and duplicated positions 2..5 in the live draft.
+        let existing_index = code_param
+            .as_ref()
+            .and_then(|code| {
+                candidate
+                    .optional
+                    .overview_phase
+                    .arcs
+                    .iter()
+                    .position(|arc| &arc.code == code)
+            })
+            .or_else(|| {
+                position.as_ref().and_then(|incoming| {
+                    incoming.value.and_then(|wanted| {
+                        candidate
+                            .optional
+                            .overview_phase
+                            .arcs
+                            .iter()
+                            .position(|arc| arc.position.value == Some(wanted))
+                    })
+                })
+            });
+
+        if let Some(index) = existing_index {
+            let arc = &mut candidate.optional.overview_phase.arcs[index];
+            merge_text(&mut arc.display_name, text("display_name"));
+            merge_text(&mut arc.summary, text("summary"));
+            if let Some(incoming) = position.clone() {
+                if incoming.value.is_some() && !protected(arc.position.source) {
+                    arc.position = incoming;
+                }
+            }
+            if let Some(incoming) = motif_code.clone() {
+                if !protected(arc.motif.code.source) {
+                    arc.motif.code = incoming;
+                }
+            }
+            merge_text(&mut arc.motif.note, text("motif_note"));
+            arc.source = Some(source);
+            results.push(FieldResult {
+                field: "code".to_string(),
+                status: "applied".to_string(),
+                patch_id: None,
+                error: None,
+                candidates: Some(vec![arc.code.clone()]),
+            });
+            return;
+        }
+
+        let target = candidate
+            .require
+            .project
+            .target
+            .arc_count
+            .value
+            .unwrap_or(0);
+        if target > 0 && candidate.optional.overview_phase.arcs.len() >= target as usize {
+            results.push(FieldResult {
+                field: "position".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("arc_target_reached".to_string()),
+                candidates: None,
+            });
+            return;
+        }
+
+        let code = code_param.unwrap_or_else(|| {
+            let existing: Vec<&str> = candidate
+                .optional
+                .overview_phase
+                .arcs
+                .iter()
+                .map(|arc| arc.code.as_str())
+                .collect();
+            let mut next = existing.len() + 1;
+            while existing.contains(&format!("arc-{next}").as_str()) {
+                next += 1;
+            }
+            format!("arc-{next}")
+        });
+        let position = position.unwrap_or_else(|| {
+            let next = candidate
+                .optional
+                .overview_phase
+                .arcs
+                .iter()
+                .filter_map(|arc| arc.position.value)
+                .max()
+                .unwrap_or(0)
+                + 1;
+            TrackedField::new(next, source)
+        });
+        let mut motif = ArcMotifSection::default();
+        if let Some(motif_code) = motif_code {
+            motif.code = motif_code;
         }
         motif.note = text("motif_note");
         candidate.optional.overview_phase.arcs.push(OverviewArcItem {
@@ -2159,8 +2384,15 @@ impl ToolExecutor {
                 Some(ProvenanceSource::User) => ProvenanceSource::User,
                 Some(ProvenanceSource::AiGenerated) => ProvenanceSource::AiGenerated,
                 _ => {
-                    results.push(field_rejection("genre_code", "missing_or_invalid_declared_source"));
-                    return;
+                    // Tolerate the legacy scalar form some prompts/models still emit.
+                    match call.parameters.get("declared_source").and_then(|value| value.as_str()) {
+                        Some("user") => ProvenanceSource::User,
+                        Some("ai_generated") => ProvenanceSource::AiGenerated,
+                        _ => {
+                            results.push(field_rejection("genre_code", "missing_or_invalid_declared_source"));
+                            return;
+                        }
+                    }
                 }
             }
         } else {
@@ -2378,6 +2610,188 @@ impl ToolExecutor {
             patch_id: None,
             error: None,
             candidates: None,
+        });
+    }
+
+    fn handle_character_appearance(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let Some(code) = call
+            .parameters
+            .get("character_code")
+            .or_else(|| call.parameters.get("code"))
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        else {
+            results.push(FieldResult {
+                field: "character_code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("missing_target_code".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let source = *declared_sources
+            .get("default_summary")
+            .or_else(|| declared_sources.get("species"))
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+        };
+        let section = &mut candidate.optional.character_appearance_phase.character;
+        if !section.iter().any(|item| item.code == code) {
+            section.push(CharacterAppearanceItem {
+                code: code.to_string(),
+                ..Default::default()
+            });
+        }
+        let item = section.iter_mut().find(|item| item.code == code).unwrap();
+        if let Some(value) = text("species") { item.species = value; }
+        if let Some(value) = text("birth") { item.birth = value; }
+        if let Some(value) = text("outfit_style") { item.outfit_style = value; }
+        if let Some(value) = text("default_summary") { item.default_summary = value; }
+        if let Some(value) = call.parameters.get("height_cm").and_then(|value| value.as_u64()) {
+            item.height_cm = TrackedField::new(value.min(u32::MAX as u64) as u32, source);
+        }
+        if let Some(value) = call.parameters.get("weight_kg").and_then(|value| value.as_u64()) {
+            item.weight_kg = TrackedField::new(value.min(u32::MAX as u64) as u32, source);
+        }
+        results.push(FieldResult {
+            field: "character_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![code.to_string()]),
+        });
+    }
+
+    fn handle_character_psychological(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let Some(code) = call
+            .parameters
+            .get("character_code")
+            .or_else(|| call.parameters.get("code"))
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        else {
+            results.push(FieldResult {
+                field: "character_code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("missing_target_code".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let source = *declared_sources
+            .get("the_wound")
+            .or_else(|| declared_sources.get("external_want"))
+            .or_else(|| declared_sources.get("internal_need"))
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| TrackedField::new(value.to_string(), source))
+        };
+        let section = &mut candidate.optional.character_psychological_phase.character;
+        if !section.iter().any(|item| item.code == code) {
+            section.push(CharacterPsychologicalItem {
+                code: code.to_string(),
+                ..Default::default()
+            });
+        }
+        let item = section.iter_mut().find(|item| item.code == code).unwrap();
+        if let Some(value) = text("the_wound") { item.core_trauma_and_belief.the_wound = value; }
+        if let Some(value) = text("the_lie") { item.core_trauma_and_belief.the_lie = value; }
+        if let Some(value) = text("fundamental_fear") { item.core_trauma_and_belief.fundamental_fear = value; }
+        if let Some(value) = text("external_want") { item.narrative_engine.external_want = value; }
+        if let Some(value) = text("internal_need") { item.narrative_engine.internal_need = value; }
+        if let Some(value) = text("internal_conflict") { item.narrative_engine.internal_conflict = value; }
+        results.push(FieldResult {
+            field: "character_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![code.to_string()]),
+        });
+    }
+
+    /// Persist an author-approved outline as a durable planning decision. Chat may present the
+    /// outline as prose; this tool is the handoff that later phases (and the workflow, which has
+    /// no chat history) can read from `decision_log`.
+    fn handle_save_approved_outline(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let summary = call
+            .parameters
+            .get("summary")
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let Some(summary) = summary else {
+            results.push(FieldResult {
+                field: "summary".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("missing_summary".to_string()),
+                candidates: None,
+            });
+            return;
+        };
+        let source = *declared_sources
+            .get("summary")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let summary: String = summary.chars().take(20_000).collect();
+        if let Some(existing) = candidate
+            .decision_log
+            .iter()
+            .find(|entry| entry.summary == summary)
+        {
+            results.push(FieldResult {
+                field: "summary".to_string(),
+                status: "applied".to_string(),
+                patch_id: None,
+                error: None,
+                candidates: Some(vec![existing.id.clone()]),
+            });
+            return;
+        }
+        let id = format!("decision-{}", candidate.decision_log.len() + 1);
+        candidate.decision_log.push(crate::domain::business_flow::DecisionLogEntry {
+            id: id.clone(),
+            summary,
+            source,
+        });
+        results.push(FieldResult {
+            field: "summary".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![id]),
         });
     }
 
@@ -2880,6 +3294,7 @@ pub fn register_all_write_tools(registry: &mut ToolRegistry) {
         ("delete_character", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
         ("add_arc", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("set_arc", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
+        ("set_arc_motif", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("delete_arc", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
         ("add_chapter", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("set_chapter", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
@@ -2901,11 +3316,16 @@ pub fn register_all_write_tools(registry: &mut ToolRegistry) {
         ("delete_lore_entry", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
         ("add_arc_event_block", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("delete_arc_event_block", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
+        ("save_approved_outline", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("add_theme", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("set_theme", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("delete_theme", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
         ("add_theme_argument", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("delete_theme_argument", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
+        ("add_character_appearance", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
+        ("set_character_appearance", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
+        ("add_character_psychological", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
+        ("set_character_psychological", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("add_character_memory", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("set_character_memory", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
         ("delete_character_memory", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
@@ -2991,6 +3411,196 @@ mod phase6_7_handlers {
             declared_sources: Some(sources(declared)),
             declared_source: None,
         }
+    }
+
+    #[test]
+    fn set_arc_motif_assigns_the_missing_phase_one_gate_field() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        let add = call(
+            "add_arc",
+            serde_json::json!({"display_name": "Arc 1", "summary": "S", "position": 1}),
+            &[("display_name", "ai_generated")],
+        );
+        state = executor
+            .execute_call(&add, &ExecutionGuard::new(&state))
+            .mutated_state()
+            .unwrap()
+            .clone();
+        let code = state.optional.overview_phase.arcs[0].code.clone();
+
+        let set = call(
+            "set_arc_motif",
+            serde_json::json!({"code": code, "motif_code": "positive_change_arc", "note": "growth"}),
+            &[("motif_code", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&set, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        assert_eq!(
+            updated.optional.overview_phase.arcs[0].motif.code.value.as_deref(),
+            Some("positive_change_arc")
+        );
+        assert_eq!(updated.optional.overview_phase.arcs[0].motif.note.value.as_deref(), Some("growth"));
+
+        let unknown = call(
+            "set_arc_motif",
+            serde_json::json!({"code": "missing", "motif_code": "positive_change_arc"}),
+            &[("motif_code", "ai_generated")],
+        );
+        assert_eq!(executor.execute_call(&unknown, &ExecutionGuard::new(&state)).status, "rejected");
+    }
+
+    #[test]
+    fn add_project_genre_accepts_the_map_source_contract() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        let add = call(
+            "add_project_genre",
+            serde_json::json!({"genre_code": "romance", "is_primary": true}),
+            &[("genre_code", "user")],
+        );
+        let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "map declared_sources must apply: {outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        assert_eq!(state.require.project.genres.len(), 1);
+        assert_eq!(
+            state.require.project.genres[0].code.value.as_deref(),
+            Some("romance")
+        );
+        assert_eq!(
+            state.require.project.genres[0].code.source,
+            Some(ProvenanceSource::User)
+        );
+
+        // Legacy scalar payloads are tolerated instead of rejecting the whole genre step.
+        let legacy = call(
+            "add_project_genre",
+            serde_json::json!({"genre_code": "urban_dushi", "is_primary": false, "declared_source": "user"}),
+            &[],
+        );
+        let outcome = executor.execute_call(&legacy, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "legacy scalar source must apply: {outcome:?}");
+        assert_eq!(outcome.mutated_state().unwrap().require.project.genres.len(), 2);
+    }
+
+    #[test]
+    fn appearance_and_psychological_handlers_satisfy_the_phase_five_gate() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        let mut hero = crate::domain::business_flow::RequireCharacterItem::default();
+        hero.code = "hero".into();
+        hero.display_name = TrackedField::user("Anh hùng".into());
+        state.require.character.push(hero);
+
+        let appearance = call(
+            "add_character_appearance",
+            serde_json::json!({"character_code": "hero", "default_summary": "Cao, tóc đen", "species": "HUMAN"}),
+            &[("default_summary", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&appearance, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+
+        let psychology = call(
+            "add_character_psychological",
+            serde_json::json!({
+                "character_code": "hero",
+                "the_wound": "Bị bỏ rơi",
+                "external_want": "Được công nhận",
+                "internal_need": "Tự chấp nhận"
+            }),
+            &[("the_wound", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&psychology, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+
+        assert!(
+            crate::domain::phase_gate::missing_for_subphase(&state, 1).is_empty(),
+            "{:?}",
+            crate::domain::phase_gate::missing_for_subphase(&state, 1)
+        );
+        assert!(
+            crate::domain::phase_gate::missing_for_subphase(&state, 2).is_empty(),
+            "{:?}",
+            crate::domain::phase_gate::missing_for_subphase(&state, 2)
+        );
+    }
+
+    #[test]
+    fn add_arc_merges_duplicate_positions_and_respects_the_target() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        state.require.project.target.arc_count = TrackedField::user(2);
+        let make = |name: &str, position: u64, motif: &str| {
+            call(
+                "add_arc",
+                serde_json::json!({
+                    "display_name": name,
+                    "summary": format!("Tóm tắt {name}"),
+                    "position": position,
+                    "motif_code": motif
+                }),
+                &[("display_name", "ai_generated"), ("summary", "ai_generated")],
+            )
+        };
+
+        let first = executor.execute_call(&make("Arc Một", 1, "m1"), &ExecutionGuard::new(&state));
+        assert!(first.is_applied(), "{first:?}");
+        state = first.mutated_state().unwrap().clone();
+        let first_code = state.optional.overview_phase.arcs[0].code.clone();
+
+        // Regenerating the same position merges into the existing Arc instead of appending a copy.
+        let again = executor.execute_call(&make("Arc Một (mới)", 1, "m1"), &ExecutionGuard::new(&state));
+        assert!(again.is_applied(), "{again:?}");
+        state = again.mutated_state().unwrap().clone();
+        assert_eq!(state.optional.overview_phase.arcs.len(), 1, "position 1 must stay single");
+        assert_eq!(state.optional.overview_phase.arcs[0].code, first_code);
+        assert_eq!(
+            state.optional.overview_phase.arcs[0].display_name.value.as_deref(),
+            Some("Arc Một (mới)")
+        );
+
+        let second = executor.execute_call(&make("Arc Hai", 2, "m2"), &ExecutionGuard::new(&state));
+        state = second.mutated_state().unwrap().clone();
+        assert_eq!(state.optional.overview_phase.arcs.len(), 2);
+
+        // A third Arc exceeds target.arc_count = 2 and is rejected instead of duplicating positions.
+        let extra = executor.execute_call(&make("Arc Ba", 3, "m3"), &ExecutionGuard::new(&state));
+        assert_eq!(extra.status, "rejected");
+        assert_eq!(extra.results[0].error.as_deref(), Some("arc_target_reached"));
+    }
+
+    #[test]
+    fn approved_outline_is_persisted_to_decision_log_idempotently() {
+        let executor = ToolExecutor::default();
+        let state = BusinessFlowData::default();
+        let outline = call(
+            "save_approved_outline",
+            serde_json::json!({
+                "summary": "5 Arc: Gặp gỡ tình cờ / Thử thách / Khẳng định / Đối đầu / Kết thúc"
+            }),
+            &[("summary", "user")],
+        );
+        let outcome = executor.execute_call(&outline, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "approved outline must be saved: {outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        assert_eq!(updated.decision_log.len(), 1);
+        assert_eq!(updated.decision_log[0].source, crate::domain::business_flow::ProvenanceSource::User);
+        assert!(updated.decision_log[0].summary.contains("5 Arc"));
+
+        // Repeating the same approval reuses the existing decision instead of duplicating it.
+        let again = executor.execute_call(&outline, &ExecutionGuard::new(&updated));
+        assert!(again.is_applied());
+        assert_eq!(again.mutated_state().unwrap().decision_log.len(), 1);
+
+        let blank = call(
+            "save_approved_outline",
+            serde_json::json!({"summary": "   "}),
+            &[("summary", "user")],
+        );
+        assert_eq!(executor.execute_call(&blank, &ExecutionGuard::new(&state)).status, "rejected");
     }
 
     #[test]

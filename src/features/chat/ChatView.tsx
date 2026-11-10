@@ -102,6 +102,9 @@ export class ChatBackendController {
   private client: BackendClient;
   private state: ChatBackendState;
   private listeners: Set<(state: ChatBackendState) => void> = new Set();
+  /** Debounced workspace refresh so an applied tool call reaches the open Draft Workspace. */
+  private workspaceRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
   private initGeneration = 0;
   private turnGeneration = 0;
   private pendingInit: { key: string; promise: Promise<ChatBackendState> } | null = null;
@@ -372,6 +375,31 @@ export class ChatBackendController {
     }
   }
 
+  /** Reload only the working state (cheap) so the Draft Workspace mirrors applied tool calls. */
+  private async refreshWorkingState(): Promise<void> {
+    const draftSessionId = this.state.draftSessionId;
+    if (!draftSessionId) return;
+    try {
+      const dto = await this.client.getDraftWorkspaceState({ draftSessionId });
+      if (!dto) return;
+      this.updateState({
+        workingState: (dto.businessFlowData as unknown as BusinessFlowData) ?? this.state.workingState,
+        progress: fromDraftProgressDto(dto.progress),
+      });
+    } catch {
+      // Non-fatal: the next turn reload refreshes the authoritative snapshot.
+    }
+  }
+
+  /** Coalesce bursts of applied writes into one workspace reload (at most every 400 ms). */
+  private scheduleWorkingStateRefresh(): void {
+    if (this.workspaceRefreshTimer) return;
+    this.workspaceRefreshTimer = setTimeout(() => {
+      this.workspaceRefreshTimer = null;
+      void this.refreshWorkingState();
+    }, 400);
+  }
+
   private async refreshDurableChat(): Promise<void> {
     if (!this.state.initialized || !this.state.sessionId) return;
     const generation = this.initGeneration;
@@ -477,6 +505,9 @@ export class ChatBackendController {
           progress: reconcileDraftProgress(this.state.progress, event.data.progress),
           pendingPatchCount: event.data.pendingPatchCount,
         });
+        // The event only carries counters; refresh the snapshot so the Draft Workspace (and the
+        // tool panel) reflect the mutation that just happened, not the state from turn start.
+        this.scheduleWorkingStateRefresh();
         break;
 
       case "turnCompleted":
@@ -841,6 +872,7 @@ export function ChatView({
         <ChatHeader
           isDraftOpen={isDraftOpen}
           onToggleDraft={handleToggleDraft}
+          draftExists={Boolean(controllerState.headVersionSeq)}
           progressPercent={controllerState.progress.totalPercent}
           confirmedCount={controllerState.progress.confirmedCount}
           aiInferredCount={controllerState.progress.aiInferredCount}

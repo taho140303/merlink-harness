@@ -88,7 +88,7 @@ export function SidebarHistory({ collapsed, onExpand, client = backendClient }: 
       await client.manageChatSessions({ action: "soft_delete", sessionIds: [chat.id] });
       setHistory((items) => items.filter((item) => item.id !== chat.id));
       window.dispatchEvent(new Event("merlink:chat-history-changed"));
-      window.dispatchEvent(new Event("merlink:open-recycle-bin"));
+      toast({ title: t("common.deleted"), variant: "success" });
       if (location.pathname === `/chat/${chat.id}`) navigate("/");
     } catch (error) {
       toast({ title: redactSensitiveString(String(error)), variant: "error" });

@@ -1,0 +1,28 @@
+\usepackage{newunicodechar}
+\newfontfamily\symfont{DejaVu Sans}
+\newunicodechar{→}{{\symfont →}}
+\newunicodechar{⇒}{{\symfont ⇒}}
+\newunicodechar{≥}{{\symfont ≥}}
+\newunicodechar{≤}{{\symfont ≤}}
+\newunicodechar{«}{{\symfont «}}
+\newunicodechar{»}{{\symfont »}}
+\newunicodechar{↔}{{\symfont ↔}}
+\usepackage{float}
+\usepackage{caption}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\captionsetup{font=small,labelfont=bf,labelsep=period,justification=centering}
+\renewcommand{\contentsname}{MỤC LỤC}
+\setlength{\parindent}{1.2em}
+\setlength{\parskip}{2pt}
+\setlength{\emergencystretch}{3em}
+\IfFileExists{xeCJK.sty}{\usepackage{xeCJK}\setCJKmainfont{Noto Sans CJK JP}}{}
+\usepackage{longtable,booktabs,array}
+\let\merlinkoldmaketitle\maketitle
+\renewcommand{\maketitle}{\merlinkoldmaketitle\newpage}
+\renewcommand{\arraystretch}{1.15}
+
+\usepackage[hyphens]{url}
+\Urlmuskip=0mu plus 1mu\relax
+\def\UrlBreaks{\do\/\do\-\do\.\do\_\do\=\do\?\do\&\do\%\do\#\do\:}
+\usepackage{xurl}

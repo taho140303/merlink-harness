@@ -277,11 +277,18 @@ generated content with declared_sources = ai_generated instead of asking for con
                 temperature: Some(0.2),
                 max_tokens: Some(4096),
             };
-            let response = self
-                .provider
-                .chat_with_tools(&request, ctx.cancel_token.clone())
-                .await
-                .map_err(|error| error.to_ipc_error())?;
+            let response = tokio::time::timeout(
+                std::time::Duration::from_secs(180),
+                self.provider.chat_with_tools(&request, ctx.cancel_token.clone()),
+            )
+            .await
+            .map_err(|_| {
+                IpcError::new(
+                    ErrorCode::InternalError,
+                    "Workflow task provider call timed out after 180s",
+                )
+            })?
+            .map_err(|error| error.to_ipc_error())?;
 
             if response.tool_calls.is_empty() {
                 break;
@@ -574,12 +581,22 @@ fn render_story_context(flow: &BusinessFlowData) -> String {
         })
         .collect();
 
+    let approved: Vec<String> = flow
+        .decision_log
+        .iter()
+        .map(|entry| {
+            let summary: String = entry.summary.chars().take(4000).collect();
+            format!("{}: {}", entry.id, summary)
+        })
+        .collect();
+
     format!(
-        "Project: {name} | language={language} | arc_count={arc_target} | chapter_count={chapter_target}\nCharacters:\n{characters}\nArcs and chapters:\n{arcs}\nWorld settings:\n{world_codes}\nScenes:\n{scenes}",
+        "Project: {name} | language={language} | arc_count={arc_target} | chapter_count={chapter_target}\nCharacters:\n{characters}\nArcs and chapters:\n{arcs}\nWorld settings:\n{world_codes}\nScenes:\n{scenes}\nApproved outlines (decision_log):\n{approved}",
         characters = if characters.is_empty() { "(none)".to_string() } else { characters.join("\n") },
         arcs = if arcs.is_empty() { "(none)".to_string() } else { arcs.join("\n") },
         world_codes = if world_codes.is_empty() { "(none)".to_string() } else { world_codes.join(", ") },
         scenes = if scenes.is_empty() { "(none)".to_string() } else { scenes.join(", ") },
+        approved = if approved.is_empty() { "(none)".to_string() } else { approved.join("\n") },
     )
 }
 
@@ -791,6 +808,19 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;
     use uuid::Uuid;
+
+    #[test]
+    fn story_context_carries_approved_outline_decisions() {
+        let mut flow = BusinessFlowData::new();
+        flow.decision_log.push(crate::domain::business_flow::DecisionLogEntry {
+            id: "decision-1".into(),
+            summary: "5 Arc: Gặp gỡ tình cờ / Thử thách / Khẳng định / Đối đầu / Kết thúc".into(),
+            source: crate::domain::business_flow::ProvenanceSource::User,
+        });
+        let context = render_story_context(&flow);
+        assert!(context.contains("Approved outlines (decision_log)"));
+        assert!(context.contains("5 Arc: Gặp gỡ tình cờ"));
+    }
 
     struct FakeProvider {
         content: String,

@@ -6,7 +6,7 @@
 //!    from `project.language` (draft creative content language). Injects prompt blocks JIT.
 //! 2. ReAct turn loop (`run_turn_loop`):
 //!    - Strictly NO SQLite transaction held across network await (`CI-03`).
-//!    - Max iterations limit (default 10) and consecutive rejections limit (3 consecutive rejections
+//!    - Max iterations limit (default 25, within the 20..=30 range of `be-core.md` §6.1) and consecutive rejections limit (3 consecutive rejections
 //!      stops tool loop, skips remaining calls with `turn_aborted`, and prompts user for clarification).
 //!    - Tool execution gated by ToolRegistry authorization.
 //!    - Protected provenance preservation: AI tools attempting to overwrite `user` or `user_edited`
@@ -105,15 +105,41 @@ pub struct OrchestratorConfig {
     pub max_iterations: usize,
     pub consecutive_rejected_limit: usize,
     pub draft_lock_timeout: Duration,
+    /// Number of most recent author messages replayed into the model context per turn.
+    pub history_user_messages: usize,
+    /// Number of most recent assistant messages replayed into the model context per turn.
+    pub history_assistant_messages: usize,
+    /// Character budget for replayed historical tool payloads. Older assistant messages keep
+    /// their text but drop tool calls once the budget is spent, so long sessions stay in-context.
+    pub history_tool_payload_budget: usize,
 }
 
 impl Default for OrchestratorConfig {
     fn default() -> Self {
         Self {
-            max_iterations: 10,
+            max_iterations: 25,
             consecutive_rejected_limit: 3,
             draft_lock_timeout: DRAFT_LOCK_TIMEOUT,
+            history_user_messages: 20,
+            history_assistant_messages: 20,
+            history_tool_payload_budget: 120_000,
         }
+    }
+}
+
+
+/// Field-level parameter guide per phase. Mirrors `WorkflowService::phase_tool_guidance`.
+/// The chat path needs the guide because the JSON schema stays permissive; tests compile this
+/// module without `workflow_service`, so the strings are kept local on purpose.
+fn phase_tool_guidance(phase: i32) -> &'static str {
+    match phase {
+        1 => "Tool guide: add_arc(code?, display_name, summary, position, declared_sources); set_arc(code, display_name?, summary?, position?, declared_sources); set_arc_motif(code, motif_code?, note?, declared_sources); add_arc_event_block(arc_code, code?, event_block_code?, start_chapter?, end_chapter?, summary?, declared_sources); add_theme(arc_code, code?, parent_theme_code?, question?, resolution_type?, resolution?, message?, declared_sources); add_theme_argument(theme_code, character_code?, role=PRIMARY|ANTITHESIS|CAUTIONARY|WITNESS, answer_mode, note?, declared_sources). Target Arc count: use require.project.target.arc_count exactly. Phase gate: every Arc must have motif_code, at least one event block, and theme question + message, otherwise the transition to Phase 2 is blocked.",
+        2 => "Tool guide: add_chapter(arc_code, code?, display_name, position, summary, declared_sources); set_chapter(code, display_name?, position?, summary?, declared_sources); add_scene(chapter_code, code?, display_name, position, summary, declared_sources). chapter.position is unique across the whole project. Total chapters must equal require.project.target.chapter_count. Phase gate: every chapter needs display_name, summary and at least one scene with display_name/summary.",
+        3 => "Tool guide: add_world_setting(code?, parent_code?, display_name, type=REALM|WORLD|REGION|COUNTRY|CITY|TOWN|FACILITY|STREET|ROOM, description?, access?, declared_sources); add_lore_entry(code?, world_setting_code, display_name, type=CULTURE|HISTORY|FACTION|ITEM, description?, data?, declared_sources). Write parents before children. Phase gate: at least one world setting with display_name and type; parent_code must reference an existing setting.",
+        4 => "Tool guide: set_scene_config(scene_code, style_preset_code?, narrator_config_code?, world_setting_code?, declared_sources); add_scene_character(scene_code, character_code, is_pov?, declared_sources); add_scene_lore_entry(scene_code, lore_entry_code, usage?, reveal_to_reader?, reveal_to_pov?, declared_sources). Limited narrators need exactly one is_pov; omniscient needs none. Phase gate: every scene needs world_setting_code, narrator_config_code and style_preset_code that reference existing values.",
+        5 => "Tool guide: add_character_appearance(character_code, species?, gender_identity?, height?, weight?, hair_color_code?, skin_tone_code?, outfit_style?, default_summary?, declared_sources); add_character_psychological(character_code, the_wound?, the_lie?, fundamental_fear?, moral_alignment?, moral_code?, cognitive_bias?, breaking_point?, external_want?, internal_need?, internal_conflict?, social_mask_persona_type?, social_mask_verbal_style?, defense_primary_reaction?, defense_stress_trigger?, defense_coping_strategy?, declared_sources); add_character_memory(character_code, code?, display_name?, summary?, source_scene_code?, declared_sources); add_character_competence(character_code, code?, domain_code?, level_code?, scene_code, capabilities?, limitations?, declared_sources). Competence scene_code is mandatory and must reference an existing scene. Phase gate: every character needs appearance (default_summary or species), psychological (the_wound/external_want/internal_need) and at least one memory or competence bound to an existing scene.",
+        6 => "Tool guide: add_relationship(code?, from_code, to_code, motif_code?, declared_sources); add_relationship_role(relationship_code, category_code?, hierarchy?, is_primary?, declared_sources); set_relationship_state(relationship_code, scene_code, trust?, affection?, hostility?, fear?, respect?, familiarity?, dependency? with NONE|LOW|MODERATE|HIGH|ABSOLUTE, declared_sources). Phase gate: with two or more characters, at least one relationship is required and from_code/to_code must reference existing characters.",
+        _ => "",
     }
 }
 
@@ -458,11 +484,28 @@ impl ChatOrchestrator {
             .as_deref()
             .unwrap_or("vi");
 
+        // Phase-aware composition (`core.md` §2, §3.8): the current workspace phase decides which
+        // planning prompt block is composed. Before this, the script hardcoded `planning_phase_0`
+        // for every turn, so phases 1-6 kept Phase 0 instructions ("không sinh nội dung phái sinh
+        // của phase chưa mở") and the model never touched the optional-phase tools.
+        // `WorkingState.phase` is the runtime phase sealed by workflow/confirm; the JSON
+        // `meta.phase` inside the snapshot is not advanced by workflow rounds and would pin chat
+        // at Phase 0 even when Phase 1 data already exists.
+        let ws_phase = ws_snapshot.phase.clamp(0, 6);
+        let phase_block = match ws_phase {
+            1 => "planning_phase_1",
+            2 => "planning_phase_2",
+            3 => "planning_phase_3",
+            4 => "planning_phase_4",
+            5 => "planning_phase_5",
+            6 => "planning_phase_6",
+            _ => "planning_phase_0",
+        };
         let script = [
             "introduction",
             "invariant_rule",
             "planning_mode",
-            "planning_phase_0",
+            phase_block,
             "exception_handling",
             "out_of_scope",
             "tool_library",
@@ -471,7 +514,18 @@ impl ChatOrchestrator {
         let mut composed = self
             .composer
             .compose(&script, system_language, project_lang)?;
-        composed.prompt.push_str("\n\n## Phase 0 collection\nAfter saving facts from the current user turn, check the latest get_field_null and get_array_element_fields observations. If Phase 0 remains incomplete, ask relevant fixed questions from those observations (up to three total), rather than claiming it is complete. A system-sourced project language is only a UI default: ask the author for the story language. Empty project.genres and missing character motif_code require separate array questions. Resolve genre and character_arc motif names to catalog codes using search_genre/search_motif before writing; never invent codes or assert a user-selected genre/motif without their confirmation. Optional target tolerances are not required for Phase 0; save them when provided, including zero.\n");
+        if ws_phase == 0 {
+            composed.prompt.push_str("\n\n## Phase 0 collection\nThe JSON business state in context is the single source of truth (SSOT). Never assume a write succeeded because a tool was called: read the tool result (status, error) and re-check the latest state. If get_field_null reports empty_arrays/array_questions, or the JSON still has an empty required array or null required field, ask the author again in this same turn; do not claim the value was saved and do not move on.\nAfter saving facts from the current user turn, check the latest get_field_null and get_array_element_fields observations. If Phase 0 remains incomplete, ask relevant fixed questions from those observations (up to three total), rather than claiming it is complete. A system-sourced project language is only a UI default: ask the author for the story language. Empty project.genres and missing character motif_code require separate array questions. Resolve genre and character_arc motif names to catalog codes using search_genre/search_motif before writing; never invent codes or assert a user-selected genre/motif without their confirmation. Optional target tolerances are not required for Phase 0; save them when provided, including zero.\n");
+        } else {
+            // The JSON schema stays permissive on purpose; the field-level guide supplies the
+            // documented parameter names and enums for the phase (same guide the workflow uses).
+            let guidance = phase_tool_guidance(ws_phase);
+            if !guidance.is_empty() {
+                composed.prompt.push_str("\n\n## Phase tool guide\n");
+                composed.prompt.push_str(guidance);
+                composed.prompt.push('\n');
+            }
+        }
         if !composed.tools.iter().any(|tool| tool.name == "get_field_null") {
             return Err(IpcError::new(ErrorCode::ValidationFailed,
                 "Chat prompt is missing the required get_field_null tool"));
@@ -480,9 +534,19 @@ impl ChatOrchestrator {
         // 3. Assemble conversation history for provider request
         let mut messages = vec![ProviderMessage::system(composed.prompt.clone())];
         // Replay complete tool-call/result pairs so failed writes are not mistaken for saved facts.
-        let history = self.fetch_recent_session_messages(session_id, user_message_id, 10)?;
-        for hist_msg in history {
-            append_chat_history(&mut messages, hist_msg);
+        // Per-role history window: keep the last 20 author messages and the last 20 assistant
+        // messages so early instructions survive tool-heavy turns (a flat `LIMIT 10` silently
+        // dropped the beginning of the session). Historical tool payloads are bounded by
+        // `history_tool_payload_budget`; older assistant text is always retained.
+        let history = self.fetch_recent_role_window(
+            session_id,
+            user_message_id,
+            self.config.history_user_messages,
+            self.config.history_assistant_messages,
+        )?;
+        let replay_flags = replay_tool_flags(&history, self.config.history_tool_payload_budget);
+        for (hist_msg, replay_tools) in history.into_iter().zip(replay_flags) {
+            append_chat_history(&mut messages, hist_msg, replay_tools);
         }
 
         // Append current user goal
@@ -606,9 +670,25 @@ impl ChatOrchestrator {
     ) -> Result<String, IpcError> {
         let max_iter = self.config.max_iterations;
         let rejected_limit = self.config.consecutive_rejected_limit;
-        // A model may answer without calling any tools. Read missing fields at the
-        // backend boundary on every turn, then refresh after state changes so the
-        // model never relies on a stale pre-write question list.
+        // Fixed read observations: exactly one `get_field_null` call and one
+        // `get_array_element_fields` call per turn, appended after the user message (before the
+        // first model request). Their parameters are stable, so the observations are refreshed in
+        // place whenever the working state changes instead of appending new call pairs: a
+        // per-change injection repeated up to MAX_ITER times and inflated the context (28 calls,
+        // 19 of them backend-injected, in one recorded turn).
+        let mut injected_reads: Option<InjectedReads> = None;
+        let initial = entry.get_snapshot();
+        if composed.tools.iter().any(|tool| tool.name == "get_field_null") {
+            injected_reads = push_injected_reads(
+                messages,
+                &mut state.all_tool_calls,
+                &initial.business_flow_data,
+                system_language,
+                composed.tools.iter().any(|tool| tool.name == "get_array_element_fields"),
+                turn_id,
+                stream_tx,
+            );
+        }
         let mut last_null_field_state: Option<BusinessFlowData> = None;
 
         for _ in 0..max_iter {
@@ -617,84 +697,23 @@ impl ChatOrchestrator {
             }
 
             let current = entry.get_snapshot();
-            if composed.tools.iter().any(|tool| tool.name == "get_field_null")
-                && last_null_field_state.as_ref() != Some(&current.business_flow_data)
-            {
-                let call = ProviderToolCall {
-                    id: Uuid::new_v4().to_string(),
-                    name: "get_field_null".to_string(),
-                    arguments: serde_json::json!({"limit": 3}),
-                };
-                let started = std::time::Instant::now();
-                if let Some(tx) = stream_tx {
-                    let _ = tx.send(ChatStreamEvent::ToolCallStarted {
-                        turn_id, tool_call_id: call.id.clone(), tool_code: call.name.clone(),
-                    }).await;
+            if let Some(ref injected) = injected_reads {
+                if last_null_field_state.as_ref() != Some(&current.business_flow_data) {
+                    // Keep the two fixed observations current without growing the message list.
+                    injected.refresh(
+                        messages,
+                        &mut state.all_tool_calls,
+                        &current.business_flow_data,
+                        system_language,
+                    );
+                    last_null_field_state = Some(current.business_flow_data.clone());
                 }
-                let result = read_tool_result(&call.name, &call.arguments, &current.business_flow_data, system_language);
-                state.all_tool_calls.push(ToolCallItemDto {
-                    id: call.id.clone(), name: call.name.clone(), parameters: call.arguments.clone(),
-                    result: Some(result.clone()), execution_time_ms: Some(started.elapsed().as_millis() as u64),
-                    status: "success".to_string(),
-                });
-                messages.push(ProviderMessage {
-                    role: "assistant".to_string(), content: String::new(), name: None,
-                    tool_calls: Some(vec![call.clone()]), tool_call_id: None,
-                });
-                messages.push(ProviderMessage::tool_result(call.id.clone(), call.name.clone(), result.to_string()));
-                if let Some(tx) = stream_tx {
-                    let _ = tx.send(ChatStreamEvent::ToolCallCompleted {
-                        turn_id, tool_call_id: call.id, tool_code: call.name,
-                        status: "applied".to_string(), has_applied_write: state.has_applied_write,
-                    }).await;
-                }
-                // Empty arrays are not null; read their missing Phase 0 entries
-                // separately, within the same three-question budget.
-                let scalar_count = result["questions"].as_array().map_or(0, Vec::len);
-                let remaining = 3usize.saturating_sub(scalar_count);
-                // Array-element probing runs every turn, not only when scalar questions
-                // remain: empty arrays and per-element gaps are invisible to get_field_null.
-                if composed.tools.iter().any(|tool| tool.name == "get_array_element_fields") {
-                    let data = &current.business_flow_data;
-                    let mut gaps = Vec::new();
-                    if data.require.project.genres.is_empty() {
-                        gaps.push(("require.project.genres", None));
-                    }
-                    if data.require.character.is_empty() {
-                        gaps.push(("require.character", None));
-                    } else if let Some(character) = data.require.character.iter().find(|character|
-                        character.biological_sex.value.is_none() || character.motif_code.value.is_none()
-                    ) {
-                        gaps.push(("require.character", Some(character.code.as_str())));
-                    }
-                    if gaps.is_empty() {
-                        gaps.push(("require.character", None));
-                    }
-                    let mut question_budget = remaining.max(1);
-                    for (path, code) in gaps {
-                        if question_budget == 0 { break; }
-                        let args = serde_json::json!({"array_path":path, "code":code, "limit":question_budget});
-                        let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
-                        question_budget = question_budget.saturating_sub(
-                            observation["questions"].as_array().map_or(0, Vec::len));
-                        let call = ProviderToolCall {
-                            id: Uuid::new_v4().to_string(), name: "get_array_element_fields".to_string(), arguments: args,
-                        };
-                        state.all_tool_calls.push(ToolCallItemDto {
-                            id: call.id.clone(), name: call.name.clone(), parameters: call.arguments.clone(),
-                            result: Some(observation.clone()), execution_time_ms: Some(0), status: "success".to_string(),
-                        });
-                        messages.push(ProviderMessage {
-                            role: "assistant".to_string(), content: String::new(), name: None,
-                            tool_calls: Some(vec![call.clone()]), tool_call_id: None,
-                        });
-                        messages.push(ProviderMessage::tool_result(call.id, call.name, observation.to_string()));
-                    }
-                }
-                last_null_field_state = Some(current.business_flow_data.clone());
             }
-            messages[0].content = render_chat_prompt(
-                &composed.prompt, &current.business_flow_data, &current.pending_patches,
+            messages[0].content = render_chat_prompt_with_phase(
+                &composed.prompt,
+                &current.business_flow_data,
+                &current.pending_patches,
+                current.phase,
             );
             let req = ProviderChatRequest {
                 model: "chat".to_string(),
@@ -790,6 +809,12 @@ impl ChatOrchestrator {
                                         };
                                         lookup.unwrap_or_else(|_| serde_json::json!({"status":"rejected","error":"catalog_lookup_failed"}))
                                     }
+                                    Err(_) => serde_json::json!({"status":"rejected","error":"catalog_unavailable"}),
+                                }
+                            } else if tool_name.starts_with("search_") {
+                                match self.pool.get() {
+                                    Ok(conn) => chat_catalog::search_catalog(&conn, &tool_name, &call.arguments)
+                                        .unwrap_or_else(|_| serde_json::json!({"status":"rejected","error":"catalog_lookup_failed"})),
                                     Err(_) => serde_json::json!({"status":"rejected","error":"catalog_unavailable"}),
                                 }
                             } else {
@@ -914,7 +939,7 @@ impl ChatOrchestrator {
 
                     // Report what was actually saved; a tool fault must not become a repeated data question.
                     let current = entry.get_snapshot();
-                    messages[0].content = render_chat_prompt(&composed.prompt, &current.business_flow_data, &current.pending_patches);
+                    messages[0].content = render_chat_prompt_with_phase(&composed.prompt, &current.business_flow_data, &current.pending_patches, current.phase);
                     messages.push(ProviderMessage::system(
                         "Tool execution stopped. Briefly distinguish saved changes from unsaved ones. Do not ask the user to repeat facts already supplied. Reply in the configured communication language."
                     ));
@@ -950,9 +975,13 @@ impl ChatOrchestrator {
         // Controlled exit when reaching max iterations
         if state.assistant_text.is_empty() {
             state.assistant_text = if system_language == "vi" {
-                "Đã đạt giới hạn số lượt tương tác trong lượt này. Các thay đổi hợp lệ đã được lưu trữ.".to_string()
+                format!(
+                    "Mình đã dừng lượt này sau {max_iter} vòng lặp để tránh lặp vô hạn. Các thay đổi hợp lệ đã được lưu trữ; bạn nhắn tiếp để mình làm tiếp phần còn thiếu."
+                )
             } else {
-                "Maximum iterations reached for this turn. Valid changes have been saved.".to_string()
+                format!(
+                    "This turn stopped after {max_iter} iterations to avoid looping. Valid changes have been saved; send another message to continue with the remaining work."
+                )
             };
         }
 
@@ -1299,6 +1328,81 @@ impl ChatOrchestrator {
 
         Ok(items)
     }
+
+    /// Fetch the most recent `user_limit` author messages and `assistant_limit` assistant
+    /// messages (excluding `exclude_id`) and return them in chronological order.
+    ///
+    /// A flat `LIMIT n` over all roles loses the beginning of long sessions: each assistant
+    /// turn can be stored as one row while tool-heavy turns inflate row counts. Per-role windows
+    /// keep early author instructions and earlier assistant answers in context
+    /// (`docs/business/prompts/overview.md` §context composition).
+    pub fn fetch_recent_role_window(
+        &self,
+        session_id: &str,
+        exclude_id: Uuid,
+        user_limit: usize,
+        assistant_limit: usize,
+    ) -> Result<Vec<ChatMessageDto>, IpcError> {
+        let conn = self
+            .pool
+            .get()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+
+        // (created_at, rowid, message) so equal timestamps keep insertion order.
+        let mut picked: Vec<(String, i64, ChatMessageDto)> = Vec::new();
+        for (role, limit) in [("user", user_limit), ("assistant", assistant_limit)] {
+            if limit == 0 {
+                continue;
+            }
+            let mut stmt = conn
+                .prepare(
+                    "SELECT rowid, id, role, content, payload_json, created_at
+                     FROM messages
+                     WHERE session_id = ?1 AND id != ?2 AND role = ?3
+                     ORDER BY created_at DESC, rowid DESC
+                     LIMIT ?4",
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            let mut rows = stmt
+                .query(params![session_id, exclude_id.to_string(), role, limit as i64])
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            while let Some(row) = rows
+                .next()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+            {
+                let order: i64 = row.get(0).unwrap_or_default();
+                let id: String = row.get(1).unwrap_or_default();
+                let role: String = row.get(2).unwrap_or_default();
+                let content: String = row.get(3).unwrap_or_default();
+                let payload_str: Option<String> = row.get(4).unwrap_or(None);
+                let created_at: String = row.get(5).unwrap_or_default();
+                let tool_calls = payload_str
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                    .and_then(|v| v.get("tool_calls").cloned())
+                    .and_then(|v| serde_json::from_value::<Vec<ToolCallItemDto>>(v).ok());
+                picked.push((
+                    created_at.clone(),
+                    order,
+                    ChatMessageDto {
+                        id,
+                        role,
+                        content,
+                        thinking_seconds: None,
+                        thinking_details: None,
+                        is_thinking: None,
+                        tool_calls,
+                        timestamp: created_at,
+                    },
+                ));
+            }
+        }
+
+        picked.sort_by(|left, right| {
+            left.0.cmp(&right.0).then(left.1.cmp(&right.1))
+        });
+        Ok(picked.into_iter().map(|(_, _, message)| message).collect())
+    }
 }
 
 /// Builds a conversation title from the first user message: whitespace is
@@ -1339,11 +1443,262 @@ fn tool_definition_result(args: &Value, tools: &[ProviderToolDefinition]) -> Val
     }
 }
 
-fn append_chat_history(messages: &mut Vec<ProviderMessage>, history: ChatMessageDto) {
+/// Decide which historical assistant messages still replay their tool payload, newest first,
+/// until the character budget is spent. The text content of every message is always kept.
+fn replay_tool_flags(history: &[ChatMessageDto], budget: usize) -> Vec<bool> {
+    let mut flags = vec![false; history.len()];
+    let mut spent = 0usize;
+    for (index, message) in history.iter().enumerate().rev() {
+        if message.role != "assistant" {
+            continue;
+        }
+        let Some(calls) = message.tool_calls.as_ref().filter(|calls| !calls.is_empty()) else {
+            continue;
+        };
+        let size: usize = calls
+            .iter()
+            .map(|call| {
+                serde_json::to_string(call).map(|raw| raw.len()).unwrap_or(0)
+            })
+            .sum();
+        if spent.saturating_add(size) <= budget {
+            spent += size;
+            flags[index] = true;
+        }
+    }
+    flags
+}
+
+/// Bookkeeping for the fixed per-turn read observations. The message list keeps exactly one
+/// assistant tool-call message plus one tool-result message per read probe; only their contents
+/// (and the array probe target) are refreshed while the loop runs, so context stays constant.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProbeKind {
+    Scalar,
+    Genres,
+    Characters,
+}
+
+struct InjectedReads {
+    /// (kind, index of the tool-result message, tool_call id)
+    slots: Vec<(ProbeKind, usize, String)>,
+    assistant_index: usize,
+}
+
+fn scalar_observation(data: &BusinessFlowData, system_language: &str) -> Value {
+    read_tool_result(
+        "get_field_null",
+        &serde_json::json!({ "limit": 3 }),
+        data,
+        system_language,
+    )
+}
+
+/// Build the observation for one probe. `get_field_null` is parameterless; the array probe needs
+/// an `array_path`, so one probe covers genres and another covers the first incomplete character.
+fn probe(data: &BusinessFlowData, system_language: &str, kind: ProbeKind, limit: usize) -> (Value, Value) {
+    match kind {
+        ProbeKind::Scalar => (
+            serde_json::json!({ "limit": 3 }),
+            scalar_observation(data, system_language),
+        ),
+        ProbeKind::Genres => {
+            let args = serde_json::json!({
+                "array_path": "require.project.genres",
+                "limit": limit.max(1),
+            });
+            let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
+            (args, observation)
+        }
+        ProbeKind::Characters => {
+            let code = data
+                .require
+                .character
+                .iter()
+                .find(|character| {
+                    character.biological_sex.value.is_none() || character.motif_code.value.is_none()
+                })
+                .map(|character| character.code.clone());
+            let args = serde_json::json!({
+                "array_path": "require.character",
+                "code": code,
+                "limit": limit.max(1),
+            });
+            let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
+            (args, observation)
+        }
+    }
+}
+
+fn probe_name(kind: ProbeKind) -> &'static str {
+    match kind {
+        ProbeKind::Scalar => "get_field_null",
+        ProbeKind::Genres | ProbeKind::Characters => "get_array_element_fields",
+    }
+}
+
+/// Append the fixed read probes once per turn and remember their rows so later refreshes rewrite
+/// the same messages instead of pushing new call/result pairs.
+fn push_injected_reads(
+    messages: &mut Vec<ProviderMessage>,
+    all_tool_calls: &mut Vec<ToolCallItemDto>,
+    data: &BusinessFlowData,
+    system_language: &str,
+    with_array_probe: bool,
+    turn_id: Uuid,
+    stream_tx: Option<&tokio::sync::mpsc::Sender<ChatStreamEvent>>,
+) -> Option<InjectedReads> {
+    let mut kinds = vec![ProbeKind::Scalar];
+    if with_array_probe {
+        kinds.push(ProbeKind::Genres);
+        kinds.push(ProbeKind::Characters);
+    }
+
+    let mut calls = Vec::new();
+    let mut observations = Vec::new();
+    for kind in &kinds {
+        let (args, observation) = probe(data, system_language, *kind, 3);
+        calls.push(ProviderToolCall {
+            id: Uuid::new_v4().to_string(),
+            name: probe_name(*kind).to_string(),
+            arguments: args.clone(),
+        });
+        observations.push((args, observation));
+    }
+
+    // No gap, no probe: unconditional injection showed "3 công cụ" on every turn (even a plain
+    // approval). A bare `get_array_element_fields` probe without a target element always returns
+    // "fields to create a new element", so the gap test uses the State, not the observation shape.
+    let scalar_questions = observations
+        .first()
+        .and_then(|(_, observation)| observation["questions"].as_array())
+        .map(|questions| questions.len())
+        .unwrap_or(0);
+    let character_gap = data.require.character.iter().any(|character| {
+        character.biological_sex.value.is_none()
+            || character.motif_code.value.is_none()
+            || (character.display_name.value.is_none() && character.nickname.value.is_none())
+    });
+    let has_gap = scalar_questions > 0
+        || data.require.project.genres.is_empty()
+        || data.require.character.is_empty()
+        || character_gap;
+    if !has_gap {
+        return None;
+    }
+
+    let assistant_index = messages.len();
+    messages.push(ProviderMessage {
+        role: "assistant".to_string(),
+        content: String::new(),
+        name: None,
+        tool_calls: Some(calls.clone()),
+        tool_call_id: None,
+    });
+
+    let mut slots = Vec::new();
+    for (call, (args, observation)) in calls.into_iter().zip(observations.into_iter()) {
+        let result_index = messages.len();
+        messages.push(ProviderMessage::tool_result(
+            call.id.clone(),
+            call.name.clone(),
+            observation.to_string(),
+        ));
+        all_tool_calls.push(ToolCallItemDto {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            parameters: args,
+            result: Some(observation),
+            execution_time_ms: Some(0),
+            status: "success".to_string(),
+        });
+        if let Some(tx) = stream_tx {
+            let _ = tx.try_send(ChatStreamEvent::ToolCallStarted {
+                turn_id,
+                tool_call_id: call.id.clone(),
+                tool_code: call.name.clone(),
+            });
+            let _ = tx.try_send(ChatStreamEvent::ToolCallCompleted {
+                turn_id,
+                tool_call_id: call.id.clone(),
+                tool_code: call.name.clone(),
+                status: "applied".to_string(),
+                has_applied_write: false,
+            });
+        }
+        let kind = kinds[slots.len()];
+        slots.push((kind, result_index, call.id));
+    }
+
+    Some(InjectedReads {
+        slots,
+        assistant_index,
+    })
+}
+
+impl InjectedReads {
+    /// Recompute the observations against the latest working state and rewrite the existing
+    /// messages in place. The number of tool messages never changes after the first request.
+    fn refresh(
+        &self,
+        messages: &mut [ProviderMessage],
+        all_tool_calls: &mut [ToolCallItemDto],
+        data: &BusinessFlowData,
+        system_language: &str,
+    ) {
+        let scalar_count = self
+            .slots
+            .iter()
+            .find(|(kind, _, _)| *kind == ProbeKind::Scalar)
+            .and_then(|(_, index, _)| messages.get(*index))
+            .and_then(|message| serde_json::from_str::<Value>(&message.content).ok())
+            .and_then(|value| value["questions"].as_array().map(|questions| questions.len()))
+            .unwrap_or(0);
+        let mut remaining = 3usize.saturating_sub(scalar_count).max(1);
+
+        for (kind, result_index, call_id) in &self.slots {
+            let (args, mut observation) = probe(data, system_language, *kind, remaining);
+            let question_count = observation["questions"]
+                .as_array()
+                .map(|questions| questions.len())
+                .unwrap_or(0);
+            if *kind == ProbeKind::Characters && remaining == 0 {
+                // Keep the three-question budget: an exhausted budget leaves the probe empty
+                // rather than surfacing a fourth question to the model.
+                if let Some(object) = observation.as_object_mut() {
+                    object.insert("questions".to_string(), Value::Array(Vec::new()));
+                }
+            } else if *kind != ProbeKind::Scalar {
+                remaining = remaining.saturating_sub(question_count);
+            }
+
+            if let Some(message) = messages.get_mut(*result_index) {
+                message.content = observation.to_string();
+            }
+            if let Some(message) = messages.get_mut(self.assistant_index) {
+                if let Some(calls) = message.tool_calls.as_mut() {
+                    if let Some(call) = calls.iter_mut().find(|call| call.id == *call_id) {
+                        call.arguments = args.clone();
+                    }
+                }
+            }
+            if let Some(entry) = all_tool_calls.iter_mut().find(|call| call.id == *call_id) {
+                entry.parameters = args;
+                entry.result = Some(observation);
+            }
+        }
+    }
+}
+
+fn append_chat_history(
+    messages: &mut Vec<ProviderMessage>,
+    history: ChatMessageDto,
+    replay_tools: bool,
+) {
     if history.role == "user" {
         messages.push(ProviderMessage::user(history.content));
     } else if history.role == "assistant" {
-        if let Some(calls) = history.tool_calls.filter(|calls| !calls.is_empty()) {
+        if let Some(calls) = history.tool_calls.filter(|calls| !calls.is_empty() && replay_tools) {
             messages.push(ProviderMessage {
                 role: "assistant".into(), content: String::new(), name: None, tool_call_id: None,
                 tool_calls: Some(calls.iter().map(|call| ProviderToolCall {
@@ -1361,7 +1716,17 @@ fn append_chat_history(messages: &mut Vec<ProviderMessage>, history: ChatMessage
     }
 }
 
+#[allow(dead_code)]
 fn render_chat_prompt(template: &str, data: &BusinessFlowData, patches: &[PendingPatchDto]) -> String {
+    render_chat_prompt_with_phase(template, data, patches, data.meta.phase)
+}
+
+fn render_chat_prompt_with_phase(
+    template: &str,
+    data: &BusinessFlowData,
+    patches: &[PendingPatchDto],
+    phase: i32,
+) -> String {
     let mut state = serde_json::to_value(data).expect("BusinessFlowData is JSON serializable");
     state.as_object_mut().unwrap().remove("_counters");
     // Empty optional phases add noise at cold start; retain any information already provided.
@@ -1375,7 +1740,7 @@ fn render_chat_prompt(template: &str, data: &BusinessFlowData, patches: &[Pendin
     }
     if let Some(optional) = state.get_mut("optional") { prune_empty(optional); }
     let context = serde_json::json!({
-        "mode": "planning", "phase": data.meta.phase, "subphase": data.meta.subphase,
+        "mode": "planning", "phase": phase, "subphase": data.meta.subphase,
         "is_require_complete": crate::domain::progress_engine::evaluate_progress(data).is_require_complete,
         "businessFlowData": state, "pending_patches": patches,
     });
@@ -1389,10 +1754,32 @@ fn render_chat_prompt(template: &str, data: &BusinessFlowData, patches: &[Pendin
 fn read_tool_result(name: &str, args: &Value, data: &BusinessFlowData, system_language: &str) -> Value {
     let limit = args.get("limit").and_then(Value::as_u64).map(|n| n as usize);
     match name {
-        "get_field_null" => serde_json::json!({
-            "status": "applied",
-            "questions": get_field_null(data, limit, system_language),
-        }),
+        "get_field_null" => {
+            // Scalar completeness alone can look "done" while a required array is still empty
+            // (project.genres was empty after a rejected write and the readiness gate stayed
+            // closed). Surface empty required arrays next to the scalar questions.
+            let mut empty_arrays: Vec<&str> = Vec::new();
+            if data.require.project.genres.is_empty() {
+                empty_arrays.push("require.project.genres");
+            }
+            if data.require.character.is_empty() {
+                empty_arrays.push("require.character");
+            }
+            let array_questions: Vec<Value> = empty_arrays
+                .iter()
+                .filter_map(|path| {
+                    get_array_element_fields(data, path, None, Some(3), system_language)
+                        .ok()
+                        .map(|questions| serde_json::json!({"array_path": path, "questions": questions}))
+                })
+                .collect();
+            serde_json::json!({
+                "status": "applied",
+                "questions": get_field_null(data, limit, system_language),
+                "empty_arrays": empty_arrays,
+                "array_questions": array_questions,
+            })
+        }
         "get_array_element_fields" => {
             let Some(array_path) = args.get("array_path").and_then(Value::as_str) else {
                 return serde_json::json!({"status": "rejected", "error": "missing_array_path"});
@@ -1417,6 +1804,10 @@ mod read_tool_tests {
         let result = read_tool_result("get_field_null", &serde_json::json!({"limit": 3}), &data, "vi");
         assert_eq!(result["status"], "applied");
         assert_eq!(result["questions"][0]["field"], "require.project.display_name");
+        assert_eq!(result["empty_arrays"][0], "require.project.genres");
+        assert_eq!(result["empty_arrays"][1], "require.character");
+        assert_eq!(result["array_questions"][0]["array_path"], "require.project.genres");
+        assert!(!result["array_questions"][0]["questions"].as_array().unwrap().is_empty());
     }
 }
 
@@ -1444,6 +1835,59 @@ mod chat_context_regression_tests {
             -> Result<crate::providers::traits::ProviderStreamSummary, crate::providers::traits::ProviderError> {
             unreachable!("planning does not stream scene content")
         }
+    }
+
+    #[tokio::test]
+    async fn phase_zero_complete_state_does_not_inject_read_probes() {
+        use crate::domain::business_flow::RequireGenreItem;
+        use crate::providers::traits::ProviderChatResponse;
+        let tmp = tempfile::tempdir().unwrap();
+        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
+        let registry = Arc::new(DraftRuntimeRegistry::new());
+        let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
+        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
+        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let id = Uuid::new_v4();
+        registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
+        let entry = registry.get(&id).unwrap();
+        entry.mutate_working_state(|ws| {
+            let project = &mut ws.business_flow_data.require.project;
+            project.display_name = TrackedField::user("Truyện".into());
+            project.summary = TrackedField::user("Tóm tắt".into());
+            project.language = TrackedField::user("VI".into());
+            project.target.arc_count = TrackedField::user(5);
+            project.target.chapter_count = TrackedField::user(150);
+            project.target.word_per_chapter_count = TrackedField::user(2000);
+            project.genres.push(RequireGenreItem {
+                code: TrackedField::user("romance".into()),
+                is_primary: TrackedField::user(true),
+                display_name: TrackedField::user("Lãng mạn".into()),
+            });
+            let mut character = crate::domain::business_flow::RequireCharacterItem::default();
+            character.code = "hero".into();
+            character.display_name = TrackedField::user("Anh hùng".into());
+            character.biological_sex = TrackedField::user("MALE".into());
+            character.motif_code = TrackedField::user("positive_change_arc".into());
+            ws.business_flow_data.require.character.push(character);
+        });
+        let composed = orchestrator.composer.compose(&["tool_library"], "vi", "VI").unwrap();
+        let provider = ReplayProvider {
+            requests: Default::default(),
+            responses: std::sync::Mutex::new([
+                ProviderChatResponse { content: Some("Okey, mình ghi nhận.".into()), ..Default::default() },
+            ].into()),
+        };
+        let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user("okey đấy")];
+        let mut state = TurnState::default();
+        orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
+            &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
+
+        // No missing Phase 0 field: internal read probes must stay out of the turn entirely, so the
+        // UI does not show "3 công cụ" for a plain approval message.
+        assert!(state.all_tool_calls.is_empty(), "no probe expected when nothing is missing");
+        let requests = provider.requests.lock().unwrap();
+        assert!(requests[0].messages.iter().all(|message| message.role != "tool"));
     }
 
     #[tokio::test]
@@ -1488,10 +1932,38 @@ mod chat_context_regression_tests {
         assert!(state.has_applied_write);
         let questions = &calls.iter().find(|call| call.id == "call-4").unwrap().result.as_ref().unwrap()["questions"];
         assert!(!questions.to_string().contains("target."));
+        // One fixed read per turn, refreshed in place after the write instead of appended again.
         let automatic_reads: Vec<_> = calls.iter().filter(|call| call.name == "get_field_null" && call.id != "call-4").collect();
-        assert_eq!(automatic_reads.len(), 2, "read before the first request and again after the write");
-        assert!(!automatic_reads[1].result.as_ref().unwrap()["questions"].to_string().contains("target."));
+        assert_eq!(automatic_reads.len(), 1, "the fixed read is injected once and refreshed in place");
+        assert!(!automatic_reads[0].result.as_ref().unwrap()["questions"].to_string().contains("target."));
+        let automatic_array_reads: Vec<_> = calls
+            .iter()
+            .filter(|call| call.name == "get_array_element_fields")
+            .collect();
+        assert_eq!(automatic_array_reads.len(), 2, "genres and characters probes stay fixed");
         let requests = provider.requests.lock().unwrap();
+        // The fixed probe set never grows: every request keeps exactly the same three probe
+        // messages (one scalar + two arrays) regardless of how many writes the loop performed.
+        let injected_ids: std::collections::HashSet<&str> = automatic_reads
+            .iter()
+            .map(|call| call.id.as_str())
+            .chain(automatic_array_reads.iter().map(|call| call.id.as_str()))
+            .collect();
+        assert!(requests.iter().all(|request| {
+            request
+                .messages
+                .iter()
+                .filter(|message| {
+                    message.role == "tool"
+                        && message
+                            .tool_call_id
+                            .as_deref()
+                            .map(|id| injected_ids.contains(id))
+                            .unwrap_or(false)
+                })
+                .count()
+                == 3
+        }), "read probes must not be appended per state change");
         assert!(requests[3].messages[0].content.contains("2400"));
         assert!(!requests[3].messages[0].content.contains("{{story_context}}"));
         assert!(requests.iter().flat_map(|r| &r.messages).filter(|m| m.role == "tool").all(|m| !m.content.contains("authenticated_effect")));
@@ -1614,7 +2086,7 @@ mod chat_context_regression_tests {
             "toolCalls":[{"id":"call-1","name":"set_project","parameters":{"target":{"chapter_count":120}},
                 "result":{"status":"rejected","results":[]},"status":"rejected"}]})).unwrap();
         let mut history = Vec::new();
-        append_chat_history(&mut history, message);
+        append_chat_history(&mut history, message, true);
         assert_eq!(history.iter().map(|m| m.role.as_str()).collect::<Vec<_>>(), vec!["assistant","tool","assistant"]);
         assert_eq!(history[0].tool_calls.as_ref().unwrap()[0].id, "call-1");
         assert_eq!(history[1].tool_call_id.as_deref(), Some("call-1"));

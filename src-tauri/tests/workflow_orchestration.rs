@@ -42,6 +42,8 @@ pub mod invariants;
 
 #[path = "../src/domain/progress_engine.rs"]
 pub mod progress_engine;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
 
 #[path = "../src/domain/workflow_planner.rs"]
 pub mod workflow_planner;
@@ -131,6 +133,7 @@ pub mod domain {
     pub use crate::invariants;
     pub use crate::phase3_artifact;
     pub use crate::phase3_merge;
+    pub use crate::phase_gate;
     pub use crate::progress_engine;
     pub use crate::word_count;
     pub use crate::workflow_planner;

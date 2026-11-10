@@ -35,6 +35,12 @@ pub mod code_allocator;
 #[path = "../src/domain/fingerprint.rs"]
 pub mod fingerprint;
 
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
+
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
+
 #[path = "../src/domain/tools/registry.rs"]
 pub mod registry;
 
@@ -49,6 +55,8 @@ pub mod domain {
     pub use crate::cascade_delete;
     pub use crate::code_allocator;
     pub use crate::fingerprint;
+    pub use crate::phase_gate;
+    pub use crate::progress_engine;
     pub mod tools {
         pub use crate::registry;
         pub use crate::write_tools;

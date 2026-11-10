@@ -424,7 +424,66 @@ impl WorkflowService {
         let workflow_run_id = req.workflow_run_id.unwrap_or_else(Uuid::new_v4);
         let plan_generation = 1i64;
 
+        // Any structural repair before the first round MUST be sealed as its own version.
+        // TX-04 compares the round base hash with the stored head version hash; mutating the
+        // runtime (dedupe or approval capture) without sealing produced
+        // "Base data hash mismatch" on the first round.
+        let mut repaired_before_round = false;
+        let mut removed_arc_duplicates = 0usize;
+        runtime_entry.mutate_working_state(|ws| {
+            removed_arc_duplicates =
+                crate::domain::phase_gate::dedupe_arcs_by_position(&mut ws.business_flow_data);
+        });
+        if removed_arc_duplicates > 0 {
+            repaired_before_round = true;
+        }
+        // The model does not reliably call `save_approved_outline`, so a workflow start with an
+        // empty `decision_log` would lose the outline the author just approved in chat. Capture
+        // the latest assistant proposal deterministically as a planning decision before the
+        // prompt is composed; the entry is included in the same repair version.
+        {
+            let current = runtime_entry.get_snapshot();
+            if current.business_flow_data.decision_log.is_empty() {
+                if let Some(entry) = self.capture_recent_approval(&req.draft_session_id) {
+                    runtime_entry.mutate_working_state(|ws| {
+                        ws.business_flow_data.decision_log.push(entry);
+                    });
+                    repaired_before_round = true;
+                }
+            }
+        }
+        if repaired_before_round {
+            self.seal_repaired_base(&req.draft_session_id)?;
+        }
         let working_state = runtime_entry.get_snapshot();
+        // A workflow phase may only start when the previous phase completed its optional payload;
+        // Phase 1 also needs the Phase 0 requirement. This mirrors `confirm_phase` gating.
+        let previous_missing = if req.phase == 1 {
+            let eval = crate::domain::progress_engine::evaluate_progress(&working_state.business_flow_data);
+            if eval.is_require_complete {
+                Vec::new()
+            } else {
+                vec!["Phase 0: còn trường require chưa hoàn tất".to_string()]
+            }
+        } else if req.phase > 1 {
+            crate::domain::phase_gate::missing_for_phase(
+                &working_state.business_flow_data,
+                req.phase - 1,
+            )
+        } else {
+            Vec::new()
+        };
+        if !previous_missing.is_empty() {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!(
+                    "Không thể chạy phase {} khi phase {} chưa hoàn tất: {}",
+                    req.phase,
+                    (req.phase - 1).max(0),
+                    previous_missing.join("; ")
+                ),
+            ));
+        }
         let mut plan_rounds = self.build_rounds_for_phase(
             req.phase,
             req.subphase,
@@ -432,7 +491,10 @@ impl WorkflowService {
             &cfg,
         )?;
 
-        let (phase_prompt, tool_schemas) = self.compose_phase_prompt(req.phase)?;
+        let (mut phase_prompt, tool_schemas) = self.compose_phase_prompt(req.phase)?;
+        if let Some(handoff) = self.recent_author_handoff(&req.draft_session_id) {
+            phase_prompt.push_str(&handoff);
+        }
 
         let total_rounds = plan_rounds.len() as u32;
         let total_tasks: u32 = plan_rounds.iter().map(|r| r.len() as u32).sum();
@@ -1044,12 +1106,12 @@ impl WorkflowService {
     /// model needs the documented parameter names to call the write handlers correctly.
     fn phase_tool_guidance(phase: i32) -> &'static str {
         match phase {
-            1 => "Tool guide: add_arc(code?, display_name, summary, position, declared_sources); set_arc(code, display_name?, summary?, position?, declared_sources); set_arc_motif(code, motif_code?, note?, declared_sources); add_arc_event_block(arc_code, code?, event_block_code?, start_chapter?, end_chapter?, summary?, declared_sources); add_theme(arc_code, code?, parent_theme_code?, question?, resolution_type?, resolution?, message?, declared_sources); add_theme_argument(theme_code, character_code?, role=PRIMARY|ANTITHESIS|CAUTIONARY|WITNESS, answer_mode, note?, declared_sources). Target Arc count: use require.project.target.arc_count exactly.",
-            2 => "Tool guide: add_chapter(arc_code, code?, display_name, position, summary, declared_sources); set_chapter(code, display_name?, position?, summary?, declared_sources); add_scene(chapter_code, code?, display_name, position, summary, declared_sources). chapter.position is unique across the whole project. Total chapters must equal require.project.target.chapter_count.",
-            3 => "Tool guide: add_world_setting(code?, parent_code?, display_name, type=REALM|WORLD|REGION|COUNTRY|CITY|TOWN|FACILITY|STREET|ROOM, description?, access?, declared_sources); add_lore_entry(code?, world_setting_code, display_name, type=CULTURE|HISTORY|FACTION|ITEM, description?, data?, declared_sources). Write parents before children.",
-            4 => "Tool guide: set_scene_config(scene_code, style_preset_code?, narrator_config_code?, world_setting_code?, declared_sources); add_scene_character(scene_code, character_code, is_pov?, declared_sources); add_scene_lore_entry(scene_code, lore_entry_code, usage?, reveal_to_reader?, reveal_to_pov?, declared_sources). Limited narrators need exactly one is_pov; omniscient needs none.",
-            5 => "Tool guide: add_character_appearance(character_code, species?, gender_identity?, height?, weight?, hair_color_code?, skin_tone_code?, outfit_style?, default_summary?, declared_sources); add_character_psychological(character_code, the_wound?, the_lie?, fundamental_fear?, moral_alignment?, moral_code?, cognitive_bias?, breaking_point?, external_want?, internal_need?, internal_conflict?, social_mask_persona_type?, social_mask_verbal_style?, defense_primary_reaction?, defense_stress_trigger?, defense_coping_strategy?, declared_sources); add_character_memory(character_code, code?, display_name?, summary?, source_scene_code?, declared_sources); add_character_competence(character_code, code?, domain_code?, level_code?, scene_code, capabilities?, limitations?, declared_sources). Competence scene_code is mandatory and must reference an existing scene.",
-            6 => "Tool guide: add_relationship(code?, from_code, to_code, motif_code?, declared_sources); add_relationship_role(relationship_code, category_code?, hierarchy?, is_primary?, declared_sources); set_relationship_state(relationship_code, scene_code, trust?, affection?, hostility?, fear?, respect?, familiarity?, dependency? with NONE|LOW|MODERATE|HIGH|ABSOLUTE, declared_sources).",
+            1 => "Tool guide: add_arc(code?, display_name, summary, position, declared_sources); set_arc(code, display_name?, summary?, position?, declared_sources); set_arc_motif(code, motif_code?, note?, declared_sources); add_arc_event_block(arc_code, code?, event_block_code?, start_chapter?, end_chapter?, summary?, declared_sources); add_theme(arc_code, code?, parent_theme_code?, question?, resolution_type?, resolution?, message?, declared_sources); add_theme_argument(theme_code, character_code?, role=PRIMARY|ANTITHESIS|CAUTIONARY|WITNESS, answer_mode, note?, declared_sources). Target Arc count: use require.project.target.arc_count exactly. Phase gate: every Arc must have motif_code, at least one event block, and theme question + message, otherwise the transition to Phase 2 is blocked.",
+            2 => "Tool guide: add_chapter(arc_code, code?, display_name, position, summary, declared_sources); set_chapter(code, display_name?, position?, summary?, declared_sources); add_scene(chapter_code, code?, display_name, position, summary, declared_sources). chapter.position is unique across the whole project. Total chapters must equal require.project.target.chapter_count. Phase gate: every chapter needs display_name, summary and at least one scene with display_name/summary.",
+            3 => "Tool guide: add_world_setting(code?, parent_code?, display_name, type=REALM|WORLD|REGION|COUNTRY|CITY|TOWN|FACILITY|STREET|ROOM, description?, access?, declared_sources); add_lore_entry(code?, world_setting_code, display_name, type=CULTURE|HISTORY|FACTION|ITEM, description?, data?, declared_sources). Write parents before children. Phase gate: at least one world setting with display_name and type; parent_code must reference an existing setting.",
+            4 => "Tool guide: set_scene_config(scene_code, style_preset_code?, narrator_config_code?, world_setting_code?, declared_sources); add_scene_character(scene_code, character_code, is_pov?, declared_sources); add_scene_lore_entry(scene_code, lore_entry_code, usage?, reveal_to_reader?, reveal_to_pov?, declared_sources). Limited narrators need exactly one is_pov; omniscient needs none. Phase gate: every scene needs world_setting_code, narrator_config_code and style_preset_code that reference existing values.",
+            5 => "Tool guide: add_character_appearance(character_code, species?, gender_identity?, height?, weight?, hair_color_code?, skin_tone_code?, outfit_style?, default_summary?, declared_sources); add_character_psychological(character_code, the_wound?, the_lie?, fundamental_fear?, moral_alignment?, moral_code?, cognitive_bias?, breaking_point?, external_want?, internal_need?, internal_conflict?, social_mask_persona_type?, social_mask_verbal_style?, defense_primary_reaction?, defense_stress_trigger?, defense_coping_strategy?, declared_sources); add_character_memory(character_code, code?, display_name?, summary?, source_scene_code?, declared_sources); add_character_competence(character_code, code?, domain_code?, level_code?, scene_code, capabilities?, limitations?, declared_sources). Competence scene_code is mandatory and must reference an existing scene. Phase gate: every character needs appearance (default_summary or species), psychological (the_wound/external_want/internal_need) and at least one memory or competence bound to an existing scene.",
+            6 => "Tool guide: add_relationship(code?, from_code, to_code, motif_code?, declared_sources); add_relationship_role(relationship_code, category_code?, hierarchy?, is_primary?, declared_sources); set_relationship_state(relationship_code, scene_code, trust?, affection?, hostility?, fear?, respect?, familiarity?, dependency? with NONE|LOW|MODERATE|HIGH|ABSOLUTE, declared_sources). Phase gate: with two or more characters, at least one relationship is required and from_code/to_code must reference existing characters.",
             _ => "",
         }
     }
@@ -1142,6 +1204,105 @@ impl WorkflowService {
 
     /// Compose the phase system prompt and the tool schemas granted to it
     /// (`prompt_blocks` + `prompt_block_tools`, `core.md` §3.8).
+    /// Latest assistant message for the draft's chat session, wrapped as a planning decision.
+    /// Used as a deterministic fallback when the model did not persist the author's approval.
+    fn capture_recent_approval(&self, draft_session_id: &Uuid) -> Option<crate::domain::business_flow::DecisionLogEntry> {
+        let conn = self.pool.get().ok()?;
+        let session_id: String = conn
+            .query_row(
+                "SELECT session_id FROM draft_sessions WHERE id = ?1",
+                params![draft_session_id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()
+            .ok()??;
+        let content: Option<String> = conn
+            .query_row(
+                "SELECT content FROM messages
+                 WHERE session_id = ?1
+                   AND role = 'assistant'
+                   AND trim(coalesce(content, '')) <> ''
+                 ORDER BY created_at DESC, rowid DESC
+                 LIMIT 1",
+                params![session_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .ok()?;
+        approved_outline_from(content.as_deref(), 0)
+    }
+
+    /// Seal a new base version after a structural repair (duplicate Arc positions), so the next
+    /// TX-04 round compares against a stored hash that matches the runtime state.
+    fn seal_repaired_base(&self, draft_session_id: &Uuid) -> Result<(), IpcError> {
+        let entry = self.draft_service.get_or_load_runtime_entry(*draft_session_id)?;
+        let snap = entry.get_snapshot();
+        let data_json = serde_json::to_string(&snap.business_flow_data)
+            .map_err(|e| IpcError::new(ErrorCode::InternalError, e.to_string()))?;
+        let data_hash = state_data_hash(&snap.business_flow_data)
+            .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
+        let base_seq = snap.head_version_seq.unwrap_or(0);
+        let seal_key = format!("repair_arcs:{}:{}", base_seq, Uuid::new_v4());
+        self.draft_service.seal_version(&crate::service::draft_service::SealVersionParams {
+            draft_session_id: *draft_session_id,
+            seal_key,
+            reason: "repair_arcs".to_string(),
+            phase: snap.phase,
+            subphase: snap.subphase,
+            data_json,
+            data_hash,
+            parent_seq: Some(base_seq),
+            turn_id: None,
+            chat_message_id: None,
+        })?;
+        Ok(())
+    }
+
+    /// Recent author/assistant exchange for this draft's chat session. The workflow composes its
+    /// prompts from the draft snapshot only, so without this block Phase 1 regenerates an outline
+    /// that the author already discussed and approved in chat.
+    fn recent_author_handoff(&self, draft_session_id: &Uuid) -> Option<String> {
+        let conn = self.pool.get().ok()?;
+        let session_id: String = conn
+            .query_row(
+                "SELECT session_id FROM draft_sessions WHERE id = ?1",
+                params![draft_session_id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()
+            .ok()??;
+        let mut stmt = conn
+            .prepare(
+                "SELECT role, content FROM messages
+                 WHERE session_id = ?1
+                   AND role IN ('user','assistant')
+                   AND trim(coalesce(content, '')) <> ''
+                 ORDER BY created_at DESC, rowid DESC
+                 LIMIT 8",
+            )
+            .ok()?;
+        let rows = stmt
+            .query_map(params![session_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .ok()?;
+        let mut items: Vec<(String, String)> = rows.filter_map(Result::ok).collect();
+        if items.is_empty() {
+            return None;
+        }
+        items.reverse();
+        let mut out = String::from("\n\n## Bàn giao từ cuộc trao đổi gần nhất trong chat\n");
+        out.push_str(
+            "Workflow không có lịch sử chat của lượt trước. Dưới đây là các tin nhắn gần nhất; nếu tác giả đã duyệt một dàn ý trong chat, kết quả của phase phải nhất quán với dàn ý đó, không tạo lại từ đầu.\n",
+        );
+        for (role, content) in items {
+            let text: String = content.chars().take(1500).collect();
+            let label = if role == "user" { "Tác giả" } else { "Trợ lý" };
+            out.push_str(&format!("- {label}: {}\n", text.replace('\n', " ")));
+        }
+        Some(out)
+    }
+
     pub fn compose_phase_prompt(
         &self,
         phase: i32,
@@ -1193,7 +1354,7 @@ impl WorkflowService {
                  ORDER BY t.code",
             )
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-        let schemas = stmt
+        let mut schemas: Vec<Value> = stmt
             .query_map(params![phase_code], |row| {
                 let code: String = row.get(0)?;
                 let description: Option<String> = row.get(1)?;
@@ -1212,6 +1373,17 @@ impl WorkflowService {
                 })
             })
             .collect();
+
+        // Only advertise tools this phase can actually use. The DB grants every planning tool to
+        // every phase block, which made each workflow request carry ~70 large schemas; a Phase 2
+        // request then spent most of its context budget on Phase 5/6 tool definitions.
+        schemas.retain(|schema| {
+            schema
+                .get("name")
+                .and_then(|value| value.as_str())
+                .map(|name| tool_allowed_in_phase(phase, name))
+                .unwrap_or(false)
+        });
 
         let guidance = Self::phase_tool_guidance(phase);
         if !guidance.is_empty() {
@@ -1587,4 +1759,102 @@ struct ExistingReceiptRow {
     evidence_json: Option<String>,
     base_version_seq: i64,
     resulting_version_seq: Option<i64>,
+}
+
+
+/// Build a `decision_log` entry from approved prose. Pure helper so the capture fallback can be
+/// tested without a database or Tauri runtime.
+fn approved_outline_from(
+    content: Option<&str>,
+    existing_decisions: usize,
+) -> Option<crate::domain::business_flow::DecisionLogEntry> {
+    let text = content?.trim();
+    if text.is_empty() {
+        return None;
+    }
+    Some(crate::domain::business_flow::DecisionLogEntry {
+        id: format!("decision-{}", existing_decisions + 1),
+        summary: text.chars().take(20_000).collect(),
+        source: crate::domain::business_flow::ProvenanceSource::User,
+    })
+}
+
+#[cfg(test)]
+mod approved_outline_tests {
+    use super::approved_outline_from;
+
+    #[test]
+    fn captures_the_last_assistant_proposal_as_a_decision() {
+        let entry = approved_outline_from(Some("  5 Arc: Gặp gỡ / Thử thách / Kết thúc  "), 0)
+            .expect("proposal must be captured");
+        assert_eq!(entry.id, "decision-1");
+        assert!(entry.summary.starts_with("5 Arc: Gặp gỡ"));
+        assert_eq!(
+            entry.source,
+            crate::domain::business_flow::ProvenanceSource::User
+        );
+        assert!(approved_outline_from(Some("   "), 2).is_none());
+        assert!(approved_outline_from(None, 0).is_none());
+    }
+}
+
+
+/// Tool surface for one workflow phase. Read tools are stripped later by the executor and do not
+/// need to appear here. Keep this list aligned with the phase guidance text.
+pub(crate) fn phase_tool_codes(phase: i32) -> &'static [&'static str] {
+    match phase {
+        1 => &[
+            "add_arc", "set_arc", "set_arc_motif", "add_arc_event_block", "set_arc_event_block",
+            "delete_arc", "delete_arc_event_block", "add_theme", "set_theme", "add_theme_argument",
+            "set_theme_argument", "delete_theme", "delete_theme_argument", "add_character",
+            "set_character", "add_project_genre", "save_approved_outline",
+        ],
+        2 => &[
+            "add_chapter", "set_chapter", "delete_chapter", "add_scene", "set_scene",
+            "delete_scene", "save_approved_outline",
+        ],
+        3 => &[
+            "add_world_setting", "set_world_setting", "delete_world_setting", "add_lore_entry",
+            "set_lore_entry", "delete_lore_entry", "save_approved_outline",
+        ],
+        4 => &[
+            "set_scene_config", "add_scene_character", "delete_scene_character",
+            "add_scene_lore_entry", "set_scene_lore_entry", "delete_scene_lore_entry",
+        ],
+        5 => &[
+            "add_character_appearance", "set_character_appearance",
+            "add_character_psychological", "set_character_psychological",
+            "add_character_memory", "set_character_memory", "delete_character_memory",
+            "add_character_competence", "set_character_competence", "delete_character_competence",
+            "add_character_motif", "add_character_distinguishing_mark",
+        ],
+        6 => &[
+            "add_relationship", "set_relationship", "delete_relationship",
+            "add_relationship_role", "set_relationship_role", "delete_relationship_role",
+            "set_relationship_state",
+        ],
+        _ => &[
+            "set_project", "add_character", "set_character", "add_project_genre",
+            "delete_project_genre", "save_approved_outline",
+        ],
+    }
+}
+
+pub(crate) fn tool_allowed_in_phase(phase: i32, name: &str) -> bool {
+    phase_tool_codes(phase).contains(&name)
+}
+
+#[cfg(test)]
+mod phase_tool_surface_tests {
+    use super::*;
+
+    #[test]
+    fn each_phase_only_advertises_its_own_tools() {
+        assert!(tool_allowed_in_phase(2, "add_chapter"));
+        assert!(!tool_allowed_in_phase(2, "add_arc"));
+        assert!(!tool_allowed_in_phase(2, "add_character_appearance"));
+        assert!(tool_allowed_in_phase(5, "add_character_psychological"));
+        assert!(tool_allowed_in_phase(6, "add_relationship"));
+        assert!(!tool_allowed_in_phase(6, "add_scene"));
+    }
 }

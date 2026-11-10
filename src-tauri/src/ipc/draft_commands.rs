@@ -253,11 +253,11 @@ pub async fn exec_apply_manual_draft_edit(
         total_attributes: 46,
         progress_percentage: (completed as f32 / 46.0) * 100.0,
         is_require_complete: progress_eval.is_require_complete,
-        can_advance_phase: if current_phase == 0 {
-            progress_eval.is_require_complete
-        } else {
-            true
-        },
+        can_advance_phase: crate::domain::phase_gate::can_advance(
+            &updated_snap.business_flow_data,
+            current_phase,
+            current_subphase,
+        ),
         confirmed_count: Some(progress_eval.confirmed_count as u32),
         ai_inferred_count: Some(progress_eval.ai_suggested_count as u32),
     };
@@ -337,12 +337,79 @@ pub async fn exec_confirm_phase(
         ));
     }
 
+    // Repair duplicated Arc positions before the gate evaluates the payload.
+    entry.mutate_working_state(|ws| {
+        crate::domain::phase_gate::dedupe_arcs_by_position(&mut ws.business_flow_data);
+    });
+    let snap = entry.get_snapshot();
     let progress_eval = evaluate_progress(&snap.business_flow_data);
     if req.target_phase == 1 && !progress_eval.is_require_complete {
         return Err(IpcError::new(
             ErrorCode::ValidationFailed,
             "Cannot confirm phase 1: Phase 0 requirement is not complete (is_require_complete is false)",
         ));
+    }
+
+    // Phase gating: never leave a phase (or a Phase-5 sub-phase) whose optional payload is
+    // incomplete, and never jump over a phase. `can_advance_phase` in the progress DTO mirrors
+    // the same contract so the UI disables the button before calling this command.
+    let current_phase = snap.phase;
+    let current_subphase = snap.subphase;
+    if req.target_phase < current_phase {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            format!(
+                "Cannot move backwards: current phase {}, requested {}",
+                current_phase, req.target_phase
+            ),
+        ));
+    }
+    if req.target_phase > current_phase + 1 {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            format!(
+                "Phases must advance one step: current phase {}, requested {}",
+                current_phase, req.target_phase
+            ),
+        ));
+    }
+    let moving_to_next_phase = req.target_phase > current_phase;
+    let moving_to_next_subphase = req.target_phase == 5
+        && current_phase == 5
+        && req.target_subphase.unwrap_or(0) > current_subphase.unwrap_or(1);
+    if moving_to_next_phase {
+        let missing = crate::domain::phase_gate::missing_for_phase(
+            &snap.business_flow_data,
+            current_phase,
+        );
+        if !missing.is_empty() {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!(
+                    "Phase {} chưa hoàn tất nên không thể chuyển sang phase {}: {}",
+                    current_phase,
+                    req.target_phase,
+                    missing.join("; ")
+                ),
+            ));
+        }
+    }
+    if moving_to_next_subphase {
+        let missing = crate::domain::phase_gate::missing_for_subphase(
+            &snap.business_flow_data,
+            current_subphase.unwrap_or(1),
+        );
+        if !missing.is_empty() {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!(
+                    "Phase 5.{} chưa hoàn tất nên không thể sang 5.{}: {}",
+                    current_subphase.unwrap_or(1),
+                    req.target_subphase.unwrap_or(1),
+                    missing.join("; ")
+                ),
+            ));
+        }
     }
 
     let base_seq = snap.head_version_seq.unwrap_or(0);

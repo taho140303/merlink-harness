@@ -21,6 +21,8 @@ pub mod fingerprint;
 pub mod word_count;
 #[path = "../src/domain/progress_engine.rs"]
 pub mod progress_engine;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
 
@@ -29,6 +31,7 @@ pub mod domain {
     pub use crate::code_allocator;
     pub use crate::fingerprint;
     pub use crate::invariants;
+    pub use crate::phase_gate;
     pub use crate::progress_engine;
     pub use crate::word_count;
 }

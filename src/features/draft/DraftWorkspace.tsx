@@ -48,6 +48,11 @@ export interface DraftBackendState {
   workflowRunId: string | null;
   manualRepairMessage: string | null;
   lastError: any;
+  /** Runtime phase/sub-phase from `get_draft_workspace_state` (authoritative for UI step). */
+  phase: number;
+  subphase: number | null;
+  /** True when the current phase (or Phase-5 sub-phase) has all optional fields. */
+  canAdvancePhase: boolean;
 }
 
 export class DraftBackendController {
@@ -68,6 +73,9 @@ export class DraftBackendController {
       workflowRunId: initialConfig?.workflowRunId ?? null,
       manualRepairMessage: initialConfig?.manualRepairMessage ?? null,
       lastError: null,
+      phase: initialConfig?.phase ?? 0,
+      subphase: initialConfig?.subphase ?? null,
+      canAdvancePhase: initialConfig?.canAdvancePhase ?? false,
     };
   }
 
@@ -114,10 +122,16 @@ export class DraftBackendController {
 
       const wsState = await getFn({ draftSessionId: this.state.draftSessionId });
       if (wsState) {
+        const headSeq = wsState.headVersionSeq ?? this.state.headVersionSeq;
+        const headVersion = this.state.versions.find((version) => version.seq === headSeq);
         this.updateState({
-          headVersionSeq: wsState.headVersionSeq ?? this.state.headVersionSeq,
+          headVersionSeq: headSeq,
           pendingPatches: wsState.pendingPatches ?? this.state.pendingPatches,
           businessFlowData: wsState.businessFlowData ?? this.state.businessFlowData,
+          phase: wsState.phase ?? this.state.phase,
+          subphase: wsState.subphase ?? null,
+          canAdvancePhase: Boolean(wsState.progress?.canAdvancePhase),
+          currentVersionLabel: headVersion?.displayLabel ?? this.state.currentVersionLabel,
         });
       }
       return wsState;
@@ -139,9 +153,14 @@ export class DraftBackendController {
 
       const res = await listFn({ draftSessionId: this.state.draftSessionId });
       const versions = res?.versions || [];
+      const headSeq = res?.headVersionSeq ?? this.state.headVersionSeq;
+      // The head version is the authoritative label: a fresh controller starts at "v.01" but the
+      // draft may already be at v.10, which left the version popover showing v.01 forever.
+      const headVersion = versions.find((version) => version.seq === headSeq) ?? versions[0];
       this.updateState({
         versions,
-        headVersionSeq: res?.headVersionSeq ?? this.state.headVersionSeq,
+        headVersionSeq: headSeq,
+        currentVersionLabel: headVersion?.displayLabel ?? this.state.currentVersionLabel,
       });
       return versions;
     } catch (err: any) {
@@ -446,6 +465,26 @@ export class DraftBackendController {
   }
 
   /**
+   * Persist the phase transition after a successful phase run so reopening the workspace lands on
+   * the same step (the UI used to advance only local state, so every remount reset to step 1).
+   */
+  public async confirmPhase(targetPhase: number, targetSubphase?: number | null): Promise<void> {
+    try {
+      await this.client.confirmPhase({
+        draftSessionId: this.state.draftSessionId,
+        targetPhase,
+        targetSubphase: targetSubphase ?? null,
+      });
+      await this.loadVersions();
+      await this.loadWorkspaceState();
+      this.updateState({ lastError: null });
+    } catch (err: any) {
+      this.updateState({ lastError: err });
+      throw err;
+    }
+  }
+
+  /**
    * Applies workflow execution summary into controller state.
    */
   public applyWorkflowExecutionResult(res: WorkflowExecutionSummaryDto) {
@@ -589,6 +628,44 @@ export function deriveStepFromFlow(bfd: any): { step: DraftStep; subStep: Charac
     return { step: 'overview', subStep: 'appearance' };
   }
   return { step: 'overview', subStep: 'appearance' };
+}
+
+/// Step (tab) implied by the runtime phase/sub-phase. A completed phase shows the next step so
+/// reopening a confirmed draft does not fall back to step 1.
+export function deriveStepFromRuntimePhase(
+  phase: number,
+  subphase: number | null,
+  canAdvance: boolean,
+): { step: DraftStep; subStep: CharacterSubStep } {
+  let effective = phase;
+  let sub = subphase ?? 1;
+  if (phase === 5) {
+    if (canAdvance) {
+      sub += 1;
+      if (sub > 3) effective = 6;
+    }
+  } else if (phase >= 1 && canAdvance) {
+    effective = Math.min(phase + 1, 6);
+  }
+  switch (effective) {
+    case 1:
+      return { step: 'overview', subStep: 'appearance' };
+    case 2:
+      return { step: 'chapter', subStep: 'appearance' };
+    case 3:
+      return { step: 'world', subStep: 'appearance' };
+    case 4:
+      return { step: 'scene', subStep: 'appearance' };
+    case 5:
+      return {
+        step: 'character',
+        subStep: sub === 1 ? 'appearance' : sub === 2 ? 'psychological' : 'lifeExperience',
+      };
+    case 6:
+      return { step: 'relationship', subStep: 'lifeExperience' };
+    default:
+      return { step: 'overview', subStep: 'appearance' };
+  }
 }
 
 export function mapBusinessFlowDataToDraftOverview(
@@ -972,6 +1049,35 @@ export function DraftWorkspace({
     controller.loadPendingPatches();
   }, [controller]);
 
+  // Background rounds can finish while the user is in the chat pane or another window. Refresh
+  // authoritative state when the workspace regains focus so no tab remount is needed.
+  useEffect(() => {
+    const refresh = () => {
+      controller.loadWorkspaceState();
+      controller.loadVersions();
+      controller.loadPendingPatches();
+    };
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [controller]);
+
+  // Chat owns the authoritative working state and reloads it after every turn
+  // (`refreshDurableChat`). This workspace controller keeps the snapshot it loaded on mount, so
+  // without syncing the prop an applied tool call (e.g. add_theme) stayed invisible until the
+  // pane was remounted. The prop is replaced only when the backend snapshot changes.
+  useEffect(() => {
+    if (!propBusinessFlowData) return;
+    if (controller.getState().businessFlowData === propBusinessFlowData) return;
+    controller.updateState({ businessFlowData: propBusinessFlowData });
+  }, [propBusinessFlowData, controller]);
+
   // Defer the heavy JSON so a completed phase does not block input or animation frames.
   const deferredBusinessFlowData = useDeferredValue(
     controllerState.businessFlowData ?? propBusinessFlowData
@@ -986,45 +1092,65 @@ export function DraftWorkspace({
 
   const [currentStep, setCurrentStep] = useState<DraftStep>('overview');
   const [currentSubStep, setCurrentSubStep] = useState<CharacterSubStep>('appearance');
-  const hasAutoPositioned = useRef(false);
   const hasAutoGenerated = useRef(false);
+  const stepPhaseKey = useRef<string | null>(null);
+
+  // The runtime phase (sealed by workflow/confirm_phase) drives the visible step. Re-deriving the
+  // step from data on every remount used to drop the user back to step 1.
   useEffect(() => {
     const flow = controllerState.businessFlowData;
-    if (hasAutoPositioned.current || !flow) return;
-    hasAutoPositioned.current = true;
-    const derived = deriveStepFromFlow(flow);
+    if (!flow) return;
+    const key = `${controllerState.phase}:${controllerState.subphase ?? ''}:${controllerState.canAdvancePhase}`;
+    if (stepPhaseKey.current === key) return;
+    stepPhaseKey.current = key;
+    if (controllerState.phase > 0) {
+      const derived = deriveStepFromRuntimePhase(
+        controllerState.phase,
+        controllerState.subphase,
+        controllerState.canAdvancePhase,
+      );
+      setCurrentStep(derived.step);
+      setCurrentSubStep(derived.subStep);
+    } else {
+      const derived = deriveStepFromFlow(flow);
+      setCurrentStep(derived.step);
+      setCurrentSubStep(derived.subStep);
+    }
+  }, [
+    controllerState.phase,
+    controllerState.subphase,
+    controllerState.canAdvancePhase,
+    controllerState.businessFlowData,
+  ]);
 
-    // Opening a draft with no outline yet should build Phase 1 instead of showing an
-    // empty workspace; only run when the Phase 0 target data exists.
+  // Auto-build Phase 1 only for a brand-new draft with no sealed version yet. An existing draft
+  // opens as-is; pressing the "Xây dựng bản nháp" button must never rebuild it.
+  useEffect(() => {
+    const flow = controllerState.businessFlowData;
+    if (!flow || hasAutoGenerated.current) return;
+    if (controllerState.workflowStatus === 'running') return;
+    if (controllerState.headVersionSeq != null || controllerState.versions.length > 0) return;
     const target = flow.require?.project?.target ?? {};
     const tracked = (field: any) => field?.value ?? null;
     const ready =
       Number(tracked(target.arc_count) ?? 0) > 0 &&
       Number(tracked(target.chapter_count) ?? 0) > 0 &&
       (flow.require?.character ?? []).length > 0;
-    if (
-      derived.step === 'overview' &&
-      (flow.optional?.overview_phase?.arcs ?? []).length === 0 &&
-      ready &&
-      !hasAutoGenerated.current &&
-      controllerState.workflowStatus !== 'running'
-    ) {
-      hasAutoGenerated.current = true;
-      setTransitionPhase('loading');
-      controller
-        .startOrResumeWorkflow(1, null)
-        .then(async () => {
-          await controller.loadWorkspaceState();
-        })
-        .catch(() => {
-          /* failure is surfaced by the toolbar alert */
-        })
-        .finally(() => setTransitionPhase('idle'));
-    }
+    const arcs = flow.optional?.overview_phase?.arcs ?? [];
+    if (arcs.length > 0 || !ready) return;
+    hasAutoGenerated.current = true;
+    setTransitionPhase('loading');
+    controller
+      .startOrResumeWorkflow(1, null)
+      .then(async () => {
+        await controller.loadWorkspaceState();
+      })
+      .catch(() => {
+        /* failure is surfaced by the toolbar alert */
+      })
+      .finally(() => setTransitionPhase('idle'));
+  }, [controllerState.businessFlowData, controllerState.headVersionSeq, controllerState.versions.length, controllerState.workflowStatus]);
 
-    setCurrentStep(derived.step);
-    setCurrentSubStep(derived.subStep);
-  }, [controllerState.businessFlowData, controllerState.workflowStatus]);
   const [currentVersion, setCurrentVersion] = useState(
     controllerState.currentVersionLabel || overview.version
   );
@@ -1114,21 +1240,6 @@ export function DraftWorkspace({
       .finally(() => setRunProgress(null));
   };
 
-  const advanceStep = () => {
-    hasAutoPositioned.current = true;
-    if (currentStep === 'overview') setCurrentStep('chapter');
-    else if (currentStep === 'chapter') setCurrentStep('world');
-    else if (currentStep === 'world') setCurrentStep('scene');
-    else if (currentStep === 'scene') {
-      setCurrentStep('character');
-      setCurrentSubStep('appearance');
-    } else if (currentStep === 'character') {
-      if (currentSubStep === 'appearance') setCurrentSubStep('psychological');
-      else if (currentSubStep === 'psychological') setCurrentSubStep('lifeExperience');
-      else if (currentSubStep === 'lifeExperience') setCurrentStep('relationship');
-    }
-  };
-
   // Advancing a step generates that phase first; only a successful run moves on.
   const executeNext = () => {
     setConfirmOpen(false);
@@ -1137,15 +1248,29 @@ export function DraftWorkspace({
     const subphase = currentStep === 'character'
       ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
       : null;
+    const currentPhase = controllerState.phase;
+    // Already on this phase and it is complete: do not rerun the phase or seal another
+    // phase_confirm version (that loop kept the draft pinned at Phase 1).
+    if (currentPhase === phase && controllerState.canAdvancePhase) {
+      controller.loadWorkspaceState();
+      return;
+    }
     setTransitionPhase('loading');
     controller
       .startOrResumeWorkflow(phase, subphase)
       .then(async () => {
-        await controller.loadWorkspaceState();
-        advanceStep();
+        if (phase > currentPhase) {
+          // Seal the transition so the version history and the reopened workspace both point at
+          // the same phase. Without this the runtime phase stayed behind and remounts showed
+          // step 1 again, while gate rejections were swallowed.
+          await controller.confirmPhase(phase, subphase);
+        } else {
+          await controller.loadWorkspaceState();
+          await controller.loadVersions();
+        }
       })
       .catch(() => {
-        /* stay on the current step and let the toolbar surface the failure */
+        /* controller.lastError is rendered by the workspace alert banner */
       })
       .finally(() => {
         setTransitionPhase('idle');
@@ -1293,6 +1418,30 @@ export function DraftWorkspace({
         currentSubStep={currentSubStep}
         onClose={onClose}
       />
+
+      {controllerState.lastError && !controllerState.manualRepairMessage && (
+        <div
+          role="alert"
+          data-testid="workspace-error-alert"
+          className="mx-4 mt-3 flex items-start justify-between gap-3 rounded-xl bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="break-words">
+              {controllerState.lastError?.message
+                ? String(controllerState.lastError.message)
+                : String(controllerState.lastError)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => controller.updateState({ lastError: null })}
+            className="shrink-0 rounded px-1 text-xs underline underline-offset-2"
+          >
+            {t('common.close')}
+          </button>
+        </div>
+      )}
 
       {/* Manual Repair Banner (phase5_sprint3_deep2-F1) */}
       {controllerState.manualRepairMessage && (
