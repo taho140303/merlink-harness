@@ -91,44 +91,60 @@ export function DraftToolbar({
         </button>
 
         {versionOpen && (
-          <div className="absolute bottom-full left-0 mb-3 w-64 overflow-hidden rounded-2xl border border-line bg-surface-card z-50 -from-bottom-2 shadow-lg">
+          <div className="absolute bottom-full left-0 mb-3 flex max-h-80 w-64 flex-col overflow-hidden rounded-2xl border border-line bg-surface-card z-50 -from-bottom-2 shadow-lg">
             <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-fg-subtle">
               {t('draft.toolbar.selectVersion')}
             </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
             {versionHistory.map((v) => {
               const seq = (v as any).seq;
               const isSelected = currentVersion === v.version || (headVersionSeq !== undefined && headVersionSeq !== null && seq === headVersionSeq);
               return (
-                <button
+                <div
                   key={v.version}
-                  type="button"
-                  onClick={() => {
-                    if (onRestoreVersion && typeof seq === 'number') {
-                      onRestoreVersion(seq);
-                    }
-                    onVersionChange(v.version);
-                    setVersionOpen(false);
-                  }}
                   className={cn(
-                    "flex w-full items-center justify-between px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted",
-                    isSelected
-                      ? "bg-surface-muted font-semibold text-fg"
-                      : "text-fg-muted"
+                    "flex w-full items-center gap-2 px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted",
+                    isSelected ? "bg-surface-muted font-semibold text-fg" : "text-fg-muted"
                   )}
                 >
-                  <div className="flex flex-col text-left">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Selecting only previews; restoring is an explicit action so opening the
+                      // list no longer creates a restore version on every click.
+                      onVersionChange(v.version);
+                      setVersionOpen(false);
+                    }}
+                    className="focus-ring flex min-w-0 flex-1 flex-col text-left"
+                  >
                     <span className="font-mono">{v.version}</span>
                     {(v as any).reason && (
                       <span className="text-[10px] text-fg-subtle line-clamp-1">{enumLabel('DraftVersionReason', (v as any).reason)}</span>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-normal text-fg-subtle">{v.updatedAt}</span>
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-[10px] font-normal text-fg-subtle">{v.updatedAt}</span>
                     {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-accent" />}
+                    {onRestoreVersion && typeof seq === 'number' && !isSelected && (
+                      <button
+                        type="button"
+                        title={t('draft.toolbar.restoreVersion')}
+                        aria-label={`${t('draft.toolbar.restoreVersion')} ${v.version}`}
+                        onClick={() => {
+                          onRestoreVersion(seq);
+                          onVersionChange(v.version);
+                          setVersionOpen(false);
+                        }}
+                        className="focus-ring rounded-md p-1 text-fg-subtle hover:bg-surface-card hover:text-fg"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                </button>
+                </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>
