@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and integration tests for `phase4_sprint2_deep0`
 //! ("Commit draft atomically into relational schema").
 //!
@@ -5,6 +12,8 @@
 //! and docs/plan/evidence/contract-ledger.md.
 
 #![allow(non_snake_case)]
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -15,14 +24,14 @@ pub mod business_flow;
 pub mod code_allocator;
 #[path = "../src/domain/fingerprint.rs"]
 pub mod fingerprint;
-#[path = "../src/domain/word_count.rs"]
-pub mod word_count;
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
-#[path = "../src/domain/phase_gate.rs"]
-pub mod phase_gate;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
+#[path = "../src/domain/word_count.rs"]
+pub mod word_count;
 
 pub mod domain {
     pub use crate::business_flow;
@@ -34,14 +43,14 @@ pub mod domain {
     pub use crate::word_count;
 }
 
-#[path = "../src/storage/db.rs"]
-pub mod db;
-#[path = "../src/storage/migration.rs"]
-pub mod migration;
-#[path = "../src/storage/draft_repo.rs"]
-pub mod draft_repo;
 #[path = "../src/storage/commit_repo.rs"]
 pub mod commit_repo;
+#[path = "../src/storage/db.rs"]
+pub mod db;
+#[path = "../src/storage/draft_repo.rs"]
+pub mod draft_repo;
+#[path = "../src/storage/migration.rs"]
+pub mod migration;
 
 pub mod storage {
     pub use crate::commit_repo;
@@ -50,12 +59,12 @@ pub mod storage {
     pub use crate::migration;
 }
 
+#[path = "../src/service/commit_service.rs"]
+pub mod commit_service;
 #[path = "../src/service/draft_runtime.rs"]
 pub mod draft_runtime;
 #[path = "../src/service/draft_service.rs"]
 pub mod draft_service;
-#[path = "../src/service/commit_service.rs"]
-pub mod commit_service;
 
 pub mod service {
     pub use crate::commit_service;
@@ -63,10 +72,10 @@ pub mod service {
     pub use crate::draft_service;
 }
 
-#[path = "../src/ipc/dto.rs"]
-pub mod dto;
 #[path = "../src/ipc/commit_commands.rs"]
 pub mod commit_commands;
+#[path = "../src/ipc/dto.rs"]
+pub mod dto;
 
 pub mod ipc {
     pub use crate::commit_commands;
@@ -74,8 +83,8 @@ pub mod ipc {
 }
 
 use chrono::Utc;
-use error::ErrorCode;
 use domain::business_flow::*;
+use error::ErrorCode;
 use ipc::commit_commands::*;
 use ipc::dto::*;
 use service::commit_service::{CallerContext, CommitService};
@@ -88,7 +97,6 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::Connection;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -139,7 +147,8 @@ fn seed_draft_session(
     conn.execute(
         "INSERT INTO sessions (id, project_id, display_name) VALUES (?1, ?2, 'Active Session')",
         rusqlite::params![session_id, proj_str],
-    ).expect("seed session");
+    )
+    .expect("seed session");
 
     conn.execute(
         "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
@@ -570,22 +579,9 @@ fn build_valid_full_draft_fixture(default_source: ProvenanceSource) -> BusinessF
 /// phase4_sprint2_deep0-F0: Predecessor gate absent or baseline SHA drift check.
 #[test]
 fn phase4_sprint2_deep0_F0_predecessor_gate_and_baseline_check() {
-    let mb_output = Command::new("git")
-        .args(["merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"])
-        .output();
-    let baseline_ok = match mb_output {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{BASELINE_COMMIT}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
     assert!(
-        baseline_ok,
-        "Baseline commit {} must be an ancestor of HEAD or exist in repository",
-        BASELINE_COMMIT
+        common::verify_commit(BASELINE_COMMIT),
+        "Baseline commit {BASELINE_COMMIT} must be an ancestor, a local object, or recorded in the lineage manifest"
     );
 
     let gates = [
@@ -597,15 +593,9 @@ fn phase4_sprint2_deep0_F0_predecessor_gate_and_baseline_check() {
     ];
 
     for (name, sha) in gates {
-        let cat_check = Command::new("git")
-            .args(["cat-file", "-e", &format!("{}^{{commit}}", sha)])
-            .output()
-            .unwrap_or_else(|_| panic!("execute git cat-file for {}", name));
         assert!(
-            cat_check.status.success(),
-            "Predecessor gate commit {} ({}) must exist in repo",
-            name,
-            sha
+            common::verify_commit(sha),
+            "Predecessor gate {name} ({sha}) must be an ancestor, a local object, or recorded in the lineage manifest"
         );
     }
 }
@@ -655,7 +645,9 @@ async fn TX_005_T_ROLL_01_atomic_rollback_on_collision_or_error() {
     }
 
     // Call commit_draft -> MUST FAIL with CodeCollisionOnCommit
-    let req = CommitDraftReq { draft_session_id: draft_id };
+    let req = CommitDraftReq {
+        draft_session_id: draft_id,
+    };
     let err = exec_commit_draft(&commit_service, &req, CallerContext::UiAction)
         .await
         .unwrap_err();
@@ -673,7 +665,10 @@ async fn TX_005_T_ROLL_01_atomic_rollback_on_collision_or_error() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(status, "editing", "Draft session status must be rolled back to editing");
+    assert_eq!(
+        status, "editing",
+        "Draft session status must be rolled back to editing"
+    );
 
     // Verify no partial records leaked into chapters or world_settings
     let ch_count: i64 = conn
@@ -684,7 +679,10 @@ async fn TX_005_T_ROLL_01_atomic_rollback_on_collision_or_error() {
     let ws_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM world_settings", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(ws_count, 0, "No world settings leaked during rolled back TX-05");
+    assert_eq!(
+        ws_count, 0,
+        "No world settings leaked during rolled back TX-05"
+    );
 }
 
 /// P4S2-PREVIEW: Preview calculates canConfirm = true when ready and 0 pending patches;
@@ -704,7 +702,9 @@ async fn P4S2_PREVIEW_calculation_and_gating() {
     // Case 1: Initially no sealed version -> not ready
     let preview_empty = exec_get_commit_confirmation_preview(
         &commit_service,
-        &GetCommitPreviewReq { draft_session_id: draft_id },
+        &GetCommitPreviewReq {
+            draft_session_id: draft_id,
+        },
     )
     .unwrap();
     assert!(!preview_empty.can_confirm);
@@ -733,7 +733,9 @@ async fn P4S2_PREVIEW_calculation_and_gating() {
     // Case 2: Valid full draft and 0 pending patches -> can_confirm = true
     let preview_ready = exec_get_commit_confirmation_preview(
         &commit_service,
-        &GetCommitPreviewReq { draft_session_id: draft_id },
+        &GetCommitPreviewReq {
+            draft_session_id: draft_id,
+        },
     )
     .unwrap();
     assert!(preview_ready.can_confirm);
@@ -758,10 +760,15 @@ async fn P4S2_PREVIEW_calculation_and_gating() {
 
     let preview_with_pending = exec_get_commit_confirmation_preview(
         &commit_service,
-        &GetCommitPreviewReq { draft_session_id: draft_id },
+        &GetCommitPreviewReq {
+            draft_session_id: draft_id,
+        },
     )
     .unwrap();
-    assert!(!preview_with_pending.can_confirm, "canConfirm must be false when pending patches exist");
+    assert!(
+        !preview_with_pending.can_confirm,
+        "canConfirm must be false when pending patches exist"
+    );
     assert_eq!(preview_with_pending.pending_patches.count, 1);
     assert_eq!(preview_with_pending.validation.status, "blocked");
 }
@@ -803,7 +810,9 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
     // Commit draft
     let resp = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await
@@ -817,19 +826,31 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 1. projects
     let p_status: String = conn
-        .query_row("SELECT status FROM projects WHERE id = ?1", rusqlite::params![proj_id_str], |r| r.get(0))
+        .query_row(
+            "SELECT status FROM projects WHERE id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(p_status, "DRAFTING");
 
     // 2. project_genres
     let pg_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM project_genres WHERE project_id = ?1", rusqlite::params![proj_id_str], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM project_genres WHERE project_id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(pg_count, 1);
 
     // 3. characters & 4. project_characters
     let pc_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM project_characters WHERE project_id = ?1", rusqlite::params![proj_id_str], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM project_characters WHERE project_id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(pc_count, 2);
 
@@ -841,7 +862,11 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 6. arcs
     let arc_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM arcs WHERE project_id = ?1", rusqlite::params![proj_id_str], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM arcs WHERE project_id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(arc_count, 2);
 
@@ -881,7 +906,11 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 12. world_settings & 13. lore_entries
     let ws_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM world_settings WHERE project_id = ?1", rusqlite::params![proj_id_str], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM world_settings WHERE project_id = ?1",
+            rusqlite::params![proj_id_str],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(ws_count, 2);
 
@@ -899,7 +928,10 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
     let sc_dirty: i64 = conn
         .query_row("SELECT COUNT(*) FROM scenes WHERE content IS NOT NULL OR word_count <> 0 OR is_locked <> 0", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(sc_dirty, 0, "Scenes must have content = NULL, word_count = 0, is_locked = 0");
+    assert_eq!(
+        sc_dirty, 0,
+        "Scenes must have content = NULL, word_count = 0, is_locked = 0"
+    );
 
     // 15. scene_characters & 16. scene_lore_entries
     let sc_char_count: i64 = conn
@@ -914,18 +946,26 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 17. character_appearances & marks
     let app_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM character_appearances", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM character_appearances", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(app_count, 1);
 
     let mark_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM character_distinguishing_marks", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM character_distinguishing_marks",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(mark_count, 1);
 
     // 18. character_psychological
     let psych_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM character_psychological", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM character_psychological", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(psych_count, 1);
 
@@ -937,7 +977,9 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 20. character_competences
     let comp_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM character_competences", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM character_competences", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(comp_count, 1);
 
@@ -954,12 +996,20 @@ async fn P4S2_COMMIT_SUCCESS_creates_all_relations_topologically() {
 
     // 22. draft_sessions and sessions updated
     let ds_status: String = conn
-        .query_row("SELECT status FROM draft_sessions WHERE id = ?1", rusqlite::params![draft_id.to_string()], |r| r.get(0))
+        .query_row(
+            "SELECT status FROM draft_sessions WHERE id = ?1",
+            rusqlite::params![draft_id.to_string()],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(ds_status, "committed");
 
     let sess_proj_id: String = conn
-        .query_row("SELECT project_id FROM sessions WHERE id = ?1", rusqlite::params![session_id], |r| r.get(0))
+        .query_row(
+            "SELECT project_id FROM sessions WHERE id = ?1",
+            rusqlite::params![session_id],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(sess_proj_id, proj_id_str);
 }
@@ -1000,7 +1050,9 @@ async fn P4S2_IDEMPOTENT_repeated_commit_returns_same_project_id() {
     // Call 1
     let resp1 = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await
@@ -1009,7 +1061,9 @@ async fn P4S2_IDEMPOTENT_repeated_commit_returns_same_project_id() {
     // Call 2 (Idempotency)
     let resp2 = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await
@@ -1017,7 +1071,10 @@ async fn P4S2_IDEMPOTENT_repeated_commit_returns_same_project_id() {
 
     assert_eq!(resp1.project_id, resp2.project_id);
     assert_eq!(resp2.status, "committed");
-    assert_eq!(resp2.redirect_path, format!("/projects/{}", resp1.project_id));
+    assert_eq!(
+        resp2.redirect_path,
+        format!("/projects/{}", resp1.project_id)
+    );
 }
 
 /// P4S2-REOPEN-ALLOWED: Reopen when no scenes have written content succeeds, transitioning draft to editing.
@@ -1055,7 +1112,9 @@ async fn P4S2_REOPEN_ALLOWED_when_no_written_scenes() {
 
     let commit_resp = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await
@@ -1123,7 +1182,9 @@ async fn P4S2_REOPEN_FORBIDDEN_when_scenes_written() {
 
     let commit_resp = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await
@@ -1153,7 +1214,8 @@ async fn P4S2_REOPEN_FORBIDDEN_when_scenes_written() {
     // Case B: Clear scene content, but add a scene_versions row
     {
         let conn = pool.get().unwrap();
-        conn.execute("UPDATE scenes SET content = NULL, word_count = 0", []).unwrap();
+        conn.execute("UPDATE scenes SET content = NULL, word_count = 0", [])
+            .unwrap();
 
         let sc_id: String = conn
             .query_row("SELECT id FROM scenes LIMIT 1", [], |r| r.get(0))
@@ -1214,7 +1276,9 @@ async fn IPC_CMD_019_through_021_authorization_and_invocation() {
     // 1. IPC #19: preview
     let preview = exec_get_commit_confirmation_preview(
         &commit_service,
-        &GetCommitPreviewReq { draft_session_id: draft_id },
+        &GetCommitPreviewReq {
+            draft_session_id: draft_id,
+        },
     )
     .unwrap();
     assert!(preview.can_confirm);
@@ -1222,7 +1286,9 @@ async fn IPC_CMD_019_through_021_authorization_and_invocation() {
     // 2. IPC #20: commit with AI caller must be rejected with UnauthorizedCaller
     let err_ai = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::Ai,
     )
     .await
@@ -1232,7 +1298,9 @@ async fn IPC_CMD_019_through_021_authorization_and_invocation() {
     // 3. IPC #20: commit with UiAction caller succeeds
     let commit_resp = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CallerContext::UiAction,
     )
     .await

@@ -18,7 +18,9 @@ use crate::ipc::dto::{
     CommitDraftResponseDto, CommitPreviewDto, CommitValidationResultDto, PendingPatchDto,
     PendingPatchesSummaryDto, PlanSummaryDto, ReopenCommittedDraftResponseDto, ValidationIssueDto,
 };
-use crate::service::draft_runtime::{DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState, DRAFT_LOCK_TIMEOUT};
+use crate::service::draft_runtime::{
+    DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState, DRAFT_LOCK_TIMEOUT,
+};
 use crate::storage::commit_repo::{commit_draft_tx, reopen_committed_draft, CommitRepoError};
 use crate::storage::db::DbPool;
 
@@ -80,7 +82,10 @@ impl CommitService {
         draft_session_id: &Uuid,
     ) -> Result<CommitPreviewDto, IpcError> {
         let conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, format!("Failed to acquire connection: {}", e))
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Failed to acquire connection: {}", e),
+            )
         })?;
 
         // 1. Fetch draft session info
@@ -92,12 +97,17 @@ impl CommitService {
             .query(params![draft_session_id.to_string()])
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-        let (status, head_seq_opt): (String, Option<i64>) = if let Some(row) = session_rows
-            .next()
-            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+        let (status, head_seq_opt): (String, Option<i64>) = if let Some(row) =
+            session_rows
+                .next()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
         {
-            let s: Option<String> = row.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-            let h: Option<i64> = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            let s: Option<String> = row
+                .get(0)
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            let h: Option<i64> = row
+                .get(1)
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             (s.unwrap_or_else(|| "editing".to_string()), h)
         } else {
             return Err(IpcError::new(
@@ -112,7 +122,9 @@ impl CommitService {
             snap.business_flow_data.clone()
         } else if let Some(seq) = head_seq_opt {
             let mut ver_stmt = conn
-                .prepare("SELECT data_json FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2")
+                .prepare(
+                    "SELECT data_json FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
+                )
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
             let mut ver_rows = ver_stmt
@@ -123,7 +135,9 @@ impl CommitService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let data_json: String = row.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let data_json: String = row
+                    .get(0)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
                 BusinessFlowData::from_json_str_strict(&data_json).map_err(|e| {
                     IpcError::new(
                         ErrorCode::ValidationFailed,
@@ -183,7 +197,8 @@ impl CommitService {
 
         let mut pending_items = Vec::new();
         for pr in patch_rows {
-            pending_items.push(pr.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?);
+            pending_items
+                .push(pr.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?);
         }
         let pending_count = pending_items.len();
 
@@ -236,8 +251,20 @@ impl CommitService {
                 .value
                 .clone()
                 .unwrap_or_default(),
-            target_arcs: business_flow_data.require.project.target.arc_count.value.unwrap_or(0),
-            target_chapters: business_flow_data.require.project.target.chapter_count.value.unwrap_or(0),
+            target_arcs: business_flow_data
+                .require
+                .project
+                .target
+                .arc_count
+                .value
+                .unwrap_or(0),
+            target_chapters: business_flow_data
+                .require
+                .project
+                .target
+                .chapter_count
+                .value
+                .unwrap_or(0),
             target_words_per_chapter: business_flow_data
                 .require
                 .project
@@ -286,7 +313,10 @@ impl CommitService {
         caller.require_ui_action("commit_draft")?;
 
         let mut conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, format!("Failed to acquire connection: {}", e))
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Failed to acquire connection: {}", e),
+            )
         })?;
 
         // 1. Fetch draft session info
@@ -303,11 +333,24 @@ impl CommitService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let s_id: String = row.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let p_id: Option<String> = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_seq: Option<i64> = row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let st: Option<String> = row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                (s_id, p_id, h_seq, st.unwrap_or_else(|| "editing".to_string()))
+                let s_id: String = row
+                    .get(0)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let p_id: Option<String> = row
+                    .get(1)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_seq: Option<i64> = row
+                    .get(2)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let st: Option<String> = row
+                    .get(3)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                (
+                    s_id,
+                    p_id,
+                    h_seq,
+                    st.unwrap_or_else(|| "editing".to_string()),
+                )
             } else {
                 return Err(IpcError::new(
                     ErrorCode::EntityNotFound,
@@ -387,10 +430,16 @@ impl CommitService {
         let entry = self
             .registry
             .get_or_register(*draft_session_id, WorkingState::new(*draft_session_id));
-        let _guard = match tokio::time::timeout(DRAFT_LOCK_TIMEOUT, entry.operation_lock.lock()).await {
-            Ok(g) => g,
-            Err(_) => return Err(IpcError::new(ErrorCode::DraftBusy, "Operation lock timeout")),
-        };
+        let _guard =
+            match tokio::time::timeout(DRAFT_LOCK_TIMEOUT, entry.operation_lock.lock()).await {
+                Ok(g) => g,
+                Err(_) => {
+                    return Err(IpcError::new(
+                        ErrorCode::DraftBusy,
+                        "Operation lock timeout",
+                    ))
+                }
+            };
 
         // 7. Transition status to 'committing'
         let now_committing = Utc::now().to_rfc3339();
@@ -402,7 +451,12 @@ impl CommitService {
         entry.set_runtime_status(DraftRuntimeStatus::Committing);
 
         // 8. Execute TX-05 atomic commit
-        let commit_res = commit_draft_tx(&mut conn, draft_session_id, &session_id, &business_flow_data);
+        let commit_res = commit_draft_tx(
+            &mut conn,
+            draft_session_id,
+            &session_id,
+            &business_flow_data,
+        );
 
         match commit_res {
             Ok(project_id) => {
@@ -456,7 +510,10 @@ impl CommitService {
         active_session_id: &str,
     ) -> Result<ReopenCommittedDraftResponseDto, IpcError> {
         let mut conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, format!("Failed to acquire connection: {}", e))
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Failed to acquire connection: {}", e),
+            )
         })?;
 
         match reopen_committed_draft(&mut conn, project_id, active_session_id) {
@@ -473,7 +530,9 @@ impl CommitService {
                 ErrorCode::DraftReopenForbidden,
                 "Cannot reopen draft: project already has written scene content",
             )),
-            Err(CommitRepoError::NotFound(msg)) => Err(IpcError::new(ErrorCode::EntityNotFound, msg)),
+            Err(CommitRepoError::NotFound(msg)) => {
+                Err(IpcError::new(ErrorCode::EntityNotFound, msg))
+            }
             Err(CommitRepoError::Database(e)) => Err(IpcError::new(
                 ErrorCode::DatabaseError,
                 format!("Database error during draft reopen: {}", e),

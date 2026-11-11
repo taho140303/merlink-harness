@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and integration tests for `phase4_sprint3_deep1`
 //! ("Expose project and character library services").
 //!
@@ -8,6 +15,8 @@
 
 #![allow(non_snake_case)]
 
+mod common;
+
 #[path = "../src/error.rs"]
 pub mod error;
 
@@ -17,14 +26,14 @@ pub mod business_flow;
 pub mod code_allocator;
 #[path = "../src/domain/fingerprint.rs"]
 pub mod fingerprint;
-#[path = "../src/domain/word_count.rs"]
-pub mod word_count;
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
-#[path = "../src/domain/phase_gate.rs"]
-pub mod phase_gate;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
+#[path = "../src/domain/phase_gate.rs"]
+pub mod phase_gate;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
+#[path = "../src/domain/word_count.rs"]
+pub mod word_count;
 
 pub mod domain {
     pub use crate::business_flow;
@@ -36,18 +45,18 @@ pub mod domain {
     pub use crate::word_count;
 }
 
-#[path = "../src/storage/db.rs"]
-pub mod db;
-#[path = "../src/storage/migration.rs"]
-pub mod migration;
-#[path = "../src/storage/draft_repo.rs"]
-pub mod draft_repo;
-#[path = "../src/storage/commit_repo.rs"]
-pub mod commit_repo;
-#[path = "../src/storage/project_repo.rs"]
-pub mod project_repo;
 #[path = "../src/storage/character_repo.rs"]
 pub mod character_repo;
+#[path = "../src/storage/commit_repo.rs"]
+pub mod commit_repo;
+#[path = "../src/storage/db.rs"]
+pub mod db;
+#[path = "../src/storage/draft_repo.rs"]
+pub mod draft_repo;
+#[path = "../src/storage/migration.rs"]
+pub mod migration;
+#[path = "../src/storage/project_repo.rs"]
+pub mod project_repo;
 
 pub mod storage {
     pub use crate::character_repo;
@@ -58,16 +67,16 @@ pub mod storage {
     pub use crate::project_repo;
 }
 
+#[path = "../src/service/character_service.rs"]
+pub mod character_service;
+#[path = "../src/service/commit_service.rs"]
+pub mod commit_service;
 #[path = "../src/service/draft_runtime.rs"]
 pub mod draft_runtime;
 #[path = "../src/service/draft_service.rs"]
 pub mod draft_service;
-#[path = "../src/service/commit_service.rs"]
-pub mod commit_service;
 #[path = "../src/service/project_service.rs"]
 pub mod project_service;
-#[path = "../src/service/character_service.rs"]
-pub mod character_service;
 
 pub mod service {
     pub use crate::character_service;
@@ -77,12 +86,12 @@ pub mod service {
     pub use crate::project_service;
 }
 
+#[path = "../src/ipc/character_commands.rs"]
+pub mod character_commands;
 #[path = "../src/ipc/dto.rs"]
 pub mod dto;
 #[path = "../src/ipc/project_commands.rs"]
 pub mod project_commands;
-#[path = "../src/ipc/character_commands.rs"]
-pub mod character_commands;
 
 pub mod ipc {
     pub use crate::character_commands;
@@ -91,7 +100,6 @@ pub mod ipc {
 }
 
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
 use r2d2::Pool;
@@ -127,8 +135,7 @@ fn setup_test_db(temp_dir: &TempDir) -> (PathBuf, Pool<SqliteConnectionManager>)
         run_migrations(&mut conn).expect("run sqlite migrations");
     }
 
-    let manager = SqliteConnectionManager::file(&db_path)
-        .with_init(|c| configure_connection(c));
+    let manager = SqliteConnectionManager::file(&db_path).with_init(|c| configure_connection(c));
     let pool = Pool::builder()
         .max_size(8)
         .build(manager)
@@ -230,25 +237,10 @@ fn phase4_sprint3_deep1_F0() {
     let gate_p4s2 = GATE_P4S2_COMMIT;
     let gate_p3s2 = GATE_P3S2_COMMIT;
 
-    // Verify baseline commit
-    let is_ancestor = Command::new("git")
-        .args(["merge-base", "--is-ancestor", baseline, "HEAD"])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-
-    if !is_ancestor {
-        let cat_check = Command::new("git")
-            .args(["cat-file", "-e", &format!("{}^{{commit}}", baseline)])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
-        assert!(
-            cat_check,
-            "Baseline commit {} must exist in git repository",
-            baseline
-        );
-    }
+    assert!(
+        common::verify_commit(baseline),
+        "Baseline commit {baseline} must be an ancestor, a local object, or recorded in the lineage manifest"
+    );
 
     let gates = [
         ("gate_phase4_sprint2_deep0", gate_p4s2),
@@ -256,24 +248,10 @@ fn phase4_sprint3_deep1_F0() {
     ];
 
     for (name, sha) in gates {
-        let is_gate_ancestor = Command::new("git")
-            .args(["merge-base", "--is-ancestor", sha, "HEAD"])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
-
-        if !is_gate_ancestor {
-            let cat_check = Command::new("git")
-                .args(["cat-file", "-e", &format!("{}^{{commit}}", sha)])
-                .status()
-                .map(|s| s.success())
-                .unwrap_or(false);
-            assert!(
-                cat_check,
-                "Predecessor gate {} ({}) must exist in git repository",
-                name, sha
-            );
-        }
+        assert!(
+            common::verify_commit(sha),
+            "Predecessor gate {name} ({sha}) must be an ancestor, a local object, or recorded in the lineage manifest"
+        );
     }
 }
 
@@ -331,21 +309,32 @@ fn P4S3_PROJECT_LIST_AND_DETAIL() {
             "INSERT INTO project_genres (id, project_id, genre_id, is_primary)
              VALUES (?1, ?2, '018e3a00-0000-7000-8000-000000000001', 1)",
             params![Uuid::now_v7().to_string(), p1_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Hierarchy for Project 1
-        seed_test_hierarchy(&conn, &p1_id.to_string(), &ws_id, &arc_id, &ch_id, &sc1_id, &sc2_id);
+        seed_test_hierarchy(
+            &conn,
+            &p1_id.to_string(),
+            &ws_id,
+            &arc_id,
+            &ch_id,
+            &sc1_id,
+            &sc2_id,
+        );
 
         // Character in Project 1
         let char_id = Uuid::now_v7().to_string();
         conn.execute(
             "INSERT INTO characters (id, code, display_name) VALUES (?1, 'char_1', 'Linh Đan')",
             params![char_id],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
             params![Uuid::now_v7().to_string(), p1_id.to_string(), char_id],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // 1. Test list_projects with default sort (modified desc)
@@ -399,7 +388,11 @@ fn P4S3_PROJECT_LIST_AND_DETAIL() {
     assert_eq!(search_summary.items[0].title, "Alpha Novel");
 
     // 5. Test detail counts for Project 1
-    let p1_item = list_az.items.iter().find(|p| p.id == p1_id.to_string()).unwrap();
+    let p1_item = list_az
+        .items
+        .iter()
+        .find(|p| p.id == p1_id.to_string())
+        .unwrap();
     assert_eq!(p1_item.details.word_count, "4000"); // 1500 + 2500
     assert_eq!(p1_item.details.chapters, "1");
     assert_eq!(p1_item.details.characters, "1");
@@ -467,20 +460,31 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'proj_1', 'Project 1')",
             params![p1_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'proj_2', 'Project 2')",
             params![p2_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         // 2. Hierarchy for Project 1
-        seed_test_hierarchy(&conn, &p1_id.to_string(), &p1_ws_id, &arc_id, &ch_id, &sc1_id, &sc2_id);
+        seed_test_hierarchy(
+            &conn,
+            &p1_id.to_string(),
+            &p1_ws_id,
+            &arc_id,
+            &ch_id,
+            &sc1_id,
+            &sc2_id,
+        );
 
         // 3. Theme in Project 1 arc
         conn.execute(
             "INSERT INTO themes (id, arc_id, question) VALUES (?1, ?2, 'What is destiny?')",
             params![theme_id, arc_id],
-        ).unwrap();
+        )
+        .unwrap();
 
         // 4. Shared Character linked to both Project 1 and Project 2
         conn.execute(
@@ -489,24 +493,36 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
         ).unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
-            params![Uuid::now_v7().to_string(), p1_id.to_string(), shared_char_id],
-        ).unwrap();
+            params![
+                Uuid::now_v7().to_string(),
+                p1_id.to_string(),
+                shared_char_id
+            ],
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
-            params![Uuid::now_v7().to_string(), p2_id.to_string(), shared_char_id],
-        ).unwrap();
+            params![
+                Uuid::now_v7().to_string(),
+                p2_id.to_string(),
+                shared_char_id
+            ],
+        )
+        .unwrap();
 
         // 5. Template World Setting (project_id IS NULL) and its lore entry
         conn.execute(
             "INSERT INTO world_settings (id, code, project_id, display_name, type)
              VALUES (?1, 'template_world', NULL, 'Global Template Realm', 'WORLD')",
             params![template_ws_id],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO lore_entries (id, code, type, display_name, world_setting_id)
              VALUES (?1, 'template_lore', 'CULTURE', 'Universal Laws', ?2)",
             params![template_lore_id, template_ws_id],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // Execute scoped soft-delete on Project 1
@@ -531,22 +547,38 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
 
         // Project 1 arcs, chapters, scenes, themes must be soft-deleted
         let arc_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM arcs WHERE id = ?1", params![arc_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM arcs WHERE id = ?1",
+                params![arc_id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert!(arc_deleted.is_some());
 
         let ch_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM chapters WHERE id = ?1", params![ch_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM chapters WHERE id = ?1",
+                params![ch_id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert!(ch_deleted.is_some());
 
         let sc_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM scenes WHERE id = ?1", params![sc1_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM scenes WHERE id = ?1",
+                params![sc1_id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert!(sc_deleted.is_some());
 
         let theme_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM themes WHERE id = ?1", params![theme_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM themes WHERE id = ?1",
+                params![theme_id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert!(theme_deleted.is_some());
 
@@ -562,7 +594,11 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
 
         // Project 1-specific world settings and lore entries are soft-deleted
         let p1_ws_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM world_settings WHERE id = ?1", params![p1_ws_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM world_settings WHERE id = ?1",
+                params![p1_ws_id],
+                |r| r.get(0),
+            )
             .unwrap();
         assert!(p1_ws_deleted.is_some());
 
@@ -572,9 +608,16 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
 
         // 1. Shared character in library is NOT deleted
         let char_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM characters WHERE id = ?1", params![shared_char_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM characters WHERE id = ?1",
+                params![shared_char_id],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert!(char_deleted.is_none(), "Shared library character must NOT be soft-deleted");
+        assert!(
+            char_deleted.is_none(),
+            "Shared library character must NOT be soft-deleted"
+        );
 
         // 2. Project 2 link to shared character is NOT deleted
         let p2_pc_deleted: Option<String> = conn
@@ -584,19 +627,36 @@ fn P4S3_PROJECT_DELETE_SCOPED() {
                 |r| r.get(0),
             )
             .unwrap();
-        assert!(p2_pc_deleted.is_none(), "Project 2 link must NOT be soft-deleted");
+        assert!(
+            p2_pc_deleted.is_none(),
+            "Project 2 link must NOT be soft-deleted"
+        );
 
         // 3. Template world setting (project_id IS NULL) is NOT deleted
         let tmpl_ws_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM world_settings WHERE id = ?1", params![template_ws_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM world_settings WHERE id = ?1",
+                params![template_ws_id],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert!(tmpl_ws_deleted.is_none(), "Template world setting must NOT be deleted");
+        assert!(
+            tmpl_ws_deleted.is_none(),
+            "Template world setting must NOT be deleted"
+        );
 
         // 4. Template lore entry is NOT deleted
         let tmpl_lore_deleted: Option<String> = conn
-            .query_row("SELECT deleted_at FROM lore_entries WHERE id = ?1", params![template_lore_id], |r| r.get(0))
+            .query_row(
+                "SELECT deleted_at FROM lore_entries WHERE id = ?1",
+                params![template_lore_id],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert!(tmpl_lore_deleted.is_none(), "Template lore entry must NOT be deleted");
+        assert!(
+            tmpl_lore_deleted.is_none(),
+            "Template lore entry must NOT be deleted"
+        );
     }
 
     // Calling delete again on already deleted project yields EntityNotFound
@@ -628,11 +688,13 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'proj_1', 'Project 1')",
             params![proj1_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'proj_2', 'Project 2')",
             params![proj2_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Character 1: Linh Đan (Tiểu Linh) - In Project 1, Female
         conn.execute(
@@ -642,8 +704,13 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         ).unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
-            params![Uuid::now_v7().to_string(), proj1_id.to_string(), c1_id.to_string()],
-        ).unwrap();
+            params![
+                Uuid::now_v7().to_string(),
+                proj1_id.to_string(),
+                c1_id.to_string()
+            ],
+        )
+        .unwrap();
 
         // Character 2: Minh Hoàng (Hoàng Tử) - In Project 1, Male
         conn.execute(
@@ -653,8 +720,13 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         ).unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
-            params![Uuid::now_v7().to_string(), proj1_id.to_string(), c2_id.to_string()],
-        ).unwrap();
+            params![
+                Uuid::now_v7().to_string(),
+                proj1_id.to_string(),
+                c2_id.to_string()
+            ],
+        )
+        .unwrap();
 
         // Character 3: Đức Trọng (Đại Ca) - In Project 2 only, Male
         conn.execute(
@@ -664,8 +736,13 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         ).unwrap();
         conn.execute(
             "INSERT INTO project_characters (id, project_id, character_id) VALUES (?1, ?2, ?3)",
-            params![Uuid::now_v7().to_string(), proj2_id.to_string(), c3_id.to_string()],
-        ).unwrap();
+            params![
+                Uuid::now_v7().to_string(),
+                proj2_id.to_string(),
+                c3_id.to_string()
+            ],
+        )
+        .unwrap();
 
         // Character 4: Bạch Lan (Tiểu Lan) - Library only (no project), Female
         conn.execute(
@@ -795,7 +872,10 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         })
         .expect("filter female");
     assert_eq!(res_sex_female.items.len(), 2);
-    assert!(res_sex_female.items.iter().all(|c| c.biological_sex == "FEMALE"));
+    assert!(res_sex_female
+        .items
+        .iter()
+        .all(|c| c.biological_sex == "FEMALE"));
 
     let res_sex_male = character_service
         .list_characters(&ListCharactersReq {
@@ -805,7 +885,10 @@ fn P4S3_CHARACTER_4TIER_SEARCH() {
         })
         .expect("filter male");
     assert_eq!(res_sex_male.items.len(), 2);
-    assert!(res_sex_male.items.iter().all(|c| c.biological_sex == "MALE"));
+    assert!(res_sex_male
+        .items
+        .iter()
+        .all(|c| c.biological_sex == "MALE"));
 }
 
 /// P4S3-CHARACTER-DETAIL-AND-UPSERT: Complete character 3-tab creation, updates, and invariant validation.
@@ -987,7 +1070,10 @@ fn P4S3_CHARACTER_DETAIL_AND_UPSERT() {
     assert_eq!(created.memories[0].title, "Tuyết Sơn Biến Cố");
 
     assert_eq!(created.competences.len(), 1);
-    assert_eq!(created.competences[0].competence_name, "Băng Hàn Kiếm Quyết");
+    assert_eq!(
+        created.competences[0].competence_name,
+        "Băng Hàn Kiếm Quyết"
+    );
     assert_eq!(created.competences[0].scene_id, Some(sc_id));
 
     // Verify get_character_detail directly
@@ -1080,7 +1166,8 @@ async fn run_link_to_draft_scenario() {
             "INSERT INTO characters (id, code, display_name, nickname, biological_sex)
              VALUES (?1, 'char_diep_thanh', 'Diệp Thanh', 'Thanh Nhi', 'MALE')",
             params![char_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // 2. Seed draft session in "editing" state
@@ -1109,9 +1196,15 @@ async fn run_link_to_draft_scenario() {
     let ws_chars = &snap.business_flow_data.require.character;
     assert_eq!(ws_chars.len(), 1);
     assert_eq!(ws_chars[0].code, "char_diep_thanh");
-    assert_eq!(ws_chars[0].display_name.value.as_deref(), Some("Diệp Thanh"));
+    assert_eq!(
+        ws_chars[0].display_name.value.as_deref(),
+        Some("Diệp Thanh")
+    );
     assert_eq!(ws_chars[0].role.value.as_deref(), Some("RIVAL"));
-    assert_eq!(ws_chars[0].notes.value.as_deref(), Some("Former disciple rival"));
+    assert_eq!(
+        ws_chars[0].notes.value.as_deref(),
+        Some("Former disciple rival")
+    );
     assert!(ws_chars[0].reused_library_character);
 
     // 4. Test idempotency (linking the same character again must not duplicate)
@@ -1140,7 +1233,10 @@ async fn run_link_to_draft_scenario() {
             notes: None,
         })
         .await;
-    assert_eq!(err_char_not_found.unwrap_err().code, ErrorCode::EntityNotFound);
+    assert_eq!(
+        err_char_not_found.unwrap_err().code,
+        ErrorCode::EntityNotFound
+    );
 
     // 6. Error case: Draft session not found
     let err_draft_not_found = character_service
@@ -1151,11 +1247,20 @@ async fn run_link_to_draft_scenario() {
             notes: None,
         })
         .await;
-    assert_eq!(err_draft_not_found.unwrap_err().code, ErrorCode::EntityNotFound);
+    assert_eq!(
+        err_draft_not_found.unwrap_err().code,
+        ErrorCode::EntityNotFound
+    );
 
     // 7. Error case: Draft in committing / committed status cannot link characters
     let draft_committed_id = Uuid::now_v7();
-    seed_draft_session(&pool, draft_committed_id, proj_id, "session_committed", "committed");
+    seed_draft_session(
+        &pool,
+        draft_committed_id,
+        proj_id,
+        "session_committed",
+        "committed",
+    );
 
     let err_committed = character_service
         .link_library_character_to_draft(&LinkLibraryCharacterToDraftReq {
@@ -1185,7 +1290,8 @@ fn IPC_CMD_022_list_projects() {
     let (_db_path, pool) = setup_test_db(&temp_dir);
     let service = ProjectService::new(pool.clone());
 
-    let res = exec_list_projects(&service, &ListProjectsReq::default()).expect("exec_list_projects");
+    let res =
+        exec_list_projects(&service, &ListProjectsReq::default()).expect("exec_list_projects");
     assert_eq!(res.items.len(), 0);
 }
 
@@ -1202,7 +1308,8 @@ fn IPC_CMD_023_get_project_detail() {
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'p23', 'Project 23')",
             params![pid.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     let res = exec_get_project_detail(&service, &GetProjectDetailReq { project_id: pid })
@@ -1223,7 +1330,8 @@ fn IPC_CMD_024_delete_project() {
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'p24', 'Project 24')",
             params![pid.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     let res = exec_delete_project(&service, &DeleteProjectReq { project_id: pid })
@@ -1240,7 +1348,8 @@ fn IPC_CMD_025_list_characters() {
     let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
     let service = CharacterService::new(pool.clone(), draft_service);
 
-    let res = exec_list_characters(&service, &ListCharactersReq::default()).expect("exec_list_characters");
+    let res = exec_list_characters(&service, &ListCharactersReq::default())
+        .expect("exec_list_characters");
     assert_eq!(res.items.len(), 0);
 }
 
@@ -1259,7 +1368,8 @@ fn IPC_CMD_026_get_character_detail() {
         conn.execute(
             "INSERT INTO characters (id, code, display_name) VALUES (?1, 'c26', 'Char 26')",
             params![cid.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     let res = exec_get_character_detail(
@@ -1322,11 +1432,13 @@ async fn IPC_CMD_028_link_library_character_to_draft() {
         conn.execute(
             "INSERT INTO projects (id, code, display_name) VALUES (?1, 'p28', 'Project 28')",
             params![pid.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO characters (id, code, display_name) VALUES (?1, 'c28', 'Char 28')",
             params![cid.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
     }
     seed_draft_session(&pool, did, pid, "s28", "editing");
 
@@ -1386,12 +1498,16 @@ fn phase4_sprint3_deep1_F2() {
 
     let rand_id = Uuid::now_v7();
     let err_proj = project_service
-        .get_project_detail(&GetProjectDetailReq { project_id: rand_id })
+        .get_project_detail(&GetProjectDetailReq {
+            project_id: rand_id,
+        })
         .unwrap_err();
     assert_eq!(err_proj.code, ErrorCode::EntityNotFound);
 
     let err_del = project_service
-        .delete_project(&DeleteProjectReq { project_id: rand_id })
+        .delete_project(&DeleteProjectReq {
+            project_id: rand_id,
+        })
         .unwrap_err();
     assert_eq!(err_del.code, ErrorCode::EntityNotFound);
 

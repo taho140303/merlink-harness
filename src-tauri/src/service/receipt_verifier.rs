@@ -208,38 +208,49 @@ pub fn verify_historical_round(
     // -------------------------------------------------------------------------
     // Step 1: Read and validate round header from workflow_round_receipts
     // -------------------------------------------------------------------------
-    let header_opt: Option<RoundHeaderRow> = match conn.query_row(
-        "SELECT id, draft_session_id, workflow_run_id, plan_generation, round_index, \
+    let header_opt: Option<RoundHeaderRow> = match conn
+        .query_row(
+            "SELECT id, draft_session_id, workflow_run_id, plan_generation, round_index, \
                 round_seal_key, task_count, parallel_limit, plan_digest, request_digest, \
                 base_version_seq, base_data_hash, final_data_hash, resulting_version_seq \
          FROM workflow_round_receipts WHERE id = ?1",
-        params![round_receipt_id],
-        |row| {
-            Ok(RoundHeaderRow {
-                id: row.get(0)?,
-                draft_session_id: row.get(1)?,
-                workflow_run_id: row.get(2)?,
-                plan_generation: row.get(3)?,
-                round_index: row.get(4)?,
-                round_seal_key: row.get(5)?,
-                task_count: row.get(6)?,
-                parallel_limit: row.get(7)?,
-                plan_digest: row.get(8)?,
-                request_digest: row.get(9)?,
-                base_version_seq: row.get(10)?,
-                base_data_hash: row.get(11)?,
-                final_data_hash: row.get(12)?,
-                resulting_version_seq: row.get(13)?,
-            })
-        },
-    ).optional() {
+            params![round_receipt_id],
+            |row| {
+                Ok(RoundHeaderRow {
+                    id: row.get(0)?,
+                    draft_session_id: row.get(1)?,
+                    workflow_run_id: row.get(2)?,
+                    plan_generation: row.get(3)?,
+                    round_index: row.get(4)?,
+                    round_seal_key: row.get(5)?,
+                    task_count: row.get(6)?,
+                    parallel_limit: row.get(7)?,
+                    plan_digest: row.get(8)?,
+                    request_digest: row.get(9)?,
+                    base_version_seq: row.get(10)?,
+                    base_data_hash: row.get(11)?,
+                    final_data_hash: row.get(12)?,
+                    resulting_version_seq: row.get(13)?,
+                })
+            },
+        )
+        .optional()
+    {
         Ok(opt) => opt,
-        Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("Failed to query round header: {e}")),
+        Err(e) => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "Failed to query round header: {e}"
+            ))
+        }
     };
 
     let header = match header_opt {
         Some(h) => h,
-        None => return HistoricalRoundVerificationResult::corrupt("Round header not found in workflow_round_receipts"),
+        None => {
+            return HistoricalRoundVerificationResult::corrupt(
+                "Round header not found in workflow_round_receipts",
+            )
+        }
     };
 
     // Header field sanity checks
@@ -256,7 +267,9 @@ pub fn verify_historical_round(
         return HistoricalRoundVerificationResult::corrupt("parallel_limit must be >= 1");
     }
     if (header.task_count as u32) > (header.parallel_limit as u32) {
-        return HistoricalRoundVerificationResult::corrupt("task_count exceeds frozen parallel_limit (N <= P violation)");
+        return HistoricalRoundVerificationResult::corrupt(
+            "task_count exceeds frozen parallel_limit (N <= P violation)",
+        );
     }
 
     // Verify round_seal_key format: wf_round:<canonical UUID>:<generation>:<round_index>
@@ -305,20 +318,30 @@ pub fn verify_historical_round(
 
     let (s0_json, s0_stored_hash) = match s0_row {
         Some(pair) => pair,
-        None => return HistoricalRoundVerificationResult::corrupt(format!(
-            "Base draft version seq {} not found for session {}",
-            header.base_version_seq, header.draft_session_id
-        )),
+        None => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "Base draft version seq {} not found for session {}",
+                header.base_version_seq, header.draft_session_id
+            ))
+        }
     };
 
     let s0: BusinessFlowData = match serde_json::from_str(&s0_json) {
         Ok(data) => data,
-        Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("S0 data_json deserialization error: {e}")),
+        Err(e) => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "S0 data_json deserialization error: {e}"
+            ))
+        }
     };
 
     let s0_computed_hash = match state_data_hash(&s0) {
         Ok(h) => h,
-        Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("S0 state_data_hash computation error: {e}")),
+        Err(e) => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "S0 state_data_hash computation error: {e}"
+            ))
+        }
     };
 
     if s0_computed_hash != header.base_data_hash || s0_computed_hash != s0_stored_hash {
@@ -338,30 +361,40 @@ pub fn verify_historical_round(
          FROM workflow_task_receipts WHERE round_receipt_id = ?1 ORDER BY task_index ASC",
     ) {
         Ok(s) => s,
-        Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("Failed to prepare child receipts query: {e}")),
+        Err(e) => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "Failed to prepare child receipts query: {e}"
+            ))
+        }
     };
 
-    let child_rows_res: Result<Vec<TaskReceiptRow>, _> = stmt.query_map(params![header.id], |row| {
-        Ok(TaskReceiptRow {
-            id: row.get(0)?,
-            draft_session_id: row.get(1)?,
-            workflow_run_id: row.get(2)?,
-            plan_generation: row.get(3)?,
-            task_identity: row.get(4)?,
-            input_scope_fingerprint: row.get(5)?,
-            output_scope_fingerprint: row.get(6)?,
-            base_version_seq: row.get(7)?,
-            resulting_version_seq: row.get(8)?,
-            had_mutations: row.get(9)?,
-            round_receipt_id: row.get(10)?,
-            task_index: row.get(11)?,
-            evidence_json: row.get(12)?,
+    let child_rows_res: Result<Vec<TaskReceiptRow>, _> = stmt
+        .query_map(params![header.id], |row| {
+            Ok(TaskReceiptRow {
+                id: row.get(0)?,
+                draft_session_id: row.get(1)?,
+                workflow_run_id: row.get(2)?,
+                plan_generation: row.get(3)?,
+                task_identity: row.get(4)?,
+                input_scope_fingerprint: row.get(5)?,
+                output_scope_fingerprint: row.get(6)?,
+                base_version_seq: row.get(7)?,
+                resulting_version_seq: row.get(8)?,
+                had_mutations: row.get(9)?,
+                round_receipt_id: row.get(10)?,
+                task_index: row.get(11)?,
+                evidence_json: row.get(12)?,
+            })
         })
-    }).and_then(|mapped| mapped.collect());
+        .and_then(|mapped| mapped.collect());
 
     let child_rows = match child_rows_res {
         Ok(rows) => rows,
-        Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("Failed to read child receipts: {e}")),
+        Err(e) => {
+            return HistoricalRoundVerificationResult::corrupt(format!(
+                "Failed to read child receipts: {e}"
+            ))
+        }
     };
 
     // Exact child membership check: must have exactly header.task_count children
@@ -457,7 +490,11 @@ pub fn verify_historical_round(
         };
 
         // Validate taskIdentity inside taskSpec matches child row task_identity
-        if let Some(spec_identity) = evidence.task_spec.get("taskIdentity").and_then(Value::as_str) {
+        if let Some(spec_identity) = evidence
+            .task_spec
+            .get("taskIdentity")
+            .and_then(Value::as_str)
+        {
             if spec_identity != child.task_identity {
                 return HistoricalRoundVerificationResult::corrupt(format!(
                     "Task identity mismatch at index {}: child row has '{}', task_spec has '{}'",
@@ -592,22 +629,39 @@ pub fn verify_historical_round(
     // -------------------------------------------------------------------------
     match header.resulting_version_seq {
         Some(res_seq) => {
-            let res_row_opt: Option<(String, String, String, i64, String)> = match conn.query_row(
-                "SELECT data_hash, seal_key, reason, parent_seq, data_json \
+            let res_row_opt: Option<(String, String, String, i64, String)> = match conn
+                .query_row(
+                    "SELECT data_hash, seal_key, reason, parent_seq, data_json \
                  FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
-                params![header.draft_session_id, res_seq],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
-            ).optional() {
+                    params![header.draft_session_id, res_seq],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                        ))
+                    },
+                )
+                .optional()
+            {
                 Ok(opt) => opt,
-                Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("Failed to query resulting draft_version: {e}")),
+                Err(e) => {
+                    return HistoricalRoundVerificationResult::corrupt(format!(
+                        "Failed to query resulting draft_version: {e}"
+                    ))
+                }
             };
 
             let (stored_hash, seal_key, reason, parent_seq, data_json) = match res_row_opt {
                 Some(row) => row,
-                None => return HistoricalRoundVerificationResult::corrupt(format!(
-                    "Resulting draft version seq {} missing from draft_versions",
-                    res_seq
-                )),
+                None => {
+                    return HistoricalRoundVerificationResult::corrupt(format!(
+                        "Resulting draft version seq {} missing from draft_versions",
+                        res_seq
+                    ))
+                }
             };
 
             if stored_hash != header.final_data_hash {
@@ -637,10 +691,17 @@ pub fn verify_historical_round(
 
             let parsed_final: BusinessFlowData = match serde_json::from_str(&data_json) {
                 Ok(p) => p,
-                Err(e) => return HistoricalRoundVerificationResult::corrupt(format!("Resulting draft_version data_json invalid: {e}")),
+                Err(e) => {
+                    return HistoricalRoundVerificationResult::corrupt(format!(
+                        "Resulting draft_version data_json invalid: {e}"
+                    ))
+                }
             };
 
-            if !matches!(states_are_semantically_equal(&parsed_final, &current_state), Ok(true)) {
+            if !matches!(
+                states_are_semantically_equal(&parsed_final, &current_state),
+                Ok(true)
+            ) {
                 return HistoricalRoundVerificationResult::corrupt(
                     "Resulting draft_version state is not semantically equal to replayed final state",
                 );
@@ -663,17 +724,23 @@ pub fn verify_historical_round(
     // -------------------------------------------------------------------------
     // Step 8: Evaluate Current-Head Applicability (Dimension 3)
     // -------------------------------------------------------------------------
-    let target_seq = header.resulting_version_seq.unwrap_or(header.base_version_seq);
+    let target_seq = header
+        .resulting_version_seq
+        .unwrap_or(header.base_version_seq);
 
     // Resolve head seq: either passed by caller or queried from draft_sessions
     let head_seq = match current_head_seq.into_head_seq() {
         Some(s) => s,
         None => {
-            let session_head: Option<i64> = conn.query_row(
-                "SELECT head_version_seq FROM draft_sessions WHERE id = ?1",
-                params![header.draft_session_id],
-                |row| row.get(0),
-            ).optional().unwrap_or(None).flatten();
+            let session_head: Option<i64> = conn
+                .query_row(
+                    "SELECT head_version_seq FROM draft_sessions WHERE id = ?1",
+                    params![header.draft_session_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .unwrap_or(None)
+                .flatten();
 
             match session_head {
                 Some(s) => s,
@@ -710,11 +777,15 @@ pub fn verify_historical_round(
             break;
         }
 
-        let parent_opt: Option<i64> = conn.query_row(
-            "SELECT parent_seq FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
-            params![header.draft_session_id, curr_lineage],
-            |row| row.get(0),
-        ).optional().unwrap_or(None).flatten();
+        let parent_opt: Option<i64> = conn
+            .query_row(
+                "SELECT parent_seq FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
+                params![header.draft_session_id, curr_lineage],
+                |row| row.get(0),
+            )
+            .optional()
+            .unwrap_or(None)
+            .flatten();
 
         match parent_opt {
             Some(p) => curr_lineage = p,

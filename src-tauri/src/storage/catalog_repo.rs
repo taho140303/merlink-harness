@@ -252,27 +252,45 @@ pub trait CatalogRepo {
     fn get_genre_by_code(&self, code: &str) -> Result<Option<GenreRecord>, CatalogRepoError>;
     fn list_genres(&self) -> Result<Vec<GenreRecord>, CatalogRepoError>;
 
-    fn get_character_by_code(&self, code: &str) -> Result<Option<CharacterRecord>, CatalogRepoError>;
-    fn list_characters(&self, include_deleted: bool) -> Result<Vec<CharacterRecord>, CatalogRepoError>;
+    fn get_character_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<CharacterRecord>, CatalogRepoError>;
+    fn list_characters(
+        &self,
+        include_deleted: bool,
+    ) -> Result<Vec<CharacterRecord>, CatalogRepoError>;
 
-    fn get_world_setting_by_code(&self, code: &str) -> Result<Option<WorldSettingRecord>, CatalogRepoError>;
+    fn get_world_setting_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<WorldSettingRecord>, CatalogRepoError>;
     fn list_world_settings(
         &self,
         project_id: Option<&str>,
         include_deleted: bool,
     ) -> Result<Vec<WorldSettingRecord>, CatalogRepoError>;
 
-    fn get_lore_entry_by_code(&self, code: &str) -> Result<Option<LoreEntryRecord>, CatalogRepoError>;
+    fn get_lore_entry_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<LoreEntryRecord>, CatalogRepoError>;
     fn list_lore_entries(
         &self,
         world_setting_id: Option<&str>,
         include_deleted: bool,
     ) -> Result<Vec<LoreEntryRecord>, CatalogRepoError>;
 
-    fn get_prompt_block(&self, prompt_code: &str) -> Result<Option<PromptBlockRecord>, CatalogRepoError>;
+    fn get_prompt_block(
+        &self,
+        prompt_code: &str,
+    ) -> Result<Option<PromptBlockRecord>, CatalogRepoError>;
     fn list_prompt_blocks(&self) -> Result<Vec<PromptBlockRecord>, CatalogRepoError>;
 
-    fn get_style_preset_by_code(&self, code: &str) -> Result<Option<StylePresetRecord>, CatalogRepoError>;
+    fn get_style_preset_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<StylePresetRecord>, CatalogRepoError>;
     fn list_style_presets(&self) -> Result<Vec<StylePresetRecord>, CatalogRepoError>;
 }
 
@@ -381,7 +399,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         Ok(records)
     }
 
-    fn get_character_by_code(&self, code: &str) -> Result<Option<CharacterRecord>, CatalogRepoError> {
+    fn get_character_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<CharacterRecord>, CatalogRepoError> {
         let mut stmt = self
             .conn
             .prepare(
@@ -401,7 +422,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         }
     }
 
-    fn list_characters(&self, include_deleted: bool) -> Result<Vec<CharacterRecord>, CatalogRepoError> {
+    fn list_characters(
+        &self,
+        include_deleted: bool,
+    ) -> Result<Vec<CharacterRecord>, CatalogRepoError> {
         let sql = if include_deleted {
             "SELECT id, code, display_name, nickname, birth, species, biological_sex, gender_identity, gender_expression, deleted_at
              FROM characters
@@ -425,7 +449,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         Ok(records)
     }
 
-    fn get_world_setting_by_code(&self, code: &str) -> Result<Option<WorldSettingRecord>, CatalogRepoError> {
+    fn get_world_setting_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<WorldSettingRecord>, CatalogRepoError> {
         let mut stmt = self
             .conn
             .prepare(
@@ -505,7 +532,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         Ok(records)
     }
 
-    fn get_lore_entry_by_code(&self, code: &str) -> Result<Option<LoreEntryRecord>, CatalogRepoError> {
+    fn get_lore_entry_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<LoreEntryRecord>, CatalogRepoError> {
         let mut stmt = self
             .conn
             .prepare(
@@ -575,7 +605,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         Ok(records)
     }
 
-    fn get_prompt_block(&self, prompt_code: &str) -> Result<Option<PromptBlockRecord>, CatalogRepoError> {
+    fn get_prompt_block(
+        &self,
+        prompt_code: &str,
+    ) -> Result<Option<PromptBlockRecord>, CatalogRepoError> {
         let mut stmt = self
             .conn
             .prepare(
@@ -616,7 +649,10 @@ impl<'a> CatalogRepo for SqliteCatalogRepo<'a> {
         Ok(records)
     }
 
-    fn get_style_preset_by_code(&self, code: &str) -> Result<Option<StylePresetRecord>, CatalogRepoError> {
+    fn get_style_preset_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<StylePresetRecord>, CatalogRepoError> {
         let mut stmt = self
             .conn
             .prepare(

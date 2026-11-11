@@ -14,8 +14,8 @@ use crate::domain::progress_engine::evaluate_progress;
 use crate::domain::tools::registry::CallerCategory;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    ConfirmAllPatchesResponseDto, DraftVersionSummaryDto, PatchResolutionDto,
-    PendingPatchDto, PendingPatchListDto, ProgressSummaryDto, SkippedPatchDto,
+    ConfirmAllPatchesResponseDto, DraftVersionSummaryDto, PatchResolutionDto, PendingPatchDto,
+    PendingPatchListDto, ProgressSummaryDto, SkippedPatchDto,
 };
 use crate::service::draft_runtime::{
     DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState, DRAFT_LOCK_TIMEOUT,
@@ -206,16 +206,13 @@ impl PatchService {
         for mut record in records {
             if record.status == "pending" {
                 // Perform lazy expiration check
-                match evaluate_proposal(&record, &snapshot.business_flow_data) {
-                    ProposalEvaluationResult::Expired { reason } => {
-                        let _ = expire_patch(&conn, &record.id, &now);
-                        record.status = "expired".to_string();
-                        let mut dto: PendingPatchDto = record.into();
-                        dto.reason = Some(reason);
-                        items.push(dto);
-                        continue;
-                    }
-                    _ => {}
+                if let ProposalEvaluationResult::Expired { reason } = evaluate_proposal(&record, &snapshot.business_flow_data) {
+                    let _ = expire_patch(&conn, &record.id, &now);
+                    record.status = "expired".to_string();
+                    let mut dto: PendingPatchDto = record.into();
+                    dto.reason = Some(reason);
+                    items.push(dto);
+                    continue;
                 }
             }
             items.push(record.into());
@@ -258,13 +255,17 @@ impl PatchService {
         {
             return Err(IpcError::new(
                 ErrorCode::DraftNotEditable,
-                format!("Draft {} is in non-editable state: {}", draft_session_id, snapshot.status),
+                format!(
+                    "Draft {} is in non-editable state: {}",
+                    draft_session_id, snapshot.status
+                ),
             ));
         }
 
-        let mut conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, e.to_string())
-        })?;
+        let mut conn = self
+            .pool
+            .get()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         // TX-02 boundary
         let tx = conn
@@ -284,7 +285,8 @@ impl PatchService {
 
         // 1. CAS: Check already confirmed
         if record.status == "confirmed" {
-            tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            tx.commit()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(PatchResolutionDto {
                 status: "already_confirmed".to_string(),
                 sealed_version: None,
@@ -294,7 +296,8 @@ impl PatchService {
 
         // 2. CAS: Check already rejected
         if record.status == "rejected" {
-            tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            tx.commit()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(PatchResolutionDto {
                 status: "already_rejected".to_string(),
                 sealed_version: None,
@@ -304,7 +307,8 @@ impl PatchService {
 
         // 3. CAS: Check already expired
         if record.status == "expired" {
-            tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            tx.commit()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(PatchResolutionDto {
                 status: "expired".to_string(),
                 sealed_version: None,
@@ -321,14 +325,18 @@ impl PatchService {
                 let _ = tx.rollback();
                 return Err(IpcError::new(
                     ErrorCode::ProposalEligibilityIndeterminate,
-                    format!("Proposal {} eligibility indeterminate: {}", patch_id, reason),
+                    format!(
+                        "Proposal {} eligibility indeterminate: {}",
+                        patch_id, reason
+                    ),
                 ));
             }
             ProposalEvaluationResult::Expired { reason } => {
                 // Update status to expired in DB
                 expire_patch(&tx, &patch_id, &now)
                     .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                tx.commit()
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
                 entry.mutate_working_state(|ws| {
                     if let Some(p) = ws.pending_patches.iter_mut().find(|p| p.id == patch_id) {
@@ -351,9 +359,18 @@ impl PatchService {
 
         if record.operation == "set" {
             let field = record.field_name.as_deref().unwrap_or_default();
-            let new_val = record.new_value.as_ref().unwrap_or(&serde_json::Value::Null);
-            apply_field_mutation(&mut candidate, &record.target_type, &record.target_code, field, new_val)
-                .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e))?;
+            let new_val = record
+                .new_value
+                .as_ref()
+                .unwrap_or(&serde_json::Value::Null);
+            apply_field_mutation(
+                &mut candidate,
+                &record.target_type,
+                &record.target_code,
+                field,
+                new_val,
+            )
+            .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e))?;
         } else if record.operation == "delete" {
             let outcome = execute_delete(
                 &candidate,
@@ -394,7 +411,8 @@ impl PatchService {
             ));
         }
 
-        tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        tx.commit()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         // 7. Update in-memory WorkingState
         entry.mutate_working_state(|ws| {
@@ -468,9 +486,10 @@ impl PatchService {
             ));
         }
 
-        let mut conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, e.to_string())
-        })?;
+        let mut conn = self
+            .pool
+            .get()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -488,7 +507,8 @@ impl PatchService {
         let now = chrono::Utc::now().to_rfc3339();
 
         if record.status == "rejected" {
-            tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            tx.commit()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(PatchResolutionDto {
                 status: "already_rejected".to_string(),
                 sealed_version: None,
@@ -497,7 +517,8 @@ impl PatchService {
         }
 
         if record.status == "confirmed" {
-            tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            tx.commit()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(PatchResolutionDto {
                 status: "already_confirmed".to_string(),
                 sealed_version: None,
@@ -509,7 +530,8 @@ impl PatchService {
         update_status_cas(&tx, &patch_id, "pending", "rejected", &now)
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-        tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        tx.commit()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         // Update in-memory WorkingState
         entry.mutate_working_state(|ws| {
@@ -567,16 +589,20 @@ impl PatchService {
         // Idempotency check: see if batch version already sealed
         let seal_key = format!("patch_batch:{}", client_request_id);
         {
-            let conn_check = self.pool.get().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-            let mut check_stmt = conn_check.prepare(
-                "SELECT seq, phase, subphase, reason, parent_seq, created_at
+            let conn_check = self
+                .pool
+                .get()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            let mut check_stmt = conn_check
+                .prepare(
+                    "SELECT seq, phase, subphase, reason, parent_seq, created_at
                  FROM draft_versions
                  WHERE draft_session_id = ?1 AND seal_key = ?2",
-            ).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-            let existing_opt = check_stmt.query_row(
-                params![draft_session_id.to_string(), seal_key],
-                |row| {
+            let existing_opt = check_stmt
+                .query_row(params![draft_session_id.to_string(), seal_key], |row| {
                     let seq: i32 = row.get(0)?;
                     let phase: i32 = row.get(1)?;
                     let subphase: Option<i32> = row.get(2)?;
@@ -594,8 +620,9 @@ impl PatchService {
                         created_at,
                         data_hash: None,
                     })
-                },
-            ).optional().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                })
+                .optional()
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
             if let Some(existing_summary) = existing_opt {
                 return Ok(ConfirmAllPatchesResponseDto {
@@ -607,17 +634,17 @@ impl PatchService {
             }
         }
 
-        let mut conn = self.pool.get().map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, e.to_string())
-        })?;
+        let mut conn = self
+            .pool
+            .get()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-        let pending_patches = list_pending_by_draft(&tx, &draft_session_id).map_err(|e| {
-            IpcError::new(ErrorCode::DatabaseError, e.to_string())
-        })?;
+        let pending_patches = list_pending_by_draft(&tx, &draft_session_id)
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         let mut applied: Vec<Uuid> = Vec::new();
         let mut skipped: Vec<SkippedPatchDto> = Vec::new();
@@ -648,8 +675,17 @@ impl PatchService {
                     // Apply to cumulative candidate state
                     let apply_res = if record.operation == "set" {
                         let field = record.field_name.as_deref().unwrap_or_default();
-                        let new_val = record.new_value.as_ref().unwrap_or(&serde_json::Value::Null);
-                        apply_field_mutation(&mut candidate, &record.target_type, &record.target_code, field, new_val)
+                        let new_val = record
+                            .new_value
+                            .as_ref()
+                            .unwrap_or(&serde_json::Value::Null);
+                        apply_field_mutation(
+                            &mut candidate,
+                            &record.target_type,
+                            &record.target_code,
+                            field,
+                            new_val,
+                        )
                     } else if record.operation == "delete" {
                         let outcome = execute_delete(
                             &candidate,
@@ -672,7 +708,8 @@ impl PatchService {
 
                     match apply_res {
                         Ok(()) => {
-                            let _ = update_status_cas(&tx, &record.id, "pending", "confirmed", &now);
+                            let _ =
+                                update_status_cas(&tx, &record.id, "pending", "confirmed", &now);
                             applied.push(record.id);
                         }
                         Err(e) => {
@@ -696,7 +733,8 @@ impl PatchService {
             ));
         }
 
-        tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        tx.commit()
+            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         // Update in-memory WorkingState
         entry.mutate_working_state(|ws| {
@@ -706,7 +744,10 @@ impl PatchService {
             for p in &mut ws.pending_patches {
                 if applied.contains(&p.id) {
                     p.status = "confirmed".to_string();
-                } else if skipped.iter().any(|s| s.patch_id == p.id && !s.reason.contains("Indeterminate")) {
+                } else if skipped
+                    .iter()
+                    .any(|s| s.patch_id == p.id && !s.reason.contains("Indeterminate"))
+                {
                     p.status = "expired".to_string();
                 }
             }

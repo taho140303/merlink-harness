@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
+import { verifyGitCommit as verifyLineageCommit } from "../../helpers/lineage.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
@@ -53,7 +54,7 @@ const { DraftToolbar } = draftToolbarModule;
 const { CommitConfirmationDialog } = commitDialogModule;
 
 // Baseline and Accepted Predecessors for phase5_sprint3_deep2
-const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSORS = [
   { id: "phase5_sprint2_deep1", sha: "4c27bbff4371fd4ab3fba86e44f94deee470502f" },
   { id: "phase4_sprint1_deep0", sha: "848c8c33a97dd7c26db71fff9711f3cd21fa302f" },
@@ -62,17 +63,8 @@ const PREDECESSORS = [
 ];
 
 function verifyGitCommit(sha) {
-  try {
-    execSync(`git merge-base --is-ancestor ${sha} HEAD`, { stdio: "ignore" });
-    return true;
-  } catch {
-    try {
-      execSync(`git cat-file -e ${sha}^{commit}`, { stdio: "ignore" });
-      return true;
-    } catch {
-      throw new Error(`CONTRACT_BLOCKED: Missing required predecessor or baseline commit '${sha}'`);
-    }
-  }
+  if (verifyLineageCommit(sha)) return true;
+  throw new Error(`CONTRACT_BLOCKED: Missing required predecessor or baseline commit '${sha}'`);
 }
 
 /**

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
+import { verifyGitCommit as verifyLineageCommit } from "../../helpers/lineage.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -53,22 +54,12 @@ const { CharacterListView, linkCharacterToProject } = characterListModule;
 const { CharacterDetailLayout, mapCharacterDetailDtoToProfile } = characterDetailModule;
 
 // Predecessors and baseline SHAs
-const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSOR_P5S1 = "a514385a6f5df0f16deb318dc50a4b47396162ee";
 const PREDECESSOR_P4S3 = "48a9a74a912a37e000b4ce2824385b963c794634";
 
 function verifyGitCommit(sha) {
-  try {
-    execSync(`git merge-base --is-ancestor ${sha} HEAD`, { stdio: "pipe" });
-    return true;
-  } catch {
-    try {
-      execSync(`git cat-file -e ${sha}^{commit}`, { stdio: "pipe" });
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  return verifyLineageCommit(sha);
 }
 
 // ============================================================================

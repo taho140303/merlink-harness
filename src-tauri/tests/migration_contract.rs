@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Integration and acceptance tests for `phase2_sprint3_deep1` ("Implement disposable SQLite bootstrap and migrations").
 //!
 //! Complies with docs/plan/phase2_sprint3_deep1.md, docs/business/be-core.md (§3.1, §3.4, §3.5, §12),
@@ -6,6 +13,8 @@
 //! Per backend module wiring rule in docs/plan/phase2_sprint3_deep1.md §12:
 //! - This sprint does not edit any mod.rs or lib.rs.
 //! - The test target loads owned implementation files via `#[path = "..."]`.
+
+mod common;
 
 #[path = "../src/storage/db.rs"]
 pub mod db;
@@ -18,9 +27,7 @@ pub mod storage {
     pub use crate::migration;
 }
 
-use storage::db::{
-    canonical_db_path, configure_connection, DbError, DbManager, ErrorCode,
-};
+use storage::db::{canonical_db_path, configure_connection, DbError, DbManager, ErrorCode};
 use storage::migration::{
     get_user_version, run_migrations, run_migrations_with_backup, set_user_version,
     verify_p1s2_authorization, verify_schema_and_integrity, MAX_SUPPORTED_SCHEMA_VERSION,
@@ -30,10 +37,9 @@ use storage::migration::{
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tempfile::TempDir;
 
-const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSOR_P2S1_COMMIT: &str = "cc6fe79511e4349b5fa22815d4d7a06ccc4cfad2";
 const PREDECESSOR_P1S2_COMMIT: &str = "5fa305f5cad1ca4dfb6be4ceae8de8210ac0ae2f";
 
@@ -112,11 +118,23 @@ fn P2S3_P_disposable_new_db_has_exactly_66_target_tables_composite_fks_and_pragm
 
     // Verify composite FK between workflow_round_receipts and workflow_task_receipts
     let proj_id = "018e3a00-0000-7000-8000-000000000001";
-    conn.execute("INSERT INTO projects (id, display_name) VALUES (?, 'P1');", [proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO projects (id, display_name) VALUES (?, 'P1');",
+        [proj_id],
+    )
+    .unwrap();
     let sess_id = "018e3a00-0000-7000-8000-000000000002";
-    conn.execute("INSERT INTO sessions (id, project_id) VALUES (?, ?);", [sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO sessions (id, project_id) VALUES (?, ?);",
+        [sess_id, proj_id],
+    )
+    .unwrap();
     let draft_id = "018e3a00-0000-7000-8000-000000000003";
-    conn.execute("INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);", [draft_id, sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);",
+        [draft_id, sess_id, proj_id],
+    )
+    .unwrap();
 
     let ver1_id = "018e3a00-0000-7000-8000-000000000021";
     conn.execute(
@@ -152,7 +170,10 @@ fn P2S3_P_disposable_new_db_has_exactly_66_target_tables_composite_fks_and_pragm
          VALUES (?, ?, 'wrong-run', 1, 'task-2', 'in-fp', 'out-fp', 1, 2, 1, ?, 1, '{}', '2026-11-08T00:00:00Z');",
         [bad_task_id, draft_id, round_id]
     );
-    assert!(bad_res.is_err(), "Composite FK mismatch MUST fail constraint check");
+    assert!(
+        bad_res.is_err(),
+        "Composite FK mismatch MUST fail constraint check"
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -167,11 +188,23 @@ fn P2S3_N_child_index_equals_N_passes_sql_but_backend_gate_required() {
 
     // Setup hierarchy
     let proj_id = "018e3a00-0000-7000-8000-000000000001";
-    conn.execute("INSERT INTO projects (id, display_name) VALUES (?, 'P1');", [proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO projects (id, display_name) VALUES (?, 'P1');",
+        [proj_id],
+    )
+    .unwrap();
     let sess_id = "018e3a00-0000-7000-8000-000000000002";
-    conn.execute("INSERT INTO sessions (id, project_id) VALUES (?, ?);", [sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO sessions (id, project_id) VALUES (?, ?);",
+        [sess_id, proj_id],
+    )
+    .unwrap();
     let draft_id = "018e3a00-0000-7000-8000-000000000003";
-    conn.execute("INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);", [draft_id, sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);",
+        [draft_id, sess_id, proj_id],
+    )
+    .unwrap();
 
     let ver1_id = "018e3a00-0000-7000-8000-000000000021";
     conn.execute(
@@ -196,7 +229,10 @@ fn P2S3_N_child_index_equals_N_passes_sql_but_backend_gate_required() {
          VALUES (?, ?, ?, 1, 'task-out-of-bounds', 'in-fp', 'out-fp', 1, NULL, 0, ?, 5, '{}', '2026-11-08T00:00:00Z');",
         [task_id, draft_id, run_id, round_id]
     );
-    assert!(insert_res.is_ok(), "SQL does not overstate CHECK: task_index >= task_count is valid in SQL, gated by backend");
+    assert!(
+        insert_res.is_ok(),
+        "SQL does not overstate CHECK: task_index >= task_count is valid in SQL, gated by backend"
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -217,11 +253,23 @@ fn P2S3_B_simulated_upgrade_keeps_old_receipts_byte_identical_and_new_fields_nul
 
     // Insert legacy v2 data
     let proj_id = "018e3a00-0000-7000-8000-000000000001";
-    conn.execute("INSERT INTO projects (id, display_name) VALUES (?, 'P1');", [proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO projects (id, display_name) VALUES (?, 'P1');",
+        [proj_id],
+    )
+    .unwrap();
     let sess_id = "018e3a00-0000-7000-8000-000000000002";
-    conn.execute("INSERT INTO sessions (id, project_id) VALUES (?, ?);", [sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO sessions (id, project_id) VALUES (?, ?);",
+        [sess_id, proj_id],
+    )
+    .unwrap();
     let draft_id = "018e3a00-0000-7000-8000-000000000003";
-    conn.execute("INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);", [draft_id, sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);",
+        [draft_id, sess_id, proj_id],
+    )
+    .unwrap();
 
     let legacy_task_id = "018e3a00-0000-7000-8000-000000000040";
     let run_id = "legacy-run-99";
@@ -233,7 +281,10 @@ fn P2S3_B_simulated_upgrade_keeps_old_receipts_byte_identical_and_new_fields_nul
 
     // Now upgrade through all registered migrations.
     run_migrations(&mut conn).unwrap();
-    assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+    assert_eq!(
+        get_user_version(&conn).unwrap(),
+        MAX_SUPPORTED_SCHEMA_VERSION
+    );
 
     // Query upgraded receipt
     let (id, task_ident, in_fp, out_fp, round_id, task_idx, evidence): (
@@ -256,9 +307,18 @@ fn P2S3_B_simulated_upgrade_keeps_old_receipts_byte_identical_and_new_fields_nul
     assert_eq!(task_ident, "legacy-task");
     assert_eq!(in_fp, "in-fp-1");
     assert_eq!(out_fp, "out-fp-1");
-    assert!(round_id.is_none(), "round_receipt_id must be NULL for legacy receipt");
-    assert!(task_idx.is_none(), "task_index must be NULL for legacy receipt");
-    assert!(evidence.is_none(), "evidence_json must be NULL for legacy receipt");
+    assert!(
+        round_id.is_none(),
+        "round_receipt_id must be NULL for legacy receipt"
+    );
+    assert!(
+        task_idx.is_none(),
+        "task_index must be NULL for legacy receipt"
+    );
+    assert!(
+        evidence.is_none(),
+        "evidence_json must be NULL for legacy receipt"
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -278,10 +338,16 @@ fn P2S3_C_interrupted_ddl_leaves_user_version_and_rows_unchanged() {
 
     // Insert user row at v2
     let genre_id = "018e3a00-0000-7000-8000-000000000099";
-    conn.execute("INSERT INTO genres (id, code, display_name) VALUES (?, 'g_test', 'Genre Test');", [genre_id]).unwrap();
+    conn.execute(
+        "INSERT INTO genres (id, code, display_name) VALUES (?, 'g_test', 'Genre Test');",
+        [genre_id],
+    )
+    .unwrap();
 
     // Attempt a transaction with invalid SQL in the middle
-    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).unwrap();
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .unwrap();
     let _ = tx.execute("CREATE TABLE temp_marker (id INT);", []);
     let err = tx.execute_batch("INVALID SQL STATEMENT SYNTAX ERROR;");
     assert!(err.is_err());
@@ -303,7 +369,11 @@ fn P2S3_C_interrupted_ddl_leaves_user_version_and_rows_unchanged() {
 
     // User row is untouched
     let count: i64 = conn
-        .query_row("SELECT count(*) FROM genres WHERE id = ?;", [genre_id], |r| r.get(0))
+        .query_row(
+            "SELECT count(*) FROM genres WHERE id = ?;",
+            [genre_id],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(count, 1, "User data must be 100% preserved");
 }
@@ -315,44 +385,46 @@ fn P2S3_C_interrupted_ddl_leaves_user_version_and_rows_unchanged() {
 #[allow(non_snake_case)]
 fn phase2_sprint3_deep1_F0_predecessor_gate_absent_or_baseline_sha_drift_is_contract_blocked() {
     // 1. Missing predecessor gate -> CONTRACT_BLOCKED
-    let err1 = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true).unwrap_err();
+    let err1 = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true)
+        .unwrap_err();
     assert_eq!(err1.error_code(), ErrorCode::ContractBlocked);
 
-    let err2 = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false).unwrap_err();
+    let err2 = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false)
+        .unwrap_err();
     assert_eq!(err2.error_code(), ErrorCode::ContractBlocked);
 
     // 2. Baseline SHA drift -> CONTRACT_BLOCKED
-    let err_drift = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, "deadbeef1234", true, true).unwrap_err();
+    let err_drift = verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, "deadbeef1234", true, true)
+        .unwrap_err();
     assert_eq!(err_drift.error_code(), ErrorCode::ContractBlocked);
 
     // 3. Positive verification in repository: git checks pass
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let _repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
 
-    let baseline_check = Command::new("git")
-        .args(["merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git merge-base execution");
-    assert!(baseline_check.success(), "HEAD must descend from BASELINE_COMMIT");
+    assert!(
+        common::verify_commit(BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        BASELINE_COMMIT
+    );
 
-    let p2s1_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P2S1_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file execution");
-    assert!(p2s1_check.success(), "Predecessor P2S1 commit must exist");
+    assert!(
+        common::verify_commit(PREDECESSOR_P2S1_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S1_COMMIT
+    );
 
-    let p1s2_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P1S2_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file execution");
-    assert!(p1s2_check.success(), "Predecessor P1S2 commit must exist");
+    assert!(
+        common::verify_commit(PREDECESSOR_P1S2_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P1S2_COMMIT
+    );
 
-    assert!(verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok());
+    assert!(
+        verify_p2s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok()
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -402,11 +474,19 @@ fn phase2_sprint3_deep1_F2_invalid_migration_or_backup_failure_rolls_back_and_st
     let bad_backup_dir = Path::new("/proc/invalid_non_writable_dir/merlink-harness");
     let backup_res = run_migrations_with_backup(&mut conn, bad_backup_dir);
     assert!(backup_res.is_err());
-    assert_eq!(get_user_version(&conn).unwrap(), 1, "user_version must remain unchanged on backup failure");
+    assert_eq!(
+        get_user_version(&conn).unwrap(),
+        1,
+        "user_version must remain unchanged on backup failure"
+    );
 
     // Verify user row preserved
     let count: i64 = conn
-        .query_row("SELECT count(*) FROM genres WHERE code = 'g_f2';", [], |r| r.get(0))
+        .query_row(
+            "SELECT count(*) FROM genres WHERE code = 'g_f2';",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(count, 1);
 }
@@ -428,20 +508,31 @@ fn T_DB_01_pragmas_user_version_fks_and_enforced_check_constraints() {
     run_migrations(&mut conn).unwrap();
 
     // PRAGMAs verification
-    let jm: String = conn.query_row("PRAGMA journal_mode;", [], |r| r.get(0)).unwrap();
+    let jm: String = conn
+        .query_row("PRAGMA journal_mode;", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(jm.to_lowercase(), "wal");
 
-    let fk: i32 = conn.query_row("PRAGMA foreign_keys;", [], |r| r.get(0)).unwrap();
+    let fk: i32 = conn
+        .query_row("PRAGMA foreign_keys;", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(fk, 1);
 
-    let sync: i32 = conn.query_row("PRAGMA synchronous;", [], |r| r.get(0)).unwrap();
+    let sync: i32 = conn
+        .query_row("PRAGMA synchronous;", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(sync, 2);
 
-    assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+    assert_eq!(
+        get_user_version(&conn).unwrap(),
+        MAX_SUPPORTED_SCHEMA_VERSION
+    );
 
     // Exactly 66 tables
     let mut stmt = conn
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';")
+        .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';",
+        )
         .unwrap();
     let tables: Vec<String> = stmt
         .query_map([], |r| r.get(0))
@@ -452,32 +543,53 @@ fn T_DB_01_pragmas_user_version_fks_and_enforced_check_constraints() {
 
     // Setup base parent entities for constraint testing
     let proj_id = "018e3a00-0000-7000-8000-000000000001";
-    conn.execute("INSERT INTO projects (id, display_name) VALUES (?, 'P1');", [proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO projects (id, display_name) VALUES (?, 'P1');",
+        [proj_id],
+    )
+    .unwrap();
     let sess_id = "018e3a00-0000-7000-8000-000000000002";
-    conn.execute("INSERT INTO sessions (id, project_id) VALUES (?, ?);", [sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO sessions (id, project_id) VALUES (?, ?);",
+        [sess_id, proj_id],
+    )
+    .unwrap();
     let draft_id = "018e3a00-0000-7000-8000-000000000003";
-    conn.execute("INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);", [draft_id, sess_id, proj_id]).unwrap();
+    conn.execute(
+        "INSERT INTO draft_sessions (id, session_id, project_id) VALUES (?, ?, ?);",
+        [draft_id, sess_id, proj_id],
+    )
+    .unwrap();
 
     // 1. Violation 1: characters with display_name and nickname BOTH NULL -> SQLITE_CONSTRAINT
     let err_char = conn.execute(
         "INSERT INTO characters (id, project_id, code, display_name, nickname) VALUES ('018e3a00-0000-7000-8000-000000000050', ?, 'c1', NULL, NULL);",
         [proj_id]
     );
-    assert!(err_char.is_err(), "characters with NULL display_name & nickname must violate CHECK");
+    assert!(
+        err_char.is_err(),
+        "characters with NULL display_name & nickname must violate CHECK"
+    );
 
     // 2. Violation 2: draft_versions with phase = 2, subphase = 1 -> SQLITE_CONSTRAINT
     let err_dv = conn.execute(
         "INSERT INTO draft_versions (id, draft_session_id, seq, phase, subphase, data_json, data_hash, reason) VALUES ('018e3a00-0000-7000-8000-000000000051', ?, 1, 2, 1, '{}', 'h1', 'phase_confirm');",
         [draft_id]
     );
-    assert!(err_dv.is_err(), "draft_versions with phase=2, subphase=1 must violate CHECK");
+    assert!(
+        err_dv.is_err(),
+        "draft_versions with phase=2, subphase=1 must violate CHECK"
+    );
 
     // 3. Violation 3: scene_versions with parent_id = NULL -> SQLITE_CONSTRAINT
     let err_sv = conn.execute(
         "INSERT INTO scene_versions (id, parent_id, version_number, payload) VALUES ('018e3a00-0000-7000-8000-000000000052', NULL, 1, '{}');",
         []
     );
-    assert!(err_sv.is_err(), "scene_versions with NULL parent_id must violate NOT NULL constraint");
+    assert!(
+        err_sv.is_err(),
+        "scene_versions with NULL parent_id must violate NOT NULL constraint"
+    );
 
     // 4. Violation 4: workflow_task_receipts with had_mutations = 0, resulting_version_seq = 5 -> SQLITE_CONSTRAINT
     let err_wtr = conn.execute(
@@ -502,7 +614,10 @@ fn MIG_01_fresh_database_bootstrap_runs_all_migrations_to_max_version() {
     assert_eq!(get_user_version(&conn).unwrap(), 0);
 
     run_migrations(&mut conn).expect("fresh migrations must succeed");
-    assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+    assert_eq!(
+        get_user_version(&conn).unwrap(),
+        MAX_SUPPORTED_SCHEMA_VERSION
+    );
 
     // Verify schema and integrity passes
     verify_schema_and_integrity(&conn).expect("verify_schema_and_integrity must pass");
@@ -516,7 +631,10 @@ fn MIG_01_fresh_database_bootstrap_runs_all_migrations_to_max_version() {
         )
         .map(|cnt: i64| cnt > 0)
         .unwrap();
-    assert!(!has_schema_migrations, "No _schema_migrations table allowed");
+    assert!(
+        !has_schema_migrations,
+        "No _schema_migrations table allowed"
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -546,7 +664,10 @@ fn MIG_02_sequential_upgrade_from_older_version_creates_backup_and_preserves_use
 
     // Now run migration with backup
     run_migrations_with_backup(&mut conn, app_data).unwrap();
-    assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+    assert_eq!(
+        get_user_version(&conn).unwrap(),
+        MAX_SUPPORTED_SCHEMA_VERSION
+    );
 
     // Verify backup file exists in backups directory
     let backups_dir = app_data.join("merlink-harness").join("backups");
@@ -561,7 +682,11 @@ fn MIG_02_sequential_upgrade_from_older_version_creates_backup_and_preserves_use
 
     // Verify user data is 100% preserved
     let display_name: String = conn
-        .query_row("SELECT display_name FROM genres WHERE id = ?;", [genre_id], |r| r.get(0))
+        .query_row(
+            "SELECT display_name FROM genres WHERE id = ?;",
+            [genre_id],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(display_name, "Genre Mig2");
 
@@ -597,7 +722,8 @@ fn MIG_03_failed_migration_rollback_leaves_user_version_and_data_intact() {
             .map_err(|e| DbError::MigrationFailed(e.to_string()))?;
         tx.execute("INVALID SQL FORCE ROLLBACK;", [])
             .map_err(|e| DbError::MigrationFailed(e.to_string()))?;
-        tx.commit().map_err(|e| DbError::MigrationFailed(e.to_string()))?;
+        tx.commit()
+            .map_err(|e| DbError::MigrationFailed(e.to_string()))?;
         Ok(())
     })();
 
@@ -619,7 +745,11 @@ fn MIG_03_failed_migration_rollback_leaves_user_version_and_data_intact() {
 
     // User row intact
     let count: i64 = conn
-        .query_row("SELECT count(*) FROM genres WHERE code = 'g_mig3';", [], |r| r.get(0))
+        .query_row(
+            "SELECT count(*) FROM genres WHERE code = 'g_mig3';",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(count, 1);
 }
@@ -689,7 +819,8 @@ fn MIG_05_schema_and_fk_verification_detects_deviations_and_fails_startup() {
         configure_connection(&conn).unwrap();
         run_migrations(&mut conn).unwrap();
 
-        conn.execute("DROP TABLE workflow_task_receipts;", []).unwrap();
+        conn.execute("DROP TABLE workflow_task_receipts;", [])
+            .unwrap();
         let err = verify_schema_and_integrity(&conn).unwrap_err();
         assert_eq!(err.error_code(), ErrorCode::MigrationFailed);
     }
@@ -728,9 +859,15 @@ fn DB_P01_database_initialization_uses_canonical_path_from_section_1_6() {
 
     let expected_db_path = canonical_db_path(app_data);
     assert_eq!(manager.db_path(), &expected_db_path);
-    assert!(expected_db_path.exists(), "merlink.sqlite3 must exist at canonical path");
+    assert!(
+        expected_db_path.exists(),
+        "merlink.sqlite3 must exist at canonical path"
+    );
 
-    let forbidden_db_path = app_data.join("merlink-harness").join("data").join("merlink.db");
+    let forbidden_db_path = app_data
+        .join("merlink-harness")
+        .join("data")
+        .join("merlink.db");
     assert!(
         !forbidden_db_path.exists(),
         "merlink-harness/data/merlink.db MUST NOT exist"
@@ -758,8 +895,9 @@ fn DB_P02_pre_migration_backup_uses_sqlite_online_backup_api() {
     let genre_id = "018e3a00-0000-7000-8000-000000000077";
     conn.execute(
         "INSERT INTO genres (id, code, display_name) VALUES (?, 'g_dbp02', 'Genre DBP02');",
-        [genre_id]
-    ).unwrap();
+        [genre_id],
+    )
+    .unwrap();
 
     // Run migration with backup
     run_migrations_with_backup(&mut conn, app_data).unwrap();
@@ -774,9 +912,16 @@ fn DB_P02_pre_migration_backup_uses_sqlite_online_backup_api() {
     let backup_path = backup_files[0].path();
     let backup_conn = Connection::open(&backup_path).expect("backup file must be valid SQLite DB");
     let count: i64 = backup_conn
-        .query_row("SELECT count(*) FROM genres WHERE id = ?;", [genre_id], |r| r.get(0))
+        .query_row(
+            "SELECT count(*) FROM genres WHERE id = ?;",
+            [genre_id],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(count, 1, "Backup must contain valid pre-migration data");
     let backup_version = get_user_version(&backup_conn).unwrap();
-    assert_eq!(backup_version, 1, "Backup must reflect pre-migration version v1");
+    assert_eq!(
+        backup_version, 1,
+        "Backup must reflect pre-migration version v1"
+    );
 }

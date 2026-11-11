@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and integration tests for `phase4_sprint5_deep2`
 //! ("Stream scene generation under EditScope").
 //!
@@ -5,6 +12,8 @@
 //! and docs/plan/evidence/contract-ledger.md (`REQ-WRITE-002`, `REQ-CMD-032`..`034`, `REQ-SPECTEST-T-LOCK-01`).
 
 #![allow(non_snake_case)]
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -15,23 +24,23 @@ pub mod business_flow;
 pub mod code_allocator;
 #[path = "../src/domain/fingerprint.rs"]
 pub mod fingerprint;
-#[path = "../src/domain/word_count.rs"]
-pub mod word_count;
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
+#[path = "../src/domain/word_count.rs"]
+pub mod word_count;
 #[path = "../src/domain/workflow_planner.rs"]
 pub mod workflow_planner;
 
 pub mod domain {
-    pub use crate::workflow_planner;
     pub use crate::business_flow;
     pub use crate::code_allocator;
     pub use crate::fingerprint;
     pub use crate::invariants;
     pub use crate::progress_engine;
     pub use crate::word_count;
+    pub use crate::workflow_planner;
 }
 
 #[path = "../src/storage/db.rs"]
@@ -47,43 +56,43 @@ pub mod storage {
     pub use crate::writing_repo;
 }
 
-#[path = "../src/providers/traits.rs"]
-pub mod traits;
-#[path = "../src/providers/redaction.rs"]
-pub mod redaction;
 #[path = "../src/providers/credentials.rs"]
 pub mod credentials;
 #[path = "../src/providers/ollama.rs"]
 pub mod ollama;
 #[path = "../src/providers/opencode.rs"]
 pub mod opencode;
+#[path = "../src/providers/redaction.rs"]
+pub mod redaction;
+#[path = "../src/providers/traits.rs"]
+pub mod traits;
 
 pub mod providers {
-    pub use crate::redaction;
-    pub use crate::traits;
     pub use crate::credentials;
     pub use crate::ollama;
     pub use crate::opencode;
+    pub use crate::redaction;
+    pub use crate::traits;
 }
 
-#[path = "../src/service/writing_persistence.rs"]
-pub mod writing_persistence;
 #[path = "../src/service/writing_generation.rs"]
 pub mod writing_generation;
+#[path = "../src/service/writing_persistence.rs"]
+pub mod writing_persistence;
 
 pub mod service {
     pub use crate::writing_generation;
     pub use crate::writing_persistence;
 }
 
-#[path = "../src/ipc/dto.rs"]
-pub mod dto;
-#[path = "../src/ipc/writing_persistence_commands.rs"]
-pub mod writing_persistence_commands;
-#[path = "../src/ipc/writing_generation_commands.rs"]
-pub mod writing_generation_commands;
 #[path = "../src/ipc/config_commands.rs"]
 pub mod config_commands;
+#[path = "../src/ipc/dto.rs"]
+pub mod dto;
+#[path = "../src/ipc/writing_generation_commands.rs"]
+pub mod writing_generation_commands;
+#[path = "../src/ipc/writing_persistence_commands.rs"]
+pub mod writing_persistence_commands;
 
 pub mod ipc {
     pub use crate::config_commands;
@@ -92,14 +101,13 @@ pub mod ipc {
     pub use crate::writing_persistence_commands;
 }
 
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::Arc;
-use std::time::Duration;
 use chrono::Utc;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -139,10 +147,7 @@ fn setup_test_db(temp_dir: &TempDir) -> (PathBuf, Pool<SqliteConnectionManager>)
 }
 
 /// Seeds a test project, arc, chapter, and scenes.
-fn seed_test_writing_project(
-    conn: &Connection,
-    is_committed: bool,
-) -> (Uuid, Uuid, Vec<Uuid>) {
+fn seed_test_writing_project(conn: &Connection, is_committed: bool) -> (Uuid, Uuid, Vec<Uuid>) {
     let project_id = Uuid::now_v7();
     let arc_id = Uuid::now_v7();
     let chapter_id = Uuid::now_v7();
@@ -170,21 +175,35 @@ fn seed_test_writing_project(
     conn.execute(
         "INSERT INTO draft_sessions (id, session_id, project_id, status, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-        params![draft_id.to_string(), session_id, project_id.to_string(), draft_status, now],
+        params![
+            draft_id.to_string(),
+            session_id,
+            project_id.to_string(),
+            draft_status,
+            now
+        ],
     )
     .expect("seed draft_session");
 
     conn.execute(
         "INSERT INTO world_settings (id, code, project_id, display_name, type)
          VALUES (?1, ?2, ?3, 'Cổ Giới Đan Tông', 'REALM')",
-        params![ws_id.to_string(), format!("ws_{}", ws_id.simple()), project_id.to_string()],
+        params![
+            ws_id.to_string(),
+            format!("ws_{}", ws_id.simple()),
+            project_id.to_string()
+        ],
     )
     .expect("seed world_settings");
 
     conn.execute(
         "INSERT INTO arcs (id, code, display_name, project_id, position)
          VALUES (?1, ?2, 'Quyển 1: Xuất Thế', ?3, 1)",
-        params![arc_id.to_string(), format!("arc_{}", arc_id.simple()), project_id.to_string()],
+        params![
+            arc_id.to_string(),
+            format!("arc_{}", arc_id.simple()),
+            project_id.to_string()
+        ],
     )
     .expect("seed arc");
 
@@ -290,7 +309,9 @@ impl LlmProvider for MockLlmProvider {
                     });
                 }
                 _ => {
-                    return Err(ProviderError::Internal("Simulated internal error".to_string()));
+                    return Err(ProviderError::Internal(
+                        "Simulated internal error".to_string(),
+                    ));
                 }
             }
         }
@@ -344,26 +365,28 @@ fn test_phase4_sprint5_deep2_F0_predecessor_gates() {
     let p2 = "48a9a74a912a37e000b4ce2824385b963c794634"; // gate_phase4_sprint3_deep1
     let p3 = "6a271099f0ea8bf5847c60af81e6d9b5fb9ad918"; // gate_phase2_sprint4_deep3
 
-    let verify_commit = |sha: &str| {
-        let status = Command::new("git")
-            .args(["merge-base", "--is-ancestor", sha, "HEAD"])
-            .status();
+    let verify_commit = |sha: &str| common::verify_commit(sha);
 
-        match status {
-            Ok(s) if s.success() => true,
-            _ => {
-                let cat_status = Command::new("git")
-                    .args(["cat-file", "-e", &format!("{}^{{commit}}", sha)])
-                    .status();
-                cat_status.map(|s| s.success()).unwrap_or(false)
-            }
-        }
-    };
-
-    assert!(verify_commit(baseline), "Baseline commit ({}) must exist", baseline);
-    assert!(verify_commit(p1), "Predecessor gate_phase4_sprint4_deep1 ({}) must exist", p1);
-    assert!(verify_commit(p2), "Predecessor gate_phase4_sprint3_deep1 ({}) must exist", p2);
-    assert!(verify_commit(p3), "Predecessor gate_phase2_sprint4_deep3 ({}) must exist", p3);
+    assert!(
+        verify_commit(baseline),
+        "Baseline commit ({}) must exist",
+        baseline
+    );
+    assert!(
+        verify_commit(p1),
+        "Predecessor gate_phase4_sprint4_deep1 ({}) must exist",
+        p1
+    );
+    assert!(
+        verify_commit(p2),
+        "Predecessor gate_phase4_sprint3_deep1 ({}) must exist",
+        p2
+    );
+    assert!(
+        verify_commit(p3),
+        "Predecessor gate_phase2_sprint4_deep3 ({}) must exist",
+        p3
+    );
 }
 
 /// `P4S5_P`: started -> delta -> completed carries generationId and valid metadata;
@@ -503,7 +526,10 @@ async fn test_P4S5_P_generation_lifecycle_stream_metadata_and_ram_isolation() {
             |r| r.get(0),
         )
         .unwrap();
-    assert!(content.is_none(), "scenes.content must NOT be written during generation");
+    assert!(
+        content.is_none(),
+        "scenes.content must NOT be written during generation"
+    );
 
     let version_count: i64 = conn
         .query_row(
@@ -512,7 +538,10 @@ async fn test_P4S5_P_generation_lifecycle_stream_metadata_and_ram_isolation() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(version_count, 0, "scene_versions must NOT be created during generation");
+    assert_eq!(
+        version_count, 0,
+        "scene_versions must NOT be created during generation"
+    );
 }
 
 /// `P4S5_N`: Lock midstream emits `invalidated_by_lock`, Unlock never revives old result.
@@ -535,7 +564,10 @@ async fn test_P4S5_N_lock_midstream_invalidates_permanently() {
         "Không thể thoát khỏi định mệnh...".to_string(),
     ];
     let provider = Arc::new(MockLlmProvider::with_delay(chunks, 30));
-    let service = Arc::new(WritingGenerationService::with_provider(pool.clone(), provider));
+    let service = Arc::new(WritingGenerationService::with_provider(
+        pool.clone(),
+        provider,
+    ));
     let persistence = WritingPersistenceService::new(pool.clone());
 
     let (event_tx, mut event_rx) = mpsc::channel(50);
@@ -550,9 +582,8 @@ async fn test_P4S5_N_lock_midstream_invalidates_permanently() {
     };
 
     let svc_clone = service.clone();
-    let join_handle = tokio::spawn(async move {
-        svc_clone.start_scene_generation(&req, Some(event_tx)).await
-    });
+    let join_handle =
+        tokio::spawn(async move { svc_clone.start_scene_generation(&req, Some(event_tx)).await });
 
     // Wait until generation is streaming
     tokio::time::sleep(Duration::from_millis(40)).await;
@@ -572,9 +603,15 @@ async fn test_P4S5_N_lock_midstream_invalidates_permanently() {
     // Also call programmatic hook if stream didn't catch interval yet
     service.invalidate_by_lock(s1);
 
-    let gen_res = join_handle.await.unwrap().expect("Generation should complete with invalidated result");
+    let gen_res = join_handle
+        .await
+        .unwrap()
+        .expect("Generation should complete with invalidated result");
     assert_eq!(gen_res.status, GenerationStreamStatus::InvalidatedByLock);
-    assert!(!gen_res.authorization_valid, "authorization_valid must be false on lock");
+    assert!(
+        !gen_res.authorization_valid,
+        "authorization_valid must be false on lock"
+    );
 
     // Verify events on channel contain InvalidatedByLock
     let mut found_invalidated_event = false;
@@ -592,7 +629,10 @@ async fn test_P4S5_N_lock_midstream_invalidates_permanently() {
             found_invalidated_event = true;
         }
     }
-    assert!(found_invalidated_event, "InvalidatedByLock event must be emitted");
+    assert!(
+        found_invalidated_event,
+        "InvalidatedByLock event must be emitted"
+    );
 
     // Unlock scene 1
     let unlock_res = persistence.set_scene_lock(
@@ -647,7 +687,10 @@ async fn test_P4S5_B_cancel_generation_leaves_persisted_content_unchanged() {
         "Đoạn văn 3...".to_string(),
     ];
     let provider = Arc::new(MockLlmProvider::with_delay(chunks, 30));
-    let service = Arc::new(WritingGenerationService::with_provider(pool.clone(), provider));
+    let service = Arc::new(WritingGenerationService::with_provider(
+        pool.clone(),
+        provider,
+    ));
 
     let (event_tx, mut event_rx) = mpsc::channel(50);
 
@@ -661,9 +704,8 @@ async fn test_P4S5_B_cancel_generation_leaves_persisted_content_unchanged() {
     };
 
     let svc_clone = service.clone();
-    let join_handle = tokio::spawn(async move {
-        svc_clone.start_scene_generation(&req, Some(event_tx)).await
-    });
+    let join_handle =
+        tokio::spawn(async move { svc_clone.start_scene_generation(&req, Some(event_tx)).await });
 
     // Wait until started
     tokio::time::sleep(Duration::from_millis(30)).await;
@@ -683,7 +725,10 @@ async fn test_P4S5_B_cancel_generation_leaves_persisted_content_unchanged() {
         .expect("Cancel must succeed");
     assert_eq!(cancel_res.status, "cancelled");
 
-    let gen_result = join_handle.await.unwrap().expect("Generation returns cancelled result");
+    let gen_result = join_handle
+        .await
+        .unwrap()
+        .expect("Generation returns cancelled result");
     assert_eq!(gen_result.status, GenerationStreamStatus::Cancelled);
 
     // Channel received Cancelled event
@@ -880,7 +925,10 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
         ],
         25,
     ));
-    let gen_service = Arc::new(WritingGenerationService::with_provider(pool.clone(), provider));
+    let gen_service = Arc::new(WritingGenerationService::with_provider(
+        pool.clone(),
+        provider,
+    ));
     let persist_service = WritingPersistenceService::new(pool.clone());
 
     // ------------------------------------------------------------------------
@@ -897,9 +945,7 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
     };
 
     let svc1 = gen_service.clone();
-    let handle1 = tokio::spawn(async move {
-        svc1.start_scene_generation(&req1, Some(tx1)).await
-    });
+    let handle1 = tokio::spawn(async move { svc1.start_scene_generation(&req1, Some(tx1)).await });
 
     tokio::time::sleep(Duration::from_millis(35)).await;
 
@@ -916,7 +962,10 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
     assert!(lock_s1.is_ok());
     gen_service.invalidate_by_lock(s1);
 
-    let res1 = handle1.await.unwrap().expect("should return invalidated result");
+    let res1 = handle1
+        .await
+        .unwrap()
+        .expect("should return invalidated result");
     assert_eq!(res1.status, GenerationStreamStatus::InvalidatedByLock);
     assert!(!res1.authorization_valid);
 
@@ -924,11 +973,19 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
     {
         let conn = pool.get().unwrap();
         let is_locked: i32 = conn
-            .query_row("SELECT is_locked FROM scenes WHERE id = ?1", params![s1.to_string()], |r| r.get(0))
+            .query_row(
+                "SELECT is_locked FROM scenes WHERE id = ?1",
+                params![s1.to_string()],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(is_locked, 1);
         let versions: i64 = conn
-            .query_row("SELECT COUNT(*) FROM scene_versions WHERE parent_id = ?1", params![s1.to_string()], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM scene_versions WHERE parent_id = ?1",
+                params![s1.to_string()],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(versions, 0, "Lock toggle must not create scene_versions");
     }
@@ -949,7 +1006,10 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
     // Attempting to Accept the generation that was invalidated by lock MUST be rejected permanently!
     let accept_res1 = gen_service.accept_generation(chapter_id, res1.generation_id);
     assert!(accept_res1.is_err());
-    assert_eq!(accept_res1.unwrap_err().code, ErrorCode::GenerationInvalidatedByLock);
+    assert_eq!(
+        accept_res1.unwrap_err().code,
+        ErrorCode::GenerationInvalidatedByLock
+    );
 
     // ------------------------------------------------------------------------
     // Case C/D: Stream completes on Scene 2 -> Scope expires -> Accept & SaveChapter
@@ -977,7 +1037,10 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
 
     // Verify EditScope is no longer active for new AI requests
     let scope2 = gen_service.get_edit_scope(chapter_id).unwrap();
-    assert!(!scope2.is_active, "Scope expires after AI request terminates (§8.3.2)");
+    assert!(
+        !scope2.is_active,
+        "Scope expires after AI request terminates (§8.3.2)"
+    );
 
     // Accept succeeds despite expired EditScope (SCOPE-05)
     let accepted_text = gen_service
@@ -1010,7 +1073,11 @@ async fn test_T_LOCK_01_comprehensive_matrix() {
     {
         let conn = pool.get().unwrap();
         let content: String = conn
-            .query_row("SELECT content FROM scenes WHERE id = ?1", params![s2.to_string()], |r| r.get(0))
+            .query_row(
+                "SELECT content FROM scenes WHERE id = ?1",
+                params![s2.to_string()],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(content, accepted_text);
     }
@@ -1105,7 +1172,7 @@ async fn test_IPC_CMD_032_start_scene_generation() {
 
     // Verify events were delivered
     let mut event_count = 0;
-    while let Ok(_) = rx.try_recv() {
+    while rx.try_recv().is_ok() {
         event_count += 1;
     }
     assert!(event_count >= 2); // Started + Completed
@@ -1170,9 +1237,10 @@ async fn test_IPC_CMD_032_start_scene_generation() {
     };
 
     let req_dup_clone = req_dup.clone();
-    let bg_gen = tokio::spawn(async move {
-        exec_start_scene_generation(&svc_clone, &req_dup_clone, None).await
-    });
+    let bg_gen =
+        tokio::spawn(
+            async move { exec_start_scene_generation(&svc_clone, &req_dup_clone, None).await },
+        );
 
     tokio::time::sleep(Duration::from_millis(30)).await;
 
@@ -1200,7 +1268,10 @@ async fn test_IPC_CMD_033_cancel_scene_generation() {
         vec!["Chunk 1...".to_string(), "Chunk 2...".to_string()],
         60,
     ));
-    let service = Arc::new(WritingGenerationService::with_provider(pool.clone(), provider));
+    let service = Arc::new(WritingGenerationService::with_provider(
+        pool.clone(),
+        provider,
+    ));
 
     let req = StartSceneGenerationReq {
         project_id,
@@ -1212,9 +1283,8 @@ async fn test_IPC_CMD_033_cancel_scene_generation() {
     };
 
     let svc_clone = service.clone();
-    let bg_gen = tokio::spawn(async move {
-        exec_start_scene_generation(&svc_clone, &req, None).await
-    });
+    let bg_gen =
+        tokio::spawn(async move { exec_start_scene_generation(&svc_clone, &req, None).await });
 
     tokio::time::sleep(Duration::from_millis(25)).await;
 
@@ -1343,15 +1413,25 @@ async fn test_IPC_CMD_034_respond_edit_scope_expansion() {
     .await
     .expect("Scope response must succeed");
     assert!(expand_s3_locked.allowed_scene_ids.contains(&s3));
-    assert!(expand_s3_locked.target_scene_is_locked, "Target scene is locked");
+    assert!(
+        expand_s3_locked.target_scene_is_locked,
+        "Target scene is locked"
+    );
 
     // In SQLite, s3 is STILL locked (SL-10: no automatic unlock)
     {
         let conn = pool.get().unwrap();
         let is_locked: i32 = conn
-            .query_row("SELECT is_locked FROM scenes WHERE id = ?1", params![s3.to_string()], |r| r.get(0))
+            .query_row(
+                "SELECT is_locked FROM scenes WHERE id = ?1",
+                params![s3.to_string()],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert_eq!(is_locked, 1, "Scope expansion must NOT automatically unlock scene (SL-10)");
+        assert_eq!(
+            is_locked, 1,
+            "Scope expansion must NOT automatically unlock scene (SL-10)"
+        );
     }
 
     // 4. Non-existent scene or request returns EntityNotFound

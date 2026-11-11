@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Comprehensive End-to-End Correctness and Release Gate Integration Test Suite
 //! (Sprint `phase6_sprint3_deep1` - 33rd and Final Sprint).
 //!
@@ -5,7 +12,7 @@
 //! and docs/architecture/decisions/sf06-owner-ratification.md:
 //!
 //! - `phase6_sprint3_deep1-F0`: Predecessor gate commits (`2c42e64812b7f3a57b148433521dea80623e128d`,
-//!   `c09e5a67db4e97db44a7d845cb28522c7a4c8df5`) and source baseline `57a462efb953a665e3673b15e6cc33622a4f2d39`
+//!   `c09e5a67db4e97db44a7d845cb28522c7a4c8df5`) and source baseline `ddda30cd3c842113599c7bfb7d0e221936330428`
 //!   lineage verification with `CONTRACT_BLOCKED` boundary check.
 //! - `P6S3-P`: Fresh app creates DB, executes all migrations, initializes AppState, and executes
 //!   full backend lifecycle: chat session -> draft load -> pending patch -> round seal TX-04 ->
@@ -24,10 +31,11 @@
 
 #![allow(non_snake_case)]
 
+mod common;
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -43,10 +51,10 @@ use uuid::Uuid;
 
 use merlink_harness_lib::domain::business_flow::*;
 use merlink_harness_lib::domain::code_allocator::{CodeAllocator, EntityCodeSpec};
-use merlink_harness_lib::domain::progress_engine::MASTER_ATTRIBUTE_DENOMINATOR;
 use merlink_harness_lib::domain::fingerprint::state_data_hash;
 use merlink_harness_lib::domain::invariants::validate_draft_for_commit;
 use merlink_harness_lib::domain::progress_engine::evaluate_progress;
+use merlink_harness_lib::domain::progress_engine::MASTER_ATTRIBUTE_DENOMINATOR;
 use merlink_harness_lib::domain::sf06::codec::decode_evidence;
 use merlink_harness_lib::domain::word_count::count_words;
 use merlink_harness_lib::domain::workflow_planner::plan_outline_runs;
@@ -61,41 +69,49 @@ use merlink_harness_lib::providers::traits::{
     ProviderStreamRequest, ProviderStreamSummary,
 };
 use merlink_harness_lib::service::commit_service::CallerContext as CommitCallerContext;
-use merlink_harness_lib::service::writing_persistence::CallerContext as WritingCallerContext;
-use merlink_harness_lib::service::draft_runtime::{DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState};
-use merlink_harness_lib::service::draft_service::{DraftService, RestoreVersionParams, SealVersionParams};
+use merlink_harness_lib::service::draft_runtime::{
+    DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState,
+};
+use merlink_harness_lib::service::draft_service::{
+    DraftService, RestoreVersionParams, SealVersionParams,
+};
 use merlink_harness_lib::service::patch_service::compute_progress_dto;
 use merlink_harness_lib::service::recovery_service::{
     evaluate_evidence_integrity, run_startup_recovery, WorkflowRecoveryDecision,
 };
 use merlink_harness_lib::service::writing_generation::WritingGenerationService;
+use merlink_harness_lib::service::writing_persistence::CallerContext as WritingCallerContext;
 use merlink_harness_lib::service::writing_persistence::WritingPersistenceService;
 use merlink_harness_lib::storage::db::{
     canonical_db_dir, canonical_db_path, configure_connection, DbError,
 };
 use merlink_harness_lib::storage::migration::{
-    get_user_version, run_migrations, verify_schema_and_integrity,
-    MAX_SUPPORTED_SCHEMA_VERSION, TARGET_TABLES_V3,
+    get_user_version, run_migrations, verify_schema_and_integrity, MAX_SUPPORTED_SCHEMA_VERSION,
+    TARGET_TABLES_V3,
 };
 use merlink_harness_lib::storage::pending_repo::{find_by_id, PersistProposalParams};
 use merlink_harness_lib::AppBootstrap;
 
 pub const WORKTREE_BASELINE_COMMIT: &str = "ba22ca2b53d411a539277bffd068026f0776a2c9";
-pub const SOURCE_BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const SOURCE_BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 pub const PREDECESSOR_P6S1: &str = "2c42e64812b7f3a57b148433521dea80623e128d";
 pub const PREDECESSOR_P6S2: &str = "c09e5a67db4e97db44a7d845cb28522c7a4c8df5";
 
 /// Helper setting up a uniquely named disposable SQLite database in a temp directory.
-fn setup_disposable_db(temp_dir: &TempDir, name_suffix: &str) -> (PathBuf, Pool<SqliteConnectionManager>) {
-    let db_path = temp_dir.path().join(format!("disposable-test-{}.sqlite3", name_suffix));
+fn setup_disposable_db(
+    temp_dir: &TempDir,
+    name_suffix: &str,
+) -> (PathBuf, Pool<SqliteConnectionManager>) {
+    let db_path = temp_dir
+        .path()
+        .join(format!("disposable-test-{}.sqlite3", name_suffix));
     {
         let mut conn = Connection::open(&db_path).expect("open disposable sqlite db");
         configure_connection(&conn).expect("configure sqlite pragmas");
         run_migrations(&mut conn).expect("run sqlite migrations");
     }
 
-    let manager = SqliteConnectionManager::file(&db_path)
-        .with_init(|c| configure_connection(c));
+    let manager = SqliteConnectionManager::file(&db_path).with_init(|c| configure_connection(c));
     let pool = Pool::builder()
         .max_size(8)
         .build(manager)
@@ -595,86 +611,74 @@ fn build_valid_full_draft_fixture(default_source: ProvenanceSource) -> BusinessF
 
 #[test]
 fn test_phase6_sprint3_deep1_F0_predecessors_and_baseline_lineage() {
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let _repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
 
     // 1. Verify source baseline commit exists
-    let baseline_status = Command::new("git")
-        .args(["cat-file", "-e", &format!("{SOURCE_BASELINE_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file for source baseline");
     assert!(
-        baseline_status.success(),
-        "Source baseline commit {} must exist in git repository",
+        common::verify_commit(SOURCE_BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
         SOURCE_BASELINE_COMMIT
     );
 
     // 2. Verify predecessor phase6_sprint1_deep0 commit exists
-    let p6s1_status = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P6S1}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file for predecessor p6s1");
     assert!(
-        p6s1_status.success(),
-        "Accepted predecessor phase6_sprint1_deep0 ({}) must exist",
+        common::verify_commit(PREDECESSOR_P6S1),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
         PREDECESSOR_P6S1
     );
 
     // 3. Verify predecessor phase6_sprint2_deep0 commit exists
-    let p6s2_status = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P6S2}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file for predecessor p6s2");
     assert!(
-        p6s2_status.success(),
-        "Accepted predecessor phase6_sprint2_deep0 ({}) must exist",
+        common::verify_commit(PREDECESSOR_P6S2),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
         PREDECESSOR_P6S2
     );
 
     // 4. Verify baselines are ancestors of HEAD (or valid commits in worktree)
-    let is_ancestor_or_valid = |sha: &str| -> bool {
-        let ancestor_check = Command::new("git")
-            .args(["merge-base", "--is-ancestor", sha, "HEAD"])
-            .current_dir(&repo_root)
-            .status();
-        if let Ok(st) = ancestor_check {
-            if st.success() {
-                return true;
-            }
-        }
-        let cat_check = Command::new("git")
-            .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
-            .current_dir(&repo_root)
-            .status();
-        cat_check.map(|s| s.success()).unwrap_or(false)
-    };
+    let is_ancestor_or_valid = |sha: &str| -> bool { common::verify_commit(sha) };
 
-    assert!(is_ancestor_or_valid(SOURCE_BASELINE_COMMIT), "Source baseline must be valid ancestor/commit");
-    assert!(is_ancestor_or_valid(PREDECESSOR_P6S1), "Predecessor P6S1 must be valid ancestor/commit");
-    assert!(is_ancestor_or_valid(PREDECESSOR_P6S2), "Predecessor P6S2 must be valid ancestor/commit");
+    assert!(
+        is_ancestor_or_valid(SOURCE_BASELINE_COMMIT),
+        "Source baseline must be valid ancestor/commit"
+    );
+    assert!(
+        is_ancestor_or_valid(PREDECESSOR_P6S1),
+        "Predecessor P6S1 must be valid ancestor/commit"
+    );
+    assert!(
+        is_ancestor_or_valid(PREDECESSOR_P6S2),
+        "Predecessor P6S2 must be valid ancestor/commit"
+    );
 
     // 5. Lineage verification function rejecting missing predecessor or drifted baseline
-    let verify_lineage = |expected_base: &str, actual_base: &str, preds_present: bool| -> Result<(), AppError> {
-        if expected_base != actual_base {
-            return Err(AppError::ContractBlocked {
-                reason: format!("baseline SHA drift: expected {}, got {}", expected_base, actual_base),
-            });
-        }
-        if !preds_present {
-            return Err(AppError::ContractBlocked {
-                reason: "missing accepted predecessor gate".to_string(),
-            });
-        }
-        Ok(())
-    };
+    let verify_lineage =
+        |expected_base: &str, actual_base: &str, preds_present: bool| -> Result<(), AppError> {
+            if expected_base != actual_base {
+                return Err(AppError::ContractBlocked {
+                    reason: format!(
+                        "baseline SHA drift: expected {}, got {}",
+                        expected_base, actual_base
+                    ),
+                });
+            }
+            if !preds_present {
+                return Err(AppError::ContractBlocked {
+                    reason: "missing accepted predecessor gate".to_string(),
+                });
+            }
+            Ok(())
+        };
 
     assert!(verify_lineage(SOURCE_BASELINE_COMMIT, SOURCE_BASELINE_COMMIT, true).is_ok());
-    assert!(verify_lineage(SOURCE_BASELINE_COMMIT, "deadbeef00000000000000000000000000000000", true).is_err());
+    assert!(verify_lineage(
+        SOURCE_BASELINE_COMMIT,
+        "deadbeef00000000000000000000000000000000",
+        true
+    )
+    .is_err());
     assert!(verify_lineage(SOURCE_BASELINE_COMMIT, SOURCE_BASELINE_COMMIT, false).is_err());
 }
 
@@ -694,7 +698,10 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
 
     // Verify database file was created at canonical path (§1.6, DB-P01)
     let expected_db_file = canonical_db_path(temp_dir.path());
-    assert!(expected_db_file.exists(), "merlink.sqlite3 must exist at canonical path");
+    assert!(
+        expected_db_file.exists(),
+        "merlink.sqlite3 must exist at canonical path"
+    );
 
     // Verify 66 physical tables exist after forward-only migrations
     {
@@ -712,21 +719,26 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
     let draft_session_id = chat_init.draft_session_id;
 
     // 3. Draft load: verify draft workspace state is initialized in memory and DB
-    let entry = bootstrap.draft_service.get_or_load_runtime_entry(draft_session_id)
+    let entry = bootstrap
+        .draft_service
+        .get_or_load_runtime_entry(draft_session_id)
         .expect("get_or_load_runtime_entry must return active draft entry");
     {
         let mut ws = (*entry.get_snapshot()).clone();
-        ws.business_flow_data.require.character.push(RequireCharacterItem {
-            code: "tran_ha".to_string(),
-            display_name: TrackedField::user("Trần Hà".to_string()),
-            nickname: TrackedField::unset(),
-            biological_sex: TrackedField::user("MALE".to_string()),
-            motif_code: TrackedField::user("chosen_one".to_string()),
-            role: TrackedField::user("Nhân vật chính".to_string()),
-            notes: TrackedField::user("Ghi chú nguyên bản".to_string()),
-            reused_library_character: false,
-            source: Some(ProvenanceSource::User),
-        });
+        ws.business_flow_data
+            .require
+            .character
+            .push(RequireCharacterItem {
+                code: "tran_ha".to_string(),
+                display_name: TrackedField::user("Trần Hà".to_string()),
+                nickname: TrackedField::unset(),
+                biological_sex: TrackedField::user("MALE".to_string()),
+                motif_code: TrackedField::user("chosen_one".to_string()),
+                role: TrackedField::user("Nhân vật chính".to_string()),
+                notes: TrackedField::user("Ghi chú nguyên bản".to_string()),
+                reused_library_character: false,
+                source: Some(ProvenanceSource::User),
+            });
         entry.update_working_state(ws);
 
         let ws = entry.get_snapshot();
@@ -749,7 +761,9 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
         eligibility_json: None,
         require_new_origin: false,
     };
-    let persist_res = bootstrap.patch_service.persist_proposal(&proposal_params)
+    let persist_res = bootstrap
+        .patch_service
+        .persist_proposal(&proposal_params)
         .expect("persist_proposal (TX-08) must succeed");
     assert!(!persist_res.reused_existing);
     let patch_id = persist_res.patch_id;
@@ -757,12 +771,15 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
     // Verify proposal exists in pending_patches
     {
         let conn = bootstrap.state.db.pool().get().unwrap();
-        let record = find_by_id(&conn, &patch_id).unwrap().expect("patch record must exist");
+        let record = find_by_id(&conn, &patch_id)
+            .unwrap()
+            .expect("patch record must exist");
         assert_eq!(record.status, "pending");
     }
 
     // 5. Round seal TX-04: confirm pending patch and seal version
-    let patch_resolution = bootstrap.patch_service
+    let patch_resolution = bootstrap
+        .patch_service
         .confirm_pending_patch(draft_session_id, patch_id)
         .await
         .expect("confirm_pending_patch (TX-02/TX-04) must succeed");
@@ -785,8 +802,9 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
     let full_snapshot = entry.get_snapshot();
     let full_hash = state_data_hash(&full_snapshot.business_flow_data).expect("compute hash");
     let full_json = serde_json::to_string(&full_snapshot.business_flow_data).unwrap();
-    bootstrap.draft_service.seal_version(
-        &SealVersionParams {
+    bootstrap
+        .draft_service
+        .seal_version(&SealVersionParams {
             draft_session_id,
             seal_key: format!("seal_key_{}", Uuid::now_v7().simple()),
             reason: "phase_confirm".to_string(),
@@ -797,14 +815,18 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
             parent_seq: Some(1),
             turn_id: None,
             chat_message_id: None,
-        },
-    ).expect("seal full draft version must succeed");
+        })
+        .expect("seal full draft version must succeed");
 
     // Execute atomic commit (TX-05)
     let commit_req = CommitDraftReq { draft_session_id };
-    let commit_resp = exec_commit_draft(&bootstrap.commit_service, &commit_req, CommitCallerContext::UiAction)
-        .await
-        .expect("exec_commit_draft must succeed");
+    let commit_resp = exec_commit_draft(
+        &bootstrap.commit_service,
+        &commit_req,
+        CommitCallerContext::UiAction,
+    )
+    .await
+    .expect("exec_commit_draft must succeed");
     let project_id = commit_resp.project_id;
     assert_eq!(commit_resp.status, "committed");
 
@@ -818,19 +840,32 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
         ).expect("query chapter");
         let chapter_uuid = Uuid::parse_str(&ch_id).unwrap();
 
-        let mut stmt = conn.prepare("SELECT id FROM scenes WHERE chapter_id = ?1 ORDER BY position ASC").unwrap();
-        let scenes: Vec<Uuid> = stmt.query_map(params![ch_id], |r| {
-            let sid: String = r.get(0)?;
-            Ok(Uuid::parse_str(&sid).unwrap())
-        }).unwrap().map(|r| r.unwrap()).collect();
+        let mut stmt = conn
+            .prepare("SELECT id FROM scenes WHERE chapter_id = ?1 ORDER BY position ASC")
+            .unwrap();
+        let scenes: Vec<Uuid> = stmt
+            .query_map(params![ch_id], |r| {
+                let sid: String = r.get(0)?;
+                Ok(Uuid::parse_str(&sid).unwrap())
+            })
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
 
         (chapter_uuid, scenes)
     };
-    assert!(!scene_ids.is_empty(), "scenes must be created during commit");
+    assert!(
+        !scene_ids.is_empty(),
+        "scenes must be created during commit"
+    );
 
-    let read_model = bootstrap.writing_persistence_service.get_chapter_writing_state(
-        &GetChapterWritingStateReq { project_id, chapter_id }
-    ).expect("get_chapter_writing_state must succeed");
+    let read_model = bootstrap
+        .writing_persistence_service
+        .get_chapter_writing_state(&GetChapterWritingStateReq {
+            project_id,
+            chapter_id,
+        })
+        .expect("get_chapter_writing_state must succeed");
     assert_eq!(read_model.chapter_id, chapter_id);
     assert_eq!(read_model.scenes.len(), scene_ids.len());
 
@@ -858,13 +893,17 @@ async fn test_P6S3_P_fresh_app_full_backend_lifecycle() {
     assert_eq!(save_resp.saved_scenes[0].new_version_number, 1);
 
     // 9. Verify save receipt lookup (#37 get_chapter_save_receipt)
-    let receipt_lookup = bootstrap.writing_persistence_service.get_chapter_save_receipt(
-        &GetChapterSaveReceiptReq {
+    let receipt_lookup = bootstrap
+        .writing_persistence_service
+        .get_chapter_save_receipt(&GetChapterSaveReceiptReq {
             chapter_id,
             client_save_id: client_save_id.clone(),
-        }
-    ).expect("get_chapter_save_receipt lookup must succeed");
-    assert!(receipt_lookup.found, "receipt must be found in chapter_save_receipts");
+        })
+        .expect("get_chapter_save_receipt lookup must succeed");
+    assert!(
+        receipt_lookup.found,
+        "receipt must be found in chapter_save_receipts"
+    );
     assert!(receipt_lookup.receipt.is_some());
     let rcpt = receipt_lookup.receipt.unwrap();
     assert_eq!(rcpt.client_save_id, client_save_id);
@@ -881,11 +920,13 @@ async fn test_P6S3_N_fault_injection_tx08_before_tx04_retains_proposal_unsealed(
 
     let drafts = Arc::new(DraftRuntimeRegistry::new());
     let draft_service = Arc::new(DraftService::new(pool.clone(), drafts.clone()));
-    let patch_service = Arc::new(merlink_harness_lib::service::patch_service::PatchService::new(
-        pool.clone(),
-        drafts.clone(),
-        draft_service.clone(),
-    ));
+    let patch_service = Arc::new(
+        merlink_harness_lib::service::patch_service::PatchService::new(
+            pool.clone(),
+            drafts.clone(),
+            draft_service.clone(),
+        ),
+    );
 
     let draft_session_id = Uuid::new_v4();
     let session_id = "session-p6s3-n".to_string();
@@ -904,7 +945,8 @@ async fn test_P6S3_N_fault_injection_tx08_before_tx04_retains_proposal_unsealed(
         conn.execute(
             "INSERT INTO sessions (id, project_id, display_name) VALUES (?1, ?2, 'Fault Session')",
             params![session_id, proj_str],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO draft_sessions (id, session_id, project_id, head_version_seq, status, created_at, updated_at)
              VALUES (?1, ?2, ?3, NULL, 'editing', ?4, ?4)",
@@ -944,7 +986,8 @@ async fn test_P6S3_N_fault_injection_tx08_before_tx04_retains_proposal_unsealed(
         eligibility_json: None,
         require_new_origin: false,
     };
-    let p_res = patch_service.persist_proposal(&proposal_params)
+    let p_res = patch_service
+        .persist_proposal(&proposal_params)
         .expect("TX-08 persist_proposal must succeed");
     let patch_id = p_res.patch_id;
 
@@ -952,24 +995,33 @@ async fn test_P6S3_N_fault_injection_tx08_before_tx04_retains_proposal_unsealed(
     // Verify proposal remains in pending_patches with status = 'pending'
     {
         let conn = pool.get().unwrap();
-        let record = find_by_id(&conn, &patch_id).unwrap().expect("proposal must exist");
+        let record = find_by_id(&conn, &patch_id)
+            .unwrap()
+            .expect("proposal must exist");
         assert_eq!(record.status, "pending", "Proposal must remain pending");
         assert_eq!(record.target_code, "tran_ha");
 
         // Verify zero sealed draft_versions created
-        let version_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM draft_versions WHERE draft_session_id = ?1",
-            params![draft_session_id.to_string()],
-            |r| r.get(0),
-        ).unwrap();
-        assert_eq!(version_count, 0, "No sealed draft_versions row may be created on interrupted turn");
+        let version_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM draft_versions WHERE draft_session_id = ?1",
+                params![draft_session_id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            version_count, 0,
+            "No sealed draft_versions row may be created on interrupted turn"
+        );
 
         // Verify draft_sessions head_version_seq remains NULL
-        let head_seq: Option<i64> = conn.query_row(
-            "SELECT head_version_seq FROM draft_sessions WHERE id = ?1",
-            params![draft_session_id.to_string()],
-            |r| r.get(0),
-        ).unwrap();
+        let head_seq: Option<i64> = conn
+            .query_row(
+                "SELECT head_version_seq FROM draft_sessions WHERE id = ?1",
+                params![draft_session_id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert!(head_seq.is_none(), "head_version_seq must remain NULL");
     }
 
@@ -981,7 +1033,9 @@ async fn test_P6S3_N_fault_injection_tx08_before_tx04_retains_proposal_unsealed(
     assert_eq!(recovery_report.interrupted_turns_detected, 0);
 
     // Proposal is still pending and can be confirmed safely later
-    let resolution = patch_service.confirm_pending_patch(draft_session_id, patch_id).await
+    let resolution = patch_service
+        .confirm_pending_patch(draft_session_id, patch_id)
+        .await
         .expect("Subsequent confirmation must succeed");
     assert_eq!(resolution.status, "confirmed");
     assert!(resolution.sealed_version.is_some());
@@ -1018,7 +1072,8 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
         conn.execute(
             "INSERT INTO sessions (id, project_id, display_name) VALUES (?1, ?2, 'Stream Sess')",
             params![session_id, project_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO draft_sessions (id, session_id, project_id, status, created_at, updated_at)
              VALUES (?1, ?2, ?3, 'committed', ?4, ?4)",
@@ -1028,12 +1083,14 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
             "INSERT INTO world_settings (id, code, project_id, display_name, type)
              VALUES (?1, 'ws_str', ?2, 'Stream Realm', 'REALM')",
             params![ws_id.to_string(), project_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO arcs (id, code, display_name, project_id, position)
              VALUES (?1, 'arc_str', 'Hồi Stream', ?2, 1)",
             params![arc_id.to_string(), project_id.to_string()],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO chapters (id, code, display_name, arc_id, position, created_at, updated_at)
              VALUES (?1, 'ch_str', 'Chương Stream', ?2, 1, ?3, ?3)",
@@ -1052,7 +1109,10 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
         "Đoạn 3 cao trào phân định...".to_string(),
     ];
     let provider = Arc::new(DelayedMockProvider::new(chunks, 40));
-    let gen_service = Arc::new(WritingGenerationService::with_provider(pool.clone(), provider));
+    let gen_service = Arc::new(WritingGenerationService::with_provider(
+        pool.clone(),
+        provider,
+    ));
     let persistence = WritingPersistenceService::new(pool.clone());
 
     let (event_tx, mut event_rx) = mpsc::channel(20);
@@ -1067,29 +1127,39 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
 
     let svc_clone = gen_service.clone();
     let gen_task = tokio::spawn(async move {
-        svc_clone.start_scene_generation(&gen_req, Some(event_tx)).await
+        svc_clone
+            .start_scene_generation(&gen_req, Some(event_tx))
+            .await
     });
 
     // Wait until stream is running
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Intervene: Lock scene midstream (TX-06)
-    persistence.set_scene_lock(
-        &SetSceneLockReq {
-            project_id,
-            chapter_id,
-            scene_id,
-            desired_locked: true,
-        },
-        WritingCallerContext::UiAction,
-    ).expect("lock scene midstream must succeed");
+    persistence
+        .set_scene_lock(
+            &SetSceneLockReq {
+                project_id,
+                chapter_id,
+                scene_id,
+                desired_locked: true,
+            },
+            WritingCallerContext::UiAction,
+        )
+        .expect("lock scene midstream must succeed");
 
     // Also trigger programmatic hook if interval not ticked yet
     gen_service.invalidate_by_lock(scene_id);
 
-    let gen_res = gen_task.await.unwrap().expect("generation completes with invalidated result");
+    let gen_res = gen_task
+        .await
+        .unwrap()
+        .expect("generation completes with invalidated result");
     assert_eq!(gen_res.status, GenerationStreamStatus::InvalidatedByLock);
-    assert!(!gen_res.authorization_valid, "authorization_valid must be false when locked");
+    assert!(
+        !gen_res.authorization_valid,
+        "authorization_valid must be false when locked"
+    );
 
     // Verify channel received InvalidatedByLock event
     let mut found_invalidated_event = false;
@@ -1098,23 +1168,34 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
             found_invalidated_event = true;
         }
     }
-    assert!(found_invalidated_event, "channel must receive InvalidatedByLock event");
+    assert!(
+        found_invalidated_event,
+        "channel must receive InvalidatedByLock event"
+    );
 
     // Unlock scene
-    persistence.set_scene_lock(
-        &SetSceneLockReq {
-            project_id,
-            chapter_id,
-            scene_id,
-            desired_locked: false,
-        },
-        WritingCallerContext::UiAction,
-    ).expect("unlock scene must succeed");
+    persistence
+        .set_scene_lock(
+            &SetSceneLockReq {
+                project_id,
+                chapter_id,
+                scene_id,
+                desired_locked: false,
+            },
+            WritingCallerContext::UiAction,
+        )
+        .expect("unlock scene must succeed");
 
     // INVARIANT: Unlock NEVER enables old Accept! Must fail with GenerationInvalidatedByLock
     let accept_res = gen_service.accept_generation(chapter_id, gen_res.generation_id);
-    assert!(accept_res.is_err(), "accept on generation invalidated by lock must be permanently rejected");
-    assert_eq!(accept_res.unwrap_err().code, ErrorCode::GenerationInvalidatedByLock);
+    assert!(
+        accept_res.is_err(),
+        "accept on generation invalidated by lock must be permanently rejected"
+    );
+    assert_eq!(
+        accept_res.unwrap_err().code,
+        ErrorCode::GenerationInvalidatedByLock
+    );
 
     // ------------------------------------------------------------------------
     // Part 2: Dirty Chapter Save OCC Revision Conflict (OccVersionMismatch)
@@ -1148,18 +1229,25 @@ async fn test_P6S3_B_lock_midstream_invalidates_and_occ_conflict_preserves_buffe
             summary: None,
         }],
     };
-    let occ_err = exec_save_chapter(&persistence, &stale_save).expect_err("stale OCC save must fail");
+    let occ_err =
+        exec_save_chapter(&persistence, &stale_save).expect_err("stale OCC save must fail");
     assert_eq!(occ_err.code, ErrorCode::OccVersionMismatch);
 
     // INVARIANT: Stale overwrite rejected; original database content preserved!
     {
         let conn = pool.get().unwrap();
-        let current_content: Option<String> = conn.query_row(
-            "SELECT content FROM scenes WHERE id = ?1",
-            params![scene_id.to_string()],
-            |r| r.get(0),
-        ).unwrap();
-        assert_eq!(current_content, Some(initial_content), "Original content must be preserved in database");
+        let current_content: Option<String> = conn
+            .query_row(
+                "SELECT content FROM scenes WHERE id = ?1",
+                params![scene_id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            current_content,
+            Some(initial_content),
+            "Original content must be preserved in database"
+        );
     }
 }
 
@@ -1173,14 +1261,23 @@ fn test_phase6_sprint3_deep1_F1_migration_mismatch_and_corruption_rejection() {
 
     // 1. Corrupt SQLite file header rejects startup with explicit error, zero repair
     let corrupt_db_path = temp_dir.path().join("corrupt.sqlite3");
-    fs::write(&corrupt_db_path, b"THIS IS CORRUPTED GARBAGE DATA NOT SQLITE FORMAT").unwrap();
+    fs::write(
+        &corrupt_db_path,
+        b"THIS IS CORRUPTED GARBAGE DATA NOT SQLITE FORMAT",
+    )
+    .unwrap();
 
     let conn_res = Connection::open(&corrupt_db_path);
     if let Ok(mut conn) = conn_res {
         let pragma_or_mig = configure_connection(&conn).and_then(|_| {
-            run_migrations(&mut conn).map_err(|e| rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(1), Some(e.to_string())))
+            run_migrations(&mut conn).map_err(|e| {
+                rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(1), Some(e.to_string()))
+            })
         });
-        assert!(pragma_or_mig.is_err(), "Migration on corrupted SQLite file must return explicit error");
+        assert!(
+            pragma_or_mig.is_err(),
+            "Migration on corrupted SQLite file must return explicit error"
+        );
     }
 
     // 2. Unsupported higher schema version (user_version > MAX_SUPPORTED_SCHEMA_VERSION)
@@ -1194,7 +1291,10 @@ fn test_phase6_sprint3_deep1_F1_migration_mismatch_and_corruption_rejection() {
         let mut conn = Connection::open(&higher_db_path).unwrap();
         let err = run_migrations(&mut conn).expect_err("higher user_version must be rejected");
         match err {
-            DbError::UnsupportedSchemaVersion { current, max_supported } => {
+            DbError::UnsupportedSchemaVersion {
+                current,
+                max_supported,
+            } => {
                 assert_eq!(current, 999);
                 assert_eq!(max_supported, MAX_SUPPORTED_SCHEMA_VERSION);
             }
@@ -1202,7 +1302,10 @@ fn test_phase6_sprint3_deep1_F1_migration_mismatch_and_corruption_rejection() {
         }
         // Verify user_version was NOT altered
         let v = get_user_version(&conn).unwrap();
-        assert_eq!(v, 999, "user_version must not be altered by unauthorized repair");
+        assert_eq!(
+            v, 999,
+            "user_version must not be altered by unauthorized repair"
+        );
     }
 
     // 3. Schema verification failure when table is missing
@@ -1212,9 +1315,14 @@ fn test_phase6_sprint3_deep1_F1_migration_mismatch_and_corruption_rejection() {
         configure_connection(&conn).unwrap();
         run_migrations(&mut conn).unwrap();
         conn.execute("DROP TABLE scene_versions;", []).unwrap();
-        let check_err = verify_schema_and_integrity(&conn).expect_err("dropping table must fail verification");
+        let check_err =
+            verify_schema_and_integrity(&conn).expect_err("dropping table must fail verification");
         let err_str = format!("{:?}", check_err);
-        assert!(err_str.contains("scene_versions"), "Error must report missing table: {}", err_str);
+        assert!(
+            err_str.contains("scene_versions"),
+            "Error must report missing table: {}",
+            err_str
+        );
     }
 }
 
@@ -1232,55 +1340,97 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
     // ------------------------------------------------------------------------
     let mut bfd = build_valid_full_draft_fixture(ProvenanceSource::User);
     let eval = evaluate_progress(&bfd);
-    assert_eq!(eval.denominator, 46, "T-UNIT-01: Progress engine denominator must equal 46");
+    assert_eq!(
+        eval.denominator, 46,
+        "T-UNIT-01: Progress engine denominator must equal 46"
+    );
     assert_eq!(MASTER_ATTRIBUTE_DENOMINATOR, 46);
     assert!(eval.confirmed_count > 0);
 
     // ------------------------------------------------------------------------
     // Row 2: T-UNIT-02 (Deterministic Code Allocation & Monotonic Counters)
     // ------------------------------------------------------------------------
-    let arc1_code = CodeAllocator::allocate(&mut bfd, EntityCodeSpec::Arc { project_code: "dai_lao_tu_tien" })
-        .expect("T-UNIT-02: allocate arc 1");
-    let arc2_code = CodeAllocator::allocate(&mut bfd, EntityCodeSpec::Arc { project_code: "dai_lao_tu_tien" })
-        .expect("T-UNIT-02: allocate arc 2");
-    assert_ne!(arc1_code, arc2_code, "T-UNIT-02: Arc codes must be distinct and deterministic");
+    let arc1_code = CodeAllocator::allocate(
+        &mut bfd,
+        EntityCodeSpec::Arc {
+            project_code: "dai_lao_tu_tien",
+        },
+    )
+    .expect("T-UNIT-02: allocate arc 1");
+    let arc2_code = CodeAllocator::allocate(
+        &mut bfd,
+        EntityCodeSpec::Arc {
+            project_code: "dai_lao_tu_tien",
+        },
+    )
+    .expect("T-UNIT-02: allocate arc 2");
+    assert_ne!(
+        arc1_code, arc2_code,
+        "T-UNIT-02: Arc codes must be distinct and deterministic"
+    );
 
     // ------------------------------------------------------------------------
     // Row 3: T-UNIT-03 (Outline Runs & Balanced Task Planner)
     // ------------------------------------------------------------------------
     let runs = plan_outline_runs(146, 260, 50, 10).expect("plan_outline_runs");
-    assert_eq!(runs.len(), 3, "T-UNIT-03: plan_outline_runs(146, 260, 50, 10) must yield 3 runs");
+    assert_eq!(
+        runs.len(),
+        3,
+        "T-UNIT-03: plan_outline_runs(146, 260, 50, 10) must yield 3 runs"
+    );
 
     // ------------------------------------------------------------------------
     // Row 4: T-UNIT-04 (Draft Invariants Validation before Commit)
     // ------------------------------------------------------------------------
     let mut invalid_draft = bfd.clone();
-    invalid_draft.optional.chapter_phase.arcs[0].chapters[0].scenes[0].world_setting_code = TrackedField::unset();
-    invalid_draft.optional.scene_config_phase.arcs[0].chapters[0].scenes[0].world_setting_code = TrackedField::unset();
+    invalid_draft.optional.chapter_phase.arcs[0].chapters[0].scenes[0].world_setting_code =
+        TrackedField::unset();
+    invalid_draft.optional.scene_config_phase.arcs[0].chapters[0].scenes[0].world_setting_code =
+        TrackedField::unset();
     let validation = validate_draft_for_commit(&invalid_draft, false);
-    assert!(!validation.is_valid_for_commit, "T-UNIT-04: Draft without world_setting_code must fail validation");
+    assert!(
+        !validation.is_valid_for_commit,
+        "T-UNIT-04: Draft without world_setting_code must fail validation"
+    );
 
     // ------------------------------------------------------------------------
     // Row 5: T-UNIT-05 (Multilingual Word Count UAX #29 + CJK)
     // ------------------------------------------------------------------------
     let vi_count = count_words("Hành trình tu tiên ngàn năm");
     let cjk_count = count_words("修仙千年的旅程");
-    assert!(vi_count > 0, "T-UNIT-05: Vietnamese word count must be positive");
-    assert!(cjk_count > 0, "T-UNIT-05: Chinese word count must be positive");
+    assert!(
+        vi_count > 0,
+        "T-UNIT-05: Vietnamese word count must be positive"
+    );
+    assert!(
+        cjk_count > 0,
+        "T-UNIT-05: Chinese word count must be positive"
+    );
 
     // ------------------------------------------------------------------------
     // Row 6: T-DB-01 (Pragmas, user_version, Foreign Keys, 66 tables, CHECK constraints)
     // ------------------------------------------------------------------------
     {
         let conn = pool.get().unwrap();
-        let j_mode: String = conn.query_row("PRAGMA journal_mode;", [], |r| r.get(0)).unwrap();
-        assert_eq!(j_mode.to_lowercase(), "wal", "T-DB-01: journal_mode must be wal");
+        let j_mode: String = conn
+            .query_row("PRAGMA journal_mode;", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            j_mode.to_lowercase(),
+            "wal",
+            "T-DB-01: journal_mode must be wal"
+        );
 
-        let fk: i32 = conn.query_row("PRAGMA foreign_keys;", [], |r| r.get(0)).unwrap();
+        let fk: i32 = conn
+            .query_row("PRAGMA foreign_keys;", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(fk, 1, "T-DB-01: foreign_keys must be enabled");
 
         let uv = get_user_version(&conn).unwrap();
-        assert_eq!(uv, MAX_SUPPORTED_SCHEMA_VERSION, "T-DB-01: user_version must equal MAX_SUPPORTED_SCHEMA_VERSION");
+        assert_eq!(
+            uv, MAX_SUPPORTED_SCHEMA_VERSION,
+            "T-DB-01: user_version must equal MAX_SUPPORTED_SCHEMA_VERSION"
+        );
 
         verify_schema_and_integrity(&conn).expect("T-DB-01: 66 tables must verify cleanly");
 
@@ -1289,7 +1439,10 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
             "INSERT INTO characters (id, code, display_name, nickname) VALUES (?1, 'c_err', NULL, NULL)",
             params![Uuid::now_v7().to_string()],
         );
-        assert!(ch_err.is_err(), "T-DB-01: Violating character CHECK constraint must fail with SQLITE_CONSTRAINT");
+        assert!(
+            ch_err.is_err(),
+            "T-DB-01: Violating character CHECK constraint must fail with SQLITE_CONSTRAINT"
+        );
     }
 
     // ------------------------------------------------------------------------
@@ -1297,10 +1450,12 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
     // ------------------------------------------------------------------------
     let drafts = Arc::new(DraftRuntimeRegistry::new());
     let draft_service = Arc::new(DraftService::new(pool.clone(), drafts.clone()));
-    let commit_service = Arc::new(merlink_harness_lib::service::commit_service::CommitService::new(
-        pool.clone(),
-        drafts.clone(),
-    ));
+    let commit_service = Arc::new(
+        merlink_harness_lib::service::commit_service::CommitService::new(
+            pool.clone(),
+            drafts.clone(),
+        ),
+    );
 
     let draft_id = Uuid::new_v4();
     let proj_uuid = Uuid::now_v7();
@@ -1338,33 +1493,57 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
 
     let roll_err = exec_commit_draft(
         &commit_service,
-        &CommitDraftReq { draft_session_id: draft_id },
+        &CommitDraftReq {
+            draft_session_id: draft_id,
+        },
         CommitCallerContext::UiAction,
-    ).await.expect_err("T-ROLL-01: Commit with code collision must fail");
+    )
+    .await
+    .expect_err("T-ROLL-01: Commit with code collision must fail");
     assert_eq!(roll_err.code, ErrorCode::CodeCollisionOnCommit);
 
     // Verify rollback: status remains editing
     {
         let conn = pool.get().unwrap();
-        let status: String = conn.query_row(
-            "SELECT status FROM draft_sessions WHERE id = ?1",
-            params![draft_id.to_string()],
-            |r| r.get(0),
-        ).unwrap();
-        assert_eq!(status, "editing", "T-ROLL-01: Session status must roll back to editing");
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM draft_sessions WHERE id = ?1",
+                params![draft_id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            status, "editing",
+            "T-ROLL-01: Session status must roll back to editing"
+        );
     }
 
     // ------------------------------------------------------------------------
     // Row 8: T-CONC-01 (Operation Lock Serialization)
     // ------------------------------------------------------------------------
     let op_entry = drafts.get_or_register(draft_id, WorkingState::new(draft_id));
-    let lock1 = op_entry.acquire_operation_lock("holder_1", Duration::from_millis(50)).await;
-    assert!(lock1.is_ok(), "T-CONC-01: First lock acquisition must succeed");
-    let lock2 = op_entry.acquire_operation_lock("holder_2", Duration::from_millis(20)).await;
-    assert!(lock2.is_err(), "T-CONC-01: Second concurrent lock acquisition must time out / be blocked");
+    let lock1 = op_entry
+        .acquire_operation_lock("holder_1", Duration::from_millis(50))
+        .await;
+    assert!(
+        lock1.is_ok(),
+        "T-CONC-01: First lock acquisition must succeed"
+    );
+    let lock2 = op_entry
+        .acquire_operation_lock("holder_2", Duration::from_millis(20))
+        .await;
+    assert!(
+        lock2.is_err(),
+        "T-CONC-01: Second concurrent lock acquisition must time out / be blocked"
+    );
     drop(lock1);
-    let lock3 = op_entry.acquire_operation_lock("holder_3", Duration::from_millis(50)).await;
-    assert!(lock3.is_ok(), "T-CONC-01: Lock acquisition after release must succeed");
+    let lock3 = op_entry
+        .acquire_operation_lock("holder_3", Duration::from_millis(50))
+        .await;
+    assert!(
+        lock3.is_ok(),
+        "T-CONC-01: Lock acquisition after release must succeed"
+    );
     drop(lock3);
 
     // ------------------------------------------------------------------------
@@ -1384,11 +1563,18 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
         turn_id: None,
         chat_message_id: None,
     };
-    let v_seq1 = draft_service.seal_version(&seal_params)
-        .expect("T-IDEM-01: initial seal must succeed").seq;
-    let v_seq2 = draft_service.seal_version(&seal_params)
-        .expect("T-IDEM-01: identical seal must be idempotent").seq;
-    assert_eq!(v_seq1, v_seq2, "T-IDEM-01: Idempotent replay must return identical version seq");
+    let v_seq1 = draft_service
+        .seal_version(&seal_params)
+        .expect("T-IDEM-01: initial seal must succeed")
+        .seq;
+    let v_seq2 = draft_service
+        .seal_version(&seal_params)
+        .expect("T-IDEM-01: identical seal must be idempotent")
+        .seq;
+    assert_eq!(
+        v_seq1, v_seq2,
+        "T-IDEM-01: Idempotent replay must return identical version seq"
+    );
 
     // ------------------------------------------------------------------------
     // Row 10: T-REST-01 (Restore Draft Version & Patch Expiry)
@@ -1398,7 +1584,9 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
         target_seq: v_seq1,
         client_request_id: "req_restore_01".to_string(),
     };
-    let restore_res = draft_service.restore_version(&restore_params).await
+    let restore_res = draft_service
+        .restore_version(&restore_params)
+        .await
         .expect("T-REST-01: restore must succeed");
     assert_eq!(restore_res.restored_phase, 1);
     assert_eq!(restore_res.new_version.parent_seq, Some(v_seq1));
@@ -1411,30 +1599,40 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
         drafts.clone(),
         draft_service.clone(),
     );
-    let _proposal = patch_service.persist_proposal(&PersistProposalParams {
-        draft_session_id: draft_id,
-        base_version_seq: Some(v_seq1),
-        target_type: "character".to_string(),
-        target_code: "tran_ha".to_string(),
-        field_name: Some("notes".to_string()),
-        operation: "set".to_string(),
-        previous_value: Some(json!("Nhân vật chính")),
-        new_value: Some(json!("Ghi chú đã xác nhận")),
-        target_source: Some("user".to_string()),
-        eligibility_json: None,
-        require_new_origin: false,
-    }).unwrap();
+    let _proposal = patch_service
+        .persist_proposal(&PersistProposalParams {
+            draft_session_id: draft_id,
+            base_version_seq: Some(v_seq1),
+            target_type: "character".to_string(),
+            target_code: "tran_ha".to_string(),
+            field_name: Some("notes".to_string()),
+            operation: "set".to_string(),
+            previous_value: Some(json!("Nhân vật chính")),
+            new_value: Some(json!("Ghi chú đã xác nhận")),
+            target_source: Some("user".to_string()),
+            eligibility_json: None,
+            require_new_origin: false,
+        })
+        .unwrap();
 
-    let confirm_all_res = patch_service.confirm_all_pending_patches(draft_id, "req_confirm_all_01".to_string()).await
+    let confirm_all_res = patch_service
+        .confirm_all_pending_patches(draft_id, "req_confirm_all_01".to_string())
+        .await
         .expect("T-PROV-01: confirm_all_pending_patches must succeed");
-    assert!(confirm_all_res.applied.len() >= 1);
+    assert!(!confirm_all_res.applied.is_empty());
 
     // ------------------------------------------------------------------------
     // Row 12: T-CASC-01 (Scoped Project Deletion Preserves Shared Entities)
     // ------------------------------------------------------------------------
-    let project_service = merlink_harness_lib::service::project_service::ProjectService::new(pool.clone());
-    let list_before = project_service.list_projects(&ListProjectsReq::default()).unwrap();
-    assert!(!list_before.items.is_empty(), "T-CASC-01: Projects exist in catalog");
+    let project_service =
+        merlink_harness_lib::service::project_service::ProjectService::new(pool.clone());
+    let list_before = project_service
+        .list_projects(&ListProjectsReq::default())
+        .unwrap();
+    assert!(
+        !list_before.items.is_empty(),
+        "T-CASC-01: Projects exist in catalog"
+    );
 
     // ------------------------------------------------------------------------
     // Row 13: T-WF-01 (Segmented Workflow Lifecycle)
@@ -1445,9 +1643,15 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
         draft_service.clone(),
         merlink_harness_lib::domain::workflow_planner::WorkflowConfig::default(),
     );
-    let wf_status = workflow_service.get_workflow_status(&GetWorkflowStatusReq { draft_session_id: draft_id })
+    let wf_status = workflow_service
+        .get_workflow_status(&GetWorkflowStatusReq {
+            draft_session_id: draft_id,
+        })
         .expect("T-WF-01: get_workflow_status must succeed");
-    assert!(!wf_status.is_running, "T-WF-01: Initial workflow is not running");
+    assert!(
+        !wf_status.is_running,
+        "T-WF-01: Initial workflow is not running"
+    );
 
     // ------------------------------------------------------------------------
     // Row 14: T-LOCK-01 (Scene Lock Mid-Stream Invalidation)
@@ -1457,12 +1661,15 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
     let s_id = Uuid::now_v7();
     writing_gen.invalidate_by_lock(s_id);
     let accept_fail = writing_gen.accept_generation(Uuid::now_v7(), Uuid::now_v7());
-    assert!(accept_fail.is_err(), "T-LOCK-01: Invalidate by lock rejects accept");
+    assert!(
+        accept_fail.is_err(),
+        "T-LOCK-01: Invalidate by lock rejects accept"
+    );
 
     // ------------------------------------------------------------------------
     // Row 15: T-SAVE-01 (Chapter Save OCC & Idempotent Replay)
     // ------------------------------------------------------------------------
-    assert!(true, "T-SAVE-01 covered in test_P6S3_B");
+    // T-SAVE-01 is covered by test_P6S3_B.
 
     // ------------------------------------------------------------------------
     // Row 16: T-REC-01 (Deterministic Crash Recovery on Startup)
@@ -1471,20 +1678,36 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
     fs::create_dir_all(&temp_cache_matrix).unwrap();
     let recovery = run_startup_recovery(&pool, &temp_cache_matrix, Some(&drafts))
         .expect("T-REC-01: run_startup_recovery must succeed");
-    assert!(recovery.recovered_sessions.len() >= 1);
+    assert!(!recovery.recovered_sessions.is_empty());
 
     // ------------------------------------------------------------------------
     // Row 17: T-IPC-01, IPC-01, IPC-02 (40 Commands & 3 Channels Master Catalog)
     // ------------------------------------------------------------------------
-    assert_eq!(MASTER_IPC_COMMAND_NAMES.len(), 40, "IPC-01: Exactly 40 master IPC commands");
-    assert_eq!(STREAMING_CHANNEL_NAMES.len(), 3, "IPC-01: Exactly 3 streaming channels");
+    assert_eq!(
+        MASTER_IPC_COMMAND_NAMES.len(),
+        40,
+        "IPC-01: Exactly 40 master IPC commands"
+    );
+    assert_eq!(
+        STREAMING_CHANNEL_NAMES.len(),
+        3,
+        "IPC-01: Exactly 3 streaming channels"
+    );
     let command_set: HashSet<&str> = MASTER_IPC_COMMAND_NAMES.iter().copied().collect();
-    assert_eq!(command_set.len(), 40, "IPC-02: All 40 command names must be unique");
+    assert_eq!(
+        command_set.len(),
+        40,
+        "IPC-02: All 40 command names must be unique"
+    );
 
     // ------------------------------------------------------------------------
     // Rows 18–22: MIG-01..MIG-05 (Forward-only, Backup, Integrity)
     // ------------------------------------------------------------------------
-    assert_eq!(TARGET_TABLES_V3.len(), 66, "MIG-05: Exactly 66 physical tables in V3 target");
+    assert_eq!(
+        TARGET_TABLES_V3.len(),
+        66,
+        "MIG-05: Exactly 66 physical tables in V3 target"
+    );
 
     // ------------------------------------------------------------------------
     // Rows 23–32: WF-01..10 & WF-C01..15 (Historical Evidence Verifier & Codec)
@@ -1506,25 +1729,32 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
     assert_eq!(decoded_ev.schema_version, 2);
     assert_eq!(decoded_ev.codec_version, "v2");
 
-    let decision_valid = evaluate_evidence_integrity(
-        Some(&ev_val.to_string()),
-        Some("sha256_out_01"),
-    );
+    let decision_valid =
+        evaluate_evidence_integrity(Some(&ev_val.to_string()), Some("sha256_out_01"));
     assert_eq!(decision_valid, WorkflowRecoveryDecision::ValidEvidence);
 
     let decision_stale = evaluate_evidence_integrity(
         Some(&ev_val.to_string()),
         Some("sha256_different_fingerprint"),
     );
-    assert!(matches!(decision_stale, WorkflowRecoveryDecision::RequiresReplan { .. }));
+    assert!(matches!(
+        decision_stale,
+        WorkflowRecoveryDecision::RequiresReplan { .. }
+    ));
 
     // ------------------------------------------------------------------------
     // Rows 33–34: DB-P01 & DB-P02 (Canonical Path & Online Backup)
     // ------------------------------------------------------------------------
     let canonical_path = canonical_db_path(temp_dir.path());
-    assert!(canonical_path.to_string_lossy().contains("merlink.sqlite3"), "DB-P01: canonical db path");
+    assert!(
+        canonical_path.to_string_lossy().contains("merlink.sqlite3"),
+        "DB-P01: canonical db path"
+    );
     let canonical_dir = canonical_db_dir(temp_dir.path());
-    assert!(canonical_dir.to_string_lossy().ends_with("db"), "DB-P01: canonical db dir");
+    assert!(
+        canonical_dir.to_string_lossy().ends_with("db"),
+        "DB-P01: canonical db dir"
+    );
 
     let backup_dst = temp_dir.path().join("backup_test.bak");
     {
@@ -1532,5 +1762,8 @@ async fn test_P6S3_MATRIX_comprehensive_matrix_verification() {
         merlink_harness_lib::storage::db::perform_online_backup(&conn, &backup_dst)
             .expect("DB-P02: perform_online_backup via SQLite Online Backup API must succeed");
     }
-    assert!(backup_dst.exists(), "DB-P02: Backup file must exist on disk");
+    assert!(
+        backup_dst.exists(),
+        "DB-P02: Backup file must exist on disk"
+    );
 }

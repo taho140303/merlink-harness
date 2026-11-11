@@ -387,9 +387,7 @@ pub fn run_startup_recovery(
                         }
                     }
                 } else if content.contains("fingerprint") {
-                    let matches_any = valid_fingerprints
-                        .iter()
-                        .any(|vfp| content.contains(vfp));
+                    let matches_any = valid_fingerprints.iter().any(|vfp| content.contains(vfp));
                     if !matches_any {
                         should_delete = true;
                     }

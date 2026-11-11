@@ -6,9 +6,9 @@ use tokio::sync::mpsc;
 
 use crate::error::IpcError;
 use crate::ipc::dto::{
-    CancelSceneGenerationReq, CancelSceneGenerationResponseDto,
-    RespondEditScopeExpansionReq, RespondEditScopeExpansionResponseDto,
-    SceneGenerationResultDto, SceneGenerationStreamEvent, StartSceneGenerationReq,
+    CancelSceneGenerationReq, CancelSceneGenerationResponseDto, RespondEditScopeExpansionReq,
+    RespondEditScopeExpansionResponseDto, SceneGenerationResultDto, SceneGenerationStreamEvent,
+    StartSceneGenerationReq,
 };
 use crate::service::writing_generation::WritingGenerationService;
 
@@ -40,7 +40,9 @@ pub async fn start_scene_generation(
             let _ = channel_clone.send(evt);
         }
     });
-    service.start_scene_generation_with_provider(&req, provider, Some(tx)).await
+    service
+        .start_scene_generation_with_provider(&req, provider, Some(tx))
+        .await
 }
 
 // ============================================================================

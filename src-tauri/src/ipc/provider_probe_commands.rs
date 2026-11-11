@@ -86,10 +86,17 @@ fn extract_models(body: &Value) -> Vec<String> {
 fn probe_paths(endpoint: &str, provider_id: &str) -> (String, String) {
     let base = endpoint.trim().trim_end_matches('/');
     if provider_id == "ollama" {
-        let root = base.strip_suffix("/api/chat").or_else(|| base.strip_suffix("/api")).unwrap_or(base);
+        let root = base
+            .strip_suffix("/api/chat")
+            .or_else(|| base.strip_suffix("/api"))
+            .unwrap_or(base);
         return (format!("{root}/api/tags"), format!("{root}/api/chat"));
     }
-    let root = base.strip_suffix("/chat/completions").or_else(|| base.strip_suffix("/responses")).or_else(|| base.strip_suffix("/messages")).unwrap_or(base);
+    let root = base
+        .strip_suffix("/chat/completions")
+        .or_else(|| base.strip_suffix("/responses"))
+        .or_else(|| base.strip_suffix("/messages"))
+        .unwrap_or(base);
     (format!("{root}/models"), format!("{root}/chat/completions"))
 }
 
@@ -107,7 +114,11 @@ pub async fn probe_provider(
         .filter(|s| !s.trim().is_empty())
         .or_else(|| stored.as_ref().and_then(|p| p.endpoint_url.clone()));
     let Some(endpoint) = endpoint else {
-        return ProbeProviderResultDto::fail("error", "validation_failed", "Endpoint URL is required");
+        return ProbeProviderResultDto::fail(
+            "error",
+            "validation_failed",
+            "Endpoint URL is required",
+        );
     };
     let base = endpoint.trim().trim_end_matches('/').to_string();
     match url::Url::parse(&base) {
@@ -154,7 +165,9 @@ pub async fn probe_provider(
     };
 
     let map_send_err = |e: reqwest::Error| {
-        let msg = state.redactor.redact(&crate::providers::redaction::describe_request_error(&e));
+        let msg = state
+            .redactor
+            .redact(&crate::providers::redaction::describe_request_error(&e));
         ProbeProviderResultDto::fail("unreachable", "provider_unreachable", msg)
     };
 
@@ -229,10 +242,16 @@ pub async fn probe_provider(
             json!({"model": model, "max_tokens": 1, "messages": [{"role": "user", "content": "ping"}]}),
         ),
     };
-    let url = if provider_id == "ollama" { completion_url } else if path == "chat/completions" { completion_url } else { format!("{base}/{path}") };
+    let url = if provider_id == "ollama" || path == "chat/completions" {
+        completion_url
+    } else {
+        format!("{base}/{path}")
+    };
     let body = if provider_id == "ollama" {
         json!({"model": model, "stream": false, "messages": [{"role": "user", "content": "ping"}]})
-    } else { body };
+    } else {
+        body
+    };
     let resp = match auth(client.post(url).json(&body)).send().await {
         Ok(r) => r,
         Err(e) => return map_send_err(e),
@@ -292,7 +311,9 @@ mod tests {
         let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
         let server = std::thread::spawn(move || {
             let (mut socket, _) = listener.accept().unwrap();
-            socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
             let mut request = Vec::new();
             let mut buf = [0; 1024];
             while !request.windows(4).any(|w| w == b"\r\n\r\n") {
@@ -301,8 +322,13 @@ mod tests {
                 request.extend_from_slice(&buf[..n]);
             }
             let header_end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-            let length = String::from_utf8_lossy(&request[..header_end]).lines()
-                .find_map(|line| line.to_lowercase().strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+            let length = String::from_utf8_lossy(&request[..header_end])
+                .lines()
+                .find_map(|line| {
+                    line.to_lowercase()
+                        .strip_prefix("content-length:")
+                        .and_then(|n| n.trim().parse::<usize>().ok())
+                })
                 .unwrap_or(0);
             while request.len() < header_end + length {
                 let n = socket.read(&mut buf).unwrap();
@@ -313,19 +339,30 @@ mod tests {
             let (status, body) = if is_listing {
                 ("200 OK", r#"{"data":[{"id":"custom-model"}]}"#)
             } else {
-                ("401 Unauthorized", r#"{"error":{"code":"invalid_api_key"}}"#)
+                (
+                    "401 Unauthorized",
+                    r#"{"error":{"code":"invalid_api_key"}}"#,
+                )
             };
             write!(socket, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
         });
         let state = RuntimeConfigState::default();
-        let result = probe_provider(&state, &ProbeProviderReq {
-            provider_id: "custom-provider".into(),
-            endpoint_url: Some(endpoint),
-            model_name: Some("custom-model".into()),
-            ..Default::default()
-        }, false).await;
+        let result = probe_provider(
+            &state,
+            &ProbeProviderReq {
+                provider_id: "custom-provider".into(),
+                endpoint_url: Some(endpoint),
+                model_name: Some("custom-model".into()),
+                ..Default::default()
+            },
+            false,
+        )
+        .await;
         server.join().unwrap();
-        assert!(!result.ok, "Public model listing must not report chat authentication success");
+        assert!(
+            !result.ok,
+            "Public model listing must not report chat authentication success"
+        );
         assert_eq!(result.code.as_deref(), Some("provider_auth_failed"));
     }
 
@@ -336,14 +373,27 @@ mod tests {
         let g = json!({"models": [{"name": "models/gemini-x"}]});
         assert_eq!(extract_models(&g), vec!["gemini-x"]);
         assert_eq!(extract_models(&json!(["m1", "m1"])), vec!["m1"]);
-        assert_eq!(extract_models(&json!({"models": [{"name": "llama3.2"}]})), vec!["llama3.2"]);
+        assert_eq!(
+            extract_models(&json!({"models": [{"name": "llama3.2"}]})),
+            vec!["llama3.2"]
+        );
     }
 
     #[test]
     fn configured_provider_endpoints_have_correct_probe_routes() {
-        assert_eq!(probe_paths("http://127.0.0.1:11434/api/chat", "ollama"),
-            ("http://127.0.0.1:11434/api/tags".into(), "http://127.0.0.1:11434/api/chat".into()));
-        assert_eq!(probe_paths("https://api.opencode.ai/v1/chat/completions", "opencode"),
-            ("https://api.opencode.ai/v1/models".into(), "https://api.opencode.ai/v1/chat/completions".into()));
+        assert_eq!(
+            probe_paths("http://127.0.0.1:11434/api/chat", "ollama"),
+            (
+                "http://127.0.0.1:11434/api/tags".into(),
+                "http://127.0.0.1:11434/api/chat".into()
+            )
+        );
+        assert_eq!(
+            probe_paths("https://api.opencode.ai/v1/chat/completions", "opencode"),
+            (
+                "https://api.opencode.ai/v1/models".into(),
+                "https://api.opencode.ai/v1/chat/completions".into()
+            )
+        );
     }
 }

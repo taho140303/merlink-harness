@@ -37,7 +37,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::business_flow::BusinessFlowData;
-use super::progress_engine::{evaluate_progress, AttributeProgressState, MasterAttributePhaseGroup};
+use super::progress_engine::{
+    evaluate_progress, AttributeProgressState, MasterAttributePhaseGroup,
+};
 
 /// Structured error code for a pre-commit or phase validation violation (`be-core.md` §7.1, `T-UNIT-04`, `phase3_sprint1_deep0-F2`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -179,10 +181,7 @@ pub fn check_readiness_gate(state: &BusinessFlowData) -> Vec<ValidationIssue> {
                 classification: "P3S1-C".to_string(),
                 path: attr.path.to_string(),
                 entity_code: None,
-                message: format!(
-                    "Phase 0 required attribute '{}' is incomplete",
-                    attr.path
-                ),
+                message: format!("Phase 0 required attribute '{}' is incomplete", attr.path),
             });
         }
     }
@@ -192,12 +191,12 @@ pub fn check_readiness_gate(state: &BusinessFlowData) -> Vec<ValidationIssue> {
             .display_name
             .value
             .as_ref()
-            .map_or(false, |s| !s.trim().is_empty());
+            .is_some_and(|s| !s.trim().is_empty());
         let has_nick = ch
             .nickname
             .value
             .as_ref()
-            .map_or(false, |s| !s.trim().is_empty());
+            .is_some_and(|s| !s.trim().is_empty());
         if !has_display && !has_nick {
             issues.push(ValidationIssue {
                 code: ValidationErrorCode::CharacterMissingNameAndNickname,
@@ -517,8 +516,13 @@ pub fn validate_draft_for_commit(
         .collect();
 
     // 5. Chapter count vs `require.project.target.chapter_count` and global uniqueness of `chapters[].position` across Arcs
-    let expected_chapter_count =
-        state.require.project.target.chapter_count.value.unwrap_or(0) as usize;
+    let expected_chapter_count = state
+        .require
+        .project
+        .target
+        .chapter_count
+        .value
+        .unwrap_or(0) as usize;
     let mut total_chapters = 0usize;
     let mut seen_chapter_positions: BTreeMap<u32, String> = BTreeMap::new();
     let mut chapter_to_arc_and_pos: BTreeMap<&str, (&str, Option<u32>)> = BTreeMap::new();
@@ -549,8 +553,7 @@ pub fn validate_draft_for_commit(
 
             match pos_opt {
                 Some(pos) if pos > 0 => {
-                    if let Some(prev_ch_code) =
-                        seen_chapter_positions.insert(pos, ch.code.clone())
+                    if let Some(prev_ch_code) = seen_chapter_positions.insert(pos, ch.code.clone())
                     {
                         issues.push(ValidationIssue {
                             code: ValidationErrorCode::DuplicateChapterPosition,
@@ -638,9 +641,8 @@ pub fn validate_draft_for_commit(
         let bounds = arc_chapter_pos_bounds.get(arc_code).copied();
 
         for (eb_idx, eb) in arc.motif.event_blocks.iter().enumerate() {
-            let eb_path = format!(
-                "optional.overview_phase.arcs[{arc_idx}].motif.event_blocks[{eb_idx}]"
-            );
+            let eb_path =
+                format!("optional.overview_phase.arcs[{arc_idx}].motif.event_blocks[{eb_idx}]");
 
             // Check by start_chapter_code / end_chapter_code if provided
             let start_code = eb
@@ -708,7 +710,7 @@ pub fn validate_draft_for_commit(
             // Also check numeric start_chapter / end_chapter if provided
             if let (Some(s_num), Some(e_num)) = (eb.start_chapter.value, eb.end_chapter.value) {
                 let out_of_bounds = s_num > e_num
-                    || bounds.map_or(false, |(min_p, max_p)| s_num < min_p || e_num > max_p);
+                    || bounds.is_some_and(|(min_p, max_p)| s_num < min_p || e_num > max_p);
                 if out_of_bounds {
                     issues.push(ValidationIssue {
                         code: ValidationErrorCode::EventBlockOutOfArcRange,
@@ -741,7 +743,9 @@ pub fn validate_draft_for_commit(
                         "optional.overview_phase.arcs[{arc_idx}].themes.parent_theme_code"
                     ),
                     entity_code: arc.themes.code.clone(),
-                    message: format!("Theme references non-existent parent_theme_code '{parent_tc}'"),
+                    message: format!(
+                        "Theme references non-existent parent_theme_code '{parent_tc}'"
+                    ),
                 });
             } else if let Some(self_tc) = arc.themes.code.as_deref().map(str::trim) {
                 let mut curr = Some(parent_tc);
@@ -962,9 +966,7 @@ pub fn validate_draft_for_commit(
             issues.push(ValidationIssue {
                 code: ValidationErrorCode::DanglingCharacterCode,
                 classification: "P3S1-C".to_string(),
-                path: format!(
-                    "optional.character_life_experience_phase.character[{c_idx}].code"
-                ),
+                path: format!("optional.character_life_experience_phase.character[{c_idx}].code"),
                 entity_code: Some(item.code.clone()),
                 message: format!(
                     "character_life_experience_phase references unknown character '{}'",
@@ -1008,7 +1010,7 @@ pub fn validate_draft_for_commit(
                 .value
                 .as_deref()
                 .map(str::trim)
-                .map_or(false, |s| !s.is_empty());
+                .is_some_and(|s| !s.is_empty());
             if !dom_ok {
                 issues.push(ValidationIssue {
                     code: ValidationErrorCode::CompetenceMissingDomainCode,

@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 #![allow(non_snake_case)]
 
 //! Acceptance and Integration tests for `phase4_sprint1_deep0`
@@ -22,6 +29,8 @@
 //! - `IPC-CMD-017`: `cancel_workflow` typed IPC validation, authorization, and error handling.
 //! - `IPC-CMD-018`: `get_workflow_status` typed IPC non-blocking status query.
 
+mod common;
+
 #[path = "../src/error.rs"]
 pub mod error_mod;
 
@@ -40,10 +49,10 @@ pub mod word_count;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
 
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
 #[path = "../src/domain/phase_gate.rs"]
 pub mod phase_gate;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
 
 #[path = "../src/domain/workflow_planner.rs"]
 pub mod workflow_planner;
@@ -155,15 +164,17 @@ pub mod ipc {
     // boundary for compiling the standalone workflow command tests.
     pub mod config_commands {
         use crate::domain::workflow_planner::WorkflowConfig;
-        use crate::error::IpcError;
         use crate::dto::SubagentConfigDto;
+        use crate::error::IpcError;
         use parking_lot::RwLock;
 
         pub struct RuntimeConfigState {
             pub subagent_config: RwLock<SubagentConfigDto>,
         }
 
-        pub fn workflow_config_from_subagent(cfg: &SubagentConfigDto) -> Result<WorkflowConfig, IpcError> {
+        pub fn workflow_config_from_subagent(
+            cfg: &SubagentConfigDto,
+        ) -> Result<WorkflowConfig, IpcError> {
             Ok(WorkflowConfig {
                 max_parallel: cfg.max_subagents as usize,
                 outline_cap: cfg.outline_capacity as i32,
@@ -195,13 +206,12 @@ pub mod storage {
     pub use crate::pending_repo;
 }
 
-use std::process::Command;
-use std::sync::Arc;
-use std::time::Duration;
+use phase3_artifact::WorldProbeReportV1;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection};
-use phase3_artifact::WorldProbeReportV1;
+use std::sync::Arc;
+use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -241,9 +251,8 @@ fn setup_test_fixture() -> TestFixture {
     let temp_dir = TempDir::new().expect("failed to create temp dir");
     let db_path = temp_dir.path().join("test_workflow.db");
 
-    let manager = SqliteConnectionManager::file(&db_path).with_init(|conn| {
-        storage::db::configure_connection(conn)
-    });
+    let manager = SqliteConnectionManager::file(&db_path)
+        .with_init(|conn| storage::db::configure_connection(conn));
     let pool = Pool::builder()
         .max_size(5)
         .build(manager)
@@ -378,8 +387,10 @@ fn seeded_business_flow() -> BusinessFlowData {
             ]}
         }
     });
-    let flow: BusinessFlowData = serde_json::from_value(value).expect("fixture draft must deserialize");
-    flow.validate_structure().expect("fixture draft must be structurally valid");
+    let flow: BusinessFlowData =
+        serde_json::from_value(value).expect("fixture draft must deserialize");
+    flow.validate_structure()
+        .expect("fixture draft must be structurally valid");
     flow
 }
 
@@ -475,14 +486,9 @@ fn phase4_sprint1_deep0_F0_predecessor_gates_verification() {
         ("gate_phase3_sprint10_deep4", GATE_P3S10),
         ("gate_phase3_sprint1_deep0", GATE_P3S1),
     ] {
-        let cat_out = Command::new("git")
-            .args(["cat-file", "-e", &format!("{}^{{commit}}", sha)])
-            .output()
-            .unwrap_or_else(|e| panic!("failed to run git cat-file for {}: {}", gate_name, e));
-
         assert!(
-            cat_out.status.success(),
-            "Predecessor {} commit {} must exist in git object database",
+            common::verify_commit(sha),
+            "Predecessor {} commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
             gate_name,
             sha
         );
@@ -542,8 +548,11 @@ async fn P4S1_P_concurrent_compute_deterministic_order_tx04_seal() {
     let applied_order = fixture
         .workflow_service
         .get_applied_task_order(&draft_session_id);
-    for i in 0..applied_order.len() {
-        assert_eq!(applied_order[i], i, "Tasks must be applied in ascending 0..N order");
+    for (i, applied) in applied_order.iter().enumerate() {
+        assert_eq!(
+            *applied, i,
+            "Tasks must be applied in ascending 0..N order"
+        );
     }
 
     // Verify events were emitted
@@ -551,11 +560,21 @@ async fn P4S1_P_concurrent_compute_deterministic_order_tx04_seal() {
     while let Ok(evt) = event_rx.try_recv() {
         events.push(evt);
     }
-    assert!(events.iter().any(|e| matches!(e, WorkflowProgressEvent::WorkflowStarted { .. })));
-    assert!(events.iter().any(|e| matches!(e, WorkflowProgressEvent::RoundStarted { .. })));
-    assert!(events.iter().any(|e| matches!(e, WorkflowProgressEvent::TaskCompleted { .. })));
-    assert!(events.iter().any(|e| matches!(e, WorkflowProgressEvent::RoundSealed { .. })));
-    assert!(events.iter().any(|e| matches!(e, WorkflowProgressEvent::WorkflowFinished { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, WorkflowProgressEvent::WorkflowStarted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, WorkflowProgressEvent::RoundStarted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, WorkflowProgressEvent::TaskCompleted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, WorkflowProgressEvent::RoundSealed { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, WorkflowProgressEvent::WorkflowFinished { .. })));
 
     // Verify SQLite state: 1 round receipt, 1 draft version sealed, task receipts
     let conn = fixture.pool.get().unwrap();
@@ -613,7 +632,10 @@ async fn P4S1_N_no_external_effect_replay_on_retry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert!(round_count_1 >= 1, "Phase 1 must seal at least one round receipt");
+    assert!(
+        round_count_1 >= 1,
+        "Phase 1 must seal at least one round receipt"
+    );
 
     // Second run with the same workflow_run_id uses idempotent replay, zero new writes
     let summary2 = exec_start_or_resume_workflow(&fixture.workflow_service, &req, None)
@@ -628,7 +650,10 @@ async fn P4S1_N_no_external_effect_replay_on_retry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(round_count_2, round_count_1, "Idempotent replay must not create duplicate round receipts");
+    assert_eq!(
+        round_count_2, round_count_1,
+        "Idempotent replay must not create duplicate round receipts"
+    );
 }
 
 /// Acceptance Test: `P4S1-B`
@@ -645,10 +670,9 @@ async fn P4S1_B_canceled_round_never_saved_if_tx04_failed() {
     }
 
     // Set error injection: FailTx04
-    fixture.workflow_service.set_error_injection(
-        &draft_session_id,
-        WorkflowErrorInjection::FailTx04,
-    );
+    fixture
+        .workflow_service
+        .set_error_injection(&draft_session_id, WorkflowErrorInjection::FailTx04);
 
     // Give task enough runtime so cancel arrives while running
     fixture
@@ -668,9 +692,8 @@ async fn P4S1_B_canceled_round_never_saved_if_tx04_failed() {
 
     let service = fixture.workflow_service.clone();
     // Launch workflow in background
-    let join_handle = tokio::spawn(async move {
-        exec_start_or_resume_workflow(&service, &req, None).await
-    });
+    let join_handle =
+        tokio::spawn(async move { exec_start_or_resume_workflow(&service, &req, None).await });
 
     // Brief yield to let workflow start
     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -701,7 +724,10 @@ async fn P4S1_B_canceled_round_never_saved_if_tx04_failed() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(ver_count, 0, "No fake version must be saved on TX-04 failure");
+    assert_eq!(
+        ver_count, 0,
+        "No fake version must be saved on TX-04 failure"
+    );
 }
 
 /// Acceptance Test: `P4S1-CANCEL-BEFORE-TX04`
@@ -734,9 +760,10 @@ async fn P4S1_CANCEL_BEFORE_TX04_seals_applied_and_halts_remaining_rounds() {
     let service = fixture.workflow_service.clone();
     let (event_tx, _event_rx) = mpsc::channel(100);
 
-    let join_handle = tokio::spawn(async move {
-        exec_start_or_resume_workflow(&service, &req, Some(event_tx)).await
-    });
+    let join_handle =
+        tokio::spawn(
+            async move { exec_start_or_resume_workflow(&service, &req, Some(event_tx)).await },
+        );
 
     // Wait for RoundStarted
     tokio::time::sleep(Duration::from_millis(15)).await;
@@ -798,7 +825,10 @@ async fn P4S1_FAILED_TASK_stops_round_and_reports_failed() {
     let finished_event = events
         .iter()
         .find(|e| matches!(e, WorkflowProgressEvent::WorkflowFinished { status, .. } if status == "failed"));
-    assert!(finished_event.is_some(), "WorkflowFinished(failed) event must be emitted");
+    assert!(
+        finished_event.is_some(),
+        "WorkflowFinished(failed) event must be emitted"
+    );
 }
 
 /// Returns a valid ProbeCandidatesV1 artifact for probe tasks so the merger can plan writes.
@@ -812,11 +842,13 @@ impl WorkflowTaskExecutor for ProbeArtifactExecutor {
     ) -> Result<TaskExecutionOutput, IpcError> {
         let artifact = if ctx.task_spec.task_kind == "world_probe" {
             let report_text = r#"{"schemaVersion":1,"worldSettings":[{"tempKey":"w1","displayName":"Probe Realm","type":"REALM"},{"tempKey":"w2","parentTempKey":"w1","displayName":"Probe City","type":"CITY"}],"loreEntries":[]}"#;
-            Some(serde_json::to_value(WorldProbeReportV1::new(
-                ctx.task_spec.assigned_scope.to_string(),
-                report_text,
-            ))
-            .unwrap())
+            Some(
+                serde_json::to_value(WorldProbeReportV1::new(
+                    ctx.task_spec.assigned_scope.to_string(),
+                    report_text,
+                ))
+                .unwrap(),
+            )
         } else {
             None
         };
@@ -863,7 +895,12 @@ async fn P4S1_PHASE3_PARENT_FIRST_probe_merge_depth_ordered_write() {
 
     let mut round_events = Vec::new();
     while let Ok(evt) = event_rx.try_recv() {
-        if let WorkflowProgressEvent::RoundStarted { round_index, active_task_identities, .. } = evt {
+        if let WorkflowProgressEvent::RoundStarted {
+            round_index,
+            active_task_identities,
+            ..
+        } = evt
+        {
             round_events.push((round_index, active_task_identities));
         }
     }
@@ -917,13 +954,24 @@ async fn P4S1_PHASE5_SUBPHASE_strictly_separated_subphases() {
     assert_eq!(summary1.status, "completed");
 
     while let Ok(evt) = event_rx1.try_recv() {
-        if let WorkflowProgressEvent::WorkflowStarted { phase, subphase, .. } = evt {
+        if let WorkflowProgressEvent::WorkflowStarted {
+            phase, subphase, ..
+        } = evt
+        {
             assert_eq!(phase, 5);
             assert_eq!(subphase, Some(1));
         }
-        if let WorkflowProgressEvent::RoundStarted { active_task_identities, .. } = evt {
+        if let WorkflowProgressEvent::RoundStarted {
+            active_task_identities,
+            ..
+        } = evt
+        {
             for id in active_task_identities {
-                assert!(id.contains("p5:s1"), "Round tasks must only belong to subphase 1: {}", id);
+                assert!(
+                    id.contains("p5:s1"),
+                    "Round tasks must only belong to subphase 1: {}",
+                    id
+                );
             }
         }
     }
@@ -944,13 +992,24 @@ async fn P4S1_PHASE5_SUBPHASE_strictly_separated_subphases() {
     assert_eq!(summary2.status, "completed");
 
     while let Ok(evt) = event_rx2.try_recv() {
-        if let WorkflowProgressEvent::WorkflowStarted { phase, subphase, .. } = evt {
+        if let WorkflowProgressEvent::WorkflowStarted {
+            phase, subphase, ..
+        } = evt
+        {
             assert_eq!(phase, 5);
             assert_eq!(subphase, Some(2));
         }
-        if let WorkflowProgressEvent::RoundStarted { active_task_identities, .. } = evt {
+        if let WorkflowProgressEvent::RoundStarted {
+            active_task_identities,
+            ..
+        } = evt
+        {
             for id in active_task_identities {
-                assert!(id.contains("p5:s2"), "Round tasks must only belong to subphase 2: {}", id);
+                assert!(
+                    id.contains("p5:s2"),
+                    "Round tasks must only belong to subphase 2: {}",
+                    id
+                );
             }
         }
     }
@@ -1150,9 +1209,8 @@ async fn IPC_CMD_017_cancel_workflow_contracts() {
     };
 
     let service = fixture.workflow_service.clone();
-    let join_handle = tokio::spawn(async move {
-        exec_start_or_resume_workflow(&service, &req, None).await
-    });
+    let join_handle =
+        tokio::spawn(async move { exec_start_or_resume_workflow(&service, &req, None).await });
 
     tokio::time::sleep(Duration::from_millis(15)).await;
 
@@ -1215,9 +1273,8 @@ async fn IPC_CMD_018_get_workflow_status_contracts() {
     };
 
     let service = fixture.workflow_service.clone();
-    let join_handle = tokio::spawn(async move {
-        exec_start_or_resume_workflow(&service, &run_req, None).await
-    });
+    let join_handle =
+        tokio::spawn(async move { exec_start_or_resume_workflow(&service, &run_req, None).await });
 
     tokio::time::sleep(Duration::from_millis(15)).await;
 
@@ -1258,12 +1315,20 @@ async fn workflow_plan_uses_draft_arcs_not_fixture_codes() {
 
     let mut identities = Vec::new();
     while let Ok(evt) = event_rx.try_recv() {
-        if let WorkflowProgressEvent::RoundStarted { active_task_identities, .. } = evt {
+        if let WorkflowProgressEvent::RoundStarted {
+            active_task_identities,
+            ..
+        } = evt
+        {
             identities.extend(active_task_identities);
         }
     }
 
-    assert_eq!(identities.len(), 2, "one outline round per draft Arc expected");
+    assert_eq!(
+        identities.len(),
+        2,
+        "one outline round per draft Arc expected"
+    );
     assert!(identities.iter().any(|id| id.contains("arc=arc_one")));
     assert!(identities.iter().any(|id| id.contains("arc=arc_two")));
     assert!(
@@ -1287,8 +1352,14 @@ async fn phase_prompts_expose_callable_write_tools() {
         assert!(!schemas.is_empty(), "phase {phase} must grant tool schemas");
     }
     let (phase1_prompt, phase1_tools) = fixture.workflow_service.compose_phase_prompt(1).unwrap();
-    assert!(phase1_prompt.contains("add_arc"), "phase 1 must document add_arc");
-    assert!(phase1_prompt.contains("add_theme"), "phase 1 must document add_theme");
+    assert!(
+        phase1_prompt.contains("add_arc"),
+        "phase 1 must document add_arc"
+    );
+    assert!(
+        phase1_prompt.contains("add_theme"),
+        "phase 1 must document add_theme"
+    );
     assert!(
         phase1_tools.iter().any(|tool| tool["name"] == "add_arc"),
         "add_arc must be offered to the model"
@@ -1311,13 +1382,21 @@ fn planning_uses_real_chapter_arc_codes() {
         word_per_chapter_count: TrackedField::user(3000),
     };
     flow.optional.chapter_phase.arcs = vec![
-        ChapterPhaseArcItem { code: "arc-1".into(), chapters: Vec::new() },
-        ChapterPhaseArcItem { code: "arc-2".into(), chapters: Vec::new() },
+        ChapterPhaseArcItem {
+            code: "arc-1".into(),
+            chapters: Vec::new(),
+        },
+        ChapterPhaseArcItem {
+            code: "arc-2".into(),
+            chapters: Vec::new(),
+        },
     ];
 
     let ranges = WorkflowService::draft_arc_ranges(&flow);
     assert_eq!(ranges.len(), 2);
     assert_eq!(ranges[0], ("arc-1".to_string(), 1, 6));
     assert_eq!(ranges[1], ("arc-2".to_string(), 7, 12));
-    assert!(ranges.iter().all(|(code, _, _)| !code.starts_with("planned_arc")));
+    assert!(ranges
+        .iter()
+        .all(|(code, _, _)| !code.starts_with("planned_arc")));
 }

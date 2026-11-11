@@ -1,8 +1,8 @@
 //! SQLite database connection management, configuration pragmas, and backup operations.
 //! Complies with docs/business/be-core.md (§3.1, §3.4, §3.5) and docs/db.dbml.
 
-use std::path::{Path, PathBuf};
 use rusqlite::Connection;
+use std::path::{Path, PathBuf};
 
 /// Canonical error codes for storage and migration operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,7 +140,9 @@ impl DbManager {
         let pool = r2d2::Pool::builder()
             .max_size(8)
             .build(manager)
-            .map_err(|e| DbError::MigrationFailed(format!("Failed to build connection pool: {}", e)))?;
+            .map_err(|e| {
+                DbError::MigrationFailed(format!("Failed to build connection pool: {}", e))
+            })?;
         Ok(Self { db_path, pool })
     }
 
@@ -175,7 +177,11 @@ impl DbManager {
         &self.pool
     }
 
-    pub fn get_connection(&self) -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>, DbError> {
-        self.pool.get().map_err(|e| DbError::MigrationFailed(format!("Pool checkout error: {}", e)))
+    pub fn get_connection(
+        &self,
+    ) -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>, DbError> {
+        self.pool
+            .get()
+            .map_err(|e| DbError::MigrationFailed(format!("Pool checkout error: {}", e)))
     }
 }

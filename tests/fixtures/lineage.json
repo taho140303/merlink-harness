@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "description": "Accepted phase-gate commits recorded because the public repository is a clean linear history; predecessor phase branches are not published.",
+  "baseline": {
+    "id": "source_baseline",
+    "sha": "ddda30cd3c842113599c7bfb7d0e221936330428",
+    "legacySha": "57a462efb953a665e3673b15e6cc33622a4f2d39",
+    "subject": "docs(architecture): establish Merlink backend implementation baseline"
+  },
+  "acceptedCommits": [
+    {
+      "sha": "02fc9b735457d47115e0f90063650dc00f322dc1",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(ipc): freeze IPC DTO and error interfaces (phase2_sprint5_deep2)"
+    },
+    {
+      "sha": "14bd13058f8c61a90c0fd8505d67989260d6542c",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "chore(integration): complete Phase 4 deep0 integration (P4S1 + P4S2)"
+    },
+    {
+      "sha": "181eda6d87f7fac1d17e05f82d843222aa0a376e",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): implement independent pending TX-08 and resolve TX-02 (phase3_sprint6_deep3)"
+    },
+    {
+      "sha": "1e70d6f6d89b806b2243a1f4669eddce858d0b95",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "docs(plan): add phase1_sprint3_deep0 phase-3 artifact contract evidence (CONTRACT_BLOCKED on CI-02)"
+    },
+    {
+      "sha": "2c31a5ed1484779143eb67b237fc9a219d4e3cea",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "chore(integrate): merge phase5_sprint4_deep1 (319f3ce) and phase5_sprint6_deep1 (d784c7d) into phase5_deep1 baseline"
+    },
+    {
+      "sha": "2c42e64812b7f3a57b148433521dea80623e128d",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "ci(ops): add reproducible pnpm/Tauri CI workflow and Dockerfile (phase6_sprint1_deep0)"
+    },
+    {
+      "sha": "2cf53633e5513a4724f8c1d408018ff2f00665fd",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): implement catalog queries and read tools (phase3_sprint4_deep1)"
+    },
+    {
+      "sha": "319f3ce00ac539864bdb3fcf50ead2bde02d456a",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): integrate project and character read models (phase5_sprint4_deep1)"
+    },
+    {
+      "sha": "3bb971748651cfafa5a1b38ef5d93f8fc77c6f5c",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): stream scene generation under EditScope (phase4_sprint5_deep2)"
+    },
+    {
+      "sha": "4273271fd8a1cf984d907ba1ddcdefdbd802c72f",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): integrate chapter Writing UI with durable services (phase5_sprint5_deep3)"
+    },
+    {
+      "sha": "48a9a74a912a37e000b4ce2824385b963c794634",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): expose project and character library services (phase4_sprint3_deep1)"
+    },
+    {
+      "sha": "4c27bbff4371fd4ab3fba86e44f94deee470502f",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): replace chat and progress mocks with live state (phase5_sprint2_deep1)"
+    },
+    {
+      "sha": "56dd590569a0d6123b4f09d6f1c6761a8b1d7ff2",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "docs(plan): add phase1_sprint1_deep0 contract contradiction ledger (INVENTORY_ACCEPTED)"
+    },
+    {
+      "sha": "ddda30cd3c842113599c7bfb7d0e221936330428",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "docs(architecture): establish Merlink backend implementation baseline"
+    },
+    {
+      "sha": "5af25ef9e3a69ddd3479cccd04e6903ff7881ade",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "chore(integration): complete Phase 4 deep1 integration (P4S3 + P4S4)"
+    },
+    {
+      "sha": "5fa305f5cad1ca4dfb6be4ceae8de8210ac0ae2f",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "docs(plan): add phase1_sprint2_deep1 migration provenance evidence (CONTRACT_BLOCKED on CI-01)"
+    },
+    {
+      "sha": "6a271099f0ea8bf5847c60af81e6d9b5fb9ad918",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(providers): implement provider security, adapters, and configuration IPC (phase2_sprint4_deep3)"
+    },
+    {
+      "sha": "702843c38e45b193be25b80222a48eadedfd3538",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): implement segmented workflow planner, 46-attribute progress engine, and cross-entity invariants (phase3_sprint1_deep0)"
+    },
+    {
+      "sha": "75d3886503643e6398c0be8c600b9b712811b3e0",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(storage): implement isolated base repositories and temp store (phase2_sprint6_deep2)"
+    },
+    {
+      "sha": "848c8c33a97dd7c26db71fff9711f3cd21fa302f",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): run segmented workflow and cancellation (phase4_sprint1_deep0)"
+    },
+    {
+      "sha": "935f682db62b3b6227f95e34ef40b0547de760b7",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): implement historical round verifier and REC-01..15 acceptance tests (phase3_sprint9_deep2)"
+    },
+    {
+      "sha": "95e93a229860bab6473e9777291c2e68edce3215",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): implement SF-06 pure patch/manifest codec and golden vectors (phase3_sprint8_deep1)"
+    },
+    {
+      "sha": "9f8bb7f0c43ba79d22072fb73f026a54343e4363",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): implement Phase-3 artifact validation, JCS encoding, and applicability verification (phase3_sprint3_deep0)"
+    },
+    {
+      "sha": "a33eb05a208eebfa46e7ff6a8d5f988cb5de8892",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): integrate draft workflow patch restore and commit UI (phase5_sprint3_deep2)"
+    },
+    {
+      "sha": "a514385a6f5df0f16deb318dc50a4b47396162ee",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): freeze frontend transport and DTO adapters (phase5_sprint1_deep0)"
+    },
+    {
+      "sha": "b013b9f9682ba92966af32e94f9c45d77473c25d",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): commit draft atomically into relational schema (phase4_sprint2_deep0)"
+    },
+    {
+      "sha": "ba22ca2b53d411a539277bffd068026f0776a2c9",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "Merge commit '2c42e64812b7f3a57b148433521dea80623e128d' into impl/phase6_sprint2_deep0/4273271"
+    },
+    {
+      "sha": "bdd9aa003f909a3e7a17b1dbfd626f0f628145b8",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "chore(integration): merge phase3_sprint3_deep0 into integration branch"
+    },
+    {
+      "sha": "c03d8a91d3ace1858f1ad51d448ad23f9f89a292",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): seal B+ round atomically in TX-04 (phase3_sprint10_deep4)"
+    },
+    {
+      "sha": "c09e5a67db4e97db44a7d845cb28522c7a4c8df5",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(app): compose global Tauri and React integration (phase6_sprint2_deep0)"
+    },
+    {
+      "sha": "cc6fe79511e4349b5fa22815d4d7a06ccc4cfad2",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(tauri): bootstrap Tauri v2 workspace and module shells (phase2_sprint1_deep0)"
+    },
+    {
+      "sha": "d51da679c193f9ef7697bdae4807490472396746",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(storage): implement disposable SQLite bootstrap, versioned migrations, and integrity verification (phase2_sprint3_deep1)"
+    },
+    {
+      "sha": "d6a50b84d300546896c0a8aaed9e1cbff815b4a7",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "chore(integration): merge phase1_sprint1_deep0 into integration branch"
+    },
+    {
+      "sha": "d784c7da6bc580db9890e83127fb4aaba4ee27e8",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(fe): integrate provider configuration UI safely (phase5_sprint6_deep1)"
+    },
+    {
+      "sha": "ddda30cd3c842113599c7bfb7d0e221936330428",
+      "author": "Hiennguyen278610",
+      "date": "2026-11-08",
+      "subject": "docs(architecture): establish Merlink backend implementation baseline"
+    },
+    {
+      "sha": "ded1e9c5457ab8e72f456a515937a05af6ebba63",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(draft): implement draft runtime and TX-01/TX-03 (phase3_sprint2_deep0)"
+    },
+    {
+      "sha": "e8c1e32b3c0badc47bffba73936b8998ed2b2fb1",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): persist writing read-model locks and chapter save (phase4_sprint4_deep1)"
+    },
+    {
+      "sha": "f45ce37eff0e0d63e05b3f8b440eb8f4231a73ec",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(service): implement ReAct chat and prompt orchestration (phase3_sprint7_deep4)"
+    },
+    {
+      "sha": "f69f1ab0e3d3d34853ddf887cac139cde6d64b0d",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): freeze pure domain types, code allocator, JCS fingerprint, and UAX29/CJK word count (phase2_sprint2_deep1)"
+    },
+    {
+      "sha": "fecaf1b6d2b73f0c54edc553b7ccf7e15799280a",
+      "author": "taho140303",
+      "date": "2026-11-08",
+      "subject": "feat(domain): implement write tools and protected cascade (phase3_sprint5_deep2)"
+    }
+  ]
+}

@@ -38,7 +38,7 @@ impl DraftRuntimeStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "editing" => Some(DraftRuntimeStatus::Editing),
             "committing" => Some(DraftRuntimeStatus::Committing),

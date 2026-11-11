@@ -6,7 +6,7 @@
 //! docs/business/fe-core.md (§12.1 UI Preservation Invariant), and sf06-owner-ratification.md:
 //!
 //! - `phase6_sprint3_deep1-F0`: Predecessors (`2c42e64812b7f3a57b148433521dea80623e128d`,
-//!   `c09e5a67db4e97db44a7d845cb28522c7a4c8df5`) and source baseline `57a462efb953a665e3673b15e6cc33622a4f2d39`.
+//!   `c09e5a67db4e97db44a7d845cb28522c7a4c8df5`) and source baseline `ddda30cd3c842113599c7bfb7d0e221936330428`.
 //! - `P6S3-P`: End-to-end frontend lifecycle exercising:
 //!   1. Create/load chat session (`createOrLoadChatSession`).
 //!   2. Dual progress tracking with 46 attributes (`getDraftProgress` / `getProgressDetail`).
@@ -24,6 +24,7 @@
 
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
+import { verifyGitCommit as verifyLineageCommit } from "../helpers/lineage.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -88,22 +89,12 @@ const { fromCommitPreviewDto, isCommitEligible } = commitPreviewModule;
 const { sanitizeDisplayLabel } = projectViewModule;
 
 // Predecessors and baseline SHAs
-const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSOR_P6S1 = "2c42e64812b7f3a57b148433521dea80623e128d";
 const PREDECESSOR_P6S2 = "c09e5a67db4e97db44a7d845cb28522c7a4c8df5";
 
 function verifyGitCommit(sha) {
-  try {
-    execSync(`git merge-base --is-ancestor ${sha} HEAD`, { stdio: "pipe" });
-    return true;
-  } catch {
-    try {
-      execSync(`git cat-file -e ${sha}^{commit}`, { stdio: "pipe" });
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  return verifyLineageCommit(sha);
 }
 
 // ============================================================================

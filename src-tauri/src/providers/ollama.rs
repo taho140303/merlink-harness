@@ -24,10 +24,7 @@ pub const DEFAULT_IDLE_STREAM_TIMEOUT: Duration = Duration::from_secs(30);
 pub fn is_loopback_url(endpoint: &str) -> bool {
     if let Ok(parsed) = Url::parse(endpoint) {
         if let Some(host) = parsed.host_str() {
-            return host == "localhost"
-                || host == "127.0.0.1"
-                || host == "::1"
-                || host == "[::1]";
+            return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]";
         }
     }
     false
@@ -113,7 +110,11 @@ impl OllamaProvider {
         }
     }
 
-    pub fn with_client(endpoint: impl Into<String>, client: Client, allow_non_loopback: bool) -> Self {
+    pub fn with_client(
+        endpoint: impl Into<String>,
+        client: Client,
+        allow_non_loopback: bool,
+    ) -> Self {
         Self {
             endpoint: endpoint.into(),
             client,
@@ -136,7 +137,7 @@ impl OllamaProvider {
     }
 
     /// Build JSON payload for Ollama chat request (exposed for test inspections without network calls).
-    pub fn build_chat_payload<'a>(req: &'a ProviderChatRequest) -> serde_json::Value {
+    pub fn build_chat_payload(req: &ProviderChatRequest) -> serde_json::Value {
         let tools_value = req.tools.as_ref().map(|tools| {
             serde_json::Value::Array(
                 tools
@@ -160,15 +161,24 @@ impl OllamaProvider {
             .iter()
             .map(|m| {
                 let mut map = serde_json::Map::new();
-                map.insert("role".to_string(), serde_json::Value::String(m.role.clone()));
-                map.insert("content".to_string(), serde_json::Value::String(m.content.clone()));
+                map.insert(
+                    "role".to_string(),
+                    serde_json::Value::String(m.role.clone()),
+                );
+                map.insert(
+                    "content".to_string(),
+                    serde_json::Value::String(m.content.clone()),
+                );
 
                 if let Some(ref name) = m.name {
                     map.insert("name".to_string(), serde_json::Value::String(name.clone()));
                 }
 
                 if let Some(ref tid) = m.tool_call_id {
-                    map.insert("tool_call_id".to_string(), serde_json::Value::String(tid.clone()));
+                    map.insert(
+                        "tool_call_id".to_string(),
+                        serde_json::Value::String(tid.clone()),
+                    );
                 }
 
                 if let Some(ref tcs) = m.tool_calls {
@@ -242,7 +252,10 @@ impl LlmProvider for OllamaProvider {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::from_http_status(status.as_u16(), &error_text));
+            return Err(ProviderError::from_http_status(
+                status.as_u16(),
+                &error_text,
+            ));
         }
 
         let resp_body: OllamaChatResponseBody = response.json().await.map_err(|err| {
@@ -272,7 +285,8 @@ impl LlmProvider for OllamaProvider {
         let usage = Some(ProviderUsage {
             prompt_tokens: resp_body.prompt_eval_count.unwrap_or(0),
             completion_tokens: resp_body.eval_count.unwrap_or(0),
-            total_tokens: resp_body.prompt_eval_count.unwrap_or(0) + resp_body.eval_count.unwrap_or(0),
+            total_tokens: resp_body.prompt_eval_count.unwrap_or(0)
+                + resp_body.eval_count.unwrap_or(0),
         });
 
         let finish_reason = if tool_calls.is_empty() {
@@ -331,7 +345,10 @@ impl LlmProvider for OllamaProvider {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::from_http_status(status.as_u16(), &error_text));
+            return Err(ProviderError::from_http_status(
+                status.as_u16(),
+                &error_text,
+            ));
         }
 
         let mut total_text = String::new();
@@ -365,7 +382,8 @@ impl LlmProvider for OllamaProvider {
                             continue;
                         }
 
-                        if let Ok(chunk_body) = serde_json::from_str::<OllamaStreamChunkBody>(&line) {
+                        if let Ok(chunk_body) = serde_json::from_str::<OllamaStreamChunkBody>(&line)
+                        {
                             if let Some(msg) = chunk_body.message {
                                 if let Some(delta) = msg.content {
                                     if !delta.is_empty() {

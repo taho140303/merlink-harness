@@ -32,17 +32,16 @@ impl ProjectService {
             )
         })?;
 
-        let items = project_repo::list_projects(
-            &conn,
-            req.query.as_deref(),
-            req.sort.as_deref(),
-        )?;
+        let items = project_repo::list_projects(&conn, req.query.as_deref(), req.sort.as_deref())?;
 
         Ok(ProjectListDto { items })
     }
 
     /// IPC #23: `get_project_detail`
-    pub fn get_project_detail(&self, req: &GetProjectDetailReq) -> Result<ProjectDetailDto, IpcError> {
+    pub fn get_project_detail(
+        &self,
+        req: &GetProjectDetailReq,
+    ) -> Result<ProjectDetailDto, IpcError> {
         let conn = self.pool.get().map_err(|e| {
             IpcError::new(
                 ErrorCode::DatabaseError,
@@ -54,7 +53,10 @@ impl ProjectService {
     }
 
     /// IPC #24: `delete_project`
-    pub fn delete_project(&self, req: &DeleteProjectReq) -> Result<DeleteProjectResponseDto, IpcError> {
+    pub fn delete_project(
+        &self,
+        req: &DeleteProjectReq,
+    ) -> Result<DeleteProjectResponseDto, IpcError> {
         let mut conn = self.pool.get().map_err(|e| {
             IpcError::new(
                 ErrorCode::DatabaseError,

@@ -111,21 +111,27 @@ pub fn merge_probe_reports(
     let mut worlds: BTreeMap<String, MergedWorldCandidate> = BTreeMap::new();
     // canonical key -> (report label, original description/access signature)
     // key -> (report, description?, access?)
-    let mut world_signatures: BTreeMap<String, (String, Option<String>, Option<String>)> = BTreeMap::new();
+    let mut world_signatures: BTreeMap<String, (String, Option<String>, Option<String>)> =
+        BTreeMap::new();
     let mut lore: BTreeMap<String, MergedLoreCandidate> = BTreeMap::new();
-    let mut lore_signatures: BTreeMap<String, (String, Option<String>, Option<Value>)> = BTreeMap::new();
+    let mut lore_signatures: BTreeMap<String, (String, Option<String>, Option<Value>)> =
+        BTreeMap::new();
 
     for (report_label, report_text) in reports {
-        let report = validate_probe_candidates(report_text, existing_world_codes).map_err(|error| {
-            MergeError::InvalidReport {
-                report: report_label.clone(),
-                reason: error.to_string(),
-            }
-        })?;
+        let report =
+            validate_probe_candidates(report_text, existing_world_codes).map_err(|error| {
+                MergeError::InvalidReport {
+                    report: report_label.clone(),
+                    reason: error.to_string(),
+                }
+            })?;
 
         // Canonical keys resolve temporary parents to the merged world identity.
         let mut local_to_canonical: BTreeMap<String, String> = BTreeMap::new();
-        let owned_worlds = report["worldSettings"].as_array().cloned().unwrap_or_default();
+        let owned_worlds = report["worldSettings"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
         let mut queue: Vec<Value> = owned_worlds;
         let mut progress = true;
         while let Some(item) = queue.first().cloned() {
@@ -177,11 +183,10 @@ pub fn merge_probe_reports(
                             // not an identity conflict: keep the richer description and the first
                             // access value instead of aborting the whole Phase 3 merge (which left
                             // the draft confirmed at Phase 3 with zero world settings).
-                            (Some(known), Some(candidate)) if known != candidate => {
-                                if label == "description" && candidate.len() > known.len() {
+                            (Some(known), Some(candidate)) if known != candidate
+                                && label == "description" && candidate.len() > known.len() => {
                                     *existing = Some(candidate.clone());
                                 }
-                            }
                             (None, Some(candidate)) => *existing = Some(candidate.clone()),
                             _ => {}
                         }
@@ -222,13 +227,19 @@ pub fn merge_probe_reports(
             queue.remove(0);
         }
 
-        let owned_lore = report["loreEntries"].as_array().cloned().unwrap_or_default();
+        let owned_lore = report["loreEntries"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
         for item in owned_lore {
             let object = item.as_object().cloned().unwrap_or_default();
             let display_name = optional_string(object.get("displayName")).unwrap_or_default();
             let lore_type = optional_string(object.get("type")).unwrap_or_default();
             let description = optional_string(object.get("description"));
-            let data = object.get("data").cloned().unwrap_or(Value::Object(Default::default()));
+            let data = object
+                .get("data")
+                .cloned()
+                .unwrap_or(Value::Object(Default::default()));
             let parent_temp = optional_string(object.get("worldTempKey"));
             let existing_world = optional_string(object.get("existingWorldCode"));
 
@@ -243,16 +254,27 @@ pub fn merge_probe_reports(
                 });
             }
             let key = match (&parent_canonical, &existing_world) {
-                (Some(parent), _) => format!("tmp:{parent}|{}|{}", normalize_name(&display_name), lore_type),
+                (Some(parent), _) => format!(
+                    "tmp:{parent}|{}|{}",
+                    normalize_name(&display_name),
+                    lore_type
+                ),
                 (None, Some(existing)) => {
-                    format!("ex:{existing}|{}|{}", normalize_name(&display_name), lore_type)
+                    format!(
+                        "ex:{existing}|{}|{}",
+                        normalize_name(&display_name),
+                        lore_type
+                    )
                 }
                 (None, None) => format!("none|{}|{}", normalize_name(&display_name), lore_type),
             };
 
             match lore_signatures.get_mut(&key) {
                 Some((first_report, first_description, first_data)) => {
-                    let empty_data = data.as_object().map(|object| object.is_empty()).unwrap_or(false);
+                    let empty_data = data
+                        .as_object()
+                        .map(|object| object.is_empty())
+                        .unwrap_or(false);
                     if let Some(known) = &*first_data {
                         if !empty_data && known != &data {
                             return Err(MergeError::Ambiguous {
@@ -272,14 +294,24 @@ pub fn merge_probe_reports(
                     if stored.description.is_none() {
                         stored.description = description.clone();
                     }
-                    if stored.data.is_null() || stored.data.as_object().map(|o| o.is_empty()).unwrap_or(false) {
+                    if stored.data.is_null()
+                        || stored
+                            .data
+                            .as_object()
+                            .map(|o| o.is_empty())
+                            .unwrap_or(false)
+                    {
                         stored.data = data.clone();
                     }
                 }
                 None => {
                     lore_signatures.insert(
                         key.clone(),
-                        (report_label.clone(), description.clone(), Some(data.clone())),
+                        (
+                            report_label.clone(),
+                            description.clone(),
+                            Some(data.clone()),
+                        ),
                     );
                     lore.entry(key.clone()).or_insert(MergedLoreCandidate {
                         temp_key: key,
@@ -306,9 +338,7 @@ mod tests {
     use super::*;
 
     fn report(worlds: &str, lore: &str) -> String {
-        format!(
-            r#"{{"schemaVersion":1,"worldSettings":[{worlds}],"loreEntries":[{lore}]}}"#
-        )
+        format!(r#"{{"schemaVersion":1,"worldSettings":[{worlds}],"loreEntries":[{lore}]}}"#)
     }
 
     #[test]
@@ -352,14 +382,24 @@ mod tests {
             ("probe-b".to_string(), report(child, "")),
         ];
         let merged = merge_probe_reports(&reports, &[]).expect("root/child variants must merge");
-        assert_eq!(merged.world_settings.len(), 2, "Vietnam + one Ho Chi Minh City");
+        assert_eq!(
+            merged.world_settings.len(),
+            2,
+            "Vietnam + one Ho Chi Minh City"
+        );
         let hcm = merged
             .world_settings
             .iter()
             .find(|candidate| candidate.display_name == "Thành phố Hồ Chí Minh")
             .unwrap();
-        assert!(hcm.parent_temp_key.is_some(), "resolved parent must win over root");
-        assert_eq!(hcm.description.as_deref(), Some("Southern hub and startup district"));
+        assert!(
+            hcm.parent_temp_key.is_some(),
+            "resolved parent must win over root"
+        );
+        assert_eq!(
+            hcm.description.as_deref(),
+            Some("Southern hub and startup district")
+        );
     }
 
     #[test]

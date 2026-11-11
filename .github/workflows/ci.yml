@@ -79,8 +79,8 @@ jobs:
           node-version: "24"
           cache: "pnpm"
 
-      - name: Install Rust stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: clippy
 

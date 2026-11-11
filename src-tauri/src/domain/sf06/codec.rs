@@ -17,9 +17,7 @@ use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use crate::domain::business_flow::{BusinessFlowData, TrackedField};
-use crate::domain::fingerprint::{
-    state_data_hash, states_are_semantically_equal,
-};
+use crate::domain::fingerprint::{state_data_hash, states_are_semantically_equal};
 use crate::error::ErrorCode;
 
 /// Authoritative schema version for SF-06 v2 codec evidence.
@@ -48,10 +46,7 @@ pub enum PatchOp {
     },
     /// Delete an existing entity from a collection at `path`.
     #[serde(rename = "DeleteEntity", alias = "delete_entity")]
-    DeleteEntity {
-        path: String,
-        entity_code: String,
-    },
+    DeleteEntity { path: String, entity_code: String },
     /// Update a monotone parent counter in `_counters`.
     #[serde(rename = "SetCounter", alias = "set_counter")]
     SetCounter {
@@ -73,8 +68,12 @@ impl PatchOp {
     pub fn canonical_path(&self) -> String {
         match self {
             Self::PutField { path, .. } => path.clone(),
-            Self::InsertEntity { path, entity_code, .. } => format!("{}/{}", path.trim_end_matches('/'), entity_code),
-            Self::DeleteEntity { path, entity_code } => format!("{}/{}", path.trim_end_matches('/'), entity_code),
+            Self::InsertEntity {
+                path, entity_code, ..
+            } => format!("{}/{}", path.trim_end_matches('/'), entity_code),
+            Self::DeleteEntity { path, entity_code } => {
+                format!("{}/{}", path.trim_end_matches('/'), entity_code)
+            }
             Self::SetCounter { counter_key, .. } => format!("/_counters/{}", counter_key),
             Self::ReplaceOrderedArray { path, .. } => path.clone(),
         }
@@ -158,8 +157,7 @@ pub fn decode_evidence(evidence_val: &Value) -> Result<EvidenceJsonV2, ErrorCode
         return Err(ErrorCode::UnsupportedEvidenceCodec);
     }
 
-    serde_json::from_value(evidence_val.clone())
-        .map_err(|_| ErrorCode::UnsupportedEvidenceCodec)
+    serde_json::from_value(evidence_val.clone()).map_err(|_| ErrorCode::UnsupportedEvidenceCodec)
 }
 
 /// Replays evidence against `s_before` verifying pre-state and post-state hashes.
@@ -171,8 +169,7 @@ pub fn replay_evidence(
         return Err(ErrorCode::UnsupportedEvidenceCodec);
     }
 
-    let before_hash = state_data_hash(s_before)
-        .map_err(|_| ErrorCode::ValidationFailed)?;
+    let before_hash = state_data_hash(s_before).map_err(|_| ErrorCode::ValidationFailed)?;
     if before_hash != evidence.pre_state_hash {
         return Err(ErrorCode::PatchPreconditionFailed);
     }
@@ -182,8 +179,7 @@ pub fn replay_evidence(
     };
     let s_after = replay(s_before, &patch)?;
 
-    let after_hash = state_data_hash(&s_after)
-        .map_err(|_| ErrorCode::ValidationFailed)?;
+    let after_hash = state_data_hash(&s_after).map_err(|_| ErrorCode::ValidationFailed)?;
     if after_hash != evidence.post_state_hash {
         return Err(ErrorCode::PatchPreconditionFailed);
     }
@@ -311,10 +307,7 @@ fn tracked_field_values_equal(a: &Value, b: &Value) -> bool {
 /// - Rejects unauthorized mutation of protected fields (`UnauthorizedTransition`, `GV4`, `GV5`).
 /// - Normalizes missing optional `TrackedField`s into `{value: null, source: "incomplete"}` (`GV12`).
 /// - Validates final state structural invariants (`ValidationFailed`).
-pub fn replay(
-    s_before: &BusinessFlowData,
-    patch: &PatchV2,
-) -> Result<BusinessFlowData, ErrorCode> {
+pub fn replay(s_before: &BusinessFlowData, patch: &PatchV2) -> Result<BusinessFlowData, ErrorCode> {
     // 1. Conflict detection on patch operations
     let mut write_targets = HashSet::new();
     let mut deleted_entity_prefixes = Vec::new();
@@ -341,7 +334,10 @@ pub fn replay(
             | PatchOp::InsertEntity { path, .. }
             | PatchOp::ReplaceOrderedArray { path, .. } => {
                 for del_prefix in &deleted_entity_prefixes {
-                    if path.starts_with(del_prefix) && path.len() > del_prefix.len() && path[del_prefix.len()..].starts_with('/') {
+                    if path.starts_with(del_prefix)
+                        && path.len() > del_prefix.len()
+                        && path[del_prefix.len()..].starts_with('/')
+                    {
                         return Err(ErrorCode::EvidenceCodecUnsupported);
                     }
                 }
@@ -351,8 +347,7 @@ pub fn replay(
     }
 
     // 2. Clone `s_before` as a mutable JSON value
-    let mut root_val = serde_json::to_value(s_before)
-        .map_err(|_| ErrorCode::InternalError)?;
+    let mut root_val = serde_json::to_value(s_before).map_err(|_| ErrorCode::InternalError)?;
 
     // 3. Precondition verification and atomic mutation
     for op in &patch.ops {
@@ -383,8 +378,8 @@ pub fn replay(
                 value,
             } => {
                 // Verify precondition on before state
-                let current_in_before = resolve_pointer(&root_val, path)
-                    .ok_or(ErrorCode::PatchPreconditionFailed)?;
+                let current_in_before =
+                    resolve_pointer(&root_val, path).ok_or(ErrorCode::PatchPreconditionFailed)?;
 
                 if !tracked_field_values_equal(current_in_before, precondition) {
                     return Err(ErrorCode::PatchPreconditionFailed);
@@ -392,7 +387,8 @@ pub fn replay(
 
                 // Check provenance protection on current field
                 if let Some(src_str) = current_in_before.get("source").and_then(Value::as_str) {
-                    if (src_str == "user" || src_str == "user_edited") && current_in_before != value {
+                    if (src_str == "user" || src_str == "user_edited") && current_in_before != value
+                    {
                         return Err(ErrorCode::UnauthorizedTransition);
                     }
                 }
@@ -413,9 +409,10 @@ pub fn replay(
                     .ok_or(ErrorCode::PatchPreconditionFailed)?;
 
                 // Check code collision in before state
-                if array_val.iter().any(|item| {
-                    item.get("code").and_then(Value::as_str) == Some(entity_code)
-                }) {
+                if array_val
+                    .iter()
+                    .any(|item| item.get("code").and_then(Value::as_str) == Some(entity_code))
+                {
                     return Err(ErrorCode::CodeCollisionOnCommit);
                 }
 
@@ -427,9 +424,9 @@ pub fn replay(
                     .and_then(Value::as_array_mut)
                     .ok_or(ErrorCode::PatchPreconditionFailed)?;
 
-                let pos = array_val.iter().position(|item| {
-                    item.get("code").and_then(Value::as_str) == Some(entity_code)
-                });
+                let pos = array_val
+                    .iter()
+                    .position(|item| item.get("code").and_then(Value::as_str) == Some(entity_code));
 
                 match pos {
                     Some(idx) => {
@@ -446,8 +443,8 @@ pub fn replay(
                 precondition,
                 value,
             } => {
-                let current_in_before = resolve_pointer(&root_val, path)
-                    .ok_or(ErrorCode::PatchPreconditionFailed)?;
+                let current_in_before =
+                    resolve_pointer(&root_val, path).ok_or(ErrorCode::PatchPreconditionFailed)?;
 
                 if current_in_before != precondition {
                     return Err(ErrorCode::PatchPreconditionFailed);
@@ -464,7 +461,8 @@ pub fn replay(
     let final_state = BusinessFlowData::from_json_value_strict(&root_val)
         .map_err(|_| ErrorCode::ValidationFailed)?;
 
-    final_state.validate_structure()
+    final_state
+        .validate_structure()
         .map_err(|_| ErrorCode::ValidationFailed)?;
 
     Ok(final_state)
@@ -671,7 +669,9 @@ pub fn canonical_diff(
     let replayed = replay(s_before, &patch)?;
     let mut expected_after = s_after.clone();
     revert_protected_fields(&mut expected_after, s_before);
-    if !states_are_semantically_equal(&replayed, &expected_after).map_err(|_| ErrorCode::ValidationFailed)? {
+    if !states_are_semantically_equal(&replayed, &expected_after)
+        .map_err(|_| ErrorCode::ValidationFailed)?
+    {
         return Err(ErrorCode::EvidenceCodecUnsupported);
     }
 
@@ -679,23 +679,58 @@ pub fn canonical_diff(
 }
 
 fn revert_protected_fields(target: &mut BusinessFlowData, source: &BusinessFlowData) {
-    if source.require.project.display_name.is_protected_from_ai_overwrite() {
+    if source
+        .require
+        .project
+        .display_name
+        .is_protected_from_ai_overwrite()
+    {
         target.require.project.display_name = source.require.project.display_name.clone();
     }
-    if source.require.project.summary.is_protected_from_ai_overwrite() {
+    if source
+        .require
+        .project
+        .summary
+        .is_protected_from_ai_overwrite()
+    {
         target.require.project.summary = source.require.project.summary.clone();
     }
-    if source.require.project.language.is_protected_from_ai_overwrite() {
+    if source
+        .require
+        .project
+        .language
+        .is_protected_from_ai_overwrite()
+    {
         target.require.project.language = source.require.project.language.clone();
     }
-    if source.require.project.target.arc_count.is_protected_from_ai_overwrite() {
+    if source
+        .require
+        .project
+        .target
+        .arc_count
+        .is_protected_from_ai_overwrite()
+    {
         target.require.project.target.arc_count = source.require.project.target.arc_count.clone();
     }
-    if source.require.project.target.chapter_count.is_protected_from_ai_overwrite() {
-        target.require.project.target.chapter_count = source.require.project.target.chapter_count.clone();
+    if source
+        .require
+        .project
+        .target
+        .chapter_count
+        .is_protected_from_ai_overwrite()
+    {
+        target.require.project.target.chapter_count =
+            source.require.project.target.chapter_count.clone();
     }
-    if source.require.project.target.word_per_chapter_count.is_protected_from_ai_overwrite() {
-        target.require.project.target.word_per_chapter_count = source.require.project.target.word_per_chapter_count.clone();
+    if source
+        .require
+        .project
+        .target
+        .word_per_chapter_count
+        .is_protected_from_ai_overwrite()
+    {
+        target.require.project.target.word_per_chapter_count =
+            source.require.project.target.word_per_chapter_count.clone();
     }
 }
 
@@ -845,8 +880,18 @@ fn diff_overview_arcs(
 
             // Event blocks
             let eb_path = format!("{}/motif/event_blocks", arc_path);
-            let before_eb: BTreeMap<_, _> = before_arc.motif.event_blocks.iter().map(|e| (&e.code, e)).collect();
-            let after_eb: BTreeMap<_, _> = after_arc.motif.event_blocks.iter().map(|e| (&e.code, e)).collect();
+            let before_eb: BTreeMap<_, _> = before_arc
+                .motif
+                .event_blocks
+                .iter()
+                .map(|e| (&e.code, e))
+                .collect();
+            let after_eb: BTreeMap<_, _> = after_arc
+                .motif
+                .event_blocks
+                .iter()
+                .map(|e| (&e.code, e))
+                .collect();
 
             for (eb_code, _) in before_eb.iter() {
                 if !after_eb.contains_key(*eb_code) {
@@ -901,8 +946,10 @@ fn diff_chapter_phase_arcs(
     for (arc_code, after_arc) in after_map.iter() {
         if let Some(before_arc) = before_map.get(*arc_code) {
             let chapters_path = format!("{}/{}/chapters", path, arc_code);
-            let before_ch: BTreeMap<_, _> = before_arc.chapters.iter().map(|c| (&c.code, c)).collect();
-            let after_ch: BTreeMap<_, _> = after_arc.chapters.iter().map(|c| (&c.code, c)).collect();
+            let before_ch: BTreeMap<_, _> =
+                before_arc.chapters.iter().map(|c| (&c.code, c)).collect();
+            let after_ch: BTreeMap<_, _> =
+                after_arc.chapters.iter().map(|c| (&c.code, c)).collect();
 
             for (ch_code, _) in before_ch.iter() {
                 if !after_ch.contains_key(*ch_code) {
@@ -925,8 +972,10 @@ fn diff_chapter_phase_arcs(
             for (ch_code, after_chap) in after_ch.iter() {
                 if let Some(before_chap) = before_ch.get(*ch_code) {
                     let scenes_path = format!("{}/{}/scenes", chapters_path, ch_code);
-                    let before_sc: BTreeMap<_, _> = before_chap.scenes.iter().map(|s| (&s.code, s)).collect();
-                    let after_sc: BTreeMap<_, _> = after_chap.scenes.iter().map(|s| (&s.code, s)).collect();
+                    let before_sc: BTreeMap<_, _> =
+                        before_chap.scenes.iter().map(|s| (&s.code, s)).collect();
+                    let after_sc: BTreeMap<_, _> =
+                        after_chap.scenes.iter().map(|s| (&s.code, s)).collect();
 
                     for (sc_code, _) in before_sc.iter() {
                         if !after_sc.contains_key(*sc_code) {
@@ -1060,7 +1109,12 @@ fn diff_character_life_experience(
             let char_path = format!("{}/{}", path, ch_code);
             // Compare memories
             if before_life.memories != after_life.memories {
-                for (mem_idx, (b_mem, a_mem)) in before_life.memories.iter().zip(after_life.memories.iter()).enumerate() {
+                for (mem_idx, (b_mem, a_mem)) in before_life
+                    .memories
+                    .iter()
+                    .zip(after_life.memories.iter())
+                    .enumerate()
+                {
                     if b_mem.source_scene_code != a_mem.source_scene_code {
                         diff_tracked_field(
                             &format!("{}/memories/{}/source_scene_code", char_path, mem_idx),

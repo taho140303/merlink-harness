@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
 import { execSync } from "node:child_process";
+import { verifyGitCommit as verifyLineageCommit } from "../../helpers/lineage.mjs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -9,7 +10,7 @@ import { createServer } from "vite";
 // Predecessor and baseline commits for phase5_sprint6_deep1
 const PREDECESSOR_P5S1 = "a514385a6f5df0f16deb318dc50a4b47396162ee";
 const PREDECESSOR_P2S4 = "6a271099f0ea8bf5847c60af81e6d9b5fb9ad918";
-const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT = "ddda30cd3c842113599c7bfb7d0e221936330428";
 
 let vite;
 let AIProvidersTabModule;
@@ -143,55 +144,24 @@ function createFakeTransport(overrides = {}) {
 // ============================================================================
 describe("phase5_sprint6_deep1-F0: predecessor and baseline git verification", () => {
   it("verifies gate_phase5_sprint1_deep0 predecessor commit is valid", () => {
-    let valid = false;
-    try {
-      execSync(`git merge-base --is-ancestor ${PREDECESSOR_P5S1} HEAD`, { stdio: "pipe" });
-      valid = true;
-    } catch {
-      try {
-        execSync(`git cat-file -e ${PREDECESSOR_P5S1}^{commit}`, { stdio: "pipe" });
-        valid = true;
-      } catch {
-        valid = false;
-      }
-    }
     assert.equal(
-      valid,
+      verifyLineageCommit(PREDECESSOR_P5S1),
       true,
-      `CONTRACT_BLOCKED: predecessor gate_phase5_sprint1_deep0 (${PREDECESSOR_P5S1}) not found`
+      `CONTRACT_BLOCKED: predecessor gate_phase5_sprint1_deep0 (${PREDECESSOR_P5S1}) not found in git history or the lineage manifest`
     );
   });
 
   it("verifies gate_phase2_sprint4_deep3 predecessor commit is valid", () => {
-    let valid = false;
-    try {
-      execSync(`git merge-base --is-ancestor ${PREDECESSOR_P2S4} HEAD`, { stdio: "pipe" });
-      valid = true;
-    } catch {
-      try {
-        execSync(`git cat-file -e ${PREDECESSOR_P2S4}^{commit}`, { stdio: "pipe" });
-        valid = true;
-      } catch {
-        valid = false;
-      }
-    }
     assert.equal(
-      valid,
+      verifyLineageCommit(PREDECESSOR_P2S4),
       true,
-      `CONTRACT_BLOCKED: predecessor gate_phase2_sprint4_deep3 (${PREDECESSOR_P2S4}) not found`
+      `CONTRACT_BLOCKED: predecessor gate_phase2_sprint4_deep3 (${PREDECESSOR_P2S4}) not found in git history or the lineage manifest`
     );
   });
 
   it("verifies baseline commit is a valid commit object", () => {
-    let baselineValid = false;
-    try {
-      execSync(`git cat-file -e ${BASELINE_COMMIT}^{commit}`, { stdio: "pipe" });
-      baselineValid = true;
-    } catch {
-      baselineValid = false;
-    }
     assert.equal(
-      baselineValid,
+      verifyLineageCommit(BASELINE_COMMIT),
       true,
       `CONTRACT_BLOCKED: baseline commit (${BASELINE_COMMIT}) is invalid`
     );
@@ -199,13 +169,7 @@ describe("phase5_sprint6_deep1-F0: predecessor and baseline git verification", (
 
   it("fails explicitly with CONTRACT_BLOCKED when checking a nonexistent SHA", () => {
     const fakePred = "0000000000000000000000000000000000000000";
-    let fakePredValid = true;
-    try {
-      execSync(`git cat-file -e ${fakePred}^{commit}`, { stdio: "pipe" });
-    } catch {
-      fakePredValid = false;
-    }
-    assert.equal(fakePredValid, false, "Expected check on nonexistent commit to fail");
+    assert.equal(verifyLineageCommit(fakePred), false, "Expected check on nonexistent commit to fail");
   });
 });
 

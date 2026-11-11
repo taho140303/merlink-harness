@@ -17,13 +17,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use crate::domain::business_flow::{
-    ArcEventBlockItem, ArcMotifSection, ArcThemeSection, BusinessFlowData,
-    CharacterAppearanceItem, CharacterCompetenceItem, CharacterLifeExperienceItem,
-    CharacterPsychologicalItem,
-    CharacterMemoryItem, ChapterPhaseArcItem, ChapterPhaseChapterItem,
-    ChapterPhaseSceneItem, LoreEntryItem, OverviewArcItem, ProvenanceSource,
-    RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem, RelationshipRoleItem,
-    RelationshipSceneStateItem, RequireCharacterItem, RequireGenreItem,
+    ArcEventBlockItem, ArcMotifSection, ArcThemeSection, BusinessFlowData, ChapterPhaseArcItem,
+    ChapterPhaseChapterItem, ChapterPhaseSceneItem, CharacterAppearanceItem,
+    CharacterCompetenceItem, CharacterLifeExperienceItem, CharacterMemoryItem,
+    CharacterPsychologicalItem, LoreEntryItem, OverviewArcItem, ProvenanceSource,
+    RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem,
+    RelationshipRoleItem, RelationshipSceneStateItem, RequireCharacterItem, RequireGenreItem,
     SceneCharacterLink, SceneConfigArcItem, SceneConfigChapterItem, SceneConfigSceneItem,
     SceneLoreEntryLink, ThemeArgumentItem, TrackedField, WorldSettingItem,
 };
@@ -516,10 +515,20 @@ impl ToolExecutor {
                 );
             }
             "set_relationship" => {
-                self.handle_set_relationship(call, &declared_sources, &mut candidate_state, &mut results);
+                self.handle_set_relationship(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
+                );
             }
             "add_relationship_role" => {
-                self.handle_add_relationship_role(call, &declared_sources, &mut candidate_state, &mut results);
+                self.handle_add_relationship_role(
+                    call,
+                    &declared_sources,
+                    &mut candidate_state,
+                    &mut results,
+                );
             }
             "add_relationship" => {
                 self.handle_add_relationship(
@@ -654,7 +663,10 @@ impl ToolExecutor {
                 );
             }
             _ => {
-                return ToolOutcome::rejected(format!("unimplemented_mutation_tool: {}", call.name));
+                return ToolOutcome::rejected(format!(
+                    "unimplemented_mutation_tool: {}",
+                    call.name
+                ));
             }
         }
 
@@ -730,7 +742,12 @@ impl ToolExecutor {
             }
         };
 
-        let baseline_char = match baseline.require.character.iter().find(|c| c.code == target_code) {
+        let baseline_char = match baseline
+            .require
+            .character
+            .iter()
+            .find(|c| c.code == target_code)
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -753,10 +770,26 @@ impl ToolExecutor {
 
         // Evaluate supported fields
         let fields = [
-            ("display_name", &baseline_char.display_name, &mut candidate_char.display_name),
-            ("nickname", &baseline_char.nickname, &mut candidate_char.nickname),
-            ("biological_sex", &baseline_char.biological_sex, &mut candidate_char.biological_sex),
-            ("motif_code", &baseline_char.motif_code, &mut candidate_char.motif_code),
+            (
+                "display_name",
+                &baseline_char.display_name,
+                &mut candidate_char.display_name,
+            ),
+            (
+                "nickname",
+                &baseline_char.nickname,
+                &mut candidate_char.nickname,
+            ),
+            (
+                "biological_sex",
+                &baseline_char.biological_sex,
+                &mut candidate_char.biological_sex,
+            ),
+            (
+                "motif_code",
+                &baseline_char.motif_code,
+                &mut candidate_char.motif_code,
+            ),
             ("role", &baseline_char.role, &mut candidate_char.role),
             ("notes", &baseline_char.notes, &mut candidate_char.notes),
         ];
@@ -816,7 +849,11 @@ impl ToolExecutor {
                     .get("display_name")
                     .and_then(|v| v.as_str())
                     .unwrap_or("char");
-                format!("{}_{}", disp.to_lowercase().replace(' ', "_"), candidate.require.character.len() + 1)
+                format!(
+                    "{}_{}",
+                    disp.to_lowercase().replace(' ', "_"),
+                    candidate.require.character.len() + 1
+                )
             });
 
         if candidate.require.character.iter().any(|c| c.code == code) {
@@ -859,7 +896,12 @@ impl ToolExecutor {
                 if let Some(s) = val.as_str() {
                     let declared = if call.caller.is_ai() {
                         match declared_sources.get(f_name) {
-                            Some(src) if matches!(src, ProvenanceSource::User | ProvenanceSource::AiGenerated) => {
+                            Some(src)
+                                if matches!(
+                                    src,
+                                    ProvenanceSource::User | ProvenanceSource::AiGenerated
+                                ) =>
+                            {
                                 *src
                             }
                             _ => {
@@ -874,7 +916,9 @@ impl ToolExecutor {
                             }
                         }
                     } else {
-                        *declared_sources.get(f_name).unwrap_or(&ProvenanceSource::User)
+                        *declared_sources
+                            .get(f_name)
+                            .unwrap_or(&ProvenanceSource::User)
                     };
 
                     target_field.value = Some(s.to_string());
@@ -912,12 +956,24 @@ impl ToolExecutor {
             return;
         };
         for name in parameters.keys() {
-            if !["display_name", "summary", "language", "target", "declared_sources"].contains(&name.as_str()) {
+            if ![
+                "display_name",
+                "summary",
+                "language",
+                "target",
+                "declared_sources",
+            ]
+            .contains(&name.as_str())
+            {
                 results.push(field_rejection(name, "unknown_field"));
             }
         }
         let str_fields = [
-            ("display_name", &base_proj.display_name, &mut cand_proj.display_name),
+            (
+                "display_name",
+                &base_proj.display_name,
+                &mut cand_proj.display_name,
+            ),
             ("summary", &base_proj.summary, &mut cand_proj.summary),
             ("language", &base_proj.language, &mut cand_proj.language),
         ];
@@ -927,13 +983,21 @@ impl ToolExecutor {
                     results.push(field_rejection(name, "expected_nonempty_string"));
                     continue;
                 };
-                if name == "language" && !["VI", "EN", "JA", "ZH_HANT", "ZH_HANS"].contains(&value) {
+                if name == "language" && !["VI", "EN", "JA", "ZH_HANT", "ZH_HANS"].contains(&value)
+                {
                     results.push(field_rejection(name, "invalid_language"));
                     continue;
                 }
                 results.push(evaluate_single_field(
-                    call.caller, "project", "require.project", name, value.to_string(),
-                    base, candidate_field, declared_sources, pending_patches,
+                    call.caller,
+                    "project",
+                    "require.project",
+                    name,
+                    value.to_string(),
+                    base,
+                    candidate_field,
+                    declared_sources,
+                    pending_patches,
                 ));
             }
         }
@@ -943,26 +1007,57 @@ impl ToolExecutor {
                 return;
             };
             for name in target.keys() {
-                if !["arc_count", "chapter_count", "word_per_chapter_count",
-                    "arc_tolerance", "chapter_tolerance", "word_per_chapter_tolerance"].contains(&name.as_str()) {
+                if ![
+                    "arc_count",
+                    "chapter_count",
+                    "word_per_chapter_count",
+                    "arc_tolerance",
+                    "chapter_tolerance",
+                    "word_per_chapter_tolerance",
+                ]
+                .contains(&name.as_str())
+                {
                     results.push(field_rejection(&format!("target.{name}"), "unknown_field"));
                 }
             }
             let fields = [
-                ("arc_count", &base_proj.target.arc_count, &mut cand_proj.target.arc_count),
-                ("chapter_count", &base_proj.target.chapter_count, &mut cand_proj.target.chapter_count),
-                ("word_per_chapter_count", &base_proj.target.word_per_chapter_count, &mut cand_proj.target.word_per_chapter_count),
+                (
+                    "arc_count",
+                    &base_proj.target.arc_count,
+                    &mut cand_proj.target.arc_count,
+                ),
+                (
+                    "chapter_count",
+                    &base_proj.target.chapter_count,
+                    &mut cand_proj.target.chapter_count,
+                ),
+                (
+                    "word_per_chapter_count",
+                    &base_proj.target.word_per_chapter_count,
+                    &mut cand_proj.target.word_per_chapter_count,
+                ),
             ];
             for (name, base, candidate_field) in fields {
                 if let Some(value) = target.get(name) {
                     let field = format!("target.{name}");
-                    let Some(value) = value.as_u64().and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0) else {
+                    let Some(value) = value
+                        .as_u64()
+                        .and_then(|n| u32::try_from(n).ok())
+                        .filter(|n| *n > 0)
+                    else {
                         results.push(field_rejection(&field, "expected_positive_integer"));
                         continue;
                     };
                     results.push(evaluate_single_field(
-                        call.caller, "project", "require.project", &field, value,
-                        base, candidate_field, declared_sources, pending_patches,
+                        call.caller,
+                        "project",
+                        "require.project",
+                        &field,
+                        value,
+                        base,
+                        candidate_field,
+                        declared_sources,
+                        pending_patches,
                     ));
                 }
             }
@@ -970,9 +1065,21 @@ impl ToolExecutor {
             let base_tolerance = &baseline.optional.overview_phase.project.target;
             let candidate_tolerance = &mut candidate.optional.overview_phase.project.target;
             let tolerance_fields = [
-                ("arc_tolerance", &base_tolerance.arc_tolerance, &mut candidate_tolerance.arc_tolerance),
-                ("chapter_tolerance", &base_tolerance.chapter_tolerance, &mut candidate_tolerance.chapter_tolerance),
-                ("word_per_chapter_tolerance", &base_tolerance.word_per_chapter_tolerance, &mut candidate_tolerance.word_per_chapter_tolerance),
+                (
+                    "arc_tolerance",
+                    &base_tolerance.arc_tolerance,
+                    &mut candidate_tolerance.arc_tolerance,
+                ),
+                (
+                    "chapter_tolerance",
+                    &base_tolerance.chapter_tolerance,
+                    &mut candidate_tolerance.chapter_tolerance,
+                ),
+                (
+                    "word_per_chapter_tolerance",
+                    &base_tolerance.word_per_chapter_tolerance,
+                    &mut candidate_tolerance.word_per_chapter_tolerance,
+                ),
             ];
             for (name, base, candidate_field) in tolerance_fields {
                 if let Some(value) = target.get(name) {
@@ -982,8 +1089,15 @@ impl ToolExecutor {
                         continue;
                     };
                     results.push(evaluate_single_field(
-                        call.caller, "project", "optional.overview_phase.project", &field,
-                        value, base, candidate_field, declared_sources, pending_patches,
+                        call.caller,
+                        "project",
+                        "optional.overview_phase.project",
+                        &field,
+                        value,
+                        base,
+                        candidate_field,
+                        declared_sources,
+                        pending_patches,
                     ));
                 }
             }
@@ -999,7 +1113,14 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        self.handle_set_project(call, declared_sources, baseline, candidate, results, pending_patches);
+        self.handle_set_project(
+            call,
+            declared_sources,
+            baseline,
+            candidate,
+            results,
+            pending_patches,
+        );
     }
 
     /// Assign the conflict motif of an existing Arc. The model used to have no schema for this
@@ -1130,8 +1251,15 @@ impl ToolExecutor {
             )
         };
         let merge_text = |current: &mut TrackedField<String>, incoming: TrackedField<String>| {
-            if incoming.value.as_deref().map(str::trim).filter(|v| !v.is_empty()).is_some()
-                && (!protected(current.source) || !protected(Some(source)) || source == ProvenanceSource::User)
+            if incoming
+                .value
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .is_some()
+                && (!protected(current.source)
+                    || !protected(Some(source))
+                    || source == ProvenanceSource::User)
             {
                 *current = incoming;
             }
@@ -1238,26 +1366,50 @@ impl ToolExecutor {
             motif.code = motif_code;
         }
         motif.note = text("motif_note");
-        candidate.optional.overview_phase.arcs.push(OverviewArcItem {
-            code: code.clone(),
-            display_name: text("display_name"),
-            summary: text("summary"),
-            position,
-            motif,
-            themes: ArcThemeSection::default(),
-            source: Some(source),
-        });
-        if !candidate.optional.chapter_phase.arcs.iter().any(|container| container.code == code) {
-            candidate.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
+        candidate
+            .optional
+            .overview_phase
+            .arcs
+            .push(OverviewArcItem {
                 code: code.clone(),
-                chapters: Vec::new(),
+                display_name: text("display_name"),
+                summary: text("summary"),
+                position,
+                motif,
+                themes: ArcThemeSection::default(),
+                source: Some(source),
             });
+        if !candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .any(|container| container.code == code)
+        {
+            candidate
+                .optional
+                .chapter_phase
+                .arcs
+                .push(ChapterPhaseArcItem {
+                    code: code.clone(),
+                    chapters: Vec::new(),
+                });
         }
-        if !candidate.optional.scene_config_phase.arcs.iter().any(|container| container.code == code) {
-            candidate.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-                code: code.clone(),
-                chapters: Vec::new(),
-            });
+        if !candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter()
+            .any(|container| container.code == code)
+        {
+            candidate
+                .optional
+                .scene_config_phase
+                .arcs
+                .push(SceneConfigArcItem {
+                    code: code.clone(),
+                    chapters: Vec::new(),
+                });
         }
         results.push(FieldResult {
             field: "code".to_string(),
@@ -1277,7 +1429,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let arc_code = match call.parameters.get("code").or_else(|| call.parameters.get("arc_code")).and_then(|v| v.as_str()) {
+        let arc_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("arc_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -1291,7 +1448,13 @@ impl ToolExecutor {
             }
         };
 
-        let base_arc = match baseline.optional.overview_phase.arcs.iter().find(|a| a.code == arc_code) {
+        let base_arc = match baseline
+            .optional
+            .overview_phase
+            .arcs
+            .iter()
+            .find(|a| a.code == arc_code)
+        {
             Some(a) => a,
             None => {
                 results.push(FieldResult {
@@ -1305,7 +1468,13 @@ impl ToolExecutor {
             }
         };
 
-        let cand_arc = candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.code == arc_code).unwrap();
+        let cand_arc = candidate
+            .optional
+            .overview_phase
+            .arcs
+            .iter_mut()
+            .find(|a| a.code == arc_code)
+            .unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
             let res = evaluate_single_field(
@@ -1346,7 +1515,13 @@ impl ToolExecutor {
             }
         };
 
-        let arc_chap = match candidate.optional.chapter_phase.arcs.iter_mut().find(|a| a.code == arc_code) {
+        let arc_chap = match candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter_mut()
+            .find(|a| a.code == arc_code)
+        {
             Some(a) => a,
             None => {
                 results.push(FieldResult {
@@ -1368,11 +1543,16 @@ impl ToolExecutor {
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| unique_child_code(
-                arc_chap.chapters.iter().map(|chapter| chapter.code.as_str()),
-                &format!("{arc_code}-c"),
-                arc_chap.chapters.len() + 1,
-            ));
+            .unwrap_or_else(|| {
+                unique_child_code(
+                    arc_chap
+                        .chapters
+                        .iter()
+                        .map(|chapter| chapter.code.as_str()),
+                    &format!("{arc_code}-c"),
+                    arc_chap.chapters.len() + 1,
+                )
+            });
         let text = |key: &str| {
             call.parameters
                 .get(key)
@@ -1417,7 +1597,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let chap_code = match call.parameters.get("code").or_else(|| call.parameters.get("chapter_code")).and_then(|v| v.as_str()) {
+        let chap_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("chapter_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -1431,7 +1616,13 @@ impl ToolExecutor {
             }
         };
 
-        let base_chap = baseline.optional.chapter_phase.arcs.iter().flat_map(|a| &a.chapters).find(|c| c.code == chap_code);
+        let base_chap = baseline
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .flat_map(|a| &a.chapters)
+            .find(|c| c.code == chap_code);
         if base_chap.is_none() {
             results.push(FieldResult {
                 field: "code".to_string(),
@@ -1444,7 +1635,14 @@ impl ToolExecutor {
         }
         let base_chap = base_chap.unwrap();
 
-        let cand_chap = candidate.optional.chapter_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).find(|c| c.code == chap_code).unwrap();
+        let cand_chap = candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|a| &mut a.chapters)
+            .find(|c| c.code == chap_code)
+            .unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
             let res = evaluate_single_field(
@@ -1513,7 +1711,14 @@ impl ToolExecutor {
             }
         };
 
-        let chap = match candidate.optional.chapter_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).find(|c| c.code == chap_code) {
+        let chap = match candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|a| &mut a.chapters)
+            .find(|c| c.code == chap_code)
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -1535,11 +1740,13 @@ impl ToolExecutor {
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| unique_child_code(
-                chap.scenes.iter().map(|scene| scene.code.as_str()),
-                &format!("{chap_code}-s"),
-                chap.scenes.len() + 1,
-            ));
+            .unwrap_or_else(|| {
+                unique_child_code(
+                    chap.scenes.iter().map(|scene| scene.code.as_str()),
+                    &format!("{chap_code}-s"),
+                    chap.scenes.len() + 1,
+                )
+            });
         let text = |key: &str| {
             call.parameters
                 .get(key)
@@ -1584,7 +1791,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let sc_code = match call.parameters.get("code").or_else(|| call.parameters.get("scene_code")).and_then(|v| v.as_str()) {
+        let sc_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("scene_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(s) => s,
             None => {
                 results.push(FieldResult {
@@ -1598,7 +1810,14 @@ impl ToolExecutor {
             }
         };
 
-        let base_sc = baseline.optional.chapter_phase.arcs.iter().flat_map(|a| &a.chapters).flat_map(|c| &c.scenes).find(|s| s.code == sc_code);
+        let base_sc = baseline
+            .optional
+            .chapter_phase
+            .arcs
+            .iter()
+            .flat_map(|a| &a.chapters)
+            .flat_map(|c| &c.scenes)
+            .find(|s| s.code == sc_code);
         if base_sc.is_none() {
             results.push(FieldResult {
                 field: "code".to_string(),
@@ -1611,7 +1830,15 @@ impl ToolExecutor {
         }
         let base_sc = base_sc.unwrap();
 
-        let cand_sc = candidate.optional.chapter_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).flat_map(|c| &mut c.scenes).find(|s| s.code == sc_code).unwrap();
+        let cand_sc = candidate
+            .optional
+            .chapter_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|a| &mut a.chapters)
+            .flat_map(|c| &mut c.scenes)
+            .find(|s| s.code == sc_code)
+            .unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
             let res = evaluate_single_field(
@@ -1628,7 +1855,11 @@ impl ToolExecutor {
             results.push(res);
         }
 
-        if let Some(v) = call.parameters.get("world_setting_code").and_then(|v| v.as_str()) {
+        if let Some(v) = call
+            .parameters
+            .get("world_setting_code")
+            .and_then(|v| v.as_str())
+        {
             let res = evaluate_single_field(
                 call.caller,
                 "scene",
@@ -1681,7 +1912,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let sc_code = match call.parameters.get("code").or_else(|| call.parameters.get("scene_code")).and_then(|v| v.as_str()) {
+        let sc_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("scene_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(s) => s,
             None => {
                 results.push(FieldResult {
@@ -1735,7 +1971,11 @@ impl ToolExecutor {
             return;
         };
 
-        for field in ["world_setting_code", "style_preset_code", "narrator_config_code"] {
+        for field in [
+            "world_setting_code",
+            "style_preset_code",
+            "narrator_config_code",
+        ] {
             let Some(value) = call.parameters.get(field).and_then(|v| v.as_str()) else {
                 continue;
             };
@@ -1799,10 +2039,14 @@ impl ToolExecutor {
             .iter()
             .any(|arc| arc.code == arc_code)
         {
-            candidate.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-                code: arc_code.clone(),
-                chapters: Vec::new(),
-            });
+            candidate
+                .optional
+                .scene_config_phase
+                .arcs
+                .push(SceneConfigArcItem {
+                    code: arc_code.clone(),
+                    chapters: Vec::new(),
+                });
         }
         let arc_cfg = candidate
             .optional
@@ -1811,7 +2055,11 @@ impl ToolExecutor {
             .iter_mut()
             .find(|arc| arc.code == arc_code)
             .expect("scene_config arc was just created");
-        if !arc_cfg.chapters.iter().any(|chapter| chapter.code == chapter_code) {
+        if !arc_cfg
+            .chapters
+            .iter()
+            .any(|chapter| chapter.code == chapter_code)
+        {
             arc_cfg.chapters.push(SceneConfigChapterItem {
                 code: chapter_code.clone(),
                 scenes: Vec::new(),
@@ -1847,11 +2095,30 @@ impl ToolExecutor {
             .get("code")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("ws-{}", candidate.optional.world_building_phase.world_settings.len() + 1));
+            .unwrap_or_else(|| {
+                format!(
+                    "ws-{}",
+                    candidate.optional.world_building_phase.world_settings.len() + 1
+                )
+            });
 
-        let parent_code = call.parameters.get("parent_code").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let disp = call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Setting").to_string();
-        let st_type = call.parameters.get("type").and_then(|v| v.as_str()).unwrap_or("LOCATION").to_string();
+        let parent_code = call
+            .parameters
+            .get("parent_code")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let disp = call
+            .parameters
+            .get("display_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Setting")
+            .to_string();
+        let st_type = call
+            .parameters
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("LOCATION")
+            .to_string();
 
         let source = declared_sources
             .get("display_name")
@@ -1885,7 +2152,11 @@ impl ToolExecutor {
             source: Some(source),
         };
 
-        candidate.optional.world_building_phase.world_settings.push(ws);
+        candidate
+            .optional
+            .world_building_phase
+            .world_settings
+            .push(ws);
         results.push(FieldResult {
             field: "code".to_string(),
             status: "applied".to_string(),
@@ -1904,7 +2175,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let ws_code = match call.parameters.get("code").or_else(|| call.parameters.get("world_setting_code")).and_then(|v| v.as_str()) {
+        let ws_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("world_setting_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -1918,7 +2194,12 @@ impl ToolExecutor {
             }
         };
 
-        let base_ws = baseline.optional.world_building_phase.world_settings.iter().find(|w| w.code == ws_code);
+        let base_ws = baseline
+            .optional
+            .world_building_phase
+            .world_settings
+            .iter()
+            .find(|w| w.code == ws_code);
         if base_ws.is_none() {
             results.push(FieldResult {
                 field: "code".to_string(),
@@ -1931,7 +2212,13 @@ impl ToolExecutor {
         }
         let base_ws = base_ws.unwrap();
 
-        let cand_ws = candidate.optional.world_building_phase.world_settings.iter_mut().find(|w| w.code == ws_code).unwrap();
+        let cand_ws = candidate
+            .optional
+            .world_building_phase
+            .world_settings
+            .iter_mut()
+            .find(|w| w.code == ws_code)
+            .unwrap();
 
         if let Some(v) = call.parameters.get("display_name").and_then(|v| v.as_str()) {
             let res = evaluate_single_field(
@@ -1958,11 +2245,23 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let ws_code = call.parameters.get("world_setting_code").and_then(|v| v.as_str());
+        let ws_code = call
+            .parameters
+            .get("world_setting_code")
+            .and_then(|v| v.as_str());
         let ws = if let Some(code) = ws_code {
-            candidate.optional.world_building_phase.world_settings.iter_mut().find(|w| w.code == code)
+            candidate
+                .optional
+                .world_building_phase
+                .world_settings
+                .iter_mut()
+                .find(|w| w.code == code)
         } else {
-            candidate.optional.world_building_phase.world_settings.first_mut()
+            candidate
+                .optional
+                .world_building_phase
+                .world_settings
+                .first_mut()
         };
 
         let ws = match ws {
@@ -2008,11 +2307,19 @@ impl ToolExecutor {
         let lore = LoreEntryItem {
             code: code.clone(),
             display_name: TrackedField::new(
-                call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Lore").to_string(),
+                call.parameters
+                    .get("display_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Lore")
+                    .to_string(),
                 source,
             ),
             lore_type: TrackedField::new(
-                call.parameters.get("type").and_then(|v| v.as_str()).unwrap_or("CONCEPT").to_string(),
+                call.parameters
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("CONCEPT")
+                    .to_string(),
                 source,
             ),
             description,
@@ -2039,7 +2346,12 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let lore_code = match call.parameters.get("code").or_else(|| call.parameters.get("lore_entry_code")).and_then(|v| v.as_str()) {
+        let lore_code = match call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("lore_entry_code"))
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -2133,7 +2445,11 @@ impl ToolExecutor {
         let source = *declared_sources
             .get("motif_code")
             .unwrap_or(&ProvenanceSource::AiGenerated);
-        if let Some(motif) = call.parameters.get("motif_code").and_then(|value| value.as_str()) {
+        if let Some(motif) = call
+            .parameters
+            .get("motif_code")
+            .and_then(|value| value.as_str())
+        {
             relationship.motif.code = TrackedField::new(motif.to_string(), source);
         }
         results.push(FieldResult {
@@ -2168,7 +2484,10 @@ impl ToolExecutor {
             .iter_mut()
             .find(|item| item.code == code)
         else {
-            results.push(field_rejection("relationship_code", "target_code_not_found"));
+            results.push(field_rejection(
+                "relationship_code",
+                "target_code_not_found",
+            ));
             return;
         };
         let source = *declared_sources
@@ -2182,11 +2501,19 @@ impl ToolExecutor {
                 .unwrap_or_default()
         };
         let category = text("category_code");
-        if relationship.character.roles.iter().any(|role| role.category_code.value == category.value) {
+        if relationship
+            .character
+            .roles
+            .iter()
+            .any(|role| role.category_code.value == category.value)
+        {
             results.push(field_rejection("category_code", "duplicate_role"));
             return;
         }
-        let is_primary = call.parameters.get("is_primary").and_then(|value| value.as_bool());
+        let is_primary = call
+            .parameters
+            .get("is_primary")
+            .and_then(|value| value.as_bool());
         relationship.character.roles.push(RelationshipRoleItem {
             category_code: category,
             hierarchy: text("hierarchy"),
@@ -2229,7 +2556,12 @@ impl ToolExecutor {
             return;
         };
         for code in [from, to] {
-            if !candidate.require.character.iter().any(|character| character.code == code) {
+            if !candidate
+                .require
+                .character
+                .iter()
+                .any(|character| character.code == code)
+            {
                 results.push(field_rejection("characters", "target_code_not_found"));
                 return;
             }
@@ -2279,17 +2611,21 @@ impl ToolExecutor {
             motif_section.code = TrackedField::new(motif_value.to_string(), source);
         }
 
-        candidate.optional.relationship_phase.relationship.push(RelationshipPhaseItem {
-            code: code.clone(),
-            motif: motif_section,
-            character: RelationshipCharacterPairSection {
-                from_code: from.to_string(),
-                to_code: to.to_string(),
-                scenes: Vec::new(),
-                roles: Vec::new(),
-            },
-            source: Some(source),
-        });
+        candidate
+            .optional
+            .relationship_phase
+            .relationship
+            .push(RelationshipPhaseItem {
+                code: code.clone(),
+                motif: motif_section,
+                character: RelationshipCharacterPairSection {
+                    from_code: from.to_string(),
+                    to_code: to.to_string(),
+                    scenes: Vec::new(),
+                    roles: Vec::new(),
+                },
+                source: Some(source),
+            });
         results.push(FieldResult {
             field: "code".to_string(),
             status: "applied".to_string(),
@@ -2308,7 +2644,10 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let rel_code = call.parameters.get("relationship_code").and_then(|v| v.as_str());
+        let rel_code = call
+            .parameters
+            .get("relationship_code")
+            .and_then(|v| v.as_str());
         let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str());
 
         let (Some(rel_code), Some(sc_code)) = (rel_code, sc_code) else {
@@ -2346,13 +2685,22 @@ impl ToolExecutor {
         {
             Some(rel) => rel,
             None => {
-                results.push(field_rejection("relationship_code", "target_code_not_found"));
+                results.push(field_rejection(
+                    "relationship_code",
+                    "target_code_not_found",
+                ));
                 return;
             }
         };
 
         const DIMENSIONS: [&str; 7] = [
-            "trust", "affection", "hostility", "fear", "respect", "dependency", "familiarity",
+            "trust",
+            "affection",
+            "hostility",
+            "fear",
+            "respect",
+            "dependency",
+            "familiarity",
         ];
         let mut values: std::collections::BTreeMap<&str, (String, ProvenanceSource)> =
             std::collections::BTreeMap::new();
@@ -2430,7 +2778,11 @@ impl ToolExecutor {
             results.push(field_rejection("scene_code", "missing_target_code"));
             return;
         };
-        let Some(char_code) = call.parameters.get("character_code").and_then(|v| v.as_str()) else {
+        let Some(char_code) = call
+            .parameters
+            .get("character_code")
+            .and_then(|v| v.as_str())
+        else {
             results.push(field_rejection("character_code", "missing_target_code"));
             return;
         };
@@ -2441,7 +2793,10 @@ impl ToolExecutor {
         let source = *declared_sources
             .get("is_pov")
             .unwrap_or(&ProvenanceSource::AiGenerated);
-        let is_pov = call.parameters.get("is_pov").and_then(|value| value.as_bool());
+        let is_pov = call
+            .parameters
+            .get("is_pov")
+            .and_then(|value| value.as_bool());
         let Some(scene) = candidate
             .optional
             .scene_config_phase
@@ -2493,7 +2848,11 @@ impl ToolExecutor {
             results.push(field_rejection("scene_code", "missing_target_code"));
             return;
         };
-        let Some(lore_code) = call.parameters.get("lore_entry_code").and_then(|v| v.as_str()) else {
+        let Some(lore_code) = call
+            .parameters
+            .get("lore_entry_code")
+            .and_then(|v| v.as_str())
+        else {
             results.push(field_rejection("lore_entry_code", "missing_target_code"));
             return;
         };
@@ -2505,8 +2864,14 @@ impl ToolExecutor {
             .get("usage")
             .unwrap_or(&ProvenanceSource::AiGenerated);
         let usage = call.parameters.get("usage").and_then(|v| v.as_str());
-        let reveal_reader = call.parameters.get("reveal_to_reader").and_then(|v| v.as_bool());
-        let reveal_pov = call.parameters.get("reveal_to_pov").and_then(|v| v.as_bool());
+        let reveal_reader = call
+            .parameters
+            .get("reveal_to_reader")
+            .and_then(|v| v.as_bool());
+        let reveal_pov = call
+            .parameters
+            .get("reveal_to_pov")
+            .and_then(|v| v.as_bool());
         let Some(scene) = candidate
             .optional
             .scene_config_phase
@@ -2589,11 +2954,18 @@ impl ToolExecutor {
                 Some(ProvenanceSource::AiGenerated) => ProvenanceSource::AiGenerated,
                 _ => {
                     // Tolerate the legacy scalar form some prompts/models still emit.
-                    match call.parameters.get("declared_source").and_then(|value| value.as_str()) {
+                    match call
+                        .parameters
+                        .get("declared_source")
+                        .and_then(|value| value.as_str())
+                    {
                         Some("user") => ProvenanceSource::User,
                         Some("ai_generated") => ProvenanceSource::AiGenerated,
                         _ => {
-                            results.push(field_rejection("genre_code", "missing_or_invalid_declared_source"));
+                            results.push(field_rejection(
+                                "genre_code",
+                                "missing_or_invalid_declared_source",
+                            ));
                             return;
                         }
                     }
@@ -2602,14 +2974,24 @@ impl ToolExecutor {
         } else {
             ProvenanceSource::User
         };
-        if candidate.require.project.genres.iter().any(|item| item.code.value.as_deref() == Some(genre_code)) {
+        if candidate
+            .require
+            .project
+            .genres
+            .iter()
+            .any(|item| item.code.value.as_deref() == Some(genre_code))
+        {
             results.push(field_rejection("genre_code", "genre_already_attached"));
             return;
         }
         candidate.require.project.genres.push(RequireGenreItem {
             code: TrackedField::new(genre_code.to_string(), source),
             is_primary: TrackedField::new(
-                call.parameters.get("is_primary").and_then(|v| v.as_bool()).unwrap_or(false), source,
+                call.parameters
+                    .get("is_primary")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                source,
             ),
             display_name: TrackedField::unset(),
         });
@@ -2646,7 +3028,13 @@ impl ToolExecutor {
             }
         };
 
-        let arc = match candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.code == arc_code) {
+        let arc = match candidate
+            .optional
+            .overview_phase
+            .arcs
+            .iter_mut()
+            .find(|a| a.code == arc_code)
+        {
             Some(a) => a,
             None => {
                 results.push(FieldResult {
@@ -2715,7 +3103,11 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let char_code = match call.parameters.get("character_code").and_then(|v| v.as_str()) {
+        let char_code = match call
+            .parameters
+            .get("character_code")
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -2730,19 +3122,35 @@ impl ToolExecutor {
         };
 
         // Ensure character profile container exists in life experience phase
-        if !candidate.optional.character_life_experience_phase.character.iter().any(|c| c.code == char_code) {
-            candidate.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-                code: char_code.to_string(),
-                memories: Vec::new(),
-                competences: Vec::new(),
-            });
+        if !candidate
+            .optional
+            .character_life_experience_phase
+            .character
+            .iter()
+            .any(|c| c.code == char_code)
+        {
+            candidate
+                .optional
+                .character_life_experience_phase
+                .character
+                .push(CharacterLifeExperienceItem {
+                    code: char_code.to_string(),
+                    memories: Vec::new(),
+                    competences: Vec::new(),
+                });
         }
 
         let source = *declared_sources
             .get("content")
             .or_else(|| declared_sources.get("summary"))
             .unwrap_or(&ProvenanceSource::AiGenerated);
-        let life = candidate.optional.character_life_experience_phase.character.iter_mut().find(|c| c.code == char_code).unwrap();
+        let life = candidate
+            .optional
+            .character_life_experience_phase
+            .character
+            .iter_mut()
+            .find(|c| c.code == char_code)
+            .unwrap();
         let content = call
             .parameters
             .get("content")
@@ -2750,7 +3158,10 @@ impl ToolExecutor {
             .or_else(|| call.parameters.get("display_name"))
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let sc_code = call.parameters.get("source_scene_code").and_then(|v| v.as_str());
+        let sc_code = call
+            .parameters
+            .get("source_scene_code")
+            .and_then(|v| v.as_str());
         let code = call
             .parameters
             .get("code")
@@ -2785,7 +3196,11 @@ impl ToolExecutor {
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let char_code = match call.parameters.get("character_code").and_then(|v| v.as_str()) {
+        let char_code = match call
+            .parameters
+            .get("character_code")
+            .and_then(|v| v.as_str())
+        {
             Some(c) => c,
             None => {
                 results.push(FieldResult {
@@ -2799,18 +3214,47 @@ impl ToolExecutor {
             }
         };
 
-        if !candidate.optional.character_life_experience_phase.character.iter().any(|c| c.code == char_code) {
-            candidate.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-                code: char_code.to_string(),
-                memories: Vec::new(),
-                competences: Vec::new(),
-            });
+        if !candidate
+            .optional
+            .character_life_experience_phase
+            .character
+            .iter()
+            .any(|c| c.code == char_code)
+        {
+            candidate
+                .optional
+                .character_life_experience_phase
+                .character
+                .push(CharacterLifeExperienceItem {
+                    code: char_code.to_string(),
+                    memories: Vec::new(),
+                    competences: Vec::new(),
+                });
         }
 
-        let life = candidate.optional.character_life_experience_phase.character.iter_mut().find(|c| c.code == char_code).unwrap();
-        let comp_code = call.parameters.get("code").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_else(|| format!("{}-k{}", char_code, life.competences.len() + 1));
-        let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str()).unwrap_or("");
-        let disp = call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Competence");
+        let life = candidate
+            .optional
+            .character_life_experience_phase
+            .character
+            .iter_mut()
+            .find(|c| c.code == char_code)
+            .unwrap();
+        let comp_code = call
+            .parameters
+            .get("code")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("{}-k{}", char_code, life.competences.len() + 1));
+        let sc_code = call
+            .parameters
+            .get("scene_code")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let disp = call
+            .parameters
+            .get("display_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Competence");
         let source = *declared_sources
             .get("display_name")
             .unwrap_or(&ProvenanceSource::AiGenerated);
@@ -2902,14 +3346,30 @@ impl ToolExecutor {
             });
         }
         let item = section.iter_mut().find(|item| item.code == code).unwrap();
-        if let Some(value) = text("species") { item.species = value; }
-        if let Some(value) = text("birth") { item.birth = value; }
-        if let Some(value) = text("outfit_style") { item.outfit_style = value; }
-        if let Some(value) = text("default_summary") { item.default_summary = value; }
-        if let Some(value) = call.parameters.get("height_cm").and_then(|value| value.as_u64()) {
+        if let Some(value) = text("species") {
+            item.species = value;
+        }
+        if let Some(value) = text("birth") {
+            item.birth = value;
+        }
+        if let Some(value) = text("outfit_style") {
+            item.outfit_style = value;
+        }
+        if let Some(value) = text("default_summary") {
+            item.default_summary = value;
+        }
+        if let Some(value) = call
+            .parameters
+            .get("height_cm")
+            .and_then(|value| value.as_u64())
+        {
             item.height_cm = TrackedField::new(value.min(u32::MAX as u64) as u32, source);
         }
-        if let Some(value) = call.parameters.get("weight_kg").and_then(|value| value.as_u64()) {
+        if let Some(value) = call
+            .parameters
+            .get("weight_kg")
+            .and_then(|value| value.as_u64())
+        {
             item.weight_kg = TrackedField::new(value.min(u32::MAX as u64) as u32, source);
         }
         results.push(FieldResult {
@@ -2965,16 +3425,36 @@ impl ToolExecutor {
             });
         }
         let item = section.iter_mut().find(|item| item.code == code).unwrap();
-        if let Some(value) = text("the_wound") { item.core_trauma_and_belief.the_wound = value; }
-        if let Some(value) = text("the_lie") { item.core_trauma_and_belief.the_lie = value; }
-        if let Some(value) = text("fundamental_fear") { item.core_trauma_and_belief.fundamental_fear = value; }
-        if let Some(value) = text("external_want") { item.narrative_engine.external_want = value; }
-        if let Some(value) = text("internal_need") { item.narrative_engine.internal_need = value; }
-        if let Some(value) = text("internal_conflict") { item.narrative_engine.internal_conflict = value; }
-        if let Some(value) = text("moral_alignment") { item.cognitive_moral_framework.moral_alignment = value; }
-        if let Some(value) = text("moral_code") { item.cognitive_moral_framework.moral_code = value; }
-        if let Some(value) = text("cognitive_bias") { item.cognitive_moral_framework.cognitive_bias = value; }
-        if let Some(value) = text("breaking_point") { item.cognitive_moral_framework.breaking_point = value; }
+        if let Some(value) = text("the_wound") {
+            item.core_trauma_and_belief.the_wound = value;
+        }
+        if let Some(value) = text("the_lie") {
+            item.core_trauma_and_belief.the_lie = value;
+        }
+        if let Some(value) = text("fundamental_fear") {
+            item.core_trauma_and_belief.fundamental_fear = value;
+        }
+        if let Some(value) = text("external_want") {
+            item.narrative_engine.external_want = value;
+        }
+        if let Some(value) = text("internal_need") {
+            item.narrative_engine.internal_need = value;
+        }
+        if let Some(value) = text("internal_conflict") {
+            item.narrative_engine.internal_conflict = value;
+        }
+        if let Some(value) = text("moral_alignment") {
+            item.cognitive_moral_framework.moral_alignment = value;
+        }
+        if let Some(value) = text("moral_code") {
+            item.cognitive_moral_framework.moral_code = value;
+        }
+        if let Some(value) = text("cognitive_bias") {
+            item.cognitive_moral_framework.cognitive_bias = value;
+        }
+        if let Some(value) = text("breaking_point") {
+            item.cognitive_moral_framework.breaking_point = value;
+        }
         if let Some(value) = text("social_mask_persona_type") {
             item.behavioral_adaptation.social_mask.persona_type = value;
         }
@@ -2982,13 +3462,17 @@ impl ToolExecutor {
             item.behavioral_adaptation.social_mask.verbal_style = value;
         }
         if let Some(value) = text("defense_primary_reaction") {
-            item.behavioral_adaptation.defense_mechanisms.primary_reaction = value;
+            item.behavioral_adaptation
+                .defense_mechanisms
+                .primary_reaction = value;
         }
         if let Some(value) = text("defense_stress_trigger") {
             item.behavioral_adaptation.defense_mechanisms.stress_trigger = value;
         }
         if let Some(value) = text("defense_coping_strategy") {
-            item.behavioral_adaptation.defense_mechanisms.coping_strategy = value;
+            item.behavioral_adaptation
+                .defense_mechanisms
+                .coping_strategy = value;
         }
         results.push(FieldResult {
             field: "character_code".to_string(),
@@ -3044,11 +3528,13 @@ impl ToolExecutor {
             return;
         }
         let id = format!("decision-{}", candidate.decision_log.len() + 1);
-        candidate.decision_log.push(crate::domain::business_flow::DecisionLogEntry {
-            id: id.clone(),
-            summary,
-            source,
-        });
+        candidate
+            .decision_log
+            .push(crate::domain::business_flow::DecisionLogEntry {
+                id: id.clone(),
+                summary,
+                source,
+            });
         results.push(FieldResult {
             field: "summary".to_string(),
             status: "applied".to_string(),
@@ -3081,7 +3567,13 @@ impl ToolExecutor {
             }
         };
 
-        let arc = match candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.code == arc_code) {
+        let arc = match candidate
+            .optional
+            .overview_phase
+            .arcs
+            .iter_mut()
+            .find(|a| a.code == arc_code)
+        {
             Some(a) => a,
             None => {
                 results.push(FieldResult {
@@ -3095,7 +3587,9 @@ impl ToolExecutor {
             }
         };
 
-        let source = *declared_sources.get("question").unwrap_or(&ProvenanceSource::AiGenerated);
+        let source = *declared_sources
+            .get("question")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let text = |key: &str| {
             call.parameters
                 .get(key)
@@ -3140,7 +3634,10 @@ impl ToolExecutor {
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
         let theme_code = call.parameters.get("theme_code").and_then(|v| v.as_str());
-        let char_code = call.parameters.get("character_code").and_then(|v| v.as_str());
+        let char_code = call
+            .parameters
+            .get("character_code")
+            .and_then(|v| v.as_str());
 
         if theme_code.is_none() || char_code.is_none() {
             results.push(FieldResult {
@@ -3166,7 +3663,12 @@ impl ToolExecutor {
                 .map(|value| TrackedField::new(value.to_string(), source))
                 .unwrap_or_default()
         };
-        let arc = candidate.optional.overview_phase.arcs.iter_mut().find(|a| a.themes.code.as_deref() == Some(theme_code) || a.code == theme_code);
+        let arc = candidate
+            .optional
+            .overview_phase
+            .arcs
+            .iter_mut()
+            .find(|a| a.themes.code.as_deref() == Some(theme_code) || a.code == theme_code);
 
         match arc {
             Some(a) => {
@@ -3209,8 +3711,11 @@ impl ToolExecutor {
 
 fn field_rejection(field: &str, error: &str) -> FieldResult {
     FieldResult {
-        field: field.to_string(), status: "rejected".to_string(),
-        patch_id: None, error: Some(error.to_string()), candidates: None,
+        field: field.to_string(),
+        status: "rejected".to_string(),
+        patch_id: None,
+        error: Some(error.to_string()),
+        candidates: None,
     }
 }
 
@@ -3257,7 +3762,9 @@ fn evaluate_single_field<T: Clone + PartialEq + Serialize>(
             }
         }
     } else {
-        *declared_sources.get(field_name).unwrap_or(&ProvenanceSource::User)
+        *declared_sources
+            .get(field_name)
+            .unwrap_or(&ProvenanceSource::User)
     };
 
     // 2. Provenance overwrite rules (be-core.md §5.3.1)
@@ -3368,19 +3875,26 @@ fn evaluate_single_field<T: Clone + PartialEq + Serialize>(
 // ============================================================================
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod project_target_regression_tests {
     use super::*;
     use serde_json::{json, Value};
 
     fn execute(data: &BusinessFlowData, args: Value) -> ToolOutcome {
-        ToolExecutor::execute(&ToolCall::new("set_project", CallerCategory::AiCaller, args), &ExecutionGuard::new(data))
+        ToolExecutor::execute(
+            &ToolCall::new("set_project", CallerCategory::AiCaller, args),
+            &ExecutionGuard::new(data),
+        )
     }
 
     #[test]
     fn test_project_targets_from_failed_chat_are_saved() {
         let data = BusinessFlowData::new();
-        let result = execute(&data, json!({"target": {"arc_count": 1, "chapter_count": 120, "word_per_chapter_count": 2400},
-            "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user", "target.word_per_chapter_count": "user"}}));
+        let result = execute(
+            &data,
+            json!({"target": {"arc_count": 1, "chapter_count": 120, "word_per_chapter_count": 2400},
+            "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user", "target.word_per_chapter_count": "user"}}),
+        );
         assert!(result.is_applied(), "{result:?}");
         let target = &result.mutated_state().unwrap().require.project.target;
         assert_eq!(target.arc_count, TrackedField::user(1));
@@ -3390,12 +3904,36 @@ mod project_target_regression_tests {
 
     #[test]
     fn test_project_targets_reject_invalid_values_per_field() {
-        for invalid in [json!(0), json!(-1), json!(2.5), json!("120"), json!(4294967296_u64), Value::Null] {
-            let result = execute(&BusinessFlowData::new(), json!({"target": {"arc_count": 1, "chapter_count": invalid},
-                "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user"}}));
+        for invalid in [
+            json!(0),
+            json!(-1),
+            json!(2.5),
+            json!("120"),
+            json!(4294967296_u64),
+            Value::Null,
+        ] {
+            let result = execute(
+                &BusinessFlowData::new(),
+                json!({"target": {"arc_count": 1, "chapter_count": invalid},
+                "declared_sources": {"target.arc_count": "user", "target.chapter_count": "user"}}),
+            );
             assert!(result.is_applied());
-            assert_eq!(result.mutated_state().unwrap().require.project.target.chapter_count.value, None);
-            assert!(result.results.iter().any(|r| r.field == "target.chapter_count" && r.error.as_deref() == Some("expected_positive_integer")));
+            assert_eq!(
+                result
+                    .mutated_state()
+                    .unwrap()
+                    .require
+                    .project
+                    .target
+                    .chapter_count
+                    .value,
+                None
+            );
+            assert!(result
+                .results
+                .iter()
+                .any(|r| r.field == "target.chapter_count"
+                    && r.error.as_deref() == Some("expected_positive_integer")));
         }
     }
 
@@ -3403,22 +3941,35 @@ mod project_target_regression_tests {
     fn test_project_targets_require_source_and_protect_user_value() {
         let mut data = BusinessFlowData::new();
         let missing = execute(&data, json!({"target": {"chapter_count": 120}}));
-        assert_eq!(missing.results[0].error.as_deref(), Some("missing_or_invalid_declared_source"));
+        assert_eq!(
+            missing.results[0].error.as_deref(),
+            Some("missing_or_invalid_declared_source")
+        );
         data.require.project.target.chapter_count = TrackedField::user(120);
-        let pending = execute(&data, json!({"target": {"chapter_count": 122}, "declared_sources": {"target.chapter_count": "user"}}));
+        let pending = execute(
+            &data,
+            json!({"target": {"chapter_count": 122}, "declared_sources": {"target.chapter_count": "user"}}),
+        );
         assert!(pending.is_pending());
         let patch = &pending.pending_patches()[0];
         assert_eq!(patch.target_code, "require.project");
         assert_eq!(patch.previous_value, Some(json!(120)));
         assert_eq!(patch.new_value, Some(json!(122)));
-        let repeat = execute(&data, json!({"target": {"chapter_count": 120}, "declared_sources": {"target.chapter_count": "user"}}));
+        let repeat = execute(
+            &data,
+            json!({"target": {"chapter_count": 120}, "declared_sources": {"target.chapter_count": "user"}}),
+        );
         assert!(repeat.is_applied());
         assert!(repeat.pending_patches().is_empty());
     }
 
     #[test]
     fn test_project_rejects_unknown_or_empty_arguments_with_diagnostics() {
-        for args in [json!({}), json!({"target": {"chapters": 120}}), json!({"summary": 123})] {
+        for args in [
+            json!({}),
+            json!({"target": {"chapters": 120}}),
+            json!({"summary": 123}),
+        ] {
             let result = execute(&BusinessFlowData::new(), args);
             assert!(result.is_rejected());
             assert!(!result.results.is_empty());
@@ -3432,7 +3983,11 @@ fn extract_declared_sources(call: &ToolCall) -> BTreeMap<String, ProvenanceSourc
         return ds.clone();
     }
 
-    if let Some(obj) = call.parameters.get("declared_sources").and_then(|v| v.as_object()) {
+    if let Some(obj) = call
+        .parameters
+        .get("declared_sources")
+        .and_then(|v| v.as_object())
+    {
         let mut map = BTreeMap::new();
         for (k, v) in obj {
             if let Some(s) = v.as_str() {
@@ -3475,35 +4030,59 @@ fn extract_scalar_declared_source(call: &ToolCall) -> Option<ProvenanceSource> {
 fn extract_delete_target(tool_name: &str, params: &serde_json::Value) -> Option<(String, String)> {
     match tool_name {
         "delete_character" => {
-            let code = params.get("code").or_else(|| params.get("character_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("character_code"))?
+                .as_str()?;
             Some(("character".to_string(), code.to_string()))
         }
         "delete_arc" => {
-            let code = params.get("code").or_else(|| params.get("arc_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("arc_code"))?
+                .as_str()?;
             Some(("arc".to_string(), code.to_string()))
         }
         "delete_chapter" => {
-            let code = params.get("code").or_else(|| params.get("chapter_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("chapter_code"))?
+                .as_str()?;
             Some(("chapter".to_string(), code.to_string()))
         }
         "delete_scene" => {
-            let code = params.get("code").or_else(|| params.get("scene_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("scene_code"))?
+                .as_str()?;
             Some(("scene".to_string(), code.to_string()))
         }
         "delete_world_setting" => {
-            let code = params.get("code").or_else(|| params.get("world_setting_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("world_setting_code"))?
+                .as_str()?;
             Some(("world_setting".to_string(), code.to_string()))
         }
         "delete_lore_entry" => {
-            let code = params.get("code").or_else(|| params.get("lore_entry_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("lore_entry_code"))?
+                .as_str()?;
             Some(("lore_entry".to_string(), code.to_string()))
         }
         "delete_relationship" => {
-            let code = params.get("code").or_else(|| params.get("relationship_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("relationship_code"))?
+                .as_str()?;
             Some(("relationship".to_string(), code.to_string()))
         }
         "delete_theme" => {
-            let code = params.get("code").or_else(|| params.get("theme_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("theme_code"))?
+                .as_str()?;
             Some(("theme".to_string(), code.to_string()))
         }
         "delete_scene_character" => {
@@ -3521,7 +4100,10 @@ fn extract_delete_target(tool_name: &str, params: &serde_json::Value) -> Option<
             Some(("project_genre".to_string(), code.to_string()))
         }
         "delete_arc_event_block" => {
-            let code = params.get("event_block_code").or_else(|| params.get("code"))?.as_str()?;
+            let code = params
+                .get("event_block_code")
+                .or_else(|| params.get("code"))?
+                .as_str()?;
             Some(("arc_event_block".to_string(), code.to_string()))
         }
         "delete_theme_argument" => {
@@ -3534,7 +4116,10 @@ fn extract_delete_target(tool_name: &str, params: &serde_json::Value) -> Option<
             Some(("character_memory".to_string(), code.to_string()))
         }
         "delete_character_competence" => {
-            let code = params.get("code").or_else(|| params.get("competence_code"))?.as_str()?;
+            let code = params
+                .get("code")
+                .or_else(|| params.get("competence_code"))?
+                .as_str()?;
             Some(("character_competence".to_string(), code.to_string()))
         }
         "delete_relationship_role" => {
@@ -3548,59 +4133,271 @@ fn extract_delete_target(tool_name: &str, params: &serde_json::Value) -> Option<
 /// Populates all write and delete tool metadata into registry (`tools.md` §3.2, §4.2).
 pub fn register_all_write_tools(registry: &mut ToolRegistry) {
     let tools = [
-        ("add_project", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_project", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_project_genre", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_project_genre", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_character", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_character", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_character", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_arc", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_arc", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_arc_motif", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_arc", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_chapter", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_chapter", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_chapter", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_scene", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_scene", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_scene", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("set_scene_config", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_scene_character", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_scene_character", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_scene_lore_entry", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_scene_lore_entry", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_scene_lore_entry", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_world_setting", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_world_setting", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_world_setting", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_lore_entry", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_lore_entry", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_lore_entry", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_arc_event_block", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_arc_event_block", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("save_approved_outline", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_theme", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_theme", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_theme", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_theme_argument", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_theme_argument", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_character_appearance", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_character_appearance", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_character_psychological", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_character_psychological", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_character_memory", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_character_memory", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_character_memory", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_character_competence", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_character_competence", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_character_competence", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("add_relationship", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("set_relationship", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_relationship", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
-        ("set_relationship_state", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("add_relationship_role", ToolType::Mutation, SourceParamMode::MapDeclaredSources),
-        ("delete_relationship_role", ToolType::Delete, SourceParamMode::ScalarDeclaredSource),
+        (
+            "add_project",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_project",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_project_genre",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_project_genre",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_character",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_character",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_character",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_arc",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_arc",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_arc_motif",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_arc",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_chapter",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_chapter",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_chapter",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_scene",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_scene",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_scene",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "set_scene_config",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_scene_character",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_scene_character",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_scene_lore_entry",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_scene_lore_entry",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_scene_lore_entry",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_world_setting",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_world_setting",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_world_setting",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_lore_entry",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_lore_entry",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_lore_entry",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_arc_event_block",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_arc_event_block",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "save_approved_outline",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_theme",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_theme",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_theme",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_theme_argument",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_theme_argument",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_character_appearance",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_character_appearance",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_character_psychological",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_character_psychological",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_character_memory",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_character_memory",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_character_memory",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_character_competence",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_character_competence",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_character_competence",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "add_relationship",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "set_relationship",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_relationship",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
+        (
+            "set_relationship_state",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "add_relationship_role",
+            ToolType::Mutation,
+            SourceParamMode::MapDeclaredSources,
+        ),
+        (
+            "delete_relationship_role",
+            ToolType::Delete,
+            SourceParamMode::ScalarDeclaredSource,
+        ),
     ];
 
     for (name, tool_type, param_mode) in tools {
@@ -3619,6 +4416,7 @@ pub fn register_all_write_tools(registry: &mut ToolRegistry) {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod phase6_7_handlers {
     use super::*;
 
@@ -3701,17 +4499,33 @@ mod phase6_7_handlers {
         assert!(outcome.is_applied(), "{outcome:?}");
         let updated = outcome.mutated_state().unwrap().clone();
         assert_eq!(
-            updated.optional.overview_phase.arcs[0].motif.code.value.as_deref(),
+            updated.optional.overview_phase.arcs[0]
+                .motif
+                .code
+                .value
+                .as_deref(),
             Some("positive_change_arc")
         );
-        assert_eq!(updated.optional.overview_phase.arcs[0].motif.note.value.as_deref(), Some("growth"));
+        assert_eq!(
+            updated.optional.overview_phase.arcs[0]
+                .motif
+                .note
+                .value
+                .as_deref(),
+            Some("growth")
+        );
 
         let unknown = call(
             "set_arc_motif",
             serde_json::json!({"code": "missing", "motif_code": "positive_change_arc"}),
             &[("motif_code", "ai_generated")],
         );
-        assert_eq!(executor.execute_call(&unknown, &ExecutionGuard::new(&state)).status, "rejected");
+        assert_eq!(
+            executor
+                .execute_call(&unknown, &ExecutionGuard::new(&state))
+                .status,
+            "rejected"
+        );
     }
 
     fn scene_gate_fixture() -> BusinessFlowData {
@@ -3729,15 +4543,23 @@ mod phase6_7_handlers {
             code: "arc-1".into(),
             chapters: vec![chapter],
         });
-        state.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-            code: "arc-1".into(),
-            chapters: Vec::new(),
-        });
+        state
+            .optional
+            .scene_config_phase
+            .arcs
+            .push(SceneConfigArcItem {
+                code: "arc-1".into(),
+                chapters: Vec::new(),
+            });
         let mut world = WorldSettingItem::default();
         world.code = "city".into();
         world.display_name = TrackedField::user("Thành phố".into());
         world.setting_type = TrackedField::user("CITY".into());
-        state.optional.world_building_phase.world_settings.push(world);
+        state
+            .optional
+            .world_building_phase
+            .world_settings
+            .push(world);
         state
     }
 
@@ -3766,7 +4588,10 @@ mod phase6_7_handlers {
         assert_eq!(scene.code, "scene-1");
         assert_eq!(scene.world_setting_code.value.as_deref(), Some("city"));
         assert_eq!(scene.style_preset_code.value.as_deref(), Some("style-1"));
-        assert_eq!(scene.narrator_config_code.value.as_deref(), Some("narrator-1"));
+        assert_eq!(
+            scene.narrator_config_code.value.as_deref(),
+            Some("narrator-1")
+        );
         assert!(
             crate::domain::phase_gate::missing_for_phase(&updated, 4).is_empty(),
             "{:?}",
@@ -3819,9 +4644,18 @@ mod phase6_7_handlers {
         let updated = outcome.mutated_state().unwrap().clone();
         let scene = &updated.optional.scene_config_phase.arcs[0].chapters[0].scenes[0];
         assert_eq!(scene.lore_entries.len(), 1);
-        assert_eq!(scene.lore_entries[0].usage.value.as_deref(), Some("foreshadow"));
-        assert_eq!(scene.lore_entries[0].reveal_to_reader.value.as_deref(), Some("true"));
-        assert_eq!(scene.lore_entries[0].reveal_to_pov.value.as_deref(), Some("false"));
+        assert_eq!(
+            scene.lore_entries[0].usage.value.as_deref(),
+            Some("foreshadow")
+        );
+        assert_eq!(
+            scene.lore_entries[0].reveal_to_reader.value.as_deref(),
+            Some("true")
+        );
+        assert_eq!(
+            scene.lore_entries[0].reveal_to_pov.value.as_deref(),
+            Some("false")
+        );
     }
 
     #[test]
@@ -3872,7 +4706,10 @@ mod phase6_7_handlers {
             .expect("life experience row");
         assert_eq!(life.memories.len(), 1);
         assert_eq!(life.competences.len(), 1);
-        assert_eq!(life.competences[0].domain_code.value.as_deref(), Some("SOCIAL"));
+        assert_eq!(
+            life.competences[0].domain_code.value.as_deref(),
+            Some("SOCIAL")
+        );
         assert_eq!(life.competences[0].capabilities.len(), 1);
         assert!(
             crate::domain::phase_gate::missing_for_subphase(&state, 3).is_empty(),
@@ -3899,7 +4736,9 @@ mod phase6_7_handlers {
         let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
         assert!(outcome.is_applied(), "{outcome:?}");
         state = outcome.mutated_state().unwrap().clone();
-        let code = state.optional.relationship_phase.relationship[0].code.clone();
+        let code = state.optional.relationship_phase.relationship[0]
+            .code
+            .clone();
 
         let role = call(
             "add_relationship_role",
@@ -3916,12 +4755,21 @@ mod phase6_7_handlers {
         state = outcome.mutated_state().unwrap().clone();
         let relationship = &state.optional.relationship_phase.relationship[0];
         assert_eq!(relationship.character.roles.len(), 1);
-        assert_eq!(relationship.character.roles[0].category_code.value.as_deref(), Some("MENTOR"));
+        assert_eq!(
+            relationship.character.roles[0]
+                .category_code
+                .value
+                .as_deref(),
+            Some("MENTOR")
+        );
         assert_eq!(relationship.character.roles[0].is_primary.value, Some(true));
 
         let duplicate = executor.execute_call(&role, &ExecutionGuard::new(&state));
         assert_eq!(duplicate.status, "rejected");
-        assert_eq!(duplicate.results[0].error.as_deref(), Some("duplicate_role"));
+        assert_eq!(
+            duplicate.results[0].error.as_deref(),
+            Some("duplicate_role")
+        );
     }
 
     #[test]
@@ -3934,7 +4782,10 @@ mod phase6_7_handlers {
             &[("genre_code", "user")],
         );
         let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
-        assert!(outcome.is_applied(), "map declared_sources must apply: {outcome:?}");
+        assert!(
+            outcome.is_applied(),
+            "map declared_sources must apply: {outcome:?}"
+        );
         state = outcome.mutated_state().unwrap().clone();
         assert_eq!(state.require.project.genres.len(), 1);
         assert_eq!(
@@ -3953,8 +4804,20 @@ mod phase6_7_handlers {
             &[],
         );
         let outcome = executor.execute_call(&legacy, &ExecutionGuard::new(&state));
-        assert!(outcome.is_applied(), "legacy scalar source must apply: {outcome:?}");
-        assert_eq!(outcome.mutated_state().unwrap().require.project.genres.len(), 2);
+        assert!(
+            outcome.is_applied(),
+            "legacy scalar source must apply: {outcome:?}"
+        );
+        assert_eq!(
+            outcome
+                .mutated_state()
+                .unwrap()
+                .require
+                .project
+                .genres
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -4003,7 +4866,11 @@ mod phase6_7_handlers {
             .find(|item| item.code == "hero")
             .expect("psychology row");
         assert_eq!(
-            psych.cognitive_moral_framework.breaking_point.value.as_deref(),
+            psych
+                .cognitive_moral_framework
+                .breaking_point
+                .value
+                .as_deref(),
             Some("Khi niềm tin sụp đổ")
         );
         assert_eq!(
@@ -4040,7 +4907,10 @@ mod phase6_7_handlers {
                     "position": position,
                     "motif_code": motif
                 }),
-                &[("display_name", "ai_generated"), ("summary", "ai_generated")],
+                &[
+                    ("display_name", "ai_generated"),
+                    ("summary", "ai_generated"),
+                ],
             )
         };
 
@@ -4050,13 +4920,23 @@ mod phase6_7_handlers {
         let first_code = state.optional.overview_phase.arcs[0].code.clone();
 
         // Regenerating the same position merges into the existing Arc instead of appending a copy.
-        let again = executor.execute_call(&make("Arc Một (mới)", 1, "m1"), &ExecutionGuard::new(&state));
+        let again = executor.execute_call(
+            &make("Arc Một (mới)", 1, "m1"),
+            &ExecutionGuard::new(&state),
+        );
         assert!(again.is_applied(), "{again:?}");
         state = again.mutated_state().unwrap().clone();
-        assert_eq!(state.optional.overview_phase.arcs.len(), 1, "position 1 must stay single");
+        assert_eq!(
+            state.optional.overview_phase.arcs.len(),
+            1,
+            "position 1 must stay single"
+        );
         assert_eq!(state.optional.overview_phase.arcs[0].code, first_code);
         assert_eq!(
-            state.optional.overview_phase.arcs[0].display_name.value.as_deref(),
+            state.optional.overview_phase.arcs[0]
+                .display_name
+                .value
+                .as_deref(),
             Some("Arc Một (mới)")
         );
 
@@ -4067,7 +4947,10 @@ mod phase6_7_handlers {
         // A third Arc exceeds target.arc_count = 2 and is rejected instead of duplicating positions.
         let extra = executor.execute_call(&make("Arc Ba", 3, "m3"), &ExecutionGuard::new(&state));
         assert_eq!(extra.status, "rejected");
-        assert_eq!(extra.results[0].error.as_deref(), Some("arc_target_reached"));
+        assert_eq!(
+            extra.results[0].error.as_deref(),
+            Some("arc_target_reached")
+        );
     }
 
     #[test]
@@ -4082,10 +4965,16 @@ mod phase6_7_handlers {
             &[("summary", "user")],
         );
         let outcome = executor.execute_call(&outline, &ExecutionGuard::new(&state));
-        assert!(outcome.is_applied(), "approved outline must be saved: {outcome:?}");
+        assert!(
+            outcome.is_applied(),
+            "approved outline must be saved: {outcome:?}"
+        );
         let updated = outcome.mutated_state().unwrap().clone();
         assert_eq!(updated.decision_log.len(), 1);
-        assert_eq!(updated.decision_log[0].source, crate::domain::business_flow::ProvenanceSource::User);
+        assert_eq!(
+            updated.decision_log[0].source,
+            crate::domain::business_flow::ProvenanceSource::User
+        );
         assert!(updated.decision_log[0].summary.contains("5 Arc"));
 
         // Repeating the same approval reuses the existing decision instead of duplicating it.
@@ -4098,7 +4987,12 @@ mod phase6_7_handlers {
             serde_json::json!({"summary": "   "}),
             &[("summary", "user")],
         );
-        assert_eq!(executor.execute_call(&blank, &ExecutionGuard::new(&state)).status, "rejected");
+        assert_eq!(
+            executor
+                .execute_call(&blank, &ExecutionGuard::new(&state))
+                .status,
+            "rejected"
+        );
     }
 
     #[test]
@@ -4112,15 +5006,36 @@ mod phase6_7_handlers {
             &[("code", "ai_generated")],
         );
         let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
-        assert!(outcome.is_applied(), "alias pair must be written: {outcome:?}");
+        assert!(
+            outcome.is_applied(),
+            "alias pair must be written: {outcome:?}"
+        );
         state = outcome.mutated_state().unwrap().clone();
-        let code = state.optional.relationship_phase.relationship[0].code.clone();
-        assert_eq!(state.optional.relationship_phase.relationship[0].motif.code.value.as_deref(), Some("allies"));
+        let code = state.optional.relationship_phase.relationship[0]
+            .code
+            .clone();
+        assert_eq!(
+            state.optional.relationship_phase.relationship[0]
+                .motif
+                .code
+                .value
+                .as_deref(),
+            Some("allies")
+        );
 
         // Duplicate pair reuses the existing relationship instead of pushing a second one.
         let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
         assert!(outcome.is_applied());
-        assert_eq!(outcome.mutated_state().unwrap().optional.relationship_phase.relationship.len(), 1);
+        assert_eq!(
+            outcome
+                .mutated_state()
+                .unwrap()
+                .optional
+                .relationship_phase
+                .relationship
+                .len(),
+            1
+        );
 
         let ghost = call(
             "add_relationship",
@@ -4140,15 +5055,24 @@ mod phase6_7_handlers {
                 "fear": "NONE", "respect": "HIGH", "dependency": "LOW", "familiarity": "ABSOLUTE"
             }),
             &[
-                ("trust", "ai_generated"), ("affection", "ai_generated"), ("hostility", "ai_generated"),
-                ("fear", "ai_generated"), ("respect", "ai_generated"), ("dependency", "ai_generated"),
+                ("trust", "ai_generated"),
+                ("affection", "ai_generated"),
+                ("hostility", "ai_generated"),
+                ("fear", "ai_generated"),
+                ("respect", "ai_generated"),
+                ("dependency", "ai_generated"),
                 ("familiarity", "ai_generated"),
             ],
         );
         let outcome = executor.execute_call(&state_call, &ExecutionGuard::new(&state));
-        assert!(outcome.is_applied(), "seven dimensions must apply: {outcome:?}");
+        assert!(
+            outcome.is_applied(),
+            "seven dimensions must apply: {outcome:?}"
+        );
         let updated = outcome.mutated_state().unwrap().clone();
-        let scene_state = &updated.optional.relationship_phase.relationship[0].character.scenes[0];
+        let scene_state = &updated.optional.relationship_phase.relationship[0]
+            .character
+            .scenes[0];
         assert_eq!(scene_state.familiarity.value.as_deref(), Some("ABSOLUTE"));
         assert_eq!(scene_state.dependency.value.as_deref(), Some("LOW"));
 
@@ -4158,13 +5082,23 @@ mod phase6_7_handlers {
             serde_json::json!({"relationship_code": code, "scene_code": "arc_one-c1-s1", "trust": "VERY_HIGH"}),
             &[("trust", "ai_generated")],
         );
-        assert_eq!(executor.execute_call(&invalid, &ExecutionGuard::new(&state)).status, "rejected");
+        assert_eq!(
+            executor
+                .execute_call(&invalid, &ExecutionGuard::new(&state))
+                .status,
+            "rejected"
+        );
         let wrong_scene = call(
             "set_relationship_state",
             serde_json::json!({"relationship_code": code, "scene_code": "missing", "trust": "LOW"}),
             &[("trust", "ai_generated")],
         );
-        assert_eq!(executor.execute_call(&wrong_scene, &ExecutionGuard::new(&state)).status, "rejected");
+        assert_eq!(
+            executor
+                .execute_call(&wrong_scene, &ExecutionGuard::new(&state))
+                .status,
+            "rejected"
+        );
     }
 
     #[test]
@@ -4182,16 +5116,26 @@ mod phase6_7_handlers {
                 "arc_code": "arc_one", "display_name": "Chương 1",
                 "position": 1, "summary": "Mở đầu"
             }),
-            &[("display_name", "ai_generated"), ("position", "ai_generated"), ("summary", "ai_generated")],
+            &[
+                ("display_name", "ai_generated"),
+                ("position", "ai_generated"),
+                ("summary", "ai_generated"),
+            ],
         );
         let outcome = executor.execute_call(&add_chapter, &ExecutionGuard::new(&state));
         assert!(outcome.is_applied(), "chapter must be written: {outcome:?}");
-        assert_eq!(outcome.results[0].candidates.as_ref().unwrap()[0], "arc_one-c1");
+        assert_eq!(
+            outcome.results[0].candidates.as_ref().unwrap()[0],
+            "arc_one-c1"
+        );
         state = outcome.mutated_state().unwrap().clone();
         let chapter = &state.optional.chapter_phase.arcs[0].chapters[0];
         assert_eq!(chapter.position.value, Some(1));
         assert_eq!(chapter.summary.value.as_deref(), Some("Mở đầu"));
-        assert_eq!(chapter.display_name.source, Some(ProvenanceSource::AiGenerated));
+        assert_eq!(
+            chapter.display_name.source,
+            Some(ProvenanceSource::AiGenerated)
+        );
 
         let add_scene = call(
             "add_scene",
@@ -4199,7 +5143,11 @@ mod phase6_7_handlers {
                 "chapter_code": "arc_one-c1", "display_name": "Cảnh 1",
                 "position": 1, "summary": "Gặp gỡ"
             }),
-            &[("display_name", "ai_generated"), ("position", "ai_generated"), ("summary", "ai_generated")],
+            &[
+                ("display_name", "ai_generated"),
+                ("position", "ai_generated"),
+                ("summary", "ai_generated"),
+            ],
         );
         let outcome = executor.execute_call(&add_scene, &ExecutionGuard::new(&state));
         assert!(outcome.is_applied(), "scene must be written: {outcome:?}");
@@ -4211,6 +5159,7 @@ mod phase6_7_handlers {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod phase1_handlers {
     use super::*;
 
@@ -4220,12 +5169,14 @@ mod phase1_handlers {
             caller: CallerCategory::AiCaller,
             parameters,
             declared_sources: Some(
-                [("display_name".to_string(), ProvenanceSource::AiGenerated),
-                 ("question".to_string(), ProvenanceSource::AiGenerated),
-                 ("summary".to_string(), ProvenanceSource::AiGenerated),
-                 ("role".to_string(), ProvenanceSource::AiGenerated)]
-                    .into_iter()
-                    .collect(),
+                [
+                    ("display_name".to_string(), ProvenanceSource::AiGenerated),
+                    ("question".to_string(), ProvenanceSource::AiGenerated),
+                    ("summary".to_string(), ProvenanceSource::AiGenerated),
+                    ("role".to_string(), ProvenanceSource::AiGenerated),
+                ]
+                .into_iter()
+                .collect(),
             ),
             declared_source: None,
         }
@@ -4242,10 +5193,13 @@ mod phase1_handlers {
         });
 
         let outcome = executor.execute_call(
-            &call("add_arc", serde_json::json!({
-                "code": "arc-1", "display_name": "Khởi đầu", "summary": "Mở màn",
-                "position": 1, "motif_code": "opening"
-            })),
+            &call(
+                "add_arc",
+                serde_json::json!({
+                    "code": "arc-1", "display_name": "Khởi đầu", "summary": "Mở màn",
+                    "position": 1, "motif_code": "opening"
+                }),
+            ),
             &ExecutionGuard::new(&state),
         );
         assert!(outcome.is_applied(), "arc must apply: {outcome:?}");
@@ -4254,30 +5208,52 @@ mod phase1_handlers {
         assert_eq!(arc.position.value, Some(1));
         assert_eq!(arc.summary.value.as_deref(), Some("Mở màn"));
         assert_eq!(arc.motif.code.value.as_deref(), Some("opening"));
-        assert_eq!(state.optional.chapter_phase.arcs.len(), 1, "chapter container created");
+        assert_eq!(
+            state.optional.chapter_phase.arcs.len(),
+            1,
+            "chapter container created"
+        );
 
         let outcome = executor.execute_call(
-            &call("add_theme", serde_json::json!({
-                "arc_code": "arc-1", "theme_code": "theme-1",
-                "question": "Tham vọng có đáng đánh đổi?", "message": "Cái giá của tham vọng",
-                "resolution": "Chọn buông bỏ", "resolution_type": "RESOLVED"
-            })),
+            &call(
+                "add_theme",
+                serde_json::json!({
+                    "arc_code": "arc-1", "theme_code": "theme-1",
+                    "question": "Tham vọng có đáng đánh đổi?", "message": "Cái giá của tham vọng",
+                    "resolution": "Chọn buông bỏ", "resolution_type": "RESOLVED"
+                }),
+            ),
             &ExecutionGuard::new(&state),
         );
         assert!(outcome.is_applied(), "theme must apply: {outcome:?}");
         state = outcome.mutated_state().unwrap().clone();
         let theme = &state.optional.overview_phase.arcs[0].themes;
         assert_eq!(theme.code.as_deref(), Some("theme-1"));
-        assert_eq!(theme.question.value.as_deref(), Some("Tham vọng có đáng đánh đổi?"));
-        assert_eq!(theme.message.value.as_deref(), Some("Cái giá của tham vọng"));
-        assert_eq!(theme.resolution.resolution_type.value.as_deref(), Some("RESOLVED"));
-        assert_eq!(theme.resolution.content.value.as_deref(), Some("Chọn buông bỏ"));
+        assert_eq!(
+            theme.question.value.as_deref(),
+            Some("Tham vọng có đáng đánh đổi?")
+        );
+        assert_eq!(
+            theme.message.value.as_deref(),
+            Some("Cái giá của tham vọng")
+        );
+        assert_eq!(
+            theme.resolution.resolution_type.value.as_deref(),
+            Some("RESOLVED")
+        );
+        assert_eq!(
+            theme.resolution.content.value.as_deref(),
+            Some("Chọn buông bỏ")
+        );
 
         let outcome = executor.execute_call(
-            &call("add_theme_argument", serde_json::json!({
-                "theme_code": "theme-1", "character_code": "char_a",
-                "role": "PRIMARY", "answer_mode": "ACTION", "note": "Hành động"
-            })),
+            &call(
+                "add_theme_argument",
+                serde_json::json!({
+                    "theme_code": "theme-1", "character_code": "char_a",
+                    "role": "PRIMARY", "answer_mode": "ACTION", "note": "Hành động"
+                }),
+            ),
             &ExecutionGuard::new(&state),
         );
         assert!(outcome.is_applied(), "argument must apply: {outcome:?}");
@@ -4287,10 +5263,13 @@ mod phase1_handlers {
         assert_eq!(argument.answer_mode.value.as_deref(), Some("ACTION"));
 
         let outcome = executor.execute_call(
-            &call("add_arc_event_block", serde_json::json!({
-                "arc_code": "arc-1", "start_chapter": 1, "end_chapter": 25,
-                "summary": "Khối mở đầu"
-            })),
+            &call(
+                "add_arc_event_block",
+                serde_json::json!({
+                    "arc_code": "arc-1", "start_chapter": 1, "end_chapter": 25,
+                    "summary": "Khối mở đầu"
+                }),
+            ),
             &ExecutionGuard::new(&state),
         );
         assert!(outcome.is_applied(), "event block must apply: {outcome:?}");

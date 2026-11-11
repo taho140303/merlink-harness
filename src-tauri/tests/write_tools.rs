@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 #![allow(non_snake_case)]
 
 //! Acceptance & Integration tests for `phase3_sprint5_deep2`
@@ -19,9 +26,11 @@
 //!   (2) delete character with relationship -> rejected (referenced_entity_in_use).
 //!   (3) AI delete arc containing user scene -> pending_confirmation with full preview.
 //!   (4) delete scene with competences, memories, and relationship_states -> cascade physical removal,
-//!       nullify memories.source_scene_code, keep parent relationships.
+//!   nullify memories.source_scene_code, keep parent relationships.
 //!   (5) delete lore_entry with scene_lore_entries -> unlinks atomicaly, keeps scene intact.
 //! - `phase3_sprint5_deep2-F0`: Predecessor gate absent or baseline drift returns `CONTRACT_BLOCKED`.
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -64,16 +73,15 @@ pub mod domain {
 }
 
 use std::path::PathBuf;
-use std::process::Command;
 
 use crate::business_flow::{
-    ArcMotifSection, ArcThemeSection, BusinessFlowData, CharacterCompetenceItem,
-    CharacterLifeExperienceItem, CharacterMemoryItem, ChapterPhaseArcItem, ChapterPhaseChapterItem,
-    ChapterPhaseSceneItem, LoreEntryItem, OverviewArcItem, ProvenanceSource,
-    RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem,
-    RelationshipSceneStateItem, RequireCharacterItem, SceneCharacterLink, SceneConfigArcItem,
-    SceneConfigChapterItem, SceneConfigSceneItem, SceneLoreEntryLink, TrackedField,
-    WorldSettingItem,
+    ArcMotifSection, ArcThemeSection, BusinessFlowData, ChapterPhaseArcItem,
+    ChapterPhaseChapterItem, ChapterPhaseSceneItem, CharacterCompetenceItem,
+    CharacterLifeExperienceItem, CharacterMemoryItem, LoreEntryItem, OverviewArcItem,
+    ProvenanceSource, RelationshipCharacterPairSection, RelationshipMotifSection,
+    RelationshipPhaseItem, RelationshipSceneStateItem, RequireCharacterItem, SceneCharacterLink,
+    SceneConfigArcItem, SceneConfigChapterItem, SceneConfigSceneItem, SceneLoreEntryLink,
+    TrackedField, WorldSettingItem,
 };
 use crate::cascade_delete::execute_delete;
 use crate::error::ErrorCode;
@@ -81,7 +89,7 @@ use crate::fingerprint::state_data_hash;
 use crate::registry::CallerCategory;
 use crate::write_tools::{ExecutionGuard, ToolCall, ToolExecutor};
 
-const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSOR_P3S4_COMMIT: &str = "2cf53633e5513a4724f8c1d408018ff2f00665fd";
 const PREDECESSOR_P3S1_COMMIT: &str = "702843c38e45b193be25b80222a48eadedfd3538";
 
@@ -109,24 +117,61 @@ fn check_predecessor_gates(
 fn phase_zero_writes_preserve_tolerance_zero_and_genre_source() {
     let state = BusinessFlowData::new();
     let guard = ExecutionGuard::new(&state);
-    let project = ToolCall::with_sources("set_project", CallerCategory::AiCaller,
+    let project = ToolCall::with_sources(
+        "set_project",
+        CallerCategory::AiCaller,
         serde_json::json!({"target":{"chapter_tolerance":0,"arc_tolerance":5}}),
-        [("target.chapter_tolerance".to_string(), ProvenanceSource::User),
-         ("target.arc_tolerance".to_string(), ProvenanceSource::User)].into());
+        [
+            (
+                "target.chapter_tolerance".to_string(),
+                ProvenanceSource::User,
+            ),
+            ("target.arc_tolerance".to_string(), ProvenanceSource::User),
+        ]
+        .into(),
+    );
     let outcome = ToolExecutor::execute(&project, &guard);
     assert_eq!(outcome.status, "applied");
     let updated = outcome.mutated_state().unwrap();
-    assert_eq!(updated.optional.overview_phase.project.target.chapter_tolerance.value, Some(0));
-    assert_eq!(updated.optional.overview_phase.project.target.arc_tolerance.value, Some(5));
-    let genre = ToolCall::with_sources("add_project_genre", CallerCategory::AiCaller,
+    assert_eq!(
+        updated
+            .optional
+            .overview_phase
+            .project
+            .target
+            .chapter_tolerance
+            .value,
+        Some(0)
+    );
+    assert_eq!(
+        updated
+            .optional
+            .overview_phase
+            .project
+            .target
+            .arc_tolerance
+            .value,
+        Some(5)
+    );
+    let genre = ToolCall::with_sources(
+        "add_project_genre",
+        CallerCategory::AiCaller,
         serde_json::json!({"genre_code":"romance","is_primary":true}),
-        [("genre_code".to_string(), ProvenanceSource::AiGenerated)].into());
+        [("genre_code".to_string(), ProvenanceSource::AiGenerated)].into(),
+    );
     let outcome = ToolExecutor::execute(&genre, &ExecutionGuard::new(updated));
     assert_eq!(outcome.status, "applied");
-    assert_eq!(outcome.mutated_state().unwrap().require.project.genres[0].code.source,
-        Some(ProvenanceSource::AiGenerated));
-    let missing_source = ToolCall::new("add_project_genre", CallerCategory::AiCaller,
-        serde_json::json!({"genre_code":"fantasy"}));
+    assert_eq!(
+        outcome.mutated_state().unwrap().require.project.genres[0]
+            .code
+            .source,
+        Some(ProvenanceSource::AiGenerated)
+    );
+    let missing_source = ToolCall::new(
+        "add_project_genre",
+        CallerCategory::AiCaller,
+        serde_json::json!({"genre_code":"fantasy"}),
+    );
     let rejected = ToolExecutor::execute(&missing_source, &ExecutionGuard::new(updated));
     assert_eq!(rejected.status, "rejected");
     assert!(updated.require.project.genres.is_empty());
@@ -185,7 +230,11 @@ fn test_P3S5_P_mixed_three_field_tool_returns_applied_pending_rejected_without_c
     assert!(outcome.has_mutations());
 
     // 2. Field-level results
-    let r_display = outcome.results.iter().find(|r| r.field == "display_name").unwrap();
+    let r_display = outcome
+        .results
+        .iter()
+        .find(|r| r.field == "display_name")
+        .unwrap();
     assert_eq!(r_display.status, "applied");
 
     let r_notes = outcome.results.iter().find(|r| r.field == "notes").unwrap();
@@ -194,69 +243,101 @@ fn test_P3S5_P_mixed_three_field_tool_returns_applied_pending_rejected_without_c
 
     let r_role = outcome.results.iter().find(|r| r.field == "role").unwrap();
     assert_eq!(r_role.status, "rejected");
-    assert_eq!(r_role.error.as_deref(), Some("missing_or_invalid_declared_source"));
+    assert_eq!(
+        r_role.error.as_deref(),
+        Some("missing_or_invalid_declared_source")
+    );
 
     // 3. Verify resulting mutated state
     let mutated = outcome.mutated_state().expect("Must have mutated state");
-    let mutated_char = mutated.require.character.iter().find(|c| c.code == "minh_hoang").unwrap();
+    let mutated_char = mutated
+        .require
+        .character
+        .iter()
+        .find(|c| c.code == "minh_hoang")
+        .unwrap();
 
     // Field A was updated
-    assert_eq!(mutated_char.display_name.value.as_deref(), Some("Minh Hoàng Đột Phá"));
-    assert_eq!(mutated_char.display_name.source, Some(ProvenanceSource::AiGenerated));
+    assert_eq!(
+        mutated_char.display_name.value.as_deref(),
+        Some("Minh Hoàng Đột Phá")
+    );
+    assert_eq!(
+        mutated_char.display_name.source,
+        Some(ProvenanceSource::AiGenerated)
+    );
 
     // Field B is UNCHANGED in state (proposal pending)
-    assert_eq!(mutated_char.notes.value.as_deref(), Some("Ghi chú gốc của người dùng"));
+    assert_eq!(
+        mutated_char.notes.value.as_deref(),
+        Some("Ghi chú gốc của người dùng")
+    );
     assert_eq!(mutated_char.notes.source, Some(ProvenanceSource::User));
 
     // Field C is UNCHANGED in state (rejected)
     assert_eq!(mutated_char.role.value.as_deref(), Some("Nhân vật chính"));
-    assert_eq!(mutated_char.role.source, Some(ProvenanceSource::AiGenerated));
+    assert_eq!(
+        mutated_char.role.source,
+        Some(ProvenanceSource::AiGenerated)
+    );
 
     // 4. Verify baseline state was NOT mutated in-place
     let baseline_hash = state_data_hash(&state).unwrap();
-    assert_eq!(initial_hash, baseline_hash, "Baseline state must remain completely unmutated");
+    assert_eq!(
+        initial_hash, baseline_hash,
+        "Baseline state must remain completely unmutated"
+    );
 }
 
 /// `P3S5-N`: Delete referenced world setting returns referenced_entity_in_use and unchanged State.
 #[test]
-fn test_P3S5_N_delete_referenced_world_setting_returns_referenced_entity_in_use_and_unchanged_state() {
+fn test_P3S5_N_delete_referenced_world_setting_returns_referenced_entity_in_use_and_unchanged_state(
+) {
     let mut state = BusinessFlowData::new();
 
     // Parent setting
-    state.optional.world_building_phase.world_settings.push(WorldSettingItem {
-        code: "van_kiem_tong".to_string(),
-        parent_code: TrackedField::unset(),
-        display_name: TrackedField::user("Vạn Kiếm Tông".to_string()),
-        setting_type: TrackedField::user("SECT".to_string()),
-        description: TrackedField::unset(),
-        access: TrackedField::unset(),
-        spatial_features: TrackedField::unset(),
-        sensory_visual: TrackedField::unset(),
-        sensory_auditory: TrackedField::unset(),
-        sensory_tactile: TrackedField::unset(),
-        sensory_olfactory: TrackedField::unset(),
-        sensory_gustatory: TrackedField::unset(),
-        lore_entries: Vec::new(),
-        source: Some(ProvenanceSource::User),
-    });
+    state
+        .optional
+        .world_building_phase
+        .world_settings
+        .push(WorldSettingItem {
+            code: "van_kiem_tong".to_string(),
+            parent_code: TrackedField::unset(),
+            display_name: TrackedField::user("Vạn Kiếm Tông".to_string()),
+            setting_type: TrackedField::user("SECT".to_string()),
+            description: TrackedField::unset(),
+            access: TrackedField::unset(),
+            spatial_features: TrackedField::unset(),
+            sensory_visual: TrackedField::unset(),
+            sensory_auditory: TrackedField::unset(),
+            sensory_tactile: TrackedField::unset(),
+            sensory_olfactory: TrackedField::unset(),
+            sensory_gustatory: TrackedField::unset(),
+            lore_entries: Vec::new(),
+            source: Some(ProvenanceSource::User),
+        });
 
     // Child setting under van_kiem_tong
-    state.optional.world_building_phase.world_settings.push(WorldSettingItem {
-        code: "kiem_y_dong".to_string(),
-        parent_code: TrackedField::user("van_kiem_tong".to_string()),
-        display_name: TrackedField::user("Kiếm Ý Động".to_string()),
-        setting_type: TrackedField::user("CAVE".to_string()),
-        description: TrackedField::unset(),
-        access: TrackedField::unset(),
-        spatial_features: TrackedField::unset(),
-        sensory_visual: TrackedField::unset(),
-        sensory_auditory: TrackedField::unset(),
-        sensory_tactile: TrackedField::unset(),
-        sensory_olfactory: TrackedField::unset(),
-        sensory_gustatory: TrackedField::unset(),
-        lore_entries: Vec::new(),
-        source: Some(ProvenanceSource::User),
-    });
+    state
+        .optional
+        .world_building_phase
+        .world_settings
+        .push(WorldSettingItem {
+            code: "kiem_y_dong".to_string(),
+            parent_code: TrackedField::user("van_kiem_tong".to_string()),
+            display_name: TrackedField::user("Kiếm Ý Động".to_string()),
+            setting_type: TrackedField::user("CAVE".to_string()),
+            description: TrackedField::unset(),
+            access: TrackedField::unset(),
+            spatial_features: TrackedField::unset(),
+            sensory_visual: TrackedField::unset(),
+            sensory_auditory: TrackedField::unset(),
+            sensory_tactile: TrackedField::unset(),
+            sensory_olfactory: TrackedField::unset(),
+            sensory_gustatory: TrackedField::unset(),
+            lore_entries: Vec::new(),
+            source: Some(ProvenanceSource::User),
+        });
 
     // Scene referencing the child setting
     let sc = ChapterPhaseSceneItem {
@@ -300,7 +381,10 @@ fn test_P3S5_N_delete_referenced_world_setting_returns_referenced_entity_in_use_
 
     // Assert working state is completely untouched
     let final_hash = state_data_hash(&state).unwrap();
-    assert_eq!(initial_hash, final_hash, "State must remain bit-for-bit unchanged on rejection");
+    assert_eq!(
+        initial_hash, final_hash,
+        "State must remain bit-for-bit unchanged on rejection"
+    );
 }
 
 /// `P3S5-B`: Scene cascade nulls memory ref and removes dependent links atomically.
@@ -330,71 +414,83 @@ fn test_P3S5_B_scene_cascade_nulls_memory_ref_and_removes_dependent_links_atomic
     });
 
     // 2. Add scene_characters link in scene_config_phase
-    state.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-        code: "arc_1".to_string(),
-        chapters: vec![SceneConfigChapterItem {
-            code: "chap_1".to_string(),
-            scenes: vec![SceneConfigSceneItem {
-                code: "sc_target".to_string(),
-                world_setting_code: TrackedField::unset(),
-                style_preset_code: TrackedField::unset(),
-                narrator_config_code: TrackedField::unset(),
-                lore_entries: Vec::new(),
-                characters: vec![SceneCharacterLink {
-                    character_code: "char_a".to_string(),
-                    is_pov: TrackedField::unset(),
-                    source: Some(ProvenanceSource::AiGenerated),
+    state
+        .optional
+        .scene_config_phase
+        .arcs
+        .push(SceneConfigArcItem {
+            code: "arc_1".to_string(),
+            chapters: vec![SceneConfigChapterItem {
+                code: "chap_1".to_string(),
+                scenes: vec![SceneConfigSceneItem {
+                    code: "sc_target".to_string(),
+                    world_setting_code: TrackedField::unset(),
+                    style_preset_code: TrackedField::unset(),
+                    narrator_config_code: TrackedField::unset(),
+                    lore_entries: Vec::new(),
+                    characters: vec![SceneCharacterLink {
+                        character_code: "char_a".to_string(),
+                        is_pov: TrackedField::unset(),
+                        source: Some(ProvenanceSource::AiGenerated),
+                    }],
                 }],
             }],
-        }],
-    });
+        });
 
     // 3. Add character life experience with competence and memory referencing sc_target
-    state.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-        code: "char_a".to_string(),
-        memories: vec![CharacterMemoryItem {
-            code: Some("mem_1".to_string()),
-            source_scene_code: TrackedField::ai("sc_target".to_string()),
-            content: TrackedField::ai("Nhớ lại trận chiến".to_string()),
-            source: Some(ProvenanceSource::AiGenerated),
-        }],
-        competences: vec![CharacterCompetenceItem {
-            code: "comp_1".to_string(),
-            domain_code: TrackedField::unset(),
-            level_code: TrackedField::unset(),
-            scene_code: TrackedField::ai("sc_target".to_string()),
-            display_name: TrackedField::ai("Kiếm Khí".to_string()),
-            description: TrackedField::unset(),
-            reliability: TrackedField::unset(),
-            experience: TrackedField::unset(),
-            capabilities: Vec::new(),
-            limitations: Vec::new(),
-            source: Some(ProvenanceSource::AiGenerated),
-        }],
-    });
-
-    // 4. Add relationship with state in sc_target
-    state.optional.relationship_phase.relationship.push(RelationshipPhaseItem {
-        code: "rel_1".to_string(),
-        motif: RelationshipMotifSection::default(),
-        character: RelationshipCharacterPairSection {
-            from_code: "char_a".to_string(),
-            to_code: "char_b".to_string(),
-            scenes: vec![RelationshipSceneStateItem {
-                scene_code: "sc_target".to_string(),
-                trust: TrackedField::ai("HIGH".to_string()),
-                affection: TrackedField::ai("LOW".to_string()),
-                hostility: TrackedField::unset(),
-                fear: TrackedField::unset(),
-                respect: TrackedField::unset(),
-                dependency: TrackedField::unset(),
-                familiarity: TrackedField::unset(),
+    state
+        .optional
+        .character_life_experience_phase
+        .character
+        .push(CharacterLifeExperienceItem {
+            code: "char_a".to_string(),
+            memories: vec![CharacterMemoryItem {
+                code: Some("mem_1".to_string()),
+                source_scene_code: TrackedField::ai("sc_target".to_string()),
+                content: TrackedField::ai("Nhớ lại trận chiến".to_string()),
                 source: Some(ProvenanceSource::AiGenerated),
             }],
-            roles: Vec::new(),
-        },
-        source: Some(ProvenanceSource::AiGenerated),
-    });
+            competences: vec![CharacterCompetenceItem {
+                code: "comp_1".to_string(),
+                domain_code: TrackedField::unset(),
+                level_code: TrackedField::unset(),
+                scene_code: TrackedField::ai("sc_target".to_string()),
+                display_name: TrackedField::ai("Kiếm Khí".to_string()),
+                description: TrackedField::unset(),
+                reliability: TrackedField::unset(),
+                experience: TrackedField::unset(),
+                capabilities: Vec::new(),
+                limitations: Vec::new(),
+                source: Some(ProvenanceSource::AiGenerated),
+            }],
+        });
+
+    // 4. Add relationship with state in sc_target
+    state
+        .optional
+        .relationship_phase
+        .relationship
+        .push(RelationshipPhaseItem {
+            code: "rel_1".to_string(),
+            motif: RelationshipMotifSection::default(),
+            character: RelationshipCharacterPairSection {
+                from_code: "char_a".to_string(),
+                to_code: "char_b".to_string(),
+                scenes: vec![RelationshipSceneStateItem {
+                    scene_code: "sc_target".to_string(),
+                    trust: TrackedField::ai("HIGH".to_string()),
+                    affection: TrackedField::ai("LOW".to_string()),
+                    hostility: TrackedField::unset(),
+                    fear: TrackedField::unset(),
+                    respect: TrackedField::unset(),
+                    dependency: TrackedField::unset(),
+                    familiarity: TrackedField::unset(),
+                    source: Some(ProvenanceSource::AiGenerated),
+                }],
+                roles: Vec::new(),
+            },
+            source: Some(ProvenanceSource::AiGenerated),
+        });
 
     let guard = ExecutionGuard::new(&state);
     let params = serde_json::json!({
@@ -411,21 +507,34 @@ fn test_P3S5_B_scene_cascade_nulls_memory_ref_and_removes_dependent_links_atomic
     let mutated = outcome.mutated_state().unwrap();
 
     // 2. Scene removed from chapter_phase and scene_config_phase
-    assert!(mutated.optional.chapter_phase.arcs[0].chapters[0].scenes.is_empty());
-    assert!(mutated.optional.scene_config_phase.arcs[0].chapters[0].scenes.is_empty());
+    assert!(mutated.optional.chapter_phase.arcs[0].chapters[0]
+        .scenes
+        .is_empty());
+    assert!(mutated.optional.scene_config_phase.arcs[0].chapters[0]
+        .scenes
+        .is_empty());
 
     // 3. Competence attached to scene is removed
     let life = &mutated.optional.character_life_experience_phase.character[0];
-    assert!(life.competences.is_empty(), "Competence tied to deleted scene must be deleted");
+    assert!(
+        life.competences.is_empty(),
+        "Competence tied to deleted scene must be deleted"
+    );
 
     // 4. Memory attached to scene has source_scene_code nullified
     assert_eq!(life.memories.len(), 1);
-    assert_eq!(life.memories[0].source_scene_code.value, None, "source_scene_code must be nullified");
+    assert_eq!(
+        life.memories[0].source_scene_code.value, None,
+        "source_scene_code must be nullified"
+    );
 
     // 5. Relationship state removed, but parent relationship preserved
     assert_eq!(mutated.optional.relationship_phase.relationship.len(), 1);
     let rel = &mutated.optional.relationship_phase.relationship[0];
-    assert!(rel.character.scenes.is_empty(), "Relationship state on scene must be removed");
+    assert!(
+        rel.character.scenes.is_empty(),
+        "Relationship state on scene must be removed"
+    );
     assert_eq!(rel.code, "rel_1", "Parent relationship must be preserved");
 }
 
@@ -454,15 +563,29 @@ fn test_F1_invalid_field_or_source_rejects_only_that_field() {
     assert_eq!(outcome.status, "applied");
     assert_eq!(outcome.results.len(), 2);
 
-    let r_sum = outcome.results.iter().find(|r| r.field == "summary").unwrap();
+    let r_sum = outcome
+        .results
+        .iter()
+        .find(|r| r.field == "summary")
+        .unwrap();
     assert_eq!(r_sum.status, "applied");
 
-    let r_lang = outcome.results.iter().find(|r| r.field == "language").unwrap();
+    let r_lang = outcome
+        .results
+        .iter()
+        .find(|r| r.field == "language")
+        .unwrap();
     assert_eq!(r_lang.status, "rejected");
-    assert_eq!(r_lang.error.as_deref(), Some("missing_or_invalid_declared_source"));
+    assert_eq!(
+        r_lang.error.as_deref(),
+        Some("missing_or_invalid_declared_source")
+    );
 
     let mutated = outcome.mutated_state().unwrap();
-    assert_eq!(mutated.require.project.summary.value.as_deref(), Some("Tóm tắt mới tinh"));
+    assert_eq!(
+        mutated.require.project.summary.value.as_deref(),
+        Some("Tóm tắt mới tinh")
+    );
     assert_eq!(mutated.require.project.language.value, None);
 }
 
@@ -523,14 +646,23 @@ fn test_F2_protected_descendant_triggers_pending_proposal_request_with_zero_muta
 
     // Preview lists full transitive impact
     let preview = outcome.cascade_preview().unwrap();
-    assert!(preview.entities_to_delete.iter().any(|e| e.code == "arc_ai"));
-    assert!(preview.entities_to_delete.iter().any(|e| e.code == "sc_user"));
+    assert!(preview
+        .entities_to_delete
+        .iter()
+        .any(|e| e.code == "arc_ai"));
+    assert!(preview
+        .entities_to_delete
+        .iter()
+        .any(|e| e.code == "sc_user"));
     assert_eq!(preview.protected_items.len(), 1);
     assert_eq!(preview.protected_items[0].code, "sc_user");
 
     // State is 100% unchanged
     let final_hash = state_data_hash(&state).unwrap();
-    assert_eq!(initial_hash, final_hash, "State must not be mutated when returning pending_confirmation");
+    assert_eq!(
+        initial_hash, final_hash,
+        "State must not be mutated when returning pending_confirmation"
+    );
 }
 
 /// `T-CASC-01`: Authoritative acceptance vector covering the 5 canonical Q1 cascade cases (`be-core.md` §12.1 line 2534).
@@ -541,38 +673,46 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
     // ------------------------------------------------------------------------
     {
         let mut state = BusinessFlowData::new();
-        state.optional.world_building_phase.world_settings.push(WorldSettingItem {
-            code: "ws_parent".to_string(),
-            parent_code: TrackedField::unset(),
-            display_name: TrackedField::user("Parent WS".to_string()),
-            setting_type: TrackedField::user("LOCATION".to_string()),
-            description: TrackedField::unset(),
-            access: TrackedField::unset(),
-            spatial_features: TrackedField::unset(),
-            sensory_visual: TrackedField::unset(),
-            sensory_auditory: TrackedField::unset(),
-            sensory_tactile: TrackedField::unset(),
-            sensory_olfactory: TrackedField::unset(),
-            sensory_gustatory: TrackedField::unset(),
-            lore_entries: Vec::new(),
-            source: Some(ProvenanceSource::User),
-        });
-        state.optional.world_building_phase.world_settings.push(WorldSettingItem {
-            code: "ws_child".to_string(),
-            parent_code: TrackedField::user("ws_parent".to_string()),
-            display_name: TrackedField::user("Child WS".to_string()),
-            setting_type: TrackedField::user("ROOM".to_string()),
-            description: TrackedField::unset(),
-            access: TrackedField::unset(),
-            spatial_features: TrackedField::unset(),
-            sensory_visual: TrackedField::unset(),
-            sensory_auditory: TrackedField::unset(),
-            sensory_tactile: TrackedField::unset(),
-            sensory_olfactory: TrackedField::unset(),
-            sensory_gustatory: TrackedField::unset(),
-            lore_entries: Vec::new(),
-            source: Some(ProvenanceSource::User),
-        });
+        state
+            .optional
+            .world_building_phase
+            .world_settings
+            .push(WorldSettingItem {
+                code: "ws_parent".to_string(),
+                parent_code: TrackedField::unset(),
+                display_name: TrackedField::user("Parent WS".to_string()),
+                setting_type: TrackedField::user("LOCATION".to_string()),
+                description: TrackedField::unset(),
+                access: TrackedField::unset(),
+                spatial_features: TrackedField::unset(),
+                sensory_visual: TrackedField::unset(),
+                sensory_auditory: TrackedField::unset(),
+                sensory_tactile: TrackedField::unset(),
+                sensory_olfactory: TrackedField::unset(),
+                sensory_gustatory: TrackedField::unset(),
+                lore_entries: Vec::new(),
+                source: Some(ProvenanceSource::User),
+            });
+        state
+            .optional
+            .world_building_phase
+            .world_settings
+            .push(WorldSettingItem {
+                code: "ws_child".to_string(),
+                parent_code: TrackedField::user("ws_parent".to_string()),
+                display_name: TrackedField::user("Child WS".to_string()),
+                setting_type: TrackedField::user("ROOM".to_string()),
+                description: TrackedField::unset(),
+                access: TrackedField::unset(),
+                spatial_features: TrackedField::unset(),
+                sensory_visual: TrackedField::unset(),
+                sensory_auditory: TrackedField::unset(),
+                sensory_tactile: TrackedField::unset(),
+                sensory_olfactory: TrackedField::unset(),
+                sensory_gustatory: TrackedField::unset(),
+                lore_entries: Vec::new(),
+                source: Some(ProvenanceSource::User),
+            });
         state.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
             code: "a1".to_string(),
             chapters: vec![ChapterPhaseChapterItem {
@@ -600,7 +740,12 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
             Some(ProvenanceSource::User),
         );
         assert_eq!(outcome.status(), "rejected");
-        if let crate::cascade_delete::CascadeOutcome::Rejected { error, referencing_scenes, .. } = outcome {
+        if let crate::cascade_delete::CascadeOutcome::Rejected {
+            error,
+            referencing_scenes,
+            ..
+        } = outcome
+        {
             assert_eq!(error, "referenced_entity_in_use");
             assert_eq!(referencing_scenes, vec!["scene_ref".to_string()]);
         } else {
@@ -624,17 +769,21 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
             reused_library_character: false,
             source: Some(ProvenanceSource::User),
         });
-        state.optional.relationship_phase.relationship.push(RelationshipPhaseItem {
-            code: "rel_hero_villain".to_string(),
-            motif: RelationshipMotifSection::default(),
-            character: RelationshipCharacterPairSection {
-                from_code: "hero".to_string(),
-                to_code: "villain".to_string(),
-                scenes: Vec::new(),
-                roles: Vec::new(),
-            },
-            source: Some(ProvenanceSource::User),
-        });
+        state
+            .optional
+            .relationship_phase
+            .relationship
+            .push(RelationshipPhaseItem {
+                code: "rel_hero_villain".to_string(),
+                motif: RelationshipMotifSection::default(),
+                character: RelationshipCharacterPairSection {
+                    from_code: "hero".to_string(),
+                    to_code: "villain".to_string(),
+                    scenes: Vec::new(),
+                    roles: Vec::new(),
+                },
+                source: Some(ProvenanceSource::User),
+            });
 
         let outcome = execute_delete(
             &state,
@@ -693,9 +842,18 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
         );
         assert_eq!(outcome.status(), "pending_confirmation");
         let preview = outcome.preview().unwrap();
-        assert!(preview.entities_to_delete.iter().any(|e| e.code == "arc_ai"));
-        assert!(preview.entities_to_delete.iter().any(|e| e.code == "chap_1"));
-        assert!(preview.entities_to_delete.iter().any(|e| e.code == "scene_user"));
+        assert!(preview
+            .entities_to_delete
+            .iter()
+            .any(|e| e.code == "arc_ai"));
+        assert!(preview
+            .entities_to_delete
+            .iter()
+            .any(|e| e.code == "chap_1"));
+        assert!(preview
+            .entities_to_delete
+            .iter()
+            .any(|e| e.code == "scene_user"));
     }
 
     // ------------------------------------------------------------------------
@@ -721,49 +879,57 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
                 source: Some(ProvenanceSource::User),
             }],
         });
-        state.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-            code: "char_1".to_string(),
-            memories: vec![CharacterMemoryItem {
-                code: Some("mem_1".to_string()),
-                source_scene_code: TrackedField::user("sc_4".to_string()),
-                content: TrackedField::user("Content".to_string()),
-                source: Some(ProvenanceSource::User),
-            }],
-            competences: vec![CharacterCompetenceItem {
-                code: "comp_1".to_string(),
-                domain_code: TrackedField::unset(),
-                level_code: TrackedField::unset(),
-                scene_code: TrackedField::user("sc_4".to_string()),
-                display_name: TrackedField::user("Comp".to_string()),
-                description: TrackedField::unset(),
-                reliability: TrackedField::unset(),
-                experience: TrackedField::unset(),
-                capabilities: Vec::new(),
-                limitations: Vec::new(),
-                source: Some(ProvenanceSource::User),
-            }],
-        });
-        state.optional.relationship_phase.relationship.push(RelationshipPhaseItem {
-            code: "rel_1".to_string(),
-            motif: RelationshipMotifSection::default(),
-            character: RelationshipCharacterPairSection {
-                from_code: "char_1".to_string(),
-                to_code: "char_2".to_string(),
-                scenes: vec![RelationshipSceneStateItem {
-                    scene_code: "sc_4".to_string(),
-                    trust: TrackedField::user("HIGH".to_string()),
-                    affection: TrackedField::unset(),
-                    hostility: TrackedField::unset(),
-                    fear: TrackedField::unset(),
-                    respect: TrackedField::unset(),
-                    dependency: TrackedField::unset(),
-                    familiarity: TrackedField::unset(),
+        state
+            .optional
+            .character_life_experience_phase
+            .character
+            .push(CharacterLifeExperienceItem {
+                code: "char_1".to_string(),
+                memories: vec![CharacterMemoryItem {
+                    code: Some("mem_1".to_string()),
+                    source_scene_code: TrackedField::user("sc_4".to_string()),
+                    content: TrackedField::user("Content".to_string()),
                     source: Some(ProvenanceSource::User),
                 }],
-                roles: Vec::new(),
-            },
-            source: Some(ProvenanceSource::User),
-        });
+                competences: vec![CharacterCompetenceItem {
+                    code: "comp_1".to_string(),
+                    domain_code: TrackedField::unset(),
+                    level_code: TrackedField::unset(),
+                    scene_code: TrackedField::user("sc_4".to_string()),
+                    display_name: TrackedField::user("Comp".to_string()),
+                    description: TrackedField::unset(),
+                    reliability: TrackedField::unset(),
+                    experience: TrackedField::unset(),
+                    capabilities: Vec::new(),
+                    limitations: Vec::new(),
+                    source: Some(ProvenanceSource::User),
+                }],
+            });
+        state
+            .optional
+            .relationship_phase
+            .relationship
+            .push(RelationshipPhaseItem {
+                code: "rel_1".to_string(),
+                motif: RelationshipMotifSection::default(),
+                character: RelationshipCharacterPairSection {
+                    from_code: "char_1".to_string(),
+                    to_code: "char_2".to_string(),
+                    scenes: vec![RelationshipSceneStateItem {
+                        scene_code: "sc_4".to_string(),
+                        trust: TrackedField::user("HIGH".to_string()),
+                        affection: TrackedField::unset(),
+                        hostility: TrackedField::unset(),
+                        fear: TrackedField::unset(),
+                        respect: TrackedField::unset(),
+                        dependency: TrackedField::unset(),
+                        familiarity: TrackedField::unset(),
+                        source: Some(ProvenanceSource::User),
+                    }],
+                    roles: Vec::new(),
+                },
+                source: Some(ProvenanceSource::User),
+            });
 
         // UI action performs deletion
         let outcome = execute_delete(
@@ -777,7 +943,9 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
         let mutated = outcome.mutated_state().unwrap();
 
         // Scene is deleted
-        assert!(mutated.optional.chapter_phase.arcs[0].chapters[0].scenes.is_empty());
+        assert!(mutated.optional.chapter_phase.arcs[0].chapters[0]
+            .scenes
+            .is_empty());
 
         // Competence is physically deleted
         let life = &mutated.optional.character_life_experience_phase.character[0];
@@ -788,7 +956,10 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
 
         // Relationship state deleted, parent relationship preserved
         assert_eq!(mutated.optional.relationship_phase.relationship.len(), 1);
-        assert!(mutated.optional.relationship_phase.relationship[0].character.scenes.is_empty());
+        assert!(mutated.optional.relationship_phase.relationship[0]
+            .character
+            .scenes
+            .is_empty());
     }
 
     // ------------------------------------------------------------------------
@@ -796,50 +967,58 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
     // ------------------------------------------------------------------------
     {
         let mut state = BusinessFlowData::new();
-        state.optional.world_building_phase.world_settings.push(WorldSettingItem {
-            code: "ws_1".to_string(),
-            parent_code: TrackedField::unset(),
-            display_name: TrackedField::unset(),
-            setting_type: TrackedField::unset(),
-            description: TrackedField::unset(),
-            access: TrackedField::unset(),
-            spatial_features: TrackedField::unset(),
-            sensory_visual: TrackedField::unset(),
-            sensory_auditory: TrackedField::unset(),
-            sensory_tactile: TrackedField::unset(),
-            sensory_olfactory: TrackedField::unset(),
-            sensory_gustatory: TrackedField::unset(),
-            lore_entries: vec![LoreEntryItem {
-                code: "lore_ancient_sword".to_string(),
-                display_name: TrackedField::user("Thanh Kiếm Cổ".to_string()),
-                lore_type: TrackedField::unset(),
+        state
+            .optional
+            .world_building_phase
+            .world_settings
+            .push(WorldSettingItem {
+                code: "ws_1".to_string(),
+                parent_code: TrackedField::unset(),
+                display_name: TrackedField::unset(),
+                setting_type: TrackedField::unset(),
                 description: TrackedField::unset(),
-                data: TrackedField::unset(),
-                source: Some(ProvenanceSource::User),
-            }],
-            source: Some(ProvenanceSource::User),
-        });
-
-        state.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
-            code: "a1".to_string(),
-            chapters: vec![SceneConfigChapterItem {
-                code: "c1".to_string(),
-                scenes: vec![SceneConfigSceneItem {
-                    code: "sc_cave".to_string(),
-                    world_setting_code: TrackedField::unset(),
-                    style_preset_code: TrackedField::unset(),
-                    narrator_config_code: TrackedField::unset(),
-                    lore_entries: vec![SceneLoreEntryLink {
-                        lore_entry_code: "lore_ancient_sword".to_string(),
-                        usage: TrackedField::unset(),
-                        reveal_to_reader: TrackedField::unset(),
-                        reveal_to_pov: TrackedField::unset(),
-                        source: Some(ProvenanceSource::User),
-                    }],
-                    characters: Vec::new(),
+                access: TrackedField::unset(),
+                spatial_features: TrackedField::unset(),
+                sensory_visual: TrackedField::unset(),
+                sensory_auditory: TrackedField::unset(),
+                sensory_tactile: TrackedField::unset(),
+                sensory_olfactory: TrackedField::unset(),
+                sensory_gustatory: TrackedField::unset(),
+                lore_entries: vec![LoreEntryItem {
+                    code: "lore_ancient_sword".to_string(),
+                    display_name: TrackedField::user("Thanh Kiếm Cổ".to_string()),
+                    lore_type: TrackedField::unset(),
+                    description: TrackedField::unset(),
+                    data: TrackedField::unset(),
+                    source: Some(ProvenanceSource::User),
                 }],
-            }],
-        });
+                source: Some(ProvenanceSource::User),
+            });
+
+        state
+            .optional
+            .scene_config_phase
+            .arcs
+            .push(SceneConfigArcItem {
+                code: "a1".to_string(),
+                chapters: vec![SceneConfigChapterItem {
+                    code: "c1".to_string(),
+                    scenes: vec![SceneConfigSceneItem {
+                        code: "sc_cave".to_string(),
+                        world_setting_code: TrackedField::unset(),
+                        style_preset_code: TrackedField::unset(),
+                        narrator_config_code: TrackedField::unset(),
+                        lore_entries: vec![SceneLoreEntryLink {
+                            lore_entry_code: "lore_ancient_sword".to_string(),
+                            usage: TrackedField::unset(),
+                            reveal_to_reader: TrackedField::unset(),
+                            reveal_to_pov: TrackedField::unset(),
+                            source: Some(ProvenanceSource::User),
+                        }],
+                        characters: Vec::new(),
+                    }],
+                }],
+            });
 
         let outcome = execute_delete(
             &state,
@@ -852,7 +1031,9 @@ fn test_T_CASC_01_canonical_q1_cascade_delete_matrix() {
         let mutated = outcome.mutated_state().unwrap();
 
         // Lore entry is deleted from world setting
-        assert!(mutated.optional.world_building_phase.world_settings[0].lore_entries.is_empty());
+        assert!(mutated.optional.world_building_phase.world_settings[0]
+            .lore_entries
+            .is_empty());
 
         // scene_lore_entries link is unlinked, but scene sc_cave remains intact!
         let sc = &mutated.optional.scene_config_phase.arcs[0].chapters[0].scenes[0];
@@ -882,50 +1063,25 @@ fn test_F0_predecessor_gate_absent_or_baseline_drift_returns_contract_blocked() 
 
     // 3. Verify git repository commit ancestry for baseline and predecessors
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
+    let _repo_root = manifest_dir
         .parent()
         .expect("CARGO_MANIFEST_DIR must have parent repo root");
 
-    let baseline_check = Command::new("git")
-        .args([
-            "merge-base",
-            "--is-ancestor",
-            BASELINE_COMMIT,
-            "HEAD",
-        ])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git merge-base must execute");
     assert!(
-        baseline_check.success(),
-        "BASELINE_COMMIT {BASELINE_COMMIT} must be an ancestor of HEAD"
+        common::verify_commit(BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        BASELINE_COMMIT
     );
 
-    let p3s4_check = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P3S4_COMMIT}^{{commit}}"),
-        ])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file must execute");
     assert!(
-        p3s4_check.success(),
-        "PREDECESSOR_P3S4_COMMIT {PREDECESSOR_P3S4_COMMIT} must exist in repository"
+        common::verify_commit(PREDECESSOR_P3S4_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P3S4_COMMIT
     );
 
-    let p3s1_check = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P3S1_COMMIT}^{{commit}}"),
-        ])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file must execute");
     assert!(
-        p3s1_check.success(),
-        "PREDECESSOR_P3S1_COMMIT {PREDECESSOR_P3S1_COMMIT} must exist in repository"
+        common::verify_commit(PREDECESSOR_P3S1_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P3S1_COMMIT
     );
 }

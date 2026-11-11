@@ -56,10 +56,14 @@ pub enum ManifestError {
     #[error("Invalid parallel limit: {0} (must be >= 1)")]
     InvalidParallelLimit(u32),
 
-    #[error("Task count mismatch: header specifies {expected} tasks, but manifest contains {actual}")]
+    #[error(
+        "Task count mismatch: header specifies {expected} tasks, but manifest contains {actual}"
+    )]
     TaskCountMismatch { expected: u32, actual: u32 },
 
-    #[error("Task index mismatch at position {position}: expected index {expected}, found {actual}")]
+    #[error(
+        "Task index mismatch at position {position}: expected index {expected}, found {actual}"
+    )]
     TaskIndexMismatch {
         position: usize,
         expected: u32,

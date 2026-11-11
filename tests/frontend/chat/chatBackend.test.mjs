@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
+import { verifyGitCommit as verifyLineageCommit } from "../../helpers/lineage.mjs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -61,7 +62,7 @@ it("keeps the initial chat markup identical with a desktop bridge and compact vi
 });
 
 // Predecessor commits and baseline commit for lineage verification
-const BASELINE_COMMIT = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSORS = [
   { id: "phase5_sprint1_deep0", sha: "a514385a6f5df0f16deb318dc50a4b47396162ee" },
   { id: "phase3_sprint7_deep4", sha: "f45ce37eff0e0d63e05b3f8b440eb8f4231a73ec" },
@@ -168,56 +169,25 @@ function createMockTransport(handlers = {}) {
 describe("phase5_sprint2_deep1-F0: predecessor and baseline git lineage verification", () => {
   it("verifies all accepted predecessor commits exist and are valid git commits", () => {
     for (const pred of PREDECESSORS) {
-      let valid = false;
-      try {
-        execSync(`git merge-base --is-ancestor ${pred.sha} HEAD`, { stdio: "pipe" });
-        valid = true;
-      } catch {
-        try {
-          execSync(`git cat-file -e ${pred.sha}^{commit}`, { stdio: "pipe" });
-          valid = true;
-        } catch {
-          valid = false;
-        }
-      }
       assert.equal(
-        valid,
+        verifyLineageCommit(pred.sha),
         true,
-        `CONTRACT_BLOCKED: predecessor ${pred.id} (${pred.sha}) not found in git history`
+        `CONTRACT_BLOCKED: predecessor ${pred.id} (${pred.sha}) not found in git history or the lineage manifest`
       );
     }
   });
 
   it("verifies baseline commit is a valid commit in the repository", () => {
-    let baselineValid = false;
-    try {
-      execSync(`git cat-file -e ${BASELINE_COMMIT}^{commit}`, { stdio: "pipe" });
-      baselineValid = true;
-    } catch {
-      baselineValid = false;
-    }
     assert.equal(
-      baselineValid,
+      verifyLineageCommit(BASELINE_COMMIT),
       true,
-      `CONTRACT_BLOCKED: baseline commit ${BASELINE_COMMIT} not found`
+      `CONTRACT_BLOCKED: baseline commit ${BASELINE_COMMIT} not found in git history or the lineage manifest`
     );
   });
 
   it("fails explicitly with CONTRACT_BLOCKED when checking a fictitious predecessor", () => {
     const fakeSha = "0000000000000000000000000000000000000000";
-    let isValid = false;
-    try {
-      execSync(`git merge-base --is-ancestor ${fakeSha} HEAD`, { stdio: "pipe" });
-      isValid = true;
-    } catch {
-      try {
-        execSync(`git cat-file -e ${fakeSha}^{commit}`, { stdio: "pipe" });
-        isValid = true;
-      } catch {
-        isValid = false;
-      }
-    }
-    assert.equal(isValid, false, "Fictitious commit must not validate");
+    assert.equal(verifyLineageCommit(fakeSha), false, "Fictitious commit must not validate");
   });
 });
 

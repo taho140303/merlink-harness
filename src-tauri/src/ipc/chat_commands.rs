@@ -1,21 +1,21 @@
 //! Chat & Session IPC Commands (#1, #2, #3, #4, #9)
 //! (`REQ-CMD-001`..`004`, `REQ-CMD-009`, `be-core.md` §10.2.1, `core.md` §3.8).
 
-use std::sync::Arc;
-use std::collections::HashSet;
 use chrono::Utc;
 use rusqlite::{params, OptionalExtension, TransactionBehavior};
 use serde_json::Value;
+use std::collections::HashSet;
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::domain::business_flow::BusinessFlowData;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    CancelChatTurnReq, CancelChatTurnResponseDto, ChatSessionInitDto,
-    ChatSessionListDto, ChatStreamEvent, CreateOrLoadChatSessionReq, DraftVersionSummaryDto,
-    ListChatSessionsReq, ManageChatSessionsReq, ManageChatSessionsResp, RegenerateDraftPhaseReq, RegeneratePhaseResponseDto,
-    SendChatMessageReq, SendChatTurnResponseDto, SessionSummaryDto,
+    CancelChatTurnReq, CancelChatTurnResponseDto, ChatSessionInitDto, ChatSessionListDto,
+    ChatStreamEvent, CreateOrLoadChatSessionReq, DraftVersionSummaryDto, ListChatSessionsReq,
+    ManageChatSessionsReq, ManageChatSessionsResp, RegenerateDraftPhaseReq,
+    RegeneratePhaseResponseDto, SendChatMessageReq, SendChatTurnResponseDto, SessionSummaryDto,
 };
 use crate::providers::traits::LlmProvider;
 use crate::service::chat_orchestrator::ChatOrchestrator;
@@ -64,7 +64,8 @@ pub fn exec_create_or_load_chat_session(
         .flatten()
     };
 
-    let (session_id, project_id, draft_session_id, head_version_seq, status) = match &req.session_id {
+    let (session_id, project_id, draft_session_id, head_version_seq, status) = match &req.session_id
+    {
         Some(sid) => {
             // Find existing session
             let mut stmt = conn
@@ -87,7 +88,9 @@ pub fn exec_create_or_load_chat_session(
                 }
             };
 
-            let proj_uuid = p_id.and_then(|s| Uuid::parse_str(&s).ok()).or(req.project_id);
+            let proj_uuid = p_id
+                .and_then(|s| Uuid::parse_str(&s).ok())
+                .or(req.project_id);
             let valid_proj_uuid = proj_uuid.filter(|&pid| project_exists_in_db(pid));
 
             // If session was given a valid project_id from req that wasn't stored on sessions yet, persist it
@@ -151,7 +154,9 @@ pub fn exec_create_or_load_chat_session(
 
             // If pointing to a created project in DB that already has a draft_session, share it;
             // otherwise create an isolated draft_session for this new chat session.
-            let (d_uuid, head_seq, stat) = if let Some(shared) = valid_proj_uuid.and_then(find_project_draft_session) {
+            let (d_uuid, head_seq, stat) = if let Some(shared) =
+                valid_proj_uuid.and_then(find_project_draft_session)
+            {
                 shared
             } else {
                 let d_uuid = Uuid::new_v4();
@@ -173,7 +178,8 @@ pub fn exec_create_or_load_chat_session(
         Some(e) => e,
         None => {
             let mut ws = WorkingState::new(draft_session_id);
-            ws.status = DraftRuntimeStatus::from_str(&status).unwrap_or(DraftRuntimeStatus::Editing);
+            ws.status =
+                DraftRuntimeStatus::parse(&status).unwrap_or(DraftRuntimeStatus::Editing);
             ws.head_version_seq = head_version_seq;
 
             if let Some(seq) = head_version_seq {
@@ -196,7 +202,9 @@ pub fn exec_create_or_load_chat_session(
                 }
             }
 
-            orchestrator.registry().get_or_register(draft_session_id, ws)
+            orchestrator
+                .registry()
+                .get_or_register(draft_session_id, ws)
         }
     };
 
@@ -208,7 +216,8 @@ pub fn exec_create_or_load_chat_session(
     // Check for interrupted turn alert (be-core.md §11.2.2)
     let mut interrupted_turn_alert = None;
     if ws_snap.status == DraftRuntimeStatus::SealPendingRetry {
-        interrupted_turn_alert = Some("Draft version sealing is pending retry from previous turn.".to_string());
+        interrupted_turn_alert =
+            Some("Draft version sealing is pending retry from previous turn.".to_string());
     } else {
         // Only raise interruptedTurnAlert if an unsealed turn had applied tool writes (§11.2.2)
         let unsealed_stmt = conn.prepare(
@@ -230,7 +239,10 @@ pub fn exec_create_or_load_chat_session(
         if let Ok(mut stmt) = unsealed_stmt {
             if let Ok(exists) = stmt.exists(params![session_id, draft_session_id.to_string()]) {
                 if exists {
-                    interrupted_turn_alert = Some("Previous conversation turn was interrupted before response completed.".to_string());
+                    interrupted_turn_alert = Some(
+                        "Previous conversation turn was interrupted before response completed."
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -399,14 +411,21 @@ pub fn exec_list_chat_sessions(
 }
 
 fn parse_listed_draft_id(session_id: &str, draft_id: Option<String>) -> Result<Uuid, IpcError> {
-    let draft_id = draft_id.ok_or_else(|| IpcError::new(
-        ErrorCode::DatabaseError,
-        format!("Session '{}' has no linked draft session", session_id),
-    ))?;
-    Uuid::parse_str(&draft_id).map_err(|_| IpcError::new(
-        ErrorCode::DatabaseError,
-        format!("Session '{}' has an invalid linked draft session ID", session_id),
-    ))
+    let draft_id = draft_id.ok_or_else(|| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Session '{}' has no linked draft session", session_id),
+        )
+    })?;
+    Uuid::parse_str(&draft_id).map_err(|_| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!(
+                "Session '{}' has an invalid linked draft session ID",
+                session_id
+            ),
+        )
+    })
 }
 
 #[cfg(test)]
@@ -418,7 +437,10 @@ mod list_sessions_tests {
         assert!(parse_listed_draft_id("session", None).is_err());
         assert!(parse_listed_draft_id("session", Some("corrupt".into())).is_err());
         let id = Uuid::new_v4();
-        assert_eq!(parse_listed_draft_id("session", Some(id.to_string())).unwrap(), id);
+        assert_eq!(
+            parse_listed_draft_id("session", Some(id.to_string())).unwrap(),
+            id
+        );
     }
 }
 
@@ -435,25 +457,50 @@ pub fn exec_manage_chat_sessions(
     orchestrator: &ChatOrchestrator,
     req: &ManageChatSessionsReq,
 ) -> Result<ManageChatSessionsResp, IpcError> {
-    if req.session_ids.is_empty() || req.session_ids.len() > 100 ||
-        req.session_ids.iter().any(|id| id.trim().is_empty() || id.starts_with("detached-")) ||
-        req.session_ids.iter().collect::<HashSet<_>>().len() != req.session_ids.len() {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Invalid session IDs"));
+    if req.session_ids.is_empty()
+        || req.session_ids.len() > 100
+        || req
+            .session_ids
+            .iter()
+            .any(|id| id.trim().is_empty() || id.starts_with("detached-"))
+        || req.session_ids.iter().collect::<HashSet<_>>().len() != req.session_ids.len()
+    {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Invalid session IDs",
+        ));
     }
-    if !matches!(req.action.as_str(), "rename" | "soft_delete" | "restore" | "permanent_delete") {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported session action"));
+    if !matches!(
+        req.action.as_str(),
+        "rename" | "soft_delete" | "restore" | "permanent_delete"
+    ) {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Unsupported session action",
+        ));
     }
     if req.action == "rename" && req.session_ids.len() != 1 {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Rename requires one session"));
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Rename requires one session",
+        ));
     }
     let title = req.display_name.as_deref().map(str::trim);
-    if req.action == "rename" && !title.is_some_and(|name| !name.is_empty() && name.chars().count() <= 120) {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Session name must contain 1 to 120 characters"));
+    if req.action == "rename"
+        && !title.is_some_and(|name| !name.is_empty() && name.chars().count() <= 120)
+    {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Session name must contain 1 to 120 characters",
+        ));
     }
 
-    let mut conn = orchestrator.pool().get()
+    let mut conn = orchestrator
+        .pool()
+        .get()
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+    let tx = conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
     let now = Utc::now().to_rfc3339();
 
@@ -466,12 +513,18 @@ pub fn exec_manage_chat_sessions(
 
         match req.action.as_str() {
             "rename" if deleted_at.is_none() => {
-                tx.execute("UPDATE sessions SET display_name = ?1 WHERE id = ?2", params![title, id])
-                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                tx.execute(
+                    "UPDATE sessions SET display_name = ?1 WHERE id = ?2",
+                    params![title, id],
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             }
             "soft_delete" if deleted_at.is_none() => {
-                tx.execute("UPDATE sessions SET deleted_at = ?1 WHERE id = ?2", params![now, id])
-                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                tx.execute(
+                    "UPDATE sessions SET deleted_at = ?1 WHERE id = ?2",
+                    params![now, id],
+                )
+                .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             }
             "restore" if deleted_at.is_some() => {
                 tx.execute("UPDATE sessions SET deleted_at = NULL WHERE id = ?1", [id])
@@ -483,7 +536,8 @@ pub fn exec_manage_chat_sessions(
                 let project_drafts: Vec<(String, String)> = {
                     let mut stmt = tx.prepare("SELECT id, project_id FROM draft_sessions WHERE session_id = ?1 AND project_id IS NOT NULL")
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                    let rows = stmt.query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))
+                    let rows = stmt
+                        .query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
                     rows.collect::<Result<Vec<_>, _>>()
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
@@ -493,13 +547,21 @@ pub fn exec_manage_chat_sessions(
                     tx.execute("INSERT INTO sessions (id, project_id, display_name, created_at, deleted_at) VALUES (?1, ?2, NULL, ?3, ?3)",
                         params![detached_id, project_id, now])
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                    tx.execute("UPDATE draft_sessions SET session_id = ?1 WHERE id = ?2", params![detached_id, draft_id])
-                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                    tx.execute(
+                        "UPDATE draft_sessions SET session_id = ?1 WHERE id = ?2",
+                        params![detached_id, draft_id],
+                    )
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
                     tx.execute("UPDATE draft_versions SET chat_message_id = NULL WHERE draft_session_id = ?1", [draft_id])
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
                 }
 
-                for table in ["workflow_task_receipts", "workflow_round_receipts", "pending_patches", "draft_versions"] {
+                for table in [
+                    "workflow_task_receipts",
+                    "workflow_round_receipts",
+                    "pending_patches",
+                    "draft_versions",
+                ] {
                     tx.execute(&format!("DELETE FROM {table} WHERE draft_session_id IN (SELECT id FROM draft_sessions WHERE session_id = ?1)"), [id])
                         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
                 }
@@ -510,11 +572,19 @@ pub fn exec_manage_chat_sessions(
                 tx.execute("DELETE FROM sessions WHERE id = ?1", [id])
                     .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             }
-            _ => return Err(IpcError::new(ErrorCode::ValidationFailed, "Session action is not allowed in its current state")),
+            _ => {
+                return Err(IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Session action is not allowed in its current state",
+                ))
+            }
         }
     }
-    tx.commit().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    Ok(ManageChatSessionsResp { affected_count: req.session_ids.len() })
+    tx.commit()
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    Ok(ManageChatSessionsResp {
+        affected_count: req.session_ids.len(),
+    })
 }
 
 #[tauri::command]

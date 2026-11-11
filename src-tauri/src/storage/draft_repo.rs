@@ -10,7 +10,9 @@ use std::fmt;
 /// Canonical error type for draft repository queries.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum DraftRepoError {
-    #[error("Foreign draft access rejected: caller '{caller}' attempted access to draft '{target}'")]
+    #[error(
+        "Foreign draft access rejected: caller '{caller}' attempted access to draft '{target}'"
+    )]
     ForeignDraftAccess { caller: String, target: String },
 
     #[error("Invalid draft session ID (UUID format required): {0}")]
@@ -69,7 +71,7 @@ impl DraftSessionStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "editing" => Some(DraftSessionStatus::Editing),
             "committing" => Some(DraftSessionStatus::Committing),
@@ -102,7 +104,7 @@ impl DraftSessionRecord {
         let status_str: Option<String> = row.get(4)?;
         let status = status_str
             .as_deref()
-            .and_then(DraftSessionStatus::from_str)
+            .and_then(DraftSessionStatus::parse)
             .unwrap_or(DraftSessionStatus::Editing);
 
         Ok(Self {
@@ -175,7 +177,7 @@ impl PendingPatchStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "pending" => Some(PendingPatchStatus::Pending),
             "confirmed" => Some(PendingPatchStatus::Confirmed),
@@ -216,7 +218,7 @@ impl PendingPatchRecord {
         let status_str: Option<String> = row.get(11)?;
         let status = status_str
             .as_deref()
-            .and_then(PendingPatchStatus::from_str)
+            .and_then(PendingPatchStatus::parse)
             .unwrap_or(PendingPatchStatus::Pending);
 
         Ok(Self {
@@ -240,15 +242,47 @@ impl PendingPatchRecord {
 
 /// Abstract read-only repository trait for draft operations.
 pub trait DraftRepo {
-    fn find_session_by_id(&self, draft_session_id: &str) -> Result<Option<DraftSessionRecord>, DraftRepoError>;
-    fn find_session_by_session_id(&self, session_id: &str) -> Result<Option<DraftSessionRecord>, DraftRepoError>;
-    fn get_session_status(&self, draft_session_id: &str) -> Result<Option<DraftSessionStatus>, DraftRepoError>;
-    fn get_head_version(&self, draft_session_id: &str) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
-    fn get_version_by_seq(&self, draft_session_id: &str, seq: i64) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
-    fn find_version_by_seal_key(&self, draft_session_id: &str, seal_key: &str) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
-    fn list_versions(&self, draft_session_id: &str, limit: Option<u32>) -> Result<Vec<DraftVersionRecord>, DraftRepoError>;
-    fn list_pending_patches(&self, draft_session_id: &str, status: Option<PendingPatchStatus>) -> Result<Vec<PendingPatchRecord>, DraftRepoError>;
-    fn find_pending_patch_by_id(&self, draft_session_id: &str, patch_id: &str) -> Result<Option<PendingPatchRecord>, DraftRepoError>;
+    fn find_session_by_id(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftSessionRecord>, DraftRepoError>;
+    fn find_session_by_session_id(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<DraftSessionRecord>, DraftRepoError>;
+    fn get_session_status(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftSessionStatus>, DraftRepoError>;
+    fn get_head_version(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
+    fn get_version_by_seq(
+        &self,
+        draft_session_id: &str,
+        seq: i64,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
+    fn find_version_by_seal_key(
+        &self,
+        draft_session_id: &str,
+        seal_key: &str,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError>;
+    fn list_versions(
+        &self,
+        draft_session_id: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<DraftVersionRecord>, DraftRepoError>;
+    fn list_pending_patches(
+        &self,
+        draft_session_id: &str,
+        status: Option<PendingPatchStatus>,
+    ) -> Result<Vec<PendingPatchRecord>, DraftRepoError>;
+    fn find_pending_patch_by_id(
+        &self,
+        draft_session_id: &str,
+        patch_id: &str,
+    ) -> Result<Option<PendingPatchRecord>, DraftRepoError>;
 
     /// Scoped version lookup rejecting foreign-draft access.
     fn query_scoped_version_record(
@@ -278,7 +312,10 @@ impl<'a> SqliteDraftRepo<'a> {
 }
 
 impl<'a> DraftRepo for SqliteDraftRepo<'a> {
-    fn find_session_by_id(&self, draft_session_id: &str) -> Result<Option<DraftSessionRecord>, DraftRepoError> {
+    fn find_session_by_id(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftSessionRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -300,7 +337,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn find_session_by_session_id(&self, session_id: &str) -> Result<Option<DraftSessionRecord>, DraftRepoError> {
+    fn find_session_by_session_id(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<DraftSessionRecord>, DraftRepoError> {
         let mut stmt = self
             .conn
             .prepare(
@@ -320,7 +360,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn get_session_status(&self, draft_session_id: &str) -> Result<Option<DraftSessionStatus>, DraftRepoError> {
+    fn get_session_status(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftSessionStatus>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -331,7 +374,7 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         let mut rows = stmt
             .query_map(params![draft_session_id], |row| {
                 let status_str: Option<String> = row.get(0)?;
-                Ok(status_str.as_deref().and_then(DraftSessionStatus::from_str))
+                Ok(status_str.as_deref().and_then(DraftSessionStatus::parse))
             })
             .map_err(map_sqlite_err)?;
 
@@ -341,7 +384,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn get_head_version(&self, draft_session_id: &str) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
+    fn get_head_version(
+        &self,
+        draft_session_id: &str,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -366,7 +412,11 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn get_version_by_seq(&self, draft_session_id: &str, seq: i64) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
+    fn get_version_by_seq(
+        &self,
+        draft_session_id: &str,
+        seq: i64,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -390,7 +440,11 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn find_version_by_seal_key(&self, draft_session_id: &str, seal_key: &str) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
+    fn find_version_by_seal_key(
+        &self,
+        draft_session_id: &str,
+        seal_key: &str,
+    ) -> Result<Option<DraftVersionRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -405,7 +459,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let mut rows = stmt
-            .query_map(params![draft_session_id, seal_key], DraftVersionRecord::from_row)
+            .query_map(
+                params![draft_session_id, seal_key],
+                DraftVersionRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         match rows.next() {
@@ -414,7 +471,11 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
     }
 
-    fn list_versions(&self, draft_session_id: &str, limit: Option<u32>) -> Result<Vec<DraftVersionRecord>, DraftRepoError> {
+    fn list_versions(
+        &self,
+        draft_session_id: &str,
+        limit: Option<u32>,
+    ) -> Result<Vec<DraftVersionRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let limit_val = limit.map(|l| l as i64).unwrap_or(1000);
@@ -432,7 +493,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let rows = stmt
-            .query_map(params![draft_session_id, limit_val], DraftVersionRecord::from_row)
+            .query_map(
+                params![draft_session_id, limit_val],
+                DraftVersionRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         let mut records = Vec::new();
@@ -442,7 +506,11 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         Ok(records)
     }
 
-    fn list_pending_patches(&self, draft_session_id: &str, status: Option<PendingPatchStatus>) -> Result<Vec<PendingPatchRecord>, DraftRepoError> {
+    fn list_pending_patches(
+        &self,
+        draft_session_id: &str,
+        status: Option<PendingPatchStatus>,
+    ) -> Result<Vec<PendingPatchRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let (sql, filter_status) = match status {
@@ -482,7 +550,11 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         Ok(records)
     }
 
-    fn find_pending_patch_by_id(&self, draft_session_id: &str, patch_id: &str) -> Result<Option<PendingPatchRecord>, DraftRepoError> {
+    fn find_pending_patch_by_id(
+        &self,
+        draft_session_id: &str,
+        patch_id: &str,
+    ) -> Result<Option<PendingPatchRecord>, DraftRepoError> {
         validate_draft_session_id(draft_session_id)?;
 
         let mut stmt = self
@@ -497,7 +569,10 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let mut rows = stmt
-            .query_map(params![draft_session_id, patch_id], PendingPatchRecord::from_row)
+            .query_map(
+                params![draft_session_id, patch_id],
+                PendingPatchRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         match rows.next() {
@@ -523,7 +598,12 @@ impl<'a> DraftRepo for SqliteDraftRepo<'a> {
         }
 
         self.get_version_by_seq(caller_draft_session_id, seq)?
-            .ok_or_else(|| DraftRepoError::NotFound(format!("seq {} in draft {}", seq, caller_draft_session_id)))
+            .ok_or_else(|| {
+                DraftRepoError::NotFound(format!(
+                    "seq {} in draft {}",
+                    seq, caller_draft_session_id
+                ))
+            })
     }
 
     fn query_scoped_patch(

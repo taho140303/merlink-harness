@@ -631,59 +631,40 @@ pub fn evaluate_attribute(
                 .iter()
                 .map(|a| eval_tracked_string_with_parent(&a.motif.code, a.source)),
         ),
-        MasterAttributeId::OverviewArcsMotifEventBlocks => eval_array_elements(
-            data.optional
-                .overview_phase
-                .arcs
-                .iter()
-                .flat_map(|a| a.motif.event_blocks.iter().map(move |eb| eval_arc_event_block(eb, a.source))),
-        ),
-        MasterAttributeId::OverviewArcsThemesQuestion => eval_array_elements(
-            data.optional
-                .overview_phase
-                .arcs
-                .iter()
-                .map(|a| {
-                    eval_tracked_string_with_parent(
-                        &a.themes.question,
-                        a.themes.source.or(a.source),
-                    )
-                }),
-        ),
-        MasterAttributeId::OverviewArcsThemesResolution => eval_array_elements(
-            data.optional
-                .overview_phase
-                .arcs
-                .iter()
-                .map(|a| {
+        MasterAttributeId::OverviewArcsMotifEventBlocks => {
+            eval_array_elements(data.optional.overview_phase.arcs.iter().flat_map(|a| {
+                a.motif
+                    .event_blocks
+                    .iter()
+                    .map(move |eb| eval_arc_event_block(eb, a.source))
+            }))
+        }
+        MasterAttributeId::OverviewArcsThemesQuestion => {
+            eval_array_elements(data.optional.overview_phase.arcs.iter().map(|a| {
+                eval_tracked_string_with_parent(&a.themes.question, a.themes.source.or(a.source))
+            }))
+        }
+        MasterAttributeId::OverviewArcsThemesResolution => {
+            eval_array_elements(
+                data.optional.overview_phase.arcs.iter().map(|a| {
                     eval_theme_resolution(&a.themes.resolution, a.themes.source.or(a.source))
                 }),
-        ),
-        MasterAttributeId::OverviewArcsThemesMessage => eval_array_elements(
-            data.optional
-                .overview_phase
-                .arcs
-                .iter()
-                .map(|a| {
-                    eval_tracked_string_with_parent(
-                        &a.themes.message,
-                        a.themes.source.or(a.source),
-                    )
-                }),
-        ),
-        MasterAttributeId::OverviewArcsThemesArguments => eval_array_elements(
-            data.optional
-                .overview_phase
-                .arcs
-                .iter()
-                .flat_map(|a| {
-                    let fallback = a.themes.source.or(a.source);
-                    a.themes
-                        .arguments
-                        .iter()
-                        .map(move |arg| eval_theme_argument(arg, fallback))
-                }),
-        ),
+            )
+        }
+        MasterAttributeId::OverviewArcsThemesMessage => {
+            eval_array_elements(data.optional.overview_phase.arcs.iter().map(|a| {
+                eval_tracked_string_with_parent(&a.themes.message, a.themes.source.or(a.source))
+            }))
+        }
+        MasterAttributeId::OverviewArcsThemesArguments => {
+            eval_array_elements(data.optional.overview_phase.arcs.iter().flat_map(|a| {
+                let fallback = a.themes.source.or(a.source);
+                a.themes
+                    .arguments
+                    .iter()
+                    .map(move |arg| eval_theme_argument(arg, fallback))
+            }))
+        }
 
         // =========================================================================
         // Phase 2 (`optional.chapter_phase`): 4 attributes
@@ -771,9 +752,9 @@ pub fn evaluate_attribute(
                 .world_settings
                 .iter()
                 .flat_map(|ws| {
-                    ws.lore_entries.iter().map(move |le| {
-                        eval_lore_entry_description(le, ws.source)
-                    })
+                    ws.lore_entries
+                        .iter()
+                        .map(move |le| eval_lore_entry_description(le, ws.source))
                 }),
         ),
 
@@ -815,12 +796,7 @@ pub fn evaluate_attribute(
                 .iter()
                 .flat_map(|a| a.chapters.iter())
                 .flat_map(|ch| ch.scenes.iter())
-                .map(|sc| {
-                    eval_scene_characters_pov(
-                        &sc.narrator_config_code,
-                        &sc.characters,
-                    )
-                }),
+                .map(|sc| eval_scene_characters_pov(&sc.narrator_config_code, &sc.characters)),
         ),
 
         // =========================================================================
@@ -1049,13 +1025,16 @@ fn eval_require_genre_item(genre: &RequireGenreItem) -> AttributeProgressState {
     // If is_primary or display_name are also populated, include them in composite provenance
     let mut required = vec![code_state];
     if genre.is_primary.value.is_some() {
-        required.push(eval_tracked_bool_with_parent(&genre.is_primary, genre.code.source));
+        required.push(eval_tracked_bool_with_parent(
+            &genre.is_primary,
+            genre.code.source,
+        ));
     }
     if genre
         .display_name
         .value
         .as_ref()
-        .map_or(false, |s| !s.trim().is_empty())
+        .is_some_and(|s| !s.trim().is_empty())
     {
         required.push(eval_tracked_string_with_parent(
             &genre.display_name,
@@ -1117,7 +1096,7 @@ fn eval_arc_event_block(
         .event_block_code
         .value
         .as_ref()
-        .map_or(false, |s| !s.trim().is_empty())
+        .is_some_and(|s| !s.trim().is_empty())
     {
         required.push(eval_tracked_string_with_parent(
             &eb.event_block_code,
@@ -1262,8 +1241,7 @@ fn eval_scene_characters_pov(
     if let Some(raw_nc) = &narrator_config_code.value {
         let nc = raw_nc.trim().to_ascii_uppercase();
         if !nc.is_empty() {
-            let is_omniscient_or_objective =
-                nc.contains("OMNISCIENT") || nc.contains("OBJECTIVE");
+            let is_omniscient_or_objective = nc.contains("OMNISCIENT") || nc.contains("OBJECTIVE");
             let is_multiple_pov = nc.contains("MULTIPLE") || nc.contains("MULTI_POV");
             let is_limited = nc.contains("FIRST_PERSON")
                 || nc.contains("SECOND_PERSON")
@@ -1339,7 +1317,7 @@ fn eval_character_competence(comp: &CharacterCompetenceItem) -> AttributeProgres
         .scene_code
         .value
         .as_ref()
-        .map_or(false, |s| !s.trim().is_empty())
+        .is_some_and(|s| !s.trim().is_empty())
     {
         required.push(eval_tracked_string_with_parent(&comp.scene_code, fallback));
     }
@@ -1347,7 +1325,7 @@ fn eval_character_competence(comp: &CharacterCompetenceItem) -> AttributeProgres
         .level_code
         .value
         .as_ref()
-        .map_or(false, |s| !s.trim().is_empty())
+        .is_some_and(|s| !s.trim().is_empty())
     {
         required.push(eval_tracked_string_with_parent(&comp.level_code, fallback));
     }
@@ -1355,7 +1333,7 @@ fn eval_character_competence(comp: &CharacterCompetenceItem) -> AttributeProgres
         .description
         .value
         .as_ref()
-        .map_or(false, |s| !s.trim().is_empty())
+        .is_some_and(|s| !s.trim().is_empty())
     {
         required.push(eval_tracked_string_with_parent(&comp.description, fallback));
     }
@@ -1382,7 +1360,7 @@ fn eval_relationship_scene_state(
     ];
     let mut populated = Vec::new();
     for dim in dims {
-        if dim.value.as_ref().map_or(false, |s| !s.trim().is_empty()) {
+        if dim.value.as_ref().is_some_and(|s| !s.trim().is_empty()) {
             populated.push(eval_tracked_string_with_parent(dim, fallback));
         }
     }

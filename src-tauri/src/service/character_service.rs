@@ -1,17 +1,17 @@
 //! Character Service orchestrating character queries, detail projections,
 //! library upserts, and draft linkage (`REQ-PROJECT-001`, IPC #25, #26, #27, #28, `be-core.md` §10.2.7).
 
-use std::sync::Arc;
 use rusqlite::params;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::business_flow::{ProvenanceSource, RequireCharacterItem, TrackedField};
 use crate::domain::fingerprint::state_data_hash;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    CharacterDetailDto, CharacterListDto, CreateOrUpdateLibraryCharacterReq, DraftVersionSummaryDto,
-    GetCharacterDetailReq, LinkLibraryCharacterResponseDto, LinkLibraryCharacterToDraftReq,
-    ListCharactersReq,
+    CharacterDetailDto, CharacterListDto, CreateOrUpdateLibraryCharacterReq,
+    DraftVersionSummaryDto, GetCharacterDetailReq, LinkLibraryCharacterResponseDto,
+    LinkLibraryCharacterToDraftReq, ListCharactersReq,
 };
 use crate::service::draft_runtime::{DraftRuntimeStatus, DRAFT_LOCK_TIMEOUT};
 use crate::service::draft_service::{DraftService, SealVersionParams};
@@ -60,7 +60,10 @@ impl CharacterService {
     }
 
     /// IPC #26: `get_character_detail`
-    pub fn get_character_detail(&self, req: &GetCharacterDetailReq) -> Result<CharacterDetailDto, IpcError> {
+    pub fn get_character_detail(
+        &self,
+        req: &GetCharacterDetailReq,
+    ) -> Result<CharacterDetailDto, IpcError> {
         let conn = self.pool.get().map_err(|e| {
             IpcError::new(
                 ErrorCode::DatabaseError,
@@ -243,14 +246,18 @@ impl CharacterService {
         };
 
         // Step 2: Load runtime entry and acquire operation lock
-        let entry = self.draft_service.get_or_load_runtime_entry(draft_session_id)?;
+        let entry = self
+            .draft_service
+            .get_or_load_runtime_entry(draft_session_id)?;
         let _guard = entry
             .acquire_operation_lock("link_library_character_to_draft", DRAFT_LOCK_TIMEOUT)
             .await?;
 
         // Step 3: Check draft editable status
         let snap = entry.get_snapshot();
-        if snap.status == DraftRuntimeStatus::Committing || snap.status == DraftRuntimeStatus::Committed {
+        if snap.status == DraftRuntimeStatus::Committing
+            || snap.status == DraftRuntimeStatus::Committed
+        {
             return Err(IpcError::new(
                 ErrorCode::DraftNotEditable,
                 "Draft is committing or committed and cannot link characters",
@@ -276,12 +283,22 @@ impl CharacterService {
                     ProvenanceSource::User,
                 ),
                 motif_code: TrackedField::default(),
-                role: TrackedField::new(req.role.clone().unwrap_or_default(), ProvenanceSource::User),
-                notes: TrackedField::new(req.notes.clone().unwrap_or_default(), ProvenanceSource::User),
+                role: TrackedField::new(
+                    req.role.clone().unwrap_or_default(),
+                    ProvenanceSource::User,
+                ),
+                notes: TrackedField::new(
+                    req.notes.clone().unwrap_or_default(),
+                    ProvenanceSource::User,
+                ),
                 reused_library_character: true,
                 source: Some(ProvenanceSource::User),
             };
-            updated_ws.business_flow_data.require.character.push(new_char);
+            updated_ws
+                .business_flow_data
+                .require
+                .character
+                .push(new_char);
         }
 
         entry.update_working_state(updated_ws.clone());

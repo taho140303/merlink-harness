@@ -5,8 +5,8 @@ use crate::domain::business_flow::BusinessFlowData;
 use crate::domain::progress_engine::evaluate_progress;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    DraftVersionListDto, DraftVersionSummaryDto, DraftWorkspaceStateDto,
-    PendingPatchDto, ProgressSummaryDto, RestoreVersionResponseDto,
+    DraftVersionListDto, DraftVersionSummaryDto, DraftWorkspaceStateDto, PendingPatchDto,
+    ProgressSummaryDto, RestoreVersionResponseDto,
 };
 use crate::service::draft_runtime::{
     DraftRuntimeEntry, DraftRuntimeRegistry, DraftRuntimeStatus, WorkingState, DRAFT_LOCK_TIMEOUT,
@@ -95,7 +95,10 @@ impl DraftService {
     /// - Mismatched payload for existing seal_key returns `ErrorCode::SealKeyPayloadMismatch`.
     /// - Retries at most once; if still failing, returns `ErrorCode::VersionSealFailed`
     ///   and marks in-memory status as `SealPendingRetry` (`CI-03`).
-    pub fn seal_version(&self, params: &SealVersionParams) -> Result<DraftVersionSummaryDto, IpcError> {
+    pub fn seal_version(
+        &self,
+        params: &SealVersionParams,
+    ) -> Result<DraftVersionSummaryDto, IpcError> {
         // Attempt 1:
         let first_res = self.execute_seal_version_tx(params);
         match first_res {
@@ -129,7 +132,10 @@ impl DraftService {
     }
 
     /// Inner single-transaction execution of TX-01 within `BEGIN IMMEDIATE`.
-    fn execute_seal_version_tx(&self, req: &SealVersionParams) -> Result<DraftVersionSummaryDto, IpcError> {
+    fn execute_seal_version_tx(
+        &self,
+        req: &SealVersionParams,
+    ) -> Result<DraftVersionSummaryDto, IpcError> {
         let mut conn = self.pool.get().map_err(|e| {
             IpcError::new(
                 ErrorCode::DatabaseError,
@@ -164,13 +170,27 @@ impl DraftService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let existing_seq: i64 = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_phase: Option<i64> = row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_subphase: Option<i64> = row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_reason: String = row.get(4).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_parent_seq: Option<i64> = row.get(5).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_created_at: String = row.get(6).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_hash: String = row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_seq: i64 = row
+                    .get(1)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_phase: Option<i64> = row
+                    .get(2)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_subphase: Option<i64> = row
+                    .get(3)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_reason: String = row
+                    .get(4)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_parent_seq: Option<i64> = row
+                    .get(5)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_created_at: String = row
+                    .get(6)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_hash: String = row
+                    .get(7)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
                 Some((
                     existing_seq,
@@ -235,8 +255,10 @@ impl DraftService {
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
                 Some(r) => (
-                    r.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(0)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(1)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
                 ),
                 None => {
                     return Err(IpcError::new(
@@ -251,7 +273,10 @@ impl DraftService {
         if status_str != "editing" {
             return Err(IpcError::new(
                 ErrorCode::DraftNotEditable,
-                format!("Draft session is not in editing state (current: {})", status_str),
+                format!(
+                    "Draft session is not in editing state (current: {})",
+                    status_str
+                ),
             ));
         }
 
@@ -274,19 +299,39 @@ impl DraftService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let h_phase: Option<i64> = h_row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_subphase: Option<i64> = h_row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_reason: String = h_row.get(4).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_parent_seq: Option<i64> = h_row.get(5).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_created_at: String = h_row.get(6).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let h_hash: String = h_row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_phase: Option<i64> = h_row
+                    .get(2)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_subphase: Option<i64> = h_row
+                    .get(3)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_reason: String = h_row
+                    .get(4)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_parent_seq: Option<i64> = h_row
+                    .get(5)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_created_at: String = h_row
+                    .get(6)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let h_hash: String = h_row
+                    .get(7)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
                 if h_hash == req.data_hash
                     && h_phase == Some(req.phase as i64)
                     && h_subphase == req.subphase.map(|s| s as i64)
                     && req.reason != "phase_confirm"
                 {
-                    Some((head_seq, h_phase, h_subphase, h_reason, h_parent_seq, h_created_at, h_hash))
+                    Some((
+                        head_seq,
+                        h_phase,
+                        h_subphase,
+                        h_reason,
+                        h_parent_seq,
+                        h_created_at,
+                        h_hash,
+                    ))
                 } else {
                     None
                 }
@@ -297,7 +342,9 @@ impl DraftService {
             None
         };
 
-        if let Some((head_seq, h_phase, h_subphase, h_reason, h_parent_seq, h_created_at, h_hash)) = head_match_opt {
+        if let Some((head_seq, h_phase, h_subphase, h_reason, h_parent_seq, h_created_at, h_hash)) =
+            head_match_opt
+        {
             tx.commit()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             return Ok(DraftVersionSummaryDto {
@@ -320,11 +367,17 @@ impl DraftService {
                     let mut cnt = self.fail_once_counter.write();
                     if *cnt == 0 {
                         *cnt += 1;
-                        return Err(IpcError::new(ErrorCode::DatabaseError, "Injected transient TX-01 error"));
+                        return Err(IpcError::new(
+                            ErrorCode::DatabaseError,
+                            "Injected transient TX-01 error",
+                        ));
                     }
                 }
                 ErrorInjectionPoint::Tx01AlwaysFail | ErrorInjectionPoint::BeforeTx01Commit => {
-                    return Err(IpcError::new(ErrorCode::DatabaseError, "Injected persistent TX-01 error"));
+                    return Err(IpcError::new(
+                        ErrorCode::DatabaseError,
+                        "Injected persistent TX-01 error",
+                    ));
                 }
                 _ => {}
             }
@@ -357,17 +410,31 @@ impl DraftService {
                 now_iso,
             ],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Insert draft_versions failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Insert draft_versions failed: {}", e),
+            )
+        })?;
 
         // Step 5: Update draft_sessions head_version_seq
         tx.execute(
             "UPDATE draft_sessions SET head_version_seq = ?1, updated_at = ?2 WHERE id = ?3",
             params![next_seq, now_iso, req.draft_session_id.to_string()],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Update draft_sessions failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Update draft_sessions failed: {}", e),
+            )
+        })?;
 
-        tx.commit()
-            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Commit TX-01 failed: {}", e)))?;
+        tx.commit().map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Commit TX-01 failed: {}", e),
+            )
+        })?;
 
         // Step 6: Synchronize in-memory WorkingState
         if let Some(entry) = self.registry.get(&req.draft_session_id) {
@@ -457,8 +524,10 @@ impl DraftService {
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
                 Some(r) => (
-                    r.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(0)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(1)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
                 ),
                 None => {
                     return Err(IpcError::new(
@@ -473,7 +542,10 @@ impl DraftService {
         if status_str != "editing" {
             return Err(IpcError::new(
                 ErrorCode::DraftNotEditable,
-                format!("Draft session is not in editing state (current: {})", status_str),
+                format!(
+                    "Draft session is not in editing state (current: {})",
+                    status_str
+                ),
             ));
         }
 
@@ -496,13 +568,27 @@ impl DraftService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let existing_seq: i64 = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_phase: Option<i64> = row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_subphase: Option<i64> = row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_reason: String = row.get(4).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_parent_seq: Option<i64> = row.get(5).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_created_at: String = row.get(6).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let existing_hash: String = row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_seq: i64 = row
+                    .get(1)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_phase: Option<i64> = row
+                    .get(2)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_subphase: Option<i64> = row
+                    .get(3)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_reason: String = row
+                    .get(4)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_parent_seq: Option<i64> = row
+                    .get(5)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_created_at: String = row
+                    .get(6)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let existing_hash: String = row
+                    .get(7)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
                 Some((
                     existing_seq,
@@ -580,10 +666,14 @@ impl DraftService {
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
                 Some(r) => (
-                    r.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(0)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(1)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(2)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(3)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
                 ),
                 None => {
                     return Err(IpcError::new(
@@ -608,8 +698,13 @@ impl DraftService {
         // Test error injection check
         {
             let inj = *self.error_injection.read();
-            if inj == ErrorInjectionPoint::Tx03AlwaysFail || inj == ErrorInjectionPoint::BeforeTx03Commit {
-                return Err(IpcError::new(ErrorCode::DatabaseError, "Injected TX-03 error"));
+            if inj == ErrorInjectionPoint::Tx03AlwaysFail
+                || inj == ErrorInjectionPoint::BeforeTx03Commit
+            {
+                return Err(IpcError::new(
+                    ErrorCode::DatabaseError,
+                    "Injected TX-03 error",
+                ));
             }
         }
 
@@ -639,14 +734,24 @@ impl DraftService {
                 now_iso,
             ],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Insert restore version failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Insert restore version failed: {}", e),
+            )
+        })?;
 
         // 5. Update draft_sessions head_version_seq
         tx.execute(
             "UPDATE draft_sessions SET head_version_seq = ?1, updated_at = ?2 WHERE id = ?3",
             params![next_seq, now_iso, req.draft_session_id.to_string()],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Update head_version_seq failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Update head_version_seq failed: {}", e),
+            )
+        })?;
 
         // 6. Expire all pending_patches for this draft_session_id with status = 'pending'
         let expired_patch_ids = {
@@ -662,11 +767,9 @@ impl DraftService {
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
             let mut list = Vec::new();
-            for r in p_rows {
-                if let Ok(id_str) = r {
-                    if let Ok(u) = Uuid::parse_str(&id_str) {
-                        list.push(u);
-                    }
+            for id_str in p_rows.flatten() {
+                if let Ok(u) = Uuid::parse_str(&id_str) {
+                    list.push(u);
                 }
             }
             list
@@ -678,16 +781,21 @@ impl DraftService {
         )
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Expire pending patches failed: {}", e)))?;
 
-        tx.commit()
-            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Commit TX-03 failed: {}", e)))?;
-
-        // 7. Parse restored BusinessFlowData and update in-memory WorkingState
-        let parsed_bfd = BusinessFlowData::from_json_str_strict(&target_data_json).map_err(|e| {
+        tx.commit().map_err(|e| {
             IpcError::new(
                 ErrorCode::DatabaseError,
-                format!("Restored state JSON syntax error: {}", e),
+                format!("Commit TX-03 failed: {}", e),
             )
         })?;
+
+        // 7. Parse restored BusinessFlowData and update in-memory WorkingState
+        let parsed_bfd =
+            BusinessFlowData::from_json_str_strict(&target_data_json).map_err(|e| {
+                IpcError::new(
+                    ErrorCode::DatabaseError,
+                    format!("Restored state JSON syntax error: {}", e),
+                )
+            })?;
 
         let expired_ids_set = expired_patch_ids.clone();
         entry.mutate_working_state(|ws| {
@@ -730,7 +838,10 @@ impl DraftService {
     // ========================================================================
 
     /// Assembles non-blocking `DraftWorkspaceStateDto` snapshot (`IPC #5`).
-    pub fn get_workspace_state(&self, draft_session_id: &Uuid) -> Result<DraftWorkspaceStateDto, IpcError> {
+    pub fn get_workspace_state(
+        &self,
+        draft_session_id: &Uuid,
+    ) -> Result<DraftWorkspaceStateDto, IpcError> {
         let entry = self.get_or_load_runtime_entry(*draft_session_id)?;
         let snapshot = entry.get_snapshot();
         let lock_state = entry.get_lock_status();
@@ -754,7 +865,8 @@ impl DraftService {
             ai_inferred_count: Some(progress_eval.ai_suggested_count as u32),
         };
 
-        let bfd_json = serde_json::to_value(&snapshot.business_flow_data).unwrap_or(serde_json::json!({}));
+        let bfd_json =
+            serde_json::to_value(&snapshot.business_flow_data).unwrap_or(serde_json::json!({}));
 
         Ok(DraftWorkspaceStateDto {
             draft_session_id: *draft_session_id,
@@ -794,7 +906,9 @@ impl DraftService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                Some(r) => r.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                Some(r) => r
+                    .get(0)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
                 None => {
                     return Err(IpcError::new(
                         ErrorCode::EntityNotFound,
@@ -848,7 +962,10 @@ impl DraftService {
     }
 
     /// Loads or retrieves an active `DraftRuntimeEntry` for `draft_session_id`.
-    pub fn get_or_load_runtime_entry(&self, draft_session_id: Uuid) -> Result<Arc<DraftRuntimeEntry>, IpcError> {
+    pub fn get_or_load_runtime_entry(
+        &self,
+        draft_session_id: Uuid,
+    ) -> Result<Arc<DraftRuntimeEntry>, IpcError> {
         if let Some(entry) = self.registry.get(&draft_session_id) {
             return Ok(entry);
         }
@@ -874,8 +991,10 @@ impl DraftService {
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
                 Some(r) => (
-                    r.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
-                    r.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(0)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
+                    r.get(1)
+                        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?,
                 ),
                 None => {
                     return Err(IpcError::new(
@@ -888,7 +1007,7 @@ impl DraftService {
 
         let runtime_status = status_str
             .as_deref()
-            .and_then(DraftRuntimeStatus::from_str)
+            .and_then(DraftRuntimeStatus::parse)
             .unwrap_or(DraftRuntimeStatus::Editing);
 
         let mut ws = WorkingState::new(draft_session_id);
@@ -908,9 +1027,15 @@ impl DraftService {
                 .next()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             {
-                let phase: Option<i64> = vr.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let subphase: Option<i64> = vr.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-                let data_json: String = vr.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let phase: Option<i64> = vr
+                    .get(0)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let subphase: Option<i64> = vr
+                    .get(1)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+                let data_json: String = vr
+                    .get(2)
+                    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
                 ws.phase = phase.map(|p| p as i32).unwrap_or(0);
                 ws.subphase = subphase.map(|s| s as i32);
@@ -947,7 +1072,9 @@ impl DraftService {
 
                 let id = Uuid::parse_str(&id_str).unwrap_or_default();
                 let previous_value = prev_json.and_then(|s| serde_json::from_str(&s).ok());
-                let proposed_value = new_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::Value::Null);
+                let proposed_value = new_json
+                    .and_then(|s| serde_json::from_str(&s).ok())
+                    .unwrap_or(serde_json::Value::Null);
 
                 Ok(PendingPatchDto {
                     id,
@@ -964,10 +1091,8 @@ impl DraftService {
             })
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-        for pr in p_rows {
-            if let Ok(dto) = pr {
-                ws.pending_patches.push(dto);
-            }
+        for dto in p_rows.flatten() {
+            ws.pending_patches.push(dto);
         }
 
         Ok(self.registry.get_or_register(draft_session_id, ws))

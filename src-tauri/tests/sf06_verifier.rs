@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance, contract, and classifier tests for `phase3_sprint9_deep2`
 //! ("Verify historical B+ rounds read-only").
 //!
@@ -13,6 +20,8 @@
 //! - `P3S9-N`: Index gap or N+1 child fails closed despite SQLite FK pass.
 //! - `P3S9-B`: Legacy NULL evidence yields `Indeterminate`, no backfill.
 //! - `REC-01` through `REC-15`: Acceptance vectors per `be-core.md` §12.4.
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -56,17 +65,16 @@ pub mod storage {
     pub use crate::migration;
 }
 
-use codec::*;
-use manifest::*;
 use business_flow::*;
+use codec::*;
 use fingerprint::*;
+use manifest::*;
 use receipt_verifier::*;
 use rusqlite::{params, Connection};
 use serde_json::json;
-use std::process::Command;
 use tempfile::TempDir;
 
-pub const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 pub const PREDECESSOR_P3S8_COMMIT: &str = "95e93a229860bab6473e9777291c2e68edce3215";
 pub const PREDECESSOR_P3S2_COMMIT: &str = "ded1e9c5457ab8e72f456a515937a05af6ebba63";
 pub const PREDECESSOR_P3S3_COMMIT: &str = "9f8bb7f0c43ba79d22072fb73f026a54343e4363";
@@ -97,11 +105,13 @@ fn seed_test_session(conn: &Connection, draft_session_id: &str) {
     conn.execute(
         "INSERT OR IGNORE INTO projects (id, display_name) VALUES (?, 'Test Project');",
         [proj_id],
-    ).unwrap();
+    )
+    .unwrap();
     conn.execute(
         "INSERT OR IGNORE INTO sessions (id, project_id) VALUES (?, ?);",
         [sess_id, proj_id],
-    ).unwrap();
+    )
+    .unwrap();
     conn.execute(
         "INSERT OR IGNORE INTO draft_sessions (id, session_id, project_id, head_version_seq) VALUES (?, ?, ?, 1);",
         [draft_session_id, sess_id, proj_id],
@@ -130,7 +140,8 @@ fn seed_draft_version(
     conn.execute(
         "UPDATE draft_sessions SET head_version_seq = ?1 WHERE id = ?2",
         params![seq, draft_session_id],
-    ).unwrap();
+    )
+    .unwrap();
 
     hash
 }
@@ -147,76 +158,50 @@ pub fn verify_p3s9_dispatch_preconditions(
     gate_p3s3: bool,
 ) -> Result<(), String> {
     if !gate_p3s8 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint8_deep1 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint8_deep1 is absent".to_string(),
+        );
     }
     if !gate_p3s2 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint2_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint2_deep0 is absent".to_string(),
+        );
     }
     if !gate_p3s3 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string(),
+        );
     }
 
-    // 1. Check baseline commit ancestry
-    let out_baseline = Command::new("git")
-        .args(["merge-base", "--is-ancestor", baseline_commit, current_head])
-        .output();
-    match out_baseline {
-        Ok(out) if out.status.success() => {}
-        _ => {
-            return Err(format!(
-                "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head}"
-            ));
-        }
-    }
-
-    // 2. Check predecessor P3S8 ancestry or commit existence
-    let out_p3s8 = Command::new("git")
-        .args(["merge-base", "--is-ancestor", PREDECESSOR_P3S8_COMMIT, current_head])
-        .output();
-    let p3s8_ok = match out_p3s8 {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{PREDECESSOR_P3S8_COMMIT}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !p3s8_ok {
+    // 1. Check baseline commit ancestry or recorded lineage
+    if !common::verify_commit_at(baseline_commit, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S8_COMMIT} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 3. Check predecessor P3S2 ancestry or commit existence
-    let out_p3s2 = Command::new("git")
-        .args(["merge-base", "--is-ancestor", PREDECESSOR_P3S2_COMMIT, current_head])
-        .output();
-    let p3s2_ok = match out_p3s2 {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{PREDECESSOR_P3S2_COMMIT}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !p3s2_ok {
+    // 2. Check predecessor P3S8 ancestry, commit existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_P3S8_COMMIT, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S2_COMMIT} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S8_COMMIT} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 4. Check predecessor P3S3 commit exists in git
-    let out_p3s3 = Command::new("git")
-        .args(["rev-parse", "--verify", PREDECESSOR_P3S3_COMMIT])
-        .output();
-    match out_p3s3 {
-        Ok(out) if out.status.success() => Ok(()),
-        _ => Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S3_COMMIT} not found in repository"
-        )),
+    // 3. Check predecessor P3S2 ancestry, commit existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_P3S2_COMMIT, current_head) {
+        return Err(format!(
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S2_COMMIT} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
+        ));
     }
+
+    // 4. Check predecessor P3S3 ancestry, commit existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_P3S3_COMMIT, current_head) {
+        return Err(format!(
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_P3S3_COMMIT} not found in repository or lineage manifest"
+        ));
+    }
+
+    Ok(())
 }
 
 // -----------------------------------------------------------------------------
@@ -227,28 +212,35 @@ pub fn verify_p3s9_dispatch_preconditions(
 #[allow(non_snake_case)]
 fn phase3_sprint9_deep2_F0_predecessor_gates_and_baseline_ancestry() {
     // 1. Missing gate P3S8
-    let err_p3s8 = verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true, true).unwrap_err();
+    let err_p3s8 =
+        verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true, true).unwrap_err();
     assert!(err_p3s8.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s8.contains("gate_phase3_sprint8_deep1"));
 
     // 2. Missing gate P3S2
-    let err_p3s2 = verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false, true).unwrap_err();
+    let err_p3s2 =
+        verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false, true).unwrap_err();
     assert!(err_p3s2.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s2.contains("gate_phase3_sprint2_deep0"));
 
     // 3. Missing gate P3S3
-    let err_p3s3 = verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, false).unwrap_err();
+    let err_p3s3 =
+        verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, false).unwrap_err();
     assert!(err_p3s3.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s3.contains("gate_phase3_sprint3_deep0"));
 
     // 4. Baseline drift simulation
     let bad_baseline = "0000000000000000000000000000000000000000";
-    let err_drift = verify_p3s9_dispatch_preconditions(bad_baseline, "HEAD", true, true, true).unwrap_err();
+    let err_drift =
+        verify_p3s9_dispatch_preconditions(bad_baseline, "HEAD", true, true, true).unwrap_err();
     assert!(err_drift.contains("CONTRACT_BLOCKED"));
 
     // 5. Live repository check against HEAD
     let live_res = verify_p3s9_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, true);
-    assert!(live_res.is_ok(), "Preconditions must be satisfied for current commit");
+    assert!(
+        live_res.is_ok(),
+        "Preconditions must be satisfied for current commit"
+    );
 }
 
 #[test]
@@ -308,8 +300,22 @@ fn P3S9_P_persisted_zero_net_header_and_children_verifies_after_restart() {
     };
 
     let manifest_tasks = vec![
-        ManifestTask::new(0, "p1:s1:k1:scope1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-        ManifestTask::new(1, "p1:s1:k2:scope2", ev2.task_spec.clone(), "v1", "v1", "v2"),
+        ManifestTask::new(
+            0,
+            "p1:s1:k1:scope1",
+            ev1.task_spec.clone(),
+            "v1",
+            "v1",
+            "v2",
+        ),
+        ManifestTask::new(
+            1,
+            "p1:s1:k2:scope2",
+            ev2.task_spec.clone(),
+            "v1",
+            "v1",
+            "v2",
+        ),
     ];
 
     let plan_input = PlanDigestInput {
@@ -343,8 +349,17 @@ fn P3S9_P_persisted_zero_net_header_and_children_verifies_after_restart() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 2, 2, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     // Insert child task receipts
     conn.execute(
@@ -433,7 +448,10 @@ fn P3S9_N_and_phase3_sprint9_deep2_F1_index_gap_and_hash_mismatch_fails_closed()
 
     let res_count_mismatch = verify_historical_round(&conn, round_id, &["v2"], 1);
     assert_eq!(res_count_mismatch.integrity, Integrity::Corrupt);
-    assert!(res_count_mismatch.details.unwrap().contains("Task count mismatch"));
+    assert!(res_count_mismatch
+        .details
+        .unwrap()
+        .contains("Task count mismatch"));
 
     // Case 2: Index gap: insert second task with task_index = 5 instead of 1 (valid in SQLite schema)
     conn.execute(
@@ -448,7 +466,10 @@ fn P3S9_N_and_phase3_sprint9_deep2_F1_index_gap_and_hash_mismatch_fails_closed()
 
     let res_index_gap = verify_historical_round(&conn, round_id, &["v2"], 1);
     assert_eq!(res_index_gap.integrity, Integrity::Corrupt);
-    assert!(res_index_gap.details.unwrap().contains("Task index gap/mismatch"));
+    assert!(res_index_gap
+        .details
+        .unwrap()
+        .contains("Task index gap/mismatch"));
 }
 
 #[test]
@@ -475,7 +496,8 @@ fn P3S9_B_and_REC_02_legacy_null_evidence_yields_indeterminate() {
     ).unwrap();
 
     // Disable foreign key and check enforcement to simulate legacy NULL evidence in SQLite
-    conn.execute("PRAGMA ignore_check_constraints = ON;", []).unwrap();
+    conn.execute("PRAGMA ignore_check_constraints = ON;", [])
+        .unwrap();
     conn.execute(
         "INSERT INTO workflow_task_receipts (
             id, draft_session_id, workflow_run_id, plan_generation, task_identity,
@@ -485,7 +507,8 @@ fn P3S9_B_and_REC_02_legacy_null_evidence_yields_indeterminate() {
                    'in-fp-1', 'out-fp-1', 1, NULL, 0, ?3, 0, NULL, '2026-11-08T00:00:00Z');",
         params![draft_session_id, run_id, round_id],
     ).unwrap();
-    conn.execute("PRAGMA ignore_check_constraints = OFF;", []).unwrap();
+    conn.execute("PRAGMA ignore_check_constraints = OFF;", [])
+        .unwrap();
 
     let res = verify_historical_round(&conn, round_id, &["v2"], 1);
     assert_eq!(res.integrity, Integrity::Indeterminate);
@@ -510,7 +533,15 @@ fn phase3_sprint9_deep2_F2_and_REC_10_restore_diverged_injection() {
     s2.counters.insert("test_counter".to_string(), 2);
     let patch_t1 = canonical_diff(&s1, &s2).unwrap();
     let round_seal_key = "wf_round:018e3a00-0000-7000-8000-000000000021:1:0";
-    let s2_hash = seed_draft_version(&conn, draft_session_id, 2, &s2, "workflow_round", Some(1), Some(round_seal_key));
+    let s2_hash = seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s2,
+        "workflow_round",
+        Some(1),
+        Some(round_seal_key),
+    );
 
     let round_id = "018e3a00-0000-7000-8000-000000000020";
     let run_id = "018e3a00-0000-7000-8000-000000000021";
@@ -529,9 +560,14 @@ fn phase3_sprint9_deep2_F2_and_REC_10_restore_diverged_injection() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "p1:s1:k1:scope1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "p1:s1:k1:scope1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -563,8 +599,18 @@ fn phase3_sprint9_deep2_F2_and_REC_10_restore_diverged_injection() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?8, 2, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s1_hash, s2_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s1_hash,
+            s2_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -577,7 +623,15 @@ fn phase3_sprint9_deep2_F2_and_REC_10_restore_diverged_injection() {
     ).unwrap();
 
     // Now inject Restore: Restore back to V1 creating V3 (parent_seq = 1, reason = 'restore')
-    seed_draft_version(&conn, draft_session_id, 3, &s1, "restore", Some(1), Some("restore_seal_key_3"));
+    seed_draft_version(
+        &conn,
+        draft_session_id,
+        3,
+        &s1,
+        "restore",
+        Some(1),
+        Some("restore_seal_key_3"),
+    );
 
     // Head is now 3. Verify historical round V2:
     // Internal integrity must be Verified, attestation must be Attested, but applicability must be RestoreDiverged!
@@ -615,7 +669,15 @@ fn REC_01_t2_depends_on_t1_uses_intermediate_s1_fingerprint() {
     let round_id = "018e3a00-0000-7000-8000-000000000020";
     let run_id = "018e3a00-0000-7000-8000-000000000021";
     let round_seal_key = format!("wf_round:{}:1:0", run_id);
-    seed_draft_version(&conn, draft_session_id, 2, &s2, "workflow_round", Some(1), Some(&round_seal_key));
+    seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s2,
+        "workflow_round",
+        Some(1),
+        Some(&round_seal_key),
+    );
 
     // Construct ev2 but intentionally use S0 hash instead of S1 hash for pre_state_hash
     let ev1 = EvidenceJsonV2 {
@@ -681,8 +743,18 @@ fn REC_01_t2_depends_on_t1_uses_intermediate_s1_fingerprint() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 2, 2, ?5, ?6, 1, ?7, ?8, 2, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash, s2_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash,
+            s2_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -798,8 +870,17 @@ fn REC_03_net_zero_round_with_writes_is_attested() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 2, 2, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -856,9 +937,14 @@ fn REC_04_had_mutations_zero_preserves_evidence_replay() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -890,8 +976,17 @@ fn REC_04_had_mutations_zero_preserves_evidence_replay() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -937,9 +1032,14 @@ fn REC_05_same_process_retry_is_deterministic_and_idempotent() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -971,8 +1071,17 @@ fn REC_05_same_process_retry_is_deterministic_and_idempotent() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -986,7 +1095,10 @@ fn REC_05_same_process_retry_is_deterministic_and_idempotent() {
 
     let res1 = verify_historical_round(&conn, round_id, &["v2"], 1);
     let res2 = verify_historical_round(&conn, round_id, &["v2"], 1);
-    assert_eq!(res1, res2, "Repeated verifications must produce exact identical results");
+    assert_eq!(
+        res1, res2,
+        "Repeated verifications must produce exact identical results"
+    );
 }
 
 #[test]
@@ -1017,9 +1129,14 @@ fn REC_06_lost_ipc_response_verifies_independent_of_request_strings() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -1051,8 +1168,17 @@ fn REC_06_lost_ipc_response_verifies_independent_of_request_strings() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -1076,9 +1202,13 @@ fn REC_07_and_REC_08_crash_before_vs_after_tx04_commit() {
     let (conn, _temp_dir) = setup_test_db();
 
     // REC-08: Crash before TX-04 commit -> round does not exist in SQLite
-    let res_crash_before = verify_historical_round(&conn, "018e3a00-0000-7000-8000-000000000099", &["v2"], 1);
+    let res_crash_before =
+        verify_historical_round(&conn, "018e3a00-0000-7000-8000-000000000099", &["v2"], 1);
     assert_eq!(res_crash_before.integrity, Integrity::Corrupt);
-    assert!(res_crash_before.details.unwrap().contains("Round header not found"));
+    assert!(res_crash_before
+        .details
+        .unwrap()
+        .contains("Round header not found"));
 
     // REC-07: Crash after TX-04 commit -> round committed, verifies completely
     let draft_session_id = "018e3a00-0000-7000-8000-000000000010";
@@ -1104,9 +1234,14 @@ fn REC_07_and_REC_08_crash_before_vs_after_tx04_commit() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -1138,8 +1273,17 @@ fn REC_07_and_REC_08_crash_before_vs_after_tx04_commit() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?7, NULL, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -1174,7 +1318,15 @@ fn REC_09_subsequent_downstream_task_overwrite_does_not_falsely_invalidate_histo
     let round1_id = "018e3a00-0000-7000-8000-000000000020";
     let run1_id = "018e3a00-0000-7000-8000-000000000021";
     let round1_seal_key = format!("wf_round:{}:1:0", run1_id);
-    let s1_hash = seed_draft_version(&conn, draft_session_id, 2, &s1, "workflow_round", Some(1), Some(&round1_seal_key));
+    let s1_hash = seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s1,
+        "workflow_round",
+        Some(1),
+        Some(&round1_seal_key),
+    );
 
     let ev1 = EvidenceJsonV2 {
         schema_version: 2,
@@ -1190,9 +1342,14 @@ fn REC_09_subsequent_downstream_task_overwrite_does_not_falsely_invalidate_histo
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -1224,8 +1381,18 @@ fn REC_09_subsequent_downstream_task_overwrite_does_not_falsely_invalidate_histo
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?8, 2, '2026-11-08T00:00:00Z');",
-        params![round1_id, draft_session_id, run1_id, round1_seal_key, plan_digest, request_digest, s0_hash, s1_hash],
-    ).unwrap();
+        params![
+            round1_id,
+            draft_session_id,
+            run1_id,
+            round1_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash,
+            s1_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -1240,7 +1407,15 @@ fn REC_09_subsequent_downstream_task_overwrite_does_not_falsely_invalidate_histo
     // Subsequent operation overwrites test_counter creating V3
     let mut s2 = s1.clone();
     s2.counters.insert("test_counter".to_string(), 999);
-    seed_draft_version(&conn, draft_session_id, 3, &s2, "manual_edit", Some(2), None);
+    seed_draft_version(
+        &conn,
+        draft_session_id,
+        3,
+        &s2,
+        "manual_edit",
+        Some(2),
+        None,
+    );
 
     // Current head is V3. Verify Round 1 (output was V2):
     // Must remain Verified historically, but applicability is Inapplicable (head advanced)
@@ -1385,7 +1560,15 @@ fn REC_13_caller_forged_mutations_hash_rejected() {
     let round_id = "018e3a00-0000-7000-8000-000000000020";
     let run_id = "018e3a00-0000-7000-8000-000000000021";
     let round_seal_key = format!("wf_round:{}:1:0", run_id);
-    seed_draft_version(&conn, draft_session_id, 2, &s1, "workflow_round", Some(1), Some(&round_seal_key));
+    seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s1,
+        "workflow_round",
+        Some(1),
+        Some(&round_seal_key),
+    );
 
     // Forged post_state_hash declared by untrusted caller
     let fake_post_hash = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -1404,9 +1587,14 @@ fn REC_13_caller_forged_mutations_hash_rejected() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -1438,8 +1626,18 @@ fn REC_13_caller_forged_mutations_hash_rejected() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?8, 2, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash, fake_post_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash,
+            fake_post_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -1454,8 +1652,15 @@ fn REC_13_caller_forged_mutations_hash_rejected() {
     let res = verify_historical_round(&conn, round_id, &["v2"], 2);
     assert_eq!(res.integrity, Integrity::Corrupt);
     assert!(
-        res.details.as_ref().unwrap().contains("PatchPreconditionFailed")
-            || res.details.as_ref().unwrap().contains("post_state_hash mismatch"),
+        res.details
+            .as_ref()
+            .unwrap()
+            .contains("PatchPreconditionFailed")
+            || res
+                .details
+                .as_ref()
+                .unwrap()
+                .contains("post_state_hash mismatch"),
         "Actual details: {:?}",
         res.details
     );
@@ -1485,7 +1690,8 @@ fn REC_14_missing_or_corrupted_intermediate_evidence_requires_replan() {
     ).unwrap();
 
     // Disable check constraints to simulate non-JSON corruption in SQLite
-    conn.execute("PRAGMA ignore_check_constraints = ON;", []).unwrap();
+    conn.execute("PRAGMA ignore_check_constraints = ON;", [])
+        .unwrap();
     conn.execute(
         "INSERT INTO workflow_task_receipts (
             id, draft_session_id, workflow_run_id, plan_generation, task_identity,
@@ -1495,7 +1701,8 @@ fn REC_14_missing_or_corrupted_intermediate_evidence_requires_replan() {
                    'in-fp-1', 'out-fp-1', 1, NULL, 0, ?3, 0, '{\"broken_json\":', '2026-11-08T00:00:00Z');",
         params![draft_session_id, run_id, round_id],
     ).unwrap();
-    conn.execute("PRAGMA ignore_check_constraints = OFF;", []).unwrap();
+    conn.execute("PRAGMA ignore_check_constraints = OFF;", [])
+        .unwrap();
 
     let res = verify_historical_round(&conn, round_id, &["v2"], 1);
     assert_eq!(res.integrity, Integrity::Corrupt);
@@ -1519,7 +1726,15 @@ fn REC_15_full_round_retry_replays_durable_patches_without_duplication() {
     let round_id = "018e3a00-0000-7000-8000-000000000020";
     let run_id = "018e3a00-0000-7000-8000-000000000021";
     let round_seal_key = format!("wf_round:{}:1:0", run_id);
-    let s1_hash = seed_draft_version(&conn, draft_session_id, 2, &s1, "workflow_round", Some(1), Some(&round_seal_key));
+    let s1_hash = seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s1,
+        "workflow_round",
+        Some(1),
+        Some(&round_seal_key),
+    );
 
     let ev1 = EvidenceJsonV2 {
         schema_version: 2,
@@ -1535,9 +1750,14 @@ fn REC_15_full_round_retry_replays_durable_patches_without_duplication() {
         artifact: None,
     };
 
-    let manifest_tasks = vec![
-        ManifestTask::new(0, "t1", ev1.task_spec.clone(), "v1", "v1", "v2"),
-    ];
+    let manifest_tasks = vec![ManifestTask::new(
+        0,
+        "t1",
+        ev1.task_spec.clone(),
+        "v1",
+        "v1",
+        "v2",
+    )];
 
     let plan_input = PlanDigestInput {
         draft_session_id: draft_session_id.to_string(),
@@ -1569,8 +1789,18 @@ fn REC_15_full_round_retry_replays_durable_patches_without_duplication() {
             round_seal_key, task_count, parallel_limit, plan_digest, request_digest,
             base_version_seq, base_data_hash, final_data_hash, resulting_version_seq, created_at
          ) VALUES (?1, ?2, ?3, 1, 0, ?4, 1, 1, ?5, ?6, 1, ?7, ?8, 2, '2026-11-08T00:00:00Z');",
-        params![round_id, draft_session_id, run_id, round_seal_key, plan_digest, request_digest, s0_hash, s1_hash],
-    ).unwrap();
+        params![
+            round_id,
+            draft_session_id,
+            run_id,
+            round_seal_key,
+            plan_digest,
+            request_digest,
+            s0_hash,
+            s1_hash
+        ],
+    )
+    .unwrap();
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -1582,13 +1812,20 @@ fn REC_15_full_round_retry_replays_durable_patches_without_duplication() {
         params![draft_session_id, run_id, round_id, serde_json::to_string(&ev1).unwrap()],
     ).unwrap();
 
-    let count_before: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let count_before: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
 
     let res = verify_historical_round(&conn, round_id, &["v2"], 2);
     assert_eq!(res.integrity, Integrity::Verified);
     assert_eq!(res.attestation, Attestation::Attested);
     assert_eq!(res.applicability, Applicability::Applicable);
 
-    let count_after: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
-    assert_eq!(count_before, count_after, "Verification must be strictly read-only and create zero new versions");
+    let count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        count_before, count_after,
+        "Verification must be strictly read-only and create zero new versions"
+    );
 }

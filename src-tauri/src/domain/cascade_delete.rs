@@ -121,6 +121,7 @@ pub struct PendingProposal {
 
 /// Outcome of executing a cascade deletion.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum CascadeOutcome {
     /// Deletion was successfully executed on working state clone.
     Applied {
@@ -354,9 +355,9 @@ impl CascadePlanner {
                                                         code: format!("{}:{}", sc.code, lore.code),
                                                         source: src,
                                                         description: format!(
-                                                            "Protected scene lore link on scene '{}'",
-                                                            sc.code
-                                                        ),
+                                                        "Protected scene lore link on scene '{}'",
+                                                        sc.code
+                                                    ),
                                                     },
                                                 );
                                             }
@@ -484,7 +485,10 @@ impl CascadePlanner {
                                 item_type: "character_competence".to_string(),
                                 code: comp.code.clone(),
                                 source: src,
-                                description: format!("Protected character competence '{}'", comp.code),
+                                description: format!(
+                                    "Protected character competence '{}'",
+                                    comp.code
+                                ),
                             });
                         }
                     }
@@ -1118,7 +1122,9 @@ impl CascadePlanner {
     ) -> Result<(), ErrorCode> {
         for arc in &state.optional.overview_phase.arcs {
             for eb in &arc.motif.event_blocks {
-                if eb.code == target_code || eb.event_block_code.value.as_deref() == Some(target_code) {
+                if eb.code == target_code
+                    || eb.event_block_code.value.as_deref() == Some(target_code)
+                {
                     preview.links_to_delete.push(CascadeLinkRef {
                         link_type: "arc_event_block".to_string(),
                         parent_code: arc.code.clone(),
@@ -1351,7 +1357,10 @@ pub fn execute_delete_mut(
     declared_source: Option<ProvenanceSource>,
 ) -> CascadeOutcome {
     let outcome = execute_delete(state, caller, target_entity, target_code, declared_source);
-    if let CascadeOutcome::Applied { ref mutated_state, .. } = outcome {
+    if let CascadeOutcome::Applied {
+        ref mutated_state, ..
+    } = outcome
+    {
         *state = (**mutated_state).clone();
     }
     outcome
@@ -1368,7 +1377,13 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
     let links_to_delete: HashSet<(String, String, String)> = preview
         .links_to_delete
         .iter()
-        .map(|l| (l.link_type.clone(), l.parent_code.clone(), l.item_code.clone()))
+        .map(|l| {
+            (
+                l.link_type.clone(),
+                l.parent_code.clone(),
+                l.item_code.clone(),
+            )
+        })
         .collect();
 
     // 1. Arc deletions
@@ -1390,14 +1405,12 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
 
     // 2. Chapter deletions
     for arc in &mut state.optional.chapter_phase.arcs {
-        arc.chapters.retain(|c| {
-            !entity_codes_to_delete.contains(&("chapter".to_string(), c.code.clone()))
-        });
+        arc.chapters
+            .retain(|c| !entity_codes_to_delete.contains(&("chapter".to_string(), c.code.clone())));
     }
     for arc in &mut state.optional.scene_config_phase.arcs {
-        arc.chapters.retain(|c| {
-            !entity_codes_to_delete.contains(&("chapter".to_string(), c.code.clone()))
-        });
+        arc.chapters
+            .retain(|c| !entity_codes_to_delete.contains(&("chapter".to_string(), c.code.clone())));
     }
 
     // 3. Scene deletions
@@ -1417,9 +1430,13 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
     }
 
     // 4. World Setting deletions & attached lore entries
-    state.optional.world_building_phase.world_settings.retain(|ws| {
-        !entity_codes_to_delete.contains(&("world_setting".to_string(), ws.code.clone()))
-    });
+    state
+        .optional
+        .world_building_phase
+        .world_settings
+        .retain(|ws| {
+            !entity_codes_to_delete.contains(&("world_setting".to_string(), ws.code.clone()))
+        });
 
     for ws in &mut state.optional.world_building_phase.world_settings {
         ws.lore_entries.retain(|lore| {
@@ -1428,9 +1445,10 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
     }
 
     // 5. Character deletions & profiles
-    state.require.character.retain(|c| {
-        !entity_codes_to_delete.contains(&("character".to_string(), c.code.clone()))
-    });
+    state
+        .require
+        .character
+        .retain(|c| !entity_codes_to_delete.contains(&("character".to_string(), c.code.clone())));
     state
         .optional
         .character_appearance_phase
@@ -1450,7 +1468,8 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
     // Competence deletions within character profiles
     for life in &mut state.optional.character_life_experience_phase.character {
         life.competences.retain(|comp| {
-            !entity_codes_to_delete.contains(&("character_competence".to_string(), comp.code.clone()))
+            !entity_codes_to_delete
+                .contains(&("character_competence".to_string(), comp.code.clone()))
         });
         life.memories.retain(|mem| {
             if let Some(code) = &mem.code {
@@ -1513,7 +1532,11 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
     for arc in &mut state.optional.overview_phase.arcs {
         arc.themes.arguments.retain(|arg| {
             if let Some(code) = &arg.code {
-                !links_to_delete.contains(&("theme_argument".to_string(), arc.code.clone(), code.clone()))
+                !links_to_delete.contains(&(
+                    "theme_argument".to_string(),
+                    arc.code.clone(),
+                    code.clone(),
+                ))
             } else if let Some(char_code) = &arg.character_code.value {
                 !links_to_delete.contains(&(
                     "theme_argument".to_string(),
@@ -1558,11 +1581,13 @@ fn apply_preview_mutations(state: &mut BusinessFlowData, preview: &CascadePrevie
 
     // 10. Reference nullifications (e.g. character_memories.source_scene_code = null)
     for null_ref in &preview.references_to_nullify {
-        if null_ref.entity_type == "character_memory" && null_ref.field_name == "source_scene_code" {
+        if null_ref.entity_type == "character_memory" && null_ref.field_name == "source_scene_code"
+        {
             for life in &mut state.optional.character_life_experience_phase.character {
                 if life.code == null_ref.owner_code {
                     for mem in &mut life.memories {
-                        if mem.source_scene_code.value.as_ref() == null_ref.previous_value.as_ref() {
+                        if mem.source_scene_code.value.as_ref() == null_ref.previous_value.as_ref()
+                        {
                             mem.source_scene_code.value = None;
                             mem.source_scene_code.source = None;
                         }

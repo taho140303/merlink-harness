@@ -103,10 +103,9 @@ pub fn canonical_state_from_json_value(value: &Value) -> Result<Vec<u8>, DomainE
 /// 2. Normalizes every `TrackedField<T>` object (`{"value": ..., "source": ...}`) so that
 ///    `{"value": null, "source": null}` becomes `{"value": null, "source": "incomplete"}`.
 pub fn normalize_business_flow_value(state: &BusinessFlowData) -> Result<Value, DomainError> {
-    let mut root =
-        serde_json::to_value(state).map_err(|err| DomainError::UnknownStateShape {
-            reason: format!("failed to serialize BusinessFlowData: {err}"),
-        })?;
+    let mut root = serde_json::to_value(state).map_err(|err| DomainError::UnknownStateShape {
+        reason: format!("failed to serialize BusinessFlowData: {err}"),
+    })?;
 
     if let Some(meta_obj) = root.get_mut("meta").and_then(Value::as_object_mut) {
         meta_obj.remove("updated_at");
@@ -122,33 +121,23 @@ fn normalize_tracked_fields_in_place(val: &mut Value) {
             let is_tracked_field_shape = map.len() == 2
                 && map.contains_key("value")
                 && map.contains_key("source")
-                && matches!(
-                    map.get("source"),
-                    Some(Value::Null | Value::String(_))
-                );
+                && matches!(map.get("source"), Some(Value::Null | Value::String(_)));
 
             if is_tracked_field_shape {
-                let value_is_null = matches!(map.get("value"), Some(Value::Null));
                 let source_is_null = matches!(map.get("source"), Some(Value::Null));
-                if value_is_null && source_is_null {
-                    map.insert(
-                        "source".to_string(),
-                        Value::String(ProvenanceSource::Incomplete.as_str().to_string()),
-                    );
-                } else if !value_is_null && source_is_null {
+                if source_is_null {
                     map.insert(
                         "source".to_string(),
                         Value::String(ProvenanceSource::Incomplete.as_str().to_string()),
                     );
                 }
-            } else if map.contains_key("source") {
-                if matches!(map.get("source"), Some(Value::Null)) {
+            } else if map.contains_key("source")
+                && matches!(map.get("source"), Some(Value::Null)) {
                     map.insert(
                         "source".to_string(),
                         Value::String(ProvenanceSource::Incomplete.as_str().to_string()),
                     );
                 }
-            }
 
             for child in map.values_mut() {
                 normalize_tracked_fields_in_place(child);

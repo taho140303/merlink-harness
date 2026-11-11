@@ -47,9 +47,7 @@ fn search_limit(args: &Value) -> i64 {
 }
 
 fn search_offset(args: &Value) -> i64 {
-    args.get("offset")
-        .and_then(Value::as_u64)
-        .unwrap_or(0) as i64
+    args.get("offset").and_then(Value::as_u64).unwrap_or(0) as i64
 }
 
 fn page_hint(tool: &str) -> String {
@@ -61,7 +59,12 @@ fn page_hint(tool: &str) -> String {
 /// Genre list/detail. List mode is paginated and returns codes only so a large catalog never floods
 /// the context; the agent fetches a specific genre by `code` when it needs the full record.
 pub fn search_genre(conn: &Connection, args: &Value) -> Result<Value> {
-    if let Some(code) = args.get("code").and_then(Value::as_str).map(str::trim).filter(|c| !c.is_empty()) {
+    if let Some(code) = args
+        .get("code")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+    {
         let item = conn
             .query_row(
                 "SELECT code, display_name, description FROM genres WHERE code = ?1 LIMIT 1",
@@ -77,11 +80,17 @@ pub fn search_genre(conn: &Connection, args: &Value) -> Result<Value> {
             .optional()?;
         return Ok(match item {
             Some(item) => json!({"status": "applied", "detail": true, "total": 1, "items": [item]}),
-            None => json!({"status": "applied", "detail": true, "total": 0, "items": [], "error": "unknown_genre"}),
+            None => {
+                json!({"status": "applied", "detail": true, "total": 0, "items": [], "error": "unknown_genre"})
+            }
         });
     }
 
-    let query = args.get("query").and_then(Value::as_str).unwrap_or("").trim();
+    let query = args
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
     let pattern = format!("%{}%", escape_like(query));
     let total: i64 = conn.query_row(
         "SELECT COUNT(*) FROM genres
@@ -100,7 +109,11 @@ pub fn search_genre(conn: &Connection, args: &Value) -> Result<Value> {
         Ok(json!({"code": row.get::<_, String>(0)?}))
     })?;
     let items = rows.collect::<Result<Vec<_>>>()?;
-    let next_offset = if offset + limit < total { Some(offset + limit) } else { None };
+    let next_offset = if offset + limit < total {
+        Some(offset + limit)
+    } else {
+        None
+    };
     Ok(json!({
         "status": "applied",
         "total": total,
@@ -114,7 +127,12 @@ pub fn search_genre(conn: &Connection, args: &Value) -> Result<Value> {
 
 /// Motif list/detail with the same pagination and code-only list contract as genres.
 pub fn search_motif(conn: &Connection, args: &Value) -> Result<Value> {
-    if let Some(code) = args.get("code").and_then(Value::as_str).map(str::trim).filter(|c| !c.is_empty()) {
+    if let Some(code) = args
+        .get("code")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+    {
         let item = conn
             .query_row(
                 "SELECT code, display_name, category, description, min_chapter, max_chapter
@@ -134,11 +152,17 @@ pub fn search_motif(conn: &Connection, args: &Value) -> Result<Value> {
             .optional()?;
         return Ok(match item {
             Some(item) => json!({"status": "applied", "detail": true, "total": 1, "items": [item]}),
-            None => json!({"status": "applied", "detail": true, "total": 0, "items": [], "error": "unknown_motif"}),
+            None => {
+                json!({"status": "applied", "detail": true, "total": 0, "items": [], "error": "unknown_motif"})
+            }
         });
     }
 
-    let query = args.get("query").and_then(Value::as_str).unwrap_or("").trim();
+    let query = args
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
     let category = args.get("category").and_then(Value::as_str);
     let pattern = format!("%{}%", escape_like(query));
     let total: i64 = conn.query_row(
@@ -160,7 +184,11 @@ pub fn search_motif(conn: &Connection, args: &Value) -> Result<Value> {
         Ok(json!({"code": row.get::<_, String>(0)?}))
     })?;
     let items = rows.collect::<Result<Vec<_>>>()?;
-    let next_offset = if offset + limit < total { Some(offset + limit) } else { None };
+    let next_offset = if offset + limit < total {
+        Some(offset + limit)
+    } else {
+        None
+    };
     Ok(json!({
         "status": "applied",
         "total": total,
@@ -187,28 +215,53 @@ pub fn search_catalog(conn: &Connection, tool: &str, args: &Value) -> Result<Val
         _ => return Ok(json!({"status": "rejected", "error": "catalog_tool_unknown" })),
     };
 
-    if let Some(code) = args.get("code").and_then(Value::as_str).map(str::trim).filter(|c| !c.is_empty()) {
+    if let Some(code) = args
+        .get("code")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+    {
         let mut stmt = conn.prepare(&format!("SELECT * FROM {table} WHERE code = ?1 LIMIT 1"))?;
-        let columns: Vec<String> = stmt.column_names().iter().map(|name| name.to_string()).collect();
-        let item = stmt.query_row([code], |row| {
-            let mut object = serde_json::Map::new();
-            for (index, column) in columns.iter().enumerate() {
-                let value: rusqlite::types::Value = row.get(index)?;
-                object.insert(column.clone(), sqlite_value_to_json(value));
-            }
-            Ok(Value::Object(object))
-        }).optional()?;
+        let columns: Vec<String> = stmt
+            .column_names()
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
+        let item = stmt
+            .query_row([code], |row| {
+                let mut object = serde_json::Map::new();
+                for (index, column) in columns.iter().enumerate() {
+                    let value: rusqlite::types::Value = row.get(index)?;
+                    object.insert(column.clone(), sqlite_value_to_json(value));
+                }
+                Ok(Value::Object(object))
+            })
+            .optional()?;
         return Ok(match item {
             Some(item) => json!({"status":"applied","detail":true,"total":1,"items":[item]}),
-            None => json!({"status":"applied","detail":true,"total":0,"items":[],"error":"unknown_code"}),
+            None => {
+                json!({"status":"applied","detail":true,"total":0,"items":[],"error":"unknown_code"})
+            }
         });
     }
 
-    let query = args.get("query").and_then(Value::as_str).unwrap_or("").trim();
+    let query = args
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
     let pattern = format!("%{}%", escape_like(query));
     let category = args.get("category").and_then(Value::as_str);
-    let label_expr = if label_column == "code" { "code".to_string() } else { format!("coalesce({label_column}, code)") };
-    let category_clause = if filter_column.is_some() { " AND (?2 IS NULL OR category = ?2)" } else { " AND ?2 IS NULL" };
+    let label_expr = if label_column == "code" {
+        "code".to_string()
+    } else {
+        format!("coalesce({label_column}, code)")
+    };
+    let category_clause = if filter_column.is_some() {
+        " AND (?2 IS NULL OR category = ?2)"
+    } else {
+        " AND ?2 IS NULL"
+    };
     let base = format!(
         "WHERE code IS NOT NULL AND (code LIKE ?1 ESCAPE '\\' OR {label_expr} LIKE ?1 ESCAPE '\\'){category_clause}"
     );
@@ -219,12 +272,18 @@ pub fn search_catalog(conn: &Connection, tool: &str, args: &Value) -> Result<Val
     )?;
     let limit = search_limit(args);
     let offset = search_offset(args);
-    let mut stmt = conn.prepare(&format!("SELECT code FROM {table} {base} ORDER BY code COLLATE NOCASE LIMIT ?3 OFFSET ?4"))?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT code FROM {table} {base} ORDER BY code COLLATE NOCASE LIMIT ?3 OFFSET ?4"
+    ))?;
     let rows = stmt.query_map(params![pattern, category, limit, offset], |row| {
         Ok(json!({"code": row.get::<_, String>(0)?}))
     })?;
     let items = rows.collect::<Result<Vec<_>>>()?;
-    let next_offset = if offset + limit < total { Some(offset + limit) } else { None };
+    let next_offset = if offset + limit < total {
+        Some(offset + limit)
+    } else {
+        None
+    };
     Ok(json!({
         "status":"applied",
         "total": total,
@@ -249,7 +308,10 @@ fn sqlite_value_to_json(value: rusqlite::types::Value) -> Value {
 
 // A search term is literal: SQLite LIKE wildcards supplied by the model must not broaden it.
 fn escape_like(query: &str) -> String {
-    query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+    query
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 #[cfg(test)]
@@ -287,7 +349,10 @@ mod tests {
         let result = search_genre(&conn, &json!({"query":"Kỳ"})).unwrap();
         assert_eq!(result["items"][0]["code"], "fantasy");
         assert_eq!(result["items"].as_array().unwrap().len(), 1);
-        assert!(search_genre(&conn, &json!({"query":"%"})).unwrap()["items"].as_array().unwrap().is_empty());
+        assert!(search_genre(&conn, &json!({"query":"%"})).unwrap()["items"]
+            .as_array()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -297,7 +362,10 @@ mod tests {
         assert_eq!(first["total"], 2);
         assert_eq!(first["items"].as_array().unwrap().len(), 1);
         assert_eq!(first["items"][0]["code"], "fantasy");
-        assert!(first["items"][0].get("display_name").is_none(), "list mode must only return codes");
+        assert!(
+            first["items"][0].get("display_name").is_none(),
+            "list mode must only return codes"
+        );
         assert_eq!(first["next_offset"], 1);
 
         let second = search_genre(&conn, &json!({"limit": 1, "offset": 1})).unwrap();
@@ -320,10 +388,20 @@ mod tests {
         assert!(page["items"][0].get("display_name").is_none());
         assert_eq!(page["next_offset"], 1);
 
-        let next = search_catalog(&conn, "search_narrator_config", &json!({"limit": 1, "offset": 1})).unwrap();
+        let next = search_catalog(
+            &conn,
+            "search_narrator_config",
+            &json!({"limit": 1, "offset": 1}),
+        )
+        .unwrap();
         assert_eq!(next["items"][0]["code"], "third_limited");
 
-        let detail = search_catalog(&conn, "search_narrator_config", &json!({"code": "third_limited"})).unwrap();
+        let detail = search_catalog(
+            &conn,
+            "search_narrator_config",
+            &json!({"code": "third_limited"}),
+        )
+        .unwrap();
         assert_eq!(detail["items"][0]["display_name"], "Third Limited");
         assert_eq!(detail["items"][0]["pov_scope"], "limited");
     }
@@ -331,9 +409,18 @@ mod tests {
     #[test]
     fn test_search_motif_category_and_limit() {
         let conn = catalog();
-        let result = search_motif(&conn, &json!({"query":"hero", "category":"character_arc", "limit":1})).unwrap();
+        let result = search_motif(
+            &conn,
+            &json!({"query":"hero", "category":"character_arc", "limit":1}),
+        )
+        .unwrap();
         assert_eq!(result["items"].as_array().unwrap().len(), 1);
         assert_eq!(result["items"][0]["code"], "hero_arc");
-        assert!(search_motif(&conn, &json!({"category":"relationship"})).unwrap()["items"].as_array().unwrap().is_empty());
+        assert!(
+            search_motif(&conn, &json!({"category":"relationship"})).unwrap()["items"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
 }

@@ -181,7 +181,10 @@ fn relationship_missing(flow: &BusinessFlowData) -> Vec<String> {
         let from = relationship.character.from_code.as_str();
         let to = relationship.character.to_code.as_str();
         if from.trim().is_empty() || to.trim().is_empty() {
-            missing.push(format!("Quan hệ {} thiếu from_code/to_code", relationship.code));
+            missing.push(format!(
+                "Quan hệ {} thiếu from_code/to_code",
+                relationship.code
+            ));
             continue;
         }
         if !characters.contains(&from) || !characters.contains(&to) {
@@ -241,13 +244,7 @@ pub fn missing_for_phase(flow: &BusinessFlowData, phase: i32) -> Vec<String> {
         }
         1 => {
             let mut missing = Vec::new();
-            let target = flow
-                .require
-                .project
-                .target
-                .arc_count
-                .value
-                .unwrap_or(0);
+            let target = flow.require.project.target.arc_count.value.unwrap_or(0);
             let arcs = &flow.optional.overview_phase.arcs;
             if arcs.len() as u32 != target {
                 missing.push(format!(
@@ -279,13 +276,7 @@ pub fn missing_for_phase(flow: &BusinessFlowData, phase: i32) -> Vec<String> {
         }
         2 => {
             let mut missing = Vec::new();
-            let target = flow
-                .require
-                .project
-                .target
-                .chapter_count
-                .value
-                .unwrap_or(0);
+            let target = flow.require.project.target.chapter_count.value.unwrap_or(0);
             let chapters: Vec<_> = flow
                 .optional
                 .chapter_phase
@@ -413,6 +404,7 @@ pub fn can_advance(flow: &BusinessFlowData, phase: i32, subphase: Option<i32>) -
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::domain::business_flow::{
@@ -429,13 +421,14 @@ mod tests {
         project.target.arc_count = TrackedField::user(5);
         project.target.chapter_count = TrackedField::user(150);
         project.target.word_per_chapter_count = TrackedField::user(2000);
-        flow.require.project.genres.push(
-            crate::domain::business_flow::RequireGenreItem {
+        flow.require
+            .project
+            .genres
+            .push(crate::domain::business_flow::RequireGenreItem {
                 code: TrackedField::user("romance".into()),
                 is_primary: TrackedField::user(true),
                 display_name: TrackedField::user("Lãng mạn".into()),
-            },
-        );
+            });
         let mut character = RequireCharacterItem::default();
         character.code = "hero".into();
         character.display_name = TrackedField::user("Anh hùng".into());
@@ -479,7 +472,10 @@ mod tests {
     fn with_chapters(mut flow: BusinessFlowData) -> BusinessFlowData {
         flow.optional.chapter_phase.arcs.clear();
         for arc in &flow.optional.overview_phase.arcs {
-            let mut chapter_arc = ChapterPhaseArcItem { code: arc.code.clone(), chapters: Vec::new() };
+            let mut chapter_arc = ChapterPhaseArcItem {
+                code: arc.code.clone(),
+                chapters: Vec::new(),
+            };
             for position in 0..30u32 {
                 let mut scene = ChapterPhaseSceneItem::default();
                 scene.code = format!("{}-c{}-s1", arc.code, position + 1);
@@ -511,7 +507,11 @@ mod tests {
         let missing = missing_for_phase(&flow, 1);
         assert!(!missing.is_empty());
         let flow = with_arcs(flow);
-        assert!(missing_for_phase(&flow, 1).is_empty(), "{:?}", missing_for_phase(&flow, 1));
+        assert!(
+            missing_for_phase(&flow, 1).is_empty(),
+            "{:?}",
+            missing_for_phase(&flow, 1)
+        );
         let mut broken = flow.clone();
         broken.optional.overview_phase.arcs[0].summary = TrackedField::default();
         assert!(!missing_for_phase(&broken, 1).is_empty());
@@ -556,7 +556,8 @@ mod tests {
         let flow = with_chapters(with_arcs(complete_require()));
         assert!(missing_for_phase(&flow, 2).is_empty());
         let mut broken = flow.clone();
-        broken.optional.chapter_phase.arcs[0].chapters[0].scenes[0].summary = TrackedField::default();
+        broken.optional.chapter_phase.arcs[0].chapters[0].scenes[0].summary =
+            TrackedField::default();
         assert!(!missing_for_phase(&broken, 2).is_empty());
     }
 }

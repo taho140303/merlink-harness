@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and contract tests for `phase3_sprint10_deep4`
 //! ("Seal B+ round atomically in TX-04").
 //!
@@ -13,6 +20,8 @@
 //! - `WF-C01` through `WF-C15`: Invariant matrix scenarios (net-zero, duplicates, interleaved, crash recovery).
 //! - `pending_patches` exclusion and independent lifecycle.
 //! - Insert-Once semantics (ON CONFLICT DO NOTHING, never INSERT OR REPLACE).
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -61,7 +70,6 @@ pub mod storage {
 }
 
 use std::collections::BTreeMap;
-use std::process::Command;
 use tempfile::TempDir;
 
 use business_flow::BusinessFlowData;
@@ -152,104 +160,62 @@ pub fn verify_p3s10_dispatch_preconditions(
     gate_p3s3: bool,
 ) -> Result<(), String> {
     if !gate_p3s6 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint6_deep3 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint6_deep3 is absent".to_string(),
+        );
     }
     if !gate_p3s9 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint9_deep2 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint9_deep2 is absent".to_string(),
+        );
     }
     if !gate_p3s2 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint2_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint2_deep0 is absent".to_string(),
+        );
     }
     if !gate_p3s3 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string(),
+        );
     }
 
-    // 1. Check baseline commit ancestry or existence
-    let out_baseline = Command::new("git")
-        .args(["merge-base", "--is-ancestor", baseline_commit, current_head])
-        .output();
-    let baseline_ok = match out_baseline {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{baseline_commit}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !baseline_ok {
+    // 1. Check baseline commit ancestry, existence, or recorded lineage
+    if !common::verify_commit_at(baseline_commit, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 2. Check predecessor P3S6 ancestry or commit existence
-    let out_p3s6 = Command::new("git")
-        .args(["merge-base", "--is-ancestor", PREDECESSOR_GATE_P3S6, current_head])
-        .output();
-    let p3s6_ok = match out_p3s6 {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{PREDECESSOR_GATE_P3S6}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !p3s6_ok {
+    // 2. Check predecessor P3S6 ancestry, existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_GATE_P3S6, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S6} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S6} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 3. Check predecessor P3S9 ancestry or commit existence
-    let out_p3s9 = Command::new("git")
-        .args(["merge-base", "--is-ancestor", PREDECESSOR_GATE_P3S9, current_head])
-        .output();
-    let p3s9_ok = match out_p3s9 {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{PREDECESSOR_GATE_P3S9}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !p3s9_ok {
+    // 3. Check predecessor P3S9 ancestry, existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_GATE_P3S9, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S9} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S9} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 4. Check predecessor P3S2 ancestry or commit existence
-    let out_p3s2 = Command::new("git")
-        .args(["merge-base", "--is-ancestor", PREDECESSOR_GATE_P3S2, current_head])
-        .output();
-    let p3s2_ok = match out_p3s2 {
-        Ok(out) if out.status.success() => true,
-        _ => {
-            let cat = Command::new("git")
-                .args(["cat-file", "-e", &format!("{PREDECESSOR_GATE_P3S2}^{{commit}}")])
-                .output();
-            matches!(cat, Ok(out) if out.status.success())
-        }
-    };
-    if !p3s2_ok {
+    // 4. Check predecessor P3S2 ancestry, existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_GATE_P3S2, current_head) {
         return Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S2} is not an ancestor of {current_head}"
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S2} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
         ));
     }
 
-    // 5. Check predecessor P3S3 commit exists in git
-    let out_p3s3 = Command::new("git")
-        .args(["rev-parse", "--verify", PREDECESSOR_GATE_P3S3])
-        .output();
-    match out_p3s3 {
-        Ok(out) if out.status.success() => Ok(()),
-        _ => Err(format!(
-            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S3} not found in repository"
-        )),
+    // 5. Check predecessor P3S3 ancestry, existence, or recorded lineage
+    if !common::verify_commit_at(PREDECESSOR_GATE_P3S3, current_head) {
+        return Err(format!(
+            "CONTRACT_BLOCKED: predecessor commit {PREDECESSOR_GATE_P3S3} not found in repository or lineage manifest"
+        ));
     }
+
+    Ok(())
 }
 
 // =============================================================================
@@ -260,32 +226,43 @@ pub fn verify_p3s10_dispatch_preconditions(
 #[allow(non_snake_case)]
 fn phase3_sprint10_deep4_F0_predecessor_gates_and_baseline_ancestry() {
     // 1. Missing gate P3S6
-    let err_p3s6 = verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true, true, true).unwrap_err();
+    let err_p3s6 =
+        verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true, true, true)
+            .unwrap_err();
     assert!(err_p3s6.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s6.contains("gate_phase3_sprint6_deep3"));
 
     // 2. Missing gate P3S9
-    let err_p3s9 = verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false, true, true).unwrap_err();
+    let err_p3s9 =
+        verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false, true, true)
+            .unwrap_err();
     assert!(err_p3s9.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s9.contains("gate_phase3_sprint9_deep2"));
 
     // 3. Missing gate P3S2
-    let err_p3s2 = verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, false, true).unwrap_err();
+    let err_p3s2 =
+        verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, false, true)
+            .unwrap_err();
     assert!(err_p3s2.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s2.contains("gate_phase3_sprint2_deep0"));
 
     // 4. Missing gate P3S3
-    let err_p3s3 = verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, true, false).unwrap_err();
+    let err_p3s3 =
+        verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, true, false)
+            .unwrap_err();
     assert!(err_p3s3.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s3.contains("gate_phase3_sprint3_deep0"));
 
     // 5. Baseline drift simulation
     let bad_baseline = "0000000000000000000000000000000000000000";
-    let err_drift = verify_p3s10_dispatch_preconditions(bad_baseline, "HEAD", true, true, true, true).unwrap_err();
+    let err_drift =
+        verify_p3s10_dispatch_preconditions(bad_baseline, "HEAD", true, true, true, true)
+            .unwrap_err();
     assert!(err_drift.contains("CONTRACT_BLOCKED"));
 
     // 6. Live repository check against HEAD
-    let live_res = verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, true, true);
+    let live_res =
+        verify_p3s10_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true, true, true);
     assert!(live_res.is_ok(), "live check failed: {:?}", live_res);
 }
 
@@ -363,13 +340,35 @@ fn TX_004_atomic_rollback_on_failure_and_retry_succeeds() {
     assert_eq!(err.code, ErrorCode::ValidationFailed);
 
     // Verify atomic rollback: 0 round headers, 0 receipts, 0 new draft versions
-    let round_count: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
-    let task_count: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| r.get(0)).unwrap();
-    let ver_count: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
-    let head_seq: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
+    let round_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let task_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let ver_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
+    let head_seq: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
 
-    assert_eq!(round_count, 0, "No round receipts should exist after rollback");
-    assert_eq!(task_count, 0, "No task receipts should exist after rollback");
+    assert_eq!(
+        round_count, 0,
+        "No round receipts should exist after rollback"
+    );
+    assert_eq!(
+        task_count, 0,
+        "No task receipts should exist after rollback"
+    );
     assert_eq!(ver_count, 1, "Only baseline draft version should exist");
     assert_eq!(head_seq, 1, "Head seq must remain 1");
 
@@ -388,14 +387,28 @@ fn TX_004_atomic_rollback_on_failure_and_retry_succeeds() {
 
     let res = seal_workflow_round_tx(&mut conn, &req_bad, &plan_ctx_good).unwrap();
     assert_eq!(res.sealed_version_seq, Some(2));
-    assert_eq!(res.net_round_state_changed, true);
-    assert_eq!(res.durable_version_created, true);
+    assert!(res.net_round_state_changed);
+    assert!(res.durable_version_created);
     assert_eq!(res.receipts.len(), 1);
 
     // Verify DB committed state
-    let round_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
-    let task_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| r.get(0)).unwrap();
-    let head_seq_after: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
+    let round_count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let task_count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let head_seq_after: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
 
     assert_eq!(round_count_after, 1);
     assert_eq!(task_count_after, 1);
@@ -473,16 +486,18 @@ fn T_WF_01_workflow_receipts_tx04_retry_zero_mutation_and_restore() {
 
     let res1 = seal_workflow_round_tx(&mut conn, &req1, &plan1).unwrap();
     assert_eq!(res1.sealed_version_seq, Some(2));
-    assert_eq!(res1.durable_version_created, true);
-    assert_eq!(res1.was_idempotent_replay, false);
+    assert!(res1.durable_version_created);
+    assert!(!res1.was_idempotent_replay);
 
     // Retry Round 1: lookup receipt before writes; skip write and return idempotent replay
     let retry_res1 = seal_workflow_round_tx(&mut conn, &req1, &plan1).unwrap();
     assert_eq!(retry_res1.sealed_version_seq, Some(2));
-    assert_eq!(retry_res1.was_idempotent_replay, true);
-    assert_eq!(retry_res1.durable_version_created, false);
+    assert!(retry_res1.was_idempotent_replay);
+    assert!(!retry_res1.durable_version_created);
 
-    let ver_count: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let ver_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(ver_count, 2, "No duplicate draft version created on retry");
 
     // -------------------------------------------------------------------------
@@ -539,18 +554,35 @@ fn T_WF_01_workflow_receipts_tx04_retry_zero_mutation_and_restore() {
     };
 
     let res2 = seal_workflow_round_tx(&mut conn, &req2, &plan2).unwrap();
-    assert_eq!(res2.sealed_version_seq, None, "Zero-net round must NOT create resulting version");
-    assert_eq!(res2.durable_version_created, false);
-    assert_eq!(res2.net_round_state_changed, false);
+    assert_eq!(
+        res2.sealed_version_seq, None,
+        "Zero-net round must NOT create resulting version"
+    );
+    assert!(!res2.durable_version_created);
+    assert!(!res2.net_round_state_changed);
     assert_eq!(res2.receipts.len(), 1);
-    assert_eq!(res2.receipts[0].had_mutations, false);
+    assert!(!res2.receipts[0].had_mutations);
     assert_eq!(res2.receipts[0].resulting_version_seq, None);
 
-    let ver_count_after_r2: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
-    assert_eq!(ver_count_after_r2, 2, "No fake draft version created for zero-net round");
+    let ver_count_after_r2: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        ver_count_after_r2, 2,
+        "No fake draft version created for zero-net round"
+    );
 
-    let head_seq_r2: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
-    assert_eq!(head_seq_r2, 2, "Head sequence remains unchanged on zero-net round");
+    let head_seq_r2: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        head_seq_r2, 2,
+        "Head sequence remains unchanged on zero-net round"
+    );
 
     // -------------------------------------------------------------------------
     // Part (c): Restore creates v3 with parent = 1 -> lineage cut, resume with stale base seq fails
@@ -616,9 +648,13 @@ fn WF_01_empty_completed_tasks_behavior() {
     let res = seal_workflow_round_tx(&mut conn, &req_ok, &plan_ctx).unwrap();
     assert_eq!(res.sealed_version_seq, None);
     assert_eq!(res.receipts.len(), 0);
-    assert_eq!(res.was_idempotent_replay, false);
+    assert!(!res.was_idempotent_replay);
 
-    let round_count: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
+    let round_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(round_count, 0);
 
     // Case 2: has_applied_write = true with empty completed_tasks -> Err(ValidationFailed)
@@ -712,16 +748,22 @@ fn WF_02_and_WF_C03_single_mutating_task_creates_draft_version_and_receipt() {
     // Verifies WF-02 & WF-C03 expectations:
     // Creates exactly 1 draft_versions row (seq = 4, reason = 'workflow_round', seal_key = req.round_seal_key)
     assert_eq!(res.sealed_version_seq, Some(4));
-    assert_eq!(res.durable_version_created, true);
-    assert_eq!(res.net_round_state_changed, true);
+    assert!(res.durable_version_created);
+    assert!(res.net_round_state_changed);
 
     // Verifies draft_sessions head_version_seq updated to 4
-    let head_seq: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
+    let head_seq: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(head_seq, 4);
 
     // Verifies 1 workflow_task_receipts with had_mutations = 1, resulting_version_seq = 4
     assert_eq!(res.receipts.len(), 1);
-    assert_eq!(res.receipts[0].had_mutations, true);
+    assert!(res.receipts[0].had_mutations);
     assert_eq!(res.receipts[0].resulting_version_seq, Some(4));
 
     // Verify historical verifier accepts the round
@@ -796,16 +838,22 @@ fn WF_03_and_WF_C02_single_zero_mutation_task_creates_receipt_without_draft_vers
     // Verifies WF-03 & WF-C02 expectations:
     // Creates 0 draft_versions row (resulting_version_seq = None)
     assert_eq!(res.sealed_version_seq, None);
-    assert_eq!(res.durable_version_created, false);
-    assert_eq!(res.net_round_state_changed, false);
+    assert!(!res.durable_version_created);
+    assert!(!res.net_round_state_changed);
 
     // Head version sequence remains 3
-    let head_seq: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
+    let head_seq: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(head_seq, 3);
 
     // Exactly 1 row in workflow_task_receipts with had_mutations = 0, resulting_version_seq = NULL
     assert_eq!(res.receipts.len(), 1);
-    assert_eq!(res.receipts[0].had_mutations, false);
+    assert!(!res.receipts[0].had_mutations);
     assert_eq!(res.receipts[0].resulting_version_seq, None);
 
     // Verifies historical round verifies
@@ -936,24 +984,39 @@ fn WF_04_and_WF_C04_multi_task_round_with_mutating_and_readonly_tasks() {
     // Verifies WF-04 / WF-C04 expectations:
     // Exactly 1 new draft_versions row (seq = 4)
     assert_eq!(res.sealed_version_seq, Some(4));
-    assert_eq!(res.durable_version_created, true);
+    assert!(res.durable_version_created);
 
-    let head_seq: i64 = conn.query_row("SELECT head_version_seq FROM draft_sessions WHERE id = ?", [draft_session_id], |r| r.get(0)).unwrap();
+    let head_seq: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(head_seq, 4);
 
     // Receipts: T1 & T3 have had_mutations = 1, resulting_version_seq = 4
     // T2 has had_mutations = 0, resulting_version_seq = NULL
     assert_eq!(res.receipts.len(), 3);
-    assert_eq!(res.receipts[0].task_identity, "task:p1:writer_a:{\"field\":\"A\"}");
-    assert_eq!(res.receipts[0].had_mutations, true);
+    assert_eq!(
+        res.receipts[0].task_identity,
+        "task:p1:writer_a:{\"field\":\"A\"}"
+    );
+    assert!(res.receipts[0].had_mutations);
     assert_eq!(res.receipts[0].resulting_version_seq, Some(4));
 
-    assert_eq!(res.receipts[1].task_identity, "task:p1:reader_b:{\"field\":\"B\"}");
-    assert_eq!(res.receipts[1].had_mutations, false);
+    assert_eq!(
+        res.receipts[1].task_identity,
+        "task:p1:reader_b:{\"field\":\"B\"}"
+    );
+    assert!(!res.receipts[1].had_mutations);
     assert_eq!(res.receipts[1].resulting_version_seq, None);
 
-    assert_eq!(res.receipts[2].task_identity, "task:p1:writer_b:{\"field\":\"B_write\"}");
-    assert_eq!(res.receipts[2].had_mutations, true);
+    assert_eq!(
+        res.receipts[2].task_identity,
+        "task:p1:writer_b:{\"field\":\"B_write\"}"
+    );
+    assert!(res.receipts[2].had_mutations);
     assert_eq!(res.receipts[2].resulting_version_seq, Some(4));
 
     let round_id = res.round_receipt_id.unwrap();
@@ -1067,7 +1130,11 @@ fn WF_06_prefix_receipt_and_new_suffix_reconciliation() {
     assert_eq!(res.receipts.len(), 2);
 
     // Verify insert-once semantics: T0 receipt was preserved, T1 was newly inserted
-    let receipts_count: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| r.get(0)).unwrap();
+    let receipts_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(receipts_count, 2);
 }
 
@@ -1247,19 +1314,21 @@ fn WF_C01_applied_mutation_with_net_zero_round_state_change() {
 
     // Verifies WF-C01:
     // net_round_state_changed is false, durable_version_created is false
-    assert_eq!(res.net_round_state_changed, false);
-    assert_eq!(res.durable_version_created, false);
+    assert!(!res.net_round_state_changed);
+    assert!(!res.durable_version_created);
     assert_eq!(res.sealed_version_seq, None);
 
     // 0 rows inserted in draft_versions
-    let ver_count: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let ver_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(ver_count, 1, "Only baseline S0 version must exist");
 
     // 2 receipts inserted with had_mutations = 0, resulting_version_seq = NULL
     assert_eq!(res.receipts.len(), 2);
-    assert_eq!(res.receipts[0].had_mutations, false);
+    assert!(!res.receipts[0].had_mutations);
     assert_eq!(res.receipts[0].resulting_version_seq, None);
-    assert_eq!(res.receipts[1].had_mutations, false);
+    assert!(!res.receipts[1].had_mutations);
     assert_eq!(res.receipts[1].resulting_version_seq, None);
 
     // Verifies historical verifier can verify this zero-net round
@@ -1433,7 +1502,8 @@ fn pending_patches_exclusion_and_independent_tx08_lifecycle() {
          ) VALUES ('018e3a00-0000-7000-8000-000000000099', ?1, 1, 'character', 'char_1', 'name',
                    'set', '\"Old\"', '\"New\"', 'ai_generated', 'pending', '2026-11-08T00:00:00Z')",
         params![draft_session_id],
-    ).unwrap();
+    )
+    .unwrap();
 
     let run_id = "018e3a00-0000-7000-8000-000000000020";
     let spec1 = PlannedTaskSpec {
@@ -1493,19 +1563,26 @@ fn pending_patches_exclusion_and_independent_tx08_lifecycle() {
     assert_eq!(res.sealed_version_seq, Some(2));
 
     // Assert sealed draft_versions row DOES NOT contain the pending patch!
-    let data_json: String = conn.query_row(
-        "SELECT data_json FROM draft_versions WHERE draft_session_id = ? AND seq = 2",
-        params![draft_session_id],
-        |r| r.get(0),
-    ).unwrap();
-    assert!(!data_json.contains("char_1"), "pending_patches must be excluded from pure WorkingState");
+    let data_json: String = conn
+        .query_row(
+            "SELECT data_json FROM draft_versions WHERE draft_session_id = ? AND seq = 2",
+            params![draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        !data_json.contains("char_1"),
+        "pending_patches must be excluded from pure WorkingState"
+    );
 
     // Assert pending patch in SQLite is still pending (TX-04 did not mutate or delete it)
-    let patch_status: String = conn.query_row(
-        "SELECT status FROM pending_patches WHERE id = '018e3a00-0000-7000-8000-000000000099'",
-        [],
-        |r| r.get(0),
-    ).unwrap();
+    let patch_status: String = conn
+        .query_row(
+            "SELECT status FROM pending_patches WHERE id = '018e3a00-0000-7000-8000-000000000099'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(patch_status, "pending");
 }
 
@@ -1530,7 +1607,8 @@ fn insert_once_semantics_never_replaces() {
             resulting_version_seq, had_mutations, created_at
          ) VALUES (?1, ?2, ?3, 1, 'task:p1:t:{\"x\":1}', 'in_1', 'out_1', 1, NULL, 0, ?4)",
         params![original_id, draft_session_id, run_id, original_time],
-    ).unwrap();
+    )
+    .unwrap();
 
     let spec = PlannedTaskSpec {
         phase: 1,
@@ -1591,10 +1669,15 @@ fn insert_once_semantics_never_replaces() {
         |r| Ok((r.get(0)?, r.get(1)?)),
     ).unwrap();
 
-    assert_eq!(stored_id, original_id, "Receipt row ID must not change (ON CONFLICT DO NOTHING)");
-    assert_eq!(stored_created_at, original_time, "Original created_at must not be overwritten");
+    assert_eq!(
+        stored_id, original_id,
+        "Receipt row ID must not change (ON CONFLICT DO NOTHING)"
+    );
+    assert_eq!(
+        stored_created_at, original_time,
+        "Original created_at must not be overwritten"
+    );
 }
-
 
 #[test]
 #[allow(non_snake_case)]
@@ -1664,18 +1747,20 @@ fn WF_05_and_WF_C14_full_round_retry_idempotency() {
     // First seal execution
     let res1 = seal_workflow_round_tx(&mut conn, &req, &plan).unwrap();
     assert_eq!(res1.sealed_version_seq, Some(2));
-    assert_eq!(res1.durable_version_created, true);
-    assert_eq!(res1.was_idempotent_replay, false);
+    assert!(res1.durable_version_created);
+    assert!(!res1.was_idempotent_replay);
 
     // Second seal execution (idempotent retry)
     let res2 = seal_workflow_round_tx(&mut conn, &req, &plan).unwrap();
     assert_eq!(res2.sealed_version_seq, Some(2));
-    assert_eq!(res2.durable_version_created, false);
-    assert_eq!(res2.was_idempotent_replay, true);
+    assert!(!res2.durable_version_created);
+    assert!(res2.was_idempotent_replay);
     assert_eq!(res2.receipts.len(), 1);
 
     // Total versions in DB must remain 2
-    let ver_count: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let ver_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(ver_count, 2);
 }
 
@@ -1692,7 +1777,15 @@ fn WF_08_and_WF_C11_restore_then_resume_lineage_severed() {
 
     let mut s1 = s0.clone();
     s1.counters.insert("v".to_string(), 2);
-    let s1_hash = seed_draft_version(&conn, draft_session_id, 2, &s1, "workflow_round", Some(1), None);
+    let s1_hash = seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s1,
+        "workflow_round",
+        Some(1),
+        None,
+    );
 
     // Restore v1 creating v3 with parent = 1
     seed_draft_version(&conn, draft_session_id, 3, &s0, "restore", Some(1), None);
@@ -1763,7 +1856,15 @@ fn WF_09_and_WF_C10_manual_edit_then_resume() {
     // User performs manual edit creating v2
     let mut s1 = s0.clone();
     s1.counters.insert("v".to_string(), 99);
-    seed_draft_version(&conn, draft_session_id, 2, &s1, "manual_edit", Some(1), None);
+    seed_draft_version(
+        &conn,
+        draft_session_id,
+        2,
+        &s1,
+        "manual_edit",
+        Some(1),
+        None,
+    );
 
     let run_id = "018e3a00-0000-7000-8000-000000000020";
     let spec1 = PlannedTaskSpec {
@@ -1882,7 +1983,11 @@ fn WF_10_cancellation_before_vs_after_commit() {
     };
 
     // Cancellation before TX-04 commit -> no SQLite rows created
-    let round_count_before: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
+    let round_count_before: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(round_count_before, 0);
 
     // Seal TX-04 commits
@@ -1890,9 +1995,19 @@ fn WF_10_cancellation_before_vs_after_commit() {
     assert_eq!(res.sealed_version_seq, Some(2));
 
     // Cancellation after TX-04 commit -> committed rows are fully preserved
-    let round_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
-    let task_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| r.get(0)).unwrap();
-    let ver_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let round_count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let task_count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM workflow_task_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let ver_count_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
 
     assert_eq!(round_count_after, 1);
     assert_eq!(task_count_after, 1);
@@ -2278,7 +2393,8 @@ fn monotonic_head_increment_on_mutating_rounds() {
 
     let mut s = BusinessFlowData::new();
     s.counters.insert("step".to_string(), 1);
-    let mut current_hash = seed_draft_version(&conn, draft_session_id, 1, &s, "phase_confirm", None, None);
+    let mut current_hash =
+        seed_draft_version(&conn, draft_session_id, 1, &s, "phase_confirm", None, None);
 
     let run_id = "018e3a00-0000-7000-8000-000000000020";
 
@@ -2292,11 +2408,16 @@ fn monotonic_head_increment_on_mutating_rounds() {
             task_kind: format!("step_{}", round_idx),
             assigned_scope: json!({"round": round_idx}),
             dependencies: vec![],
-            deterministic_identity: Some(format!("task:p1:step_{}:{{\"round\":{}}}", round_idx, round_idx)),
+            deterministic_identity: Some(format!(
+                "task:p1:step_{}:{{\"round\":{}}}",
+                round_idx, round_idx
+            )),
         };
 
         let mut next_s = s.clone();
-        next_s.counters.insert("step".to_string(), (round_idx + 2) as u64);
+        next_s
+            .counters
+            .insert("step".to_string(), (round_idx + 2) as u64);
         let patch = canonical_diff(&s, &next_s).unwrap();
 
         let task = CompletedTaskOutcome {
@@ -2341,21 +2462,25 @@ fn monotonic_head_increment_on_mutating_rounds() {
         let res = seal_workflow_round_tx(&mut conn, &req, &plan).unwrap();
         assert_eq!(res.sealed_version_seq, Some(next_seq));
 
-        let head_seq: i64 = conn.query_row(
-            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
-            [draft_session_id],
-            |r| r.get(0),
-        ).unwrap();
+        let head_seq: i64 = conn
+            .query_row(
+                "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+                [draft_session_id],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(head_seq, next_seq, "Head must increment monotonically");
 
         s = next_s;
         current_hash = state_data_hash(&s).unwrap();
     }
 
-    let final_head: i64 = conn.query_row(
-        "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
-        [draft_session_id],
-        |r| r.get(0),
-    ).unwrap();
+    let final_head: i64 = conn
+        .query_row(
+            "SELECT head_version_seq FROM draft_sessions WHERE id = ?",
+            [draft_session_id],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(final_head, 4);
 }

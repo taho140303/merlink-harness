@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and integration tests for `phase4_sprint4_deep1`
 //! ("Persist Writing read-model locks and chapter Save").
 //!
@@ -5,6 +12,8 @@
 //! and docs/plan/evidence/contract-ledger.md (`CI-06`, `CI-08`, `SF-02`, `SF-07`).
 
 #![allow(non_snake_case)]
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -15,12 +24,12 @@ pub mod business_flow;
 pub mod code_allocator;
 #[path = "../src/domain/fingerprint.rs"]
 pub mod fingerprint;
-#[path = "../src/domain/word_count.rs"]
-pub mod word_count;
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
+#[path = "../src/domain/word_count.rs"]
+pub mod word_count;
 
 pub mod domain {
     pub use crate::business_flow;
@@ -61,12 +70,11 @@ pub mod ipc {
     pub use crate::writing_persistence_commands;
 }
 
-use std::path::PathBuf;
-use std::process::Command;
 use chrono::Utc;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection};
+use std::path::PathBuf;
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -102,10 +110,7 @@ fn setup_test_db(temp_dir: &TempDir) -> (PathBuf, Pool<SqliteConnectionManager>)
 ///
 /// If `is_committed` is true, sets `projects.status = 'DRAFTING'` and adds a committed `draft_sessions`.
 /// If false, sets `projects.status = 'PLANNING'` and `draft_sessions.status = 'editing'`.
-fn seed_test_writing_project(
-    conn: &Connection,
-    is_committed: bool,
-) -> (Uuid, Uuid, Vec<Uuid>) {
+fn seed_test_writing_project(conn: &Connection, is_committed: bool) -> (Uuid, Uuid, Vec<Uuid>) {
     let project_id = Uuid::now_v7();
     let arc_id = Uuid::now_v7();
     let chapter_id = Uuid::now_v7();
@@ -133,21 +138,35 @@ fn seed_test_writing_project(
     conn.execute(
         "INSERT INTO draft_sessions (id, session_id, project_id, status, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-        params![draft_id.to_string(), session_id, project_id.to_string(), draft_status, now],
+        params![
+            draft_id.to_string(),
+            session_id,
+            project_id.to_string(),
+            draft_status,
+            now
+        ],
     )
     .expect("seed draft_session");
 
     conn.execute(
         "INSERT INTO world_settings (id, code, project_id, display_name, type)
          VALUES (?1, ?2, ?3, 'Cổ Giới Đan Tông', 'REALM')",
-        params![ws_id.to_string(), format!("ws_{}", ws_id.simple()), project_id.to_string()],
+        params![
+            ws_id.to_string(),
+            format!("ws_{}", ws_id.simple()),
+            project_id.to_string()
+        ],
     )
     .expect("seed world_settings");
 
     conn.execute(
         "INSERT INTO arcs (id, code, display_name, project_id, position)
          VALUES (?1, ?2, 'Quyển 1: Xuất Thế', ?3, 1)",
-        params![arc_id.to_string(), format!("arc_{}", arc_id.simple()), project_id.to_string()],
+        params![
+            arc_id.to_string(),
+            format!("arc_{}", arc_id.simple()),
+            project_id.to_string()
+        ],
     )
     .expect("seed arc");
 
@@ -192,25 +211,23 @@ fn test_phase4_sprint4_deep1_F0_predecessor_gates() {
     let p1 = "b013b9f9682ba92966af32e94f9c45d77473c25d"; // gate_phase4_sprint2_deep0
     let p2 = "02fc9b735457d47115e0f90063650dc00f322dc1"; // gate_phase2_sprint5_deep2
 
-    let verify_commit = |sha: &str| {
-        let status = Command::new("git")
-            .args(["merge-base", "--is-ancestor", sha, "HEAD"])
-            .status();
+    let verify_commit = |sha: &str| common::verify_commit(sha);
 
-        match status {
-            Ok(s) if s.success() => true,
-            _ => {
-                let cat_status = Command::new("git")
-                    .args(["cat-file", "-e", &format!("{}^{{commit}}", sha)])
-                    .status();
-                cat_status.map(|s| s.success()).unwrap_or(false)
-            }
-        }
-    };
-
-    assert!(verify_commit(baseline), "Baseline commit ({}) must exist", baseline);
-    assert!(verify_commit(p1), "Predecessor gate_phase4_sprint2_deep0 ({}) must exist", p1);
-    assert!(verify_commit(p2), "Predecessor gate_phase2_sprint5_deep2 ({}) must exist", p2);
+    assert!(
+        verify_commit(baseline),
+        "Baseline commit ({}) must exist",
+        baseline
+    );
+    assert!(
+        verify_commit(p1),
+        "Predecessor gate_phase4_sprint2_deep0 ({}) must exist",
+        p1
+    );
+    assert!(
+        verify_commit(p2),
+        "Predecessor gate_phase2_sprint5_deep2 ({}) must exist",
+        p2
+    );
 }
 
 /// `T-SAVE-01`: Save chapter with clean locked scene, idempotent replay, payload mismatch,
@@ -282,7 +299,10 @@ fn test_T_SAVE_01_chapter_save_comprehensive_matrix() {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(sv_count, 1, "Exactly 1 scene version should be created for s1");
+        assert_eq!(
+            sv_count, 1,
+            "Exactly 1 scene version should be created for s1"
+        );
 
         let receipt_count: i64 = conn
             .query_row(
@@ -297,8 +317,12 @@ fn test_T_SAVE_01_chapter_save_comprehensive_matrix() {
     // ------------------------------------------------------------------------
     // (2) Re-invoke save_chapter with same clientSaveId and identical payload
     // ------------------------------------------------------------------------
-    let replay_resp = exec_save_chapter(&service, &save_req).expect("idempotent replay should succeed");
-    assert!(replay_resp.was_idempotent_replay, "was_idempotent_replay must be true on identical replay");
+    let replay_resp =
+        exec_save_chapter(&service, &save_req).expect("idempotent replay should succeed");
+    assert!(
+        replay_resp.was_idempotent_replay,
+        "was_idempotent_replay must be true on identical replay"
+    );
     assert_eq!(replay_resp.saved_scenes.len(), 1);
     assert_eq!(replay_resp.saved_scenes[0].new_version_number, 1);
 
@@ -312,7 +336,10 @@ fn test_T_SAVE_01_chapter_save_comprehensive_matrix() {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(sv_count, 1, "No duplicate scene version should be created on replay");
+        assert_eq!(
+            sv_count, 1,
+            "No duplicate scene version should be created on replay"
+        );
     }
 
     // ------------------------------------------------------------------------
@@ -330,7 +357,8 @@ fn test_T_SAVE_01_chapter_save_comprehensive_matrix() {
             summary: None,
         }],
     };
-    let mismatch_err = exec_save_chapter(&service, &mismatch_req).expect_err("mismatch payload must fail");
+    let mismatch_err =
+        exec_save_chapter(&service, &mismatch_req).expect_err("mismatch payload must fail");
     assert_eq!(mismatch_err.code, ErrorCode::IdempotencyKeyPayloadMismatch);
 
     // ------------------------------------------------------------------------
@@ -357,7 +385,8 @@ fn test_T_SAVE_01_chapter_save_comprehensive_matrix() {
             },
         ],
     };
-    let locked_err = exec_save_chapter(&service, &locked_save_req).expect_err("dirty locked scene must abort");
+    let locked_err =
+        exec_save_chapter(&service, &locked_save_req).expect_err("dirty locked scene must abort");
     assert_eq!(locked_err.code, ErrorCode::SceneLocked);
 
     // Verify atomic rollback: s1 was not updated to version 2!
@@ -519,7 +548,10 @@ fn test_P4S4_dirty_locked_aborts_all() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(s1_ver_count, 0, "No versions should exist for s1 after rollback");
+    assert_eq!(
+        s1_ver_count, 0,
+        "No versions should exist for s1 after rollback"
+    );
 
     let s1_content: Option<String> = conn
         .query_row(
@@ -993,7 +1025,10 @@ fn test_IPC_CMD_035_list_scene_versions() {
     assert_eq!(list_res.versions.len(), 2);
 
     assert_eq!(list_res.versions[0].version_number, 2);
-    assert_eq!(list_res.versions[0].content, "Nội dung phiên bản 2 cập nhật chi tiết hơn");
+    assert_eq!(
+        list_res.versions[0].content,
+        "Nội dung phiên bản 2 cập nhật chi tiết hơn"
+    );
     assert_eq!(list_res.versions[0].scene_source, "AI");
     assert_eq!(list_res.versions[0].summary.as_deref(), Some("Bản 2"));
 

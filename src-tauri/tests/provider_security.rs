@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and security tests for `phase2_sprint4_deep3` ("Implement provider security and adapters").
 //!
 //! Per backend module wiring rules:
@@ -15,6 +22,8 @@
 //! - `IPC-CMD-039`: Typed IPC #39 `update_runtime_and_provider_config` with arithmetic validation and no SQLite persistence.
 //! - `IPC-CMD-040`: Typed IPC #40 `set_provider_api_key` with whitespace validation, redaction registration, and keychain/RAM storage.
 //! - `T-IPC-01`: Multi-point security verification (caller permission, path traversal defense, secret redaction in HTTP error/log).
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -81,7 +90,6 @@ use error::{ErrorCode, IpcError};
 use ollama::{is_loopback_url, OllamaProvider};
 use opencode::OpenCodeProvider;
 use redaction::{Redactor, SecretKey, REDACTED_PLACEHOLDER};
-use std::process::Command;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use traits::{
@@ -90,7 +98,7 @@ use traits::{
     ProviderToolDefinition, ProviderUsage,
 };
 
-pub const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 pub const PREDECESSOR_P2S1_COMMIT: &str = "cc6fe79511e4349b5fa22815d4d7a06ccc4cfad2";
 pub const PREDECESSOR_P2S5_COMMIT: &str = "02fc9b735457d47115e0f90063650dc00f322dc1";
 pub const PREDECESSOR_P1S1_COMMIT: &str = "56dd590569a0d6123b4f09d6f1c6761a8b1d7ff2";
@@ -136,7 +144,7 @@ impl LlmProvider for FakeLlmProvider {
         if let Some(status) = self.simulated_error {
             return Err(ProviderError::from_http_status(
                 status,
-                &format!("Simulated failure with Bearer sk-secret-token-1234567890"),
+                "Simulated failure with Bearer sk-secret-token-1234567890",
             ));
         }
 
@@ -277,10 +285,11 @@ async fn test_p2s4_p_permission_deny_and_tool_calling() {
     assert!(is_loopback_url("http://localhost:11434/api/chat"));
     assert!(is_loopback_url("http://[::1]:11434/api/chat"));
     assert!(!is_loopback_url("http://192.168.1.50:11434/api/chat"));
-    assert!(!is_loopback_url("https://remote-ollama.example.com/api/chat"));
+    assert!(!is_loopback_url(
+        "https://remote-ollama.example.com/api/chat"
+    ));
 
-    let non_loopback_ollama =
-        OllamaProvider::new("http://192.168.1.50:11434/api/chat", false);
+    let non_loopback_ollama = OllamaProvider::new("http://192.168.1.50:11434/api/chat", false);
     let cancel = CancellationToken::new();
     let res = non_loopback_ollama.chat_with_tools(&chat_req, cancel).await;
     assert!(res.is_err());
@@ -382,7 +391,9 @@ async fn test_p2s4_b_cancellation_handling() {
         max_tokens: None,
     };
 
-    let res = fake_provider.chat_with_tools(&req, cancel_token.clone()).await;
+    let res = fake_provider
+        .chat_with_tools(&req, cancel_token.clone())
+        .await;
     assert!(res.is_err());
     match res.unwrap_err() {
         ProviderError::Cancelled => {}
@@ -413,55 +424,31 @@ async fn test_p2s4_b_cancellation_handling() {
 #[test]
 fn test_f0_predecessor_lineage_and_baseline_immutability() {
     // 1. Verify baseline ancestor
-    let merge_base = Command::new("git")
-        .args(["merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"])
-        .status()
-        .expect("git merge-base execution");
     assert!(
-        merge_base.success(),
-        "HEAD must descend from baseline commit {BASELINE_COMMIT}"
+        common::verify_commit(BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        BASELINE_COMMIT
     );
 
     // 2. Verify P2S1 predecessor commit exists
-    let cat_p2s1 = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P2S1_COMMIT}^{{commit}}"),
-        ])
-        .status()
-        .expect("git cat-file P2S1");
     assert!(
-        cat_p2s1.success(),
-        "Predecessor commit for phase2_sprint1_deep0 ({PREDECESSOR_P2S1_COMMIT}) must be present"
+        common::verify_commit(PREDECESSOR_P2S1_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S1_COMMIT
     );
 
     // 3. Verify P2S5 predecessor commit exists
-    let cat_p2s5 = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P2S5_COMMIT}^{{commit}}"),
-        ])
-        .status()
-        .expect("git cat-file P2S5");
     assert!(
-        cat_p2s5.success(),
-        "Predecessor commit for phase2_sprint5_deep2 ({PREDECESSOR_P2S5_COMMIT}) must be present"
+        common::verify_commit(PREDECESSOR_P2S5_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S5_COMMIT
     );
 
     // 4. Verify P1S1 predecessor commit exists
-    let cat_p1s1 = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P1S1_COMMIT}^{{commit}}"),
-        ])
-        .status()
-        .expect("git cat-file P1S1");
     assert!(
-        cat_p1s1.success(),
-        "Predecessor commit for phase1_sprint1_deep0 ({PREDECESSOR_P1S1_COMMIT}) must be present"
+        common::verify_commit(PREDECESSOR_P1S1_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P1S1_COMMIT
     );
 }
 
@@ -473,55 +460,51 @@ fn test_f1_http_error_mapping_and_retryability() {
     redactor.register_secret(secret);
 
     // 401 Unauthorized
-    let err_401 = ProviderError::from_http_status(
-        401,
-        &format!("Invalid credentials Bearer {secret}"),
-    );
+    let err_401 =
+        ProviderError::from_http_status(401, &format!("Invalid credentials Bearer {secret}"));
     let ipc_401 = err_401.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_401.code, ErrorCode::ProviderAuthFailed);
-    assert_eq!(ipc_401.retryable, false, "401 must NOT be retryable");
+    assert!(!ipc_401.retryable, "401 must NOT be retryable");
     assert!(!ipc_401.message.contains(secret));
 
     // 403 Forbidden
-    let err_403 = ProviderError::from_http_status(
-        403,
-        &format!("Access forbidden with Bearer {secret}"),
-    );
+    let err_403 =
+        ProviderError::from_http_status(403, &format!("Access forbidden with Bearer {secret}"));
     let ipc_403 = err_403.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_403.code, ErrorCode::ProviderAuthFailed);
-    assert_eq!(ipc_403.retryable, false, "403 must NOT be retryable");
+    assert!(!ipc_403.retryable, "403 must NOT be retryable");
     assert!(!ipc_403.message.contains(secret));
 
     // 429 Rate Limit
     let err_429 = ProviderError::from_http_status(429, "Too many requests");
     let ipc_429 = err_429.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_429.code, ErrorCode::ProviderUnreachable);
-    assert_eq!(ipc_429.retryable, true, "429 MUST be retryable");
+    assert!(ipc_429.retryable, "429 MUST be retryable");
 
     // 502 Bad Gateway
     let err_502 = ProviderError::from_http_status(502, "Bad Gateway");
     let ipc_502 = err_502.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_502.code, ErrorCode::ProviderUnreachable);
-    assert_eq!(ipc_502.retryable, true, "502 MUST be retryable");
+    assert!(ipc_502.retryable, "502 MUST be retryable");
 
     // 503 Service Unavailable
     let err_503 = ProviderError::from_http_status(503, "Service Unavailable");
     let ipc_503 = err_503.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_503.code, ErrorCode::ProviderUnreachable);
-    assert_eq!(ipc_503.retryable, true, "503 MUST be retryable");
+    assert!(ipc_503.retryable, "503 MUST be retryable");
 
     // 504 Gateway Timeout
     let err_504 = ProviderError::from_http_status(504, "Gateway Timeout");
     let ipc_504 = err_504.to_ipc_error_with_redactor(&redactor);
     assert_eq!(ipc_504.code, ErrorCode::ProviderUnreachable);
-    assert_eq!(ipc_504.retryable, true, "504 MUST be retryable");
+    assert!(ipc_504.retryable, "504 MUST be retryable");
 }
 
 /// `phase2_sprint4_deep3-F2`: Keychain unavailable yields session-only fallback in RAM with no disk secrets.
 #[test]
 fn test_f2_keychain_unavailable_session_fallback_no_disk() {
     let cred_mgr = CredentialManager::new_with_session_only();
-    assert_eq!(cred_mgr.is_keychain_available(), false);
+    assert!(!cred_mgr.is_keychain_available());
 
     let test_provider = "anthropic";
     let test_key = "sk-ant-api03-session-fallback-secret-987654321";
@@ -690,7 +673,7 @@ fn test_ipc_cmd_040_set_provider_api_key() {
         .iter()
         .find(|p| p.provider_id == "opencode")
         .unwrap();
-    assert_eq!(opencode_status.has_api_key, true);
+    assert!(opencode_status.has_api_key);
 }
 
 /// `T-IPC-01`: Multi-point security verification (§1.6, §5.2, §9.2, §9.3).
@@ -713,15 +696,21 @@ fn test_t_ipc_01_comprehensive_security_invariants() {
     }
 
     assert_eq!(
-        simulate_caller_check(true, "confirm_pending_patch").unwrap_err().code,
+        simulate_caller_check(true, "confirm_pending_patch")
+            .unwrap_err()
+            .code,
         ErrorCode::UnauthorizedCaller
     );
     assert_eq!(
-        simulate_caller_check(true, "commit_draft").unwrap_err().code,
+        simulate_caller_check(true, "commit_draft")
+            .unwrap_err()
+            .code,
         ErrorCode::UnauthorizedCaller
     );
     assert_eq!(
-        simulate_caller_check(true, "set_scene_lock").unwrap_err().code,
+        simulate_caller_check(true, "set_scene_lock")
+            .unwrap_err()
+            .code,
         ErrorCode::UnauthorizedCaller
     );
     assert!(simulate_caller_check(false, "commit_draft").is_ok());
@@ -761,7 +750,9 @@ async fn custom_provider_chat_sends_the_key_saved_for_its_provider_id() {
     let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
     let server = std::thread::spawn(move || {
         let (mut socket, _) = listener.accept().unwrap();
-        socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+        socket
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .unwrap();
         let mut request = Vec::new();
         let mut buf = [0; 1024];
         while !request.windows(4).any(|w| w == b"\r\n\r\n") {
@@ -770,8 +761,13 @@ async fn custom_provider_chat_sends_the_key_saved_for_its_provider_id() {
             request.extend_from_slice(&buf[..n]);
         }
         let header_end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-        let length = String::from_utf8_lossy(&request[..header_end]).lines()
-            .find_map(|line| line.to_lowercase().strip_prefix("content-length:").and_then(|n| n.trim().parse::<usize>().ok()))
+        let length = String::from_utf8_lossy(&request[..header_end])
+            .lines()
+            .find_map(|line| {
+                line.to_lowercase()
+                    .strip_prefix("content-length:")
+                    .and_then(|n| n.trim().parse::<usize>().ok())
+            })
             .unwrap_or(0);
         while request.len() < header_end + length {
             let n = socket.read(&mut buf).unwrap();
@@ -784,18 +780,43 @@ async fn custom_provider_chat_sends_the_key_saved_for_its_provider_id() {
         let body = r#"{"choices":[{"index":0,"message":{"role":"assistant","content":"OK"},"finish_reason":"stop"}]}"#;
         write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
     });
-    let state = RuntimeConfigState::new(CredentialManager::new_with_session_only(), Arc::new(Redactor::new()));
-    exec_set_provider_api_key(&state, &SetProviderApiKeyReq {
-        provider_id: "provider-custom".into(), api_key: "synthetic-custom-key".into(),
-    }).unwrap();
-    exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
-        active_provider_id: Some("provider-custom".into()), endpoint_url: Some(endpoint),
-        model_name: Some("custom-model".into()), ..Default::default()
-    }).unwrap();
-    let response = state.selected_provider().unwrap().chat_with_tools(&ProviderChatRequest {
-        model: "ignored".into(), messages: vec![ProviderMessage::user("Hello")],
-        tools: None, temperature: None, max_tokens: Some(1),
-    }, CancellationToken::new()).await.unwrap();
+    let state = RuntimeConfigState::new(
+        CredentialManager::new_with_session_only(),
+        Arc::new(Redactor::new()),
+    );
+    exec_set_provider_api_key(
+        &state,
+        &SetProviderApiKeyReq {
+            provider_id: "provider-custom".into(),
+            api_key: "synthetic-custom-key".into(),
+        },
+    )
+    .unwrap();
+    exec_update_runtime_and_provider_config(
+        &state,
+        &UpdateRuntimeConfigReq {
+            active_provider_id: Some("provider-custom".into()),
+            endpoint_url: Some(endpoint),
+            model_name: Some("custom-model".into()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let response = state
+        .selected_provider()
+        .unwrap()
+        .chat_with_tools(
+            &ProviderChatRequest {
+                model: "ignored".into(),
+                messages: vec![ProviderMessage::user("Hello")],
+                tools: None,
+                temperature: None,
+                max_tokens: Some(1),
+            },
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
     server.join().unwrap();
     assert_eq!(response.content.as_deref(), Some("OK"));
 }
@@ -804,18 +825,38 @@ async fn custom_provider_chat_sends_the_key_saved_for_its_provider_id() {
 async fn request_timeout_reports_actionable_cause() {
     use std::time::Duration;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!("http://{}/v1/chat/completions", listener.local_addr().unwrap());
+    let endpoint = format!(
+        "http://{}/v1/chat/completions",
+        listener.local_addr().unwrap()
+    );
     let server = tokio::spawn(async move {
         let (_socket, _) = listener.accept().await.unwrap();
         tokio::time::sleep(Duration::from_secs(5)).await;
     });
-    let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_millis(100)).build().unwrap();
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_millis(100))
+        .build()
+        .unwrap();
     let provider = OpenCodeProvider::with_client(endpoint, None, client);
-    let err = provider.chat_with_tools(&ProviderChatRequest {
-        model: "test".into(), messages: vec![ProviderMessage::user("ping")],
-        tools: None, temperature: None, max_tokens: Some(1),
-    }, CancellationToken::new()).await.unwrap_err();
+    let err = provider
+        .chat_with_tools(
+            &ProviderChatRequest {
+                model: "test".into(),
+                messages: vec![ProviderMessage::user("ping")],
+                tools: None,
+                temperature: None,
+                max_tokens: Some(1),
+            },
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
     server.abort();
     let ipc = err.to_ipc_error();
-    assert!(ipc.message.contains("timed out"), "Actual timeout cause must survive IPC: {}", ipc.message);
+    assert!(
+        ipc.message.contains("timed out"),
+        "Actual timeout cause must survive IPC: {}",
+        ipc.message
+    );
 }

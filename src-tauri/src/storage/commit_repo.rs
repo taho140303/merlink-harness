@@ -76,7 +76,10 @@ impl<'a> SqliteCommitRepo<'a> {
     }
 
     /// Verifies whether any entity code in `state` collides with existing records in SQLite.
-    pub fn check_code_collisions(&self, state: &BusinessFlowData) -> Result<Vec<ConflictingCode>, CommitRepoError> {
+    pub fn check_code_collisions(
+        &self,
+        state: &BusinessFlowData,
+    ) -> Result<Vec<ConflictingCode>, CommitRepoError> {
         check_code_collisions(self.conn, state)
     }
 }
@@ -107,14 +110,18 @@ pub fn has_written_scenes(conn: &Connection, project_id: &str) -> Result<bool, C
 }
 
 /// Verifies whether any entity code in `state` collides with existing records in SQLite (`core.md` §3.7, §3.8).
-pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Result<Vec<ConflictingCode>, CommitRepoError> {
+pub fn check_code_collisions(
+    conn: &Connection,
+    state: &BusinessFlowData,
+) -> Result<Vec<ConflictingCode>, CommitRepoError> {
     let mut conflicts = Vec::new();
 
     // 1. Project code
     if let Some(ref code) = state.require.project.code {
         let code_trimmed = code.trim();
         if !code_trimmed.is_empty() {
-            let mut stmt = conn.prepare("SELECT 1 FROM projects WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+            let mut stmt = conn
+                .prepare("SELECT 1 FROM projects WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
             if stmt.exists(params![code_trimmed])? {
                 conflicts.push(ConflictingCode {
                     entity_type: "projects".to_string(),
@@ -129,7 +136,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
         if !ch.reused_library_character {
             let code = ch.code.trim();
             if !code.is_empty() {
-                let mut stmt = conn.prepare("SELECT 1 FROM characters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+                let mut stmt = conn.prepare(
+                    "SELECT 1 FROM characters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+                )?;
                 if stmt.exists(params![code])? {
                     conflicts.push(ConflictingCode {
                         entity_type: "characters".to_string(),
@@ -144,7 +153,8 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
     for arc in &state.optional.overview_phase.arcs {
         let code = arc.code.trim();
         if !code.is_empty() {
-            let mut stmt = conn.prepare("SELECT 1 FROM arcs WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+            let mut stmt =
+                conn.prepare("SELECT 1 FROM arcs WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
             if stmt.exists(params![code])? {
                 conflicts.push(ConflictingCode {
                     entity_type: "arcs".to_string(),
@@ -159,7 +169,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
         for ch in &arc.chapters {
             let code = ch.code.trim();
             if !code.is_empty() {
-                let mut stmt = conn.prepare("SELECT 1 FROM chapters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+                let mut stmt = conn.prepare(
+                    "SELECT 1 FROM chapters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+                )?;
                 if stmt.exists(params![code])? {
                     conflicts.push(ConflictingCode {
                         entity_type: "chapters".to_string(),
@@ -176,7 +188,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
             for sc in &ch.scenes {
                 let code = sc.code.trim();
                 if !code.is_empty() {
-                    let mut stmt = conn.prepare("SELECT 1 FROM scenes WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+                    let mut stmt = conn.prepare(
+                        "SELECT 1 FROM scenes WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+                    )?;
                     if stmt.exists(params![code])? {
                         conflicts.push(ConflictingCode {
                             entity_type: "scenes".to_string(),
@@ -192,7 +206,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
     for ws in &state.optional.world_building_phase.world_settings {
         let code = ws.code.trim();
         if !code.is_empty() {
-            let mut stmt = conn.prepare("SELECT 1 FROM world_settings WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+            let mut stmt = conn.prepare(
+                "SELECT 1 FROM world_settings WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+            )?;
             if stmt.exists(params![code])? {
                 conflicts.push(ConflictingCode {
                     entity_type: "world_settings".to_string(),
@@ -207,7 +223,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
         for lore in &ws.lore_entries {
             let code = lore.code.trim();
             if !code.is_empty() {
-                let mut stmt = conn.prepare("SELECT 1 FROM lore_entries WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+                let mut stmt = conn.prepare(
+                    "SELECT 1 FROM lore_entries WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+                )?;
                 if stmt.exists(params![code])? {
                     conflicts.push(ConflictingCode {
                         entity_type: "lore_entries".to_string(),
@@ -223,7 +241,9 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
         if let Some(ref code) = arc.themes.code {
             let code_trimmed = code.trim();
             if !code_trimmed.is_empty() {
-                let mut stmt = conn.prepare("SELECT 1 FROM themes WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+                let mut stmt = conn.prepare(
+                    "SELECT 1 FROM themes WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+                )?;
                 if stmt.exists(params![code_trimmed])? {
                     conflicts.push(ConflictingCode {
                         entity_type: "themes".to_string(),
@@ -239,7 +259,8 @@ pub fn check_code_collisions(conn: &Connection, state: &BusinessFlowData) -> Res
         for comp in &char_item.competences {
             let code = comp.code.trim();
             if !code.is_empty() {
-                let mut stmt = conn.prepare("SELECT 1 FROM character_competences WHERE code = ?1 LIMIT 1")?;
+                let mut stmt =
+                    conn.prepare("SELECT 1 FROM character_competences WHERE code = ?1 LIMIT 1")?;
                 if stmt.exists(params![code])? {
                     conflicts.push(ConflictingCode {
                         entity_type: "character_competences".to_string(),
@@ -393,7 +414,11 @@ fn normalize_dimension(raw: Option<&str>) -> Option<&'static str> {
 }
 
 /// Helper to ensure a genre exists in the DB so foreign key checks pass.
-fn ensure_genre_id(tx: &Transaction<'_>, genre_code: &str, display_name: Option<&str>) -> Result<String, CommitRepoError> {
+fn ensure_genre_id(
+    tx: &Transaction<'_>,
+    genre_code: &str,
+    display_name: Option<&str>,
+) -> Result<String, CommitRepoError> {
     let mut stmt = tx.prepare("SELECT id FROM genres WHERE code = ?1 LIMIT 1")?;
     let mut rows = stmt.query(params![genre_code])?;
     if let Some(row) = rows.next()? {
@@ -409,7 +434,11 @@ fn ensure_genre_id(tx: &Transaction<'_>, genre_code: &str, display_name: Option<
 }
 
 /// Helper to ensure a motif exists in the DB so foreign key checks pass.
-fn ensure_motif_id(tx: &Transaction<'_>, motif_code: &str, category: &str) -> Result<String, CommitRepoError> {
+fn ensure_motif_id(
+    tx: &Transaction<'_>,
+    motif_code: &str,
+    category: &str,
+) -> Result<String, CommitRepoError> {
     let mut stmt = tx.prepare("SELECT id FROM motifs WHERE code = ?1 LIMIT 1")?;
     let mut rows = stmt.query(params![motif_code])?;
     if let Some(row) = rows.next()? {
@@ -448,7 +477,10 @@ fn ensure_event_block_id(tx: &Transaction<'_>, code: &str) -> Result<String, Com
 }
 
 /// Helper to ensure style preset exists.
-fn ensure_style_preset_id(tx: &Transaction<'_>, code: &str) -> Result<Option<String>, CommitRepoError> {
+fn ensure_style_preset_id(
+    tx: &Transaction<'_>,
+    code: &str,
+) -> Result<Option<String>, CommitRepoError> {
     if code.trim().is_empty() {
         return Ok(None);
     }
@@ -467,7 +499,10 @@ fn ensure_style_preset_id(tx: &Transaction<'_>, code: &str) -> Result<Option<Str
 }
 
 /// Helper to ensure narrator config exists.
-fn ensure_narrator_config_id(tx: &Transaction<'_>, code: &str) -> Result<Option<String>, CommitRepoError> {
+fn ensure_narrator_config_id(
+    tx: &Transaction<'_>,
+    code: &str,
+) -> Result<Option<String>, CommitRepoError> {
     if code.trim().is_empty() {
         return Ok(None);
     }
@@ -482,7 +517,7 @@ fn ensure_narrator_config_id(tx: &Transaction<'_>, code: &str) -> Result<Option<
         "FIRST_PERSON" => ("FIRST_PERSON", "PROTAGONIST"),
         "SECOND_PERSON" => ("SECOND_PERSON", "DIRECT_ADDRESS"),
         "OMNISCIENT" => ("THIRD_PERSON", "OMNISCIENT"),
-        "THIRD_PERSON_LIMITED" | _ => ("THIRD_PERSON", "LIMITED"),
+        _ => ("THIRD_PERSON", "LIMITED"),
     };
     tx.execute(
         "INSERT INTO narrator_configs (id, code, display_name, person, person_subtype) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -492,7 +527,10 @@ fn ensure_narrator_config_id(tx: &Transaction<'_>, code: &str) -> Result<Option<
 }
 
 /// Helper to ensure competence domain exists.
-fn ensure_competence_domain_id(tx: &Transaction<'_>, code: &str) -> Result<String, CommitRepoError> {
+fn ensure_competence_domain_id(
+    tx: &Transaction<'_>,
+    code: &str,
+) -> Result<String, CommitRepoError> {
     let mut stmt = tx.prepare("SELECT id FROM competence_domains WHERE code = ?1 LIMIT 1")?;
     let mut rows = stmt.query(params![code])?;
     if let Some(row) = rows.next()? {
@@ -508,7 +546,10 @@ fn ensure_competence_domain_id(tx: &Transaction<'_>, code: &str) -> Result<Strin
 }
 
 /// Helper to ensure relationship category exists.
-fn ensure_relationship_category_id(tx: &Transaction<'_>, code: &str) -> Result<Option<String>, CommitRepoError> {
+fn ensure_relationship_category_id(
+    tx: &Transaction<'_>,
+    code: &str,
+) -> Result<Option<String>, CommitRepoError> {
     if code.trim().is_empty() {
         return Ok(None);
     }
@@ -527,7 +568,10 @@ fn ensure_relationship_category_id(tx: &Transaction<'_>, code: &str) -> Result<O
 }
 
 /// Helper to find appearance option by code.
-fn lookup_appearance_option_id(tx: &Transaction<'_>, code: &str) -> Result<Option<String>, CommitRepoError> {
+fn lookup_appearance_option_id(
+    tx: &Transaction<'_>,
+    code: &str,
+) -> Result<Option<String>, CommitRepoError> {
     if code.trim().is_empty() {
         return Ok(None);
     }
@@ -602,14 +646,23 @@ pub fn commit_draft_tx(
         .as_deref()
         .unwrap_or("Untitled Project");
     let summary = state.require.project.summary.value.as_deref().unwrap_or("");
-    let language = state.require.project.language.value.as_deref().unwrap_or("VI");
+    let language = state
+        .require
+        .project
+        .language
+        .value
+        .as_deref()
+        .unwrap_or("VI");
 
     tx.execute(
         "INSERT INTO projects (id, code, display_name, summary, cover, status, language, created_at, updated_at, deleted_at)
          VALUES (?1, ?2, ?3, ?4, NULL, 'DRAFTING', ?5, ?6, ?7, NULL)",
         params![project_id_str, project_code, display_name, summary, language, now, now],
     )?;
-    code_to_id.insert((EntityNamespace::Project, project_code.clone()), project_id_str.clone());
+    code_to_id.insert(
+        (EntityNamespace::Project, project_code.clone()),
+        project_id_str.clone(),
+    );
 
     // ------------------------------------------------------------------------
     // 2. project_genres
@@ -619,7 +672,11 @@ pub fn commit_draft_tx(
             if !g_code.trim().is_empty() {
                 let genre_id = ensure_genre_id(&tx, g_code, genre.display_name.value.as_deref())?;
                 let link_id = Uuid::now_v7().to_string();
-                let is_prim = if genre.is_primary.value == Some(true) { 1 } else { 0 };
+                let is_prim = if genre.is_primary.value == Some(true) {
+                    1
+                } else {
+                    0
+                };
                 tx.execute(
                     "INSERT INTO project_genres (id, project_id, genre_id, is_primary) VALUES (?1, ?2, ?3, ?4)
                      ON CONFLICT (project_id, genre_id) DO NOTHING",
@@ -635,11 +692,16 @@ pub fn commit_draft_tx(
     for ch in &state.require.character {
         let ch_code = ch.code.trim();
         if ch.reused_library_character {
-            let mut stmt = tx.prepare("SELECT id FROM characters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1")?;
+            let mut stmt = tx.prepare(
+                "SELECT id FROM characters WHERE code = ?1 AND deleted_at IS NULL LIMIT 1",
+            )?;
             let mut rows = stmt.query(params![ch_code])?;
             if let Some(row) = rows.next()? {
                 let existing_id: String = row.get(0)?;
-                code_to_id.insert((EntityNamespace::Character, ch_code.to_string()), existing_id);
+                code_to_id.insert(
+                    (EntityNamespace::Character, ch_code.to_string()),
+                    existing_id,
+                );
             } else {
                 return Err(CommitRepoError::EntityNotFound(format!(
                     "Reused library character code '{}' not found in database",
@@ -658,8 +720,10 @@ pub fn commit_draft_tx(
 
             let species = appearance_match.and_then(|app| app.species.value.clone());
             let birth = appearance_match.and_then(|app| app.birth.value.clone());
-            let gender_identity = appearance_match.and_then(|app| normalize_sex(app.gender.identity.value.as_deref()));
-            let gender_expression = appearance_match.and_then(|app| normalize_sex(app.gender.expression.value.as_deref()));
+            let gender_identity = appearance_match
+                .and_then(|app| normalize_sex(app.gender.identity.value.as_deref()));
+            let gender_expression = appearance_match
+                .and_then(|app| normalize_sex(app.gender.expression.value.as_deref()));
             let biological_sex = normalize_sex(ch.biological_sex.value.as_deref());
 
             let display_name = ch.display_name.value.as_deref();
@@ -769,21 +833,38 @@ pub fn commit_draft_tx(
     // ------------------------------------------------------------------------
     for arc in &sorted_arcs {
         let arc_code = arc.code.trim();
-        let arc_id = code_to_id.get(&(EntityNamespace::Arc, arc_code.to_string())).cloned();
+        let arc_id = code_to_id
+            .get(&(EntityNamespace::Arc, arc_code.to_string()))
+            .cloned();
 
         if let Some(ref t_code) = arc.themes.code {
             let theme_code = t_code.trim();
             if !theme_code.is_empty() {
                 let theme_id = Uuid::now_v7().to_string();
-                let parent_code = arc.themes.parent_theme_code.value.as_deref().unwrap_or("").trim();
+                let parent_code = arc
+                    .themes
+                    .parent_theme_code
+                    .value
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim();
                 let parent_theme_id = if !parent_code.is_empty() {
-                    code_to_id.get(&(EntityNamespace::Theme, parent_code.to_string())).cloned()
+                    code_to_id
+                        .get(&(EntityNamespace::Theme, parent_code.to_string()))
+                        .cloned()
                 } else {
                     None
                 };
 
-                let question = arc.themes.question.value.as_deref().unwrap_or("What is the core conflict?");
-                let res_type = normalize_resolution_type(arc.themes.resolution.resolution_type.value.as_deref());
+                let question = arc
+                    .themes
+                    .question
+                    .value
+                    .as_deref()
+                    .unwrap_or("What is the core conflict?");
+                let res_type = normalize_resolution_type(
+                    arc.themes.resolution.resolution_type.value.as_deref(),
+                );
                 let res_content = arc.themes.resolution.content.value.as_deref();
                 let message = arc.themes.message.value.as_deref();
 
@@ -792,17 +873,23 @@ pub fn commit_draft_tx(
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NULL)",
                     params![theme_id, theme_code, arc_id, parent_theme_id, question, res_type, res_content, message, now, now],
                 )?;
-                code_to_id.insert((EntityNamespace::Theme, theme_code.to_string()), theme_id.clone());
+                code_to_id.insert(
+                    (EntityNamespace::Theme, theme_code.to_string()),
+                    theme_id.clone(),
+                );
 
                 // --------------------------------------------------------------------
                 // 9. theme_arguments
                 // --------------------------------------------------------------------
                 for arg in &arc.themes.arguments {
                     if let Some(ref char_code) = arg.character_code.value {
-                        if let Some(char_id) = code_to_id.get(&(EntityNamespace::Character, char_code.trim().to_string())) {
+                        if let Some(char_id) = code_to_id
+                            .get(&(EntityNamespace::Character, char_code.trim().to_string()))
+                        {
                             let arg_id = Uuid::now_v7().to_string();
                             let role = normalize_theme_role(arg.role.value.as_deref());
-                            let answer_mode = normalize_answer_mode(arg.answer_mode.value.as_deref());
+                            let answer_mode =
+                                normalize_answer_mode(arg.answer_mode.value.as_deref());
                             let note = arg.note.value.as_deref();
                             let req_know = arg.required_knowledge.value.as_deref();
                             let req_comp = arg.required_competence.value.as_deref();
@@ -825,7 +912,9 @@ pub fn commit_draft_tx(
     // ------------------------------------------------------------------------
     for arc in &state.optional.chapter_phase.arcs {
         let arc_code = arc.code.trim();
-        let arc_id = code_to_id.get(&(EntityNamespace::Arc, arc_code.to_string())).cloned();
+        let arc_id = code_to_id
+            .get(&(EntityNamespace::Arc, arc_code.to_string()))
+            .cloned();
 
         let mut sorted_chapters = arc.chapters.clone();
         sorted_chapters.sort_by_key(|c| c.position.value.unwrap_or(0));
@@ -857,8 +946,12 @@ pub fn commit_draft_tx(
                 let start_ch_code = eb.start_chapter_code.value.as_deref().unwrap_or("").trim();
                 let end_ch_code = eb.end_chapter_code.value.as_deref().unwrap_or("").trim();
 
-                let start_ch_id = code_to_id.get(&(EntityNamespace::Chapter, start_ch_code.to_string())).cloned();
-                let end_ch_id = code_to_id.get(&(EntityNamespace::Chapter, end_ch_code.to_string())).cloned();
+                let start_ch_id = code_to_id
+                    .get(&(EntityNamespace::Chapter, start_ch_code.to_string()))
+                    .cloned();
+                let end_ch_id = code_to_id
+                    .get(&(EntityNamespace::Chapter, end_ch_code.to_string()))
+                    .cloned();
 
                 if let (Some(start_id), Some(end_id)) = (start_ch_id, end_ch_id) {
                     if !eb_code.is_empty() {
@@ -893,7 +986,9 @@ pub fn commit_draft_tx(
                 let ws_code = ws.code.trim();
                 let ws_id = Uuid::now_v7().to_string();
                 let parent_id = if !parent_code.is_empty() {
-                    code_to_id.get(&(EntityNamespace::WorldSetting, parent_code.to_string())).cloned()
+                    code_to_id
+                        .get(&(EntityNamespace::WorldSetting, parent_code.to_string()))
+                        .cloned()
                 } else {
                     None
                 };
@@ -951,7 +1046,9 @@ pub fn commit_draft_tx(
     // ------------------------------------------------------------------------
     for ws in &state.optional.world_building_phase.world_settings {
         let ws_code = ws.code.trim();
-        let ws_id_opt = code_to_id.get(&(EntityNamespace::WorldSetting, ws_code.to_string())).cloned();
+        let ws_id_opt = code_to_id
+            .get(&(EntityNamespace::WorldSetting, ws_code.to_string()))
+            .cloned();
         if let Some(ws_id) = ws_id_opt {
             for lore in &ws.lore_entries {
                 let lore_code = lore.code.trim();
@@ -992,7 +1089,9 @@ pub fn commit_draft_tx(
     for arc in &state.optional.chapter_phase.arcs {
         for ch in &arc.chapters {
             let ch_code = ch.code.trim();
-            let chapter_id = code_to_id.get(&(EntityNamespace::Chapter, ch_code.to_string())).cloned();
+            let chapter_id = code_to_id
+                .get(&(EntityNamespace::Chapter, ch_code.to_string()))
+                .cloned();
 
             let mut sorted_scenes = ch.scenes.clone();
             sorted_scenes.sort_by_key(|s| s.position.value.unwrap_or(0));
@@ -1038,7 +1137,10 @@ pub fn commit_draft_tx(
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, 0, ?9, 0, NULL)",
                     params![scene_id, sc_code, disp, chapter_id, ws_id, style_preset_id, narrator_config_id, sum, pos],
                 )?;
-                code_to_id.insert((EntityNamespace::Scene, sc_code.to_string()), scene_id.clone());
+                code_to_id.insert(
+                    (EntityNamespace::Scene, sc_code.to_string()),
+                    scene_id.clone(),
+                );
 
                 // ------------------------------------------------------------
                 // 15. scene_characters & 16. scene_lore_entries
@@ -1046,9 +1148,15 @@ pub fn commit_draft_tx(
                 if let Some(cfg) = scene_configs.get(sc_code) {
                     for char_link in &cfg.characters {
                         let c_code = char_link.character_code.trim();
-                        if let Some(char_id) = code_to_id.get(&(EntityNamespace::Character, c_code.to_string())) {
+                        if let Some(char_id) =
+                            code_to_id.get(&(EntityNamespace::Character, c_code.to_string()))
+                        {
                             let link_id = Uuid::now_v7().to_string();
-                            let is_pov = if char_link.is_pov.value == Some(true) { 1 } else { 0 };
+                            let is_pov = if char_link.is_pov.value == Some(true) {
+                                1
+                            } else {
+                                0
+                            };
                             tx.execute(
                                 "INSERT INTO scene_characters (id, character_id, scene_id, is_pov)
                                  VALUES (?1, ?2, ?3, ?4)
@@ -1060,11 +1168,18 @@ pub fn commit_draft_tx(
 
                     for lore_link in &cfg.lore_entries {
                         let l_code = lore_link.lore_entry_code.trim();
-                        if let Some(lore_id) = code_to_id.get(&(EntityNamespace::LoreEntry, l_code.to_string())) {
+                        if let Some(lore_id) =
+                            code_to_id.get(&(EntityNamespace::LoreEntry, l_code.to_string()))
+                        {
                             let link_id = Uuid::now_v7().to_string();
-                            let usage = normalize_scene_lore_usage(lore_link.usage.value.as_deref());
-                            let reveal_r = normalize_reveal(lore_link.reveal_to_reader.value.as_deref(), "PARTIAL");
-                            let reveal_p = normalize_reveal(lore_link.reveal_to_pov.value.as_deref(), "NONE");
+                            let usage =
+                                normalize_scene_lore_usage(lore_link.usage.value.as_deref());
+                            let reveal_r = normalize_reveal(
+                                lore_link.reveal_to_reader.value.as_deref(),
+                                "PARTIAL",
+                            );
+                            let reveal_p =
+                                normalize_reveal(lore_link.reveal_to_pov.value.as_deref(), "NONE");
                             tx.execute(
                                 "INSERT INTO scene_lore_entries (id, scene_id, lore_entry_id, usage, reveal_to_reader, reveal_to_pov)
                                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -1090,17 +1205,62 @@ pub fn commit_draft_tx(
             let weight = app.weight_kg.value.map(|w| w as i64);
             let weight_unit = app.weight_unit.value.as_deref().unwrap_or("KG");
 
-            let hair_c = app.hair.color.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let hair_l = app.hair.length.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let hair_s = app.hair.style.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let hair_t = app.hair.texture.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let hair_c = app
+                .hair
+                .color
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let hair_l = app
+                .hair
+                .length
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let hair_s = app
+                .hair
+                .style
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let hair_t = app
+                .hair
+                .texture
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
 
-            let eye_p = app.eyes.pupil_shape.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let eye_i = app.eyes.iris_color.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let eye_s = app.eyes.sclera_color.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let eye_p = app
+                .eyes
+                .pupil_shape
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let eye_i = app
+                .eyes
+                .iris_color
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let eye_s = app
+                .eyes
+                .sclera_color
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
 
-            let skin_t = app.skin.tone.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
-            let skin_tx = app.skin.texture.value.as_deref().and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let skin_t = app
+                .skin
+                .tone
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
+            let skin_tx = app
+                .skin
+                .texture
+                .value
+                .as_deref()
+                .and_then(|c| lookup_appearance_option_id(&tx, c).ok().flatten());
 
             let hair_note = app.hair.note.value.as_deref();
             let eyes_note = app.eyes.note.value.as_deref();
@@ -1141,19 +1301,60 @@ pub fn commit_draft_tx(
         if let Some(char_id) = code_to_id.get(&(EntityNamespace::Character, ch_code.to_string())) {
             let the_wound = psych.core_trauma_and_belief.the_wound.value.as_deref();
             let the_lie = psych.core_trauma_and_belief.the_lie.value.as_deref();
-            let fear = psych.core_trauma_and_belief.fundamental_fear.value.as_deref();
-            let alignment = psych.cognitive_moral_framework.moral_alignment.value.as_deref();
+            let fear = psych
+                .core_trauma_and_belief
+                .fundamental_fear
+                .value
+                .as_deref();
+            let alignment = psych
+                .cognitive_moral_framework
+                .moral_alignment
+                .value
+                .as_deref();
             let code_m = psych.cognitive_moral_framework.moral_code.value.as_deref();
-            let bias = psych.cognitive_moral_framework.cognitive_bias.value.as_deref();
-            let breaking = psych.cognitive_moral_framework.breaking_point.value.as_deref();
+            let bias = psych
+                .cognitive_moral_framework
+                .cognitive_bias
+                .value
+                .as_deref();
+            let breaking = psych
+                .cognitive_moral_framework
+                .breaking_point
+                .value
+                .as_deref();
             let want = psych.narrative_engine.external_want.value.as_deref();
             let need = psych.narrative_engine.internal_need.value.as_deref();
             let conflict = psych.narrative_engine.internal_conflict.value.as_deref();
-            let persona = psych.behavioral_adaptation.social_mask.persona_type.value.as_deref();
-            let style = psych.behavioral_adaptation.social_mask.verbal_style.value.as_deref();
-            let reaction = psych.behavioral_adaptation.defense_mechanisms.primary_reaction.value.as_deref();
-            let trigger = psych.behavioral_adaptation.defense_mechanisms.stress_trigger.value.as_deref();
-            let strategy = psych.behavioral_adaptation.defense_mechanisms.coping_strategy.value.as_deref();
+            let persona = psych
+                .behavioral_adaptation
+                .social_mask
+                .persona_type
+                .value
+                .as_deref();
+            let style = psych
+                .behavioral_adaptation
+                .social_mask
+                .verbal_style
+                .value
+                .as_deref();
+            let reaction = psych
+                .behavioral_adaptation
+                .defense_mechanisms
+                .primary_reaction
+                .value
+                .as_deref();
+            let trigger = psych
+                .behavioral_adaptation
+                .defense_mechanisms
+                .stress_trigger
+                .value
+                .as_deref();
+            let strategy = psych
+                .behavioral_adaptation
+                .defense_mechanisms
+                .coping_strategy
+                .value
+                .as_deref();
 
             tx.execute(
                 "INSERT INTO character_psychological (character_id, the_wound, the_lie, fundamental_fear, moral_alignment,
@@ -1176,7 +1377,9 @@ pub fn commit_draft_tx(
                 let mem_id = Uuid::now_v7().to_string();
                 let source_scene_code = mem.source_scene_code.value.as_deref().unwrap_or("").trim();
                 let source_scene_id = if !source_scene_code.is_empty() {
-                    code_to_id.get(&(EntityNamespace::Scene, source_scene_code.to_string())).cloned()
+                    code_to_id
+                        .get(&(EntityNamespace::Scene, source_scene_code.to_string()))
+                        .cloned()
                 } else {
                     None
                 };
@@ -1196,13 +1399,20 @@ pub fn commit_draft_tx(
     // ------------------------------------------------------------------------
     for exp in &state.optional.character_life_experience_phase.character {
         let ch_code = exp.code.trim();
-        let char_id_opt = code_to_id.get(&(EntityNamespace::Character, ch_code.to_string())).cloned();
+        let char_id_opt = code_to_id
+            .get(&(EntityNamespace::Character, ch_code.to_string()))
+            .cloned();
         if let Some(char_id) = char_id_opt {
             for comp in &exp.competences {
                 let comp_code = comp.code.trim();
                 let comp_id = Uuid::now_v7().to_string();
 
-                let d_code = comp.domain_code.value.as_deref().unwrap_or("GENERAL").trim();
+                let d_code = comp
+                    .domain_code
+                    .value
+                    .as_deref()
+                    .unwrap_or("GENERAL")
+                    .trim();
                 let domain_id = ensure_competence_domain_id(&tx, d_code)?;
 
                 let sc_code = comp.scene_code.value.as_deref().unwrap_or("").trim();
@@ -1226,7 +1436,10 @@ pub fn commit_draft_tx(
                      VALUES (?1, ?2, ?3, ?4, NULL, ?5, ?6, ?7, ?8, ?9)",
                     params![comp_id, comp_code, char_id, domain_id, scene_id, disp, desc, rel, exp_s],
                 )?;
-                code_to_id.insert((EntityNamespace::Competence, comp_code.to_string()), comp_id.clone());
+                code_to_id.insert(
+                    (EntityNamespace::Competence, comp_code.to_string()),
+                    comp_id.clone(),
+                );
 
                 for cap in &comp.capabilities {
                     if let Some(ref c) = cap.value {
@@ -1258,8 +1471,12 @@ pub fn commit_draft_tx(
         let from_code = rel.character.from_code.trim();
         let to_code = rel.character.to_code.trim();
 
-        let from_id = code_to_id.get(&(EntityNamespace::Character, from_code.to_string())).cloned();
-        let to_id = code_to_id.get(&(EntityNamespace::Character, to_code.to_string())).cloned();
+        let from_id = code_to_id
+            .get(&(EntityNamespace::Character, from_code.to_string()))
+            .cloned();
+        let to_id = code_to_id
+            .get(&(EntityNamespace::Character, to_code.to_string()))
+            .cloned();
 
         if let (Some(f_id), Some(t_id)) = (from_id, to_id) {
             let rel_id = Uuid::now_v7().to_string();
@@ -1285,7 +1502,11 @@ pub fn commit_draft_tx(
                 let hier = normalize_hierarchy(role.hierarchy.value.as_deref());
                 let cat_code = role.category_code.value.as_deref().unwrap_or("").trim();
                 let cat_id = ensure_relationship_category_id(&tx, cat_code)?;
-                let is_prim = if role.is_primary.value == Some(true) { 1 } else { 0 };
+                let is_prim = if role.is_primary.value == Some(true) {
+                    1
+                } else {
+                    0
+                };
 
                 tx.execute(
                     "INSERT INTO relationship_roles (id, hierarchy, category_id, relationship_id, is_primary)
@@ -1296,7 +1517,9 @@ pub fn commit_draft_tx(
 
             for r_state in &rel.character.scenes {
                 let sc_code = r_state.scene_code.trim();
-                if let Some(scene_id) = code_to_id.get(&(EntityNamespace::Scene, sc_code.to_string())) {
+                if let Some(scene_id) =
+                    code_to_id.get(&(EntityNamespace::Scene, sc_code.to_string()))
+                {
                     let st_id = Uuid::now_v7().to_string();
                     let trust = normalize_dimension(r_state.trust.value.as_deref());
                     let affection = normalize_dimension(r_state.affection.value.as_deref());
@@ -1346,7 +1569,8 @@ pub fn reopen_committed_draft(
     }
 
     // 2. Find draft_session for this project
-    let mut stmt = conn.prepare("SELECT id, status FROM draft_sessions WHERE project_id = ?1 LIMIT 1")?;
+    let mut stmt =
+        conn.prepare("SELECT id, status FROM draft_sessions WHERE project_id = ?1 LIMIT 1")?;
     let mut rows = stmt.query(params![project_id_str])?;
     let draft_session_id_str: String = if let Some(row) = rows.next()? {
         row.get(0)?

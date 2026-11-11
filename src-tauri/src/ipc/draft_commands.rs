@@ -5,10 +5,9 @@ use crate::domain::fingerprint::state_data_hash;
 use crate::domain::progress_engine::{evaluate_progress, MasterAttributePhaseGroup};
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    ApplyManualDraftEditReq, AttributeEvaluationDetailDto, ConfirmPhaseReq,
-    DraftVersionListDto, DraftWorkspaceStateDto, GetDraftWorkspaceStateReq,
-    GetProgressDetailReq, ListDraftVersionsReq, ManualEditResponseDto,
-    PhaseConfirmResponseDto, ProgressDetailDto, ProgressSummaryDto,
+    ApplyManualDraftEditReq, AttributeEvaluationDetailDto, ConfirmPhaseReq, DraftVersionListDto,
+    DraftWorkspaceStateDto, GetDraftWorkspaceStateReq, GetProgressDetailReq, ListDraftVersionsReq,
+    ManualEditResponseDto, PhaseConfirmResponseDto, ProgressDetailDto, ProgressSummaryDto,
     RestoreDraftVersionReq, RestoreVersionResponseDto,
 };
 use crate::service::draft_runtime::{DraftRuntimeStatus, DRAFT_LOCK_TIMEOUT};
@@ -177,7 +176,8 @@ pub async fn exec_apply_manual_draft_edit(
         .await?;
 
     let snap = entry.get_snapshot();
-    if snap.status == DraftRuntimeStatus::Committing || snap.status == DraftRuntimeStatus::Committed {
+    if snap.status == DraftRuntimeStatus::Committing || snap.status == DraftRuntimeStatus::Committed
+    {
         return Err(IpcError::new(
             ErrorCode::DraftNotEditable,
             "Draft is committing or committed and cannot be edited",
@@ -192,13 +192,13 @@ pub async fn exec_apply_manual_draft_edit(
 
     // Apply mutation into working state
     entry.mutate_working_state(|ws| {
-        ws.business_flow_data.decision_log.push(
-            crate::domain::business_flow::DecisionLogEntry {
+        ws.business_flow_data
+            .decision_log
+            .push(crate::domain::business_flow::DecisionLogEntry {
                 id: req.client_edit_id.clone(),
                 summary: format!("{}: {}", req.tool_code, req.args),
                 source: crate::domain::business_flow::ProvenanceSource::User,
-            },
-        );
+            });
 
         if req.tool_code == "set_genre" {
             if let Some(genre_name) = req.args.get("name").and_then(|v| v.as_str()) {
@@ -223,10 +223,16 @@ pub async fn exec_apply_manual_draft_edit(
 
     let updated_snap = entry.get_snapshot();
     let data_json = serde_json::to_string(&updated_snap.business_flow_data).map_err(|e| {
-        IpcError::new(ErrorCode::InternalError, format!("Serialization error: {}", e))
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("Serialization error: {}", e),
+        )
     })?;
     let data_hash = state_data_hash(&updated_snap.business_flow_data).map_err(|e| {
-        IpcError::new(ErrorCode::InternalError, format!("Hash computation error: {}", e))
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("Hash computation error: {}", e),
+        )
     })?;
 
     let seal_params = SealVersionParams {
@@ -302,7 +308,8 @@ pub async fn exec_confirm_phase(
         .await?;
 
     let snap = entry.get_snapshot();
-    if snap.status == DraftRuntimeStatus::Committing || snap.status == DraftRuntimeStatus::Committed {
+    if snap.status == DraftRuntimeStatus::Committing || snap.status == DraftRuntimeStatus::Committed
+    {
         return Err(IpcError::new(
             ErrorCode::DraftNotEditable,
             "Draft is committing or committed and cannot confirm phase",
@@ -318,7 +325,7 @@ pub async fn exec_confirm_phase(
 
     if req.target_phase == 5 {
         if let Some(sub) = req.target_subphase {
-            if sub < 1 || sub > 3 {
+            if !(1..=3).contains(&sub) {
                 return Err(IpcError::new(
                     ErrorCode::ValidationFailed,
                     "Phase 5 targetSubphase must be in 1..=3",
@@ -385,8 +392,10 @@ pub async fn exec_confirm_phase(
                     3
                 };
                 for sub in 1..=last_sub {
-                    let missing =
-                        crate::domain::phase_gate::missing_for_subphase(&snap.business_flow_data, sub);
+                    let missing = crate::domain::phase_gate::missing_for_subphase(
+                        &snap.business_flow_data,
+                        sub,
+                    );
                     if !missing.is_empty() {
                         transition_problems.push(format!("Phase 5.{sub}: {}", missing.join("; ")));
                     }
@@ -404,10 +413,8 @@ pub async fn exec_confirm_phase(
     if moving_to_next_subphase {
         let target_sub = req.target_subphase.unwrap_or(1);
         for sub in current_subphase.unwrap_or(1)..target_sub {
-            let missing = crate::domain::phase_gate::missing_for_subphase(
-                &snap.business_flow_data,
-                sub,
-            );
+            let missing =
+                crate::domain::phase_gate::missing_for_subphase(&snap.business_flow_data, sub);
             if !missing.is_empty() {
                 transition_problems.push(format!("Phase 5.{sub}: {}", missing.join("; ")));
             }
@@ -426,7 +433,10 @@ pub async fn exec_confirm_phase(
 
     let base_seq = snap.head_version_seq.unwrap_or(0);
     let sub_suffix = req.target_subphase.unwrap_or(0);
-    let seal_key = format!("phase_confirm:{}:{}:{}", base_seq, req.target_phase, sub_suffix);
+    let seal_key = format!(
+        "phase_confirm:{}:{}:{}",
+        base_seq, req.target_phase, sub_suffix
+    );
 
     entry.mutate_working_state(|ws| {
         ws.phase = req.target_phase;
@@ -437,10 +447,16 @@ pub async fn exec_confirm_phase(
 
     let updated_snap = entry.get_snapshot();
     let data_json = serde_json::to_string(&updated_snap.business_flow_data).map_err(|e| {
-        IpcError::new(ErrorCode::InternalError, format!("Serialization error: {}", e))
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("Serialization error: {}", e),
+        )
     })?;
     let data_hash = state_data_hash(&updated_snap.business_flow_data).map_err(|e| {
-        IpcError::new(ErrorCode::InternalError, format!("Hash computation error: {}", e))
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("Hash computation error: {}", e),
+        )
     })?;
 
     let seal_params = SealVersionParams {
@@ -553,7 +569,10 @@ fn render_business_flow_markdown(
                 .as_deref()
                 .unwrap_or("Chưa đặt tên")
         ));
-        md.push_str(&format!("**Giai đoạn hiện tại:** Phase {} (Subphase: {:?})\n\n", phase, subphase));
+        md.push_str(&format!(
+            "**Giai đoạn hiện tại:** Phase {} (Subphase: {:?})\n\n",
+            phase, subphase
+        ));
 
         md.push_str("## 1. Thông Số Mục Tiêu (Phase 0)\n");
         md.push_str(&format!(
@@ -566,7 +585,12 @@ fn render_business_flow_markdown(
         ));
         md.push_str(&format!(
             "- **Số từ mỗi chương:** {}\n\n",
-            data.require.project.target.word_per_chapter_count.value.unwrap_or(0)
+            data.require
+                .project
+                .target
+                .word_per_chapter_count
+                .value
+                .unwrap_or(0)
         ));
 
         md.push_str("## 2. Nhân Vật\n");
@@ -606,7 +630,10 @@ fn render_business_flow_markdown(
                 .as_deref()
                 .unwrap_or("Untitled")
         ));
-        md.push_str(&format!("**Current Phase:** Phase {} (Subphase: {:?})\n\n", phase, subphase));
+        md.push_str(&format!(
+            "**Current Phase:** Phase {} (Subphase: {:?})\n\n",
+            phase, subphase
+        ));
 
         md.push_str("## 1. Phase 0 Targets\n");
         md.push_str(&format!(
@@ -619,7 +646,12 @@ fn render_business_flow_markdown(
         ));
         md.push_str(&format!(
             "- **Target Words/Chapter:** {}\n\n",
-            data.require.project.target.word_per_chapter_count.value.unwrap_or(0)
+            data.require
+                .project
+                .target
+                .word_per_chapter_count
+                .value
+                .unwrap_or(0)
         ));
 
         md.push_str("## 2. Characters\n");

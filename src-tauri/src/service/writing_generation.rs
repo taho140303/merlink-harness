@@ -6,11 +6,11 @@
 //! - Dynamic `EditScope` expansion with human operator authorization (`respond_edit_scope_expansion`, IPC #34).
 //! - Permanent lock invalidation (`LOCK-04`, `T-LOCK-01`) and accept gating (`SCOPE-04`).
 
-use std::collections::{BTreeSet, HashMap};
-use std::sync::{Arc, RwLock};
 use chrono::Utc;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -18,8 +18,8 @@ use uuid::Uuid;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
     CancelSceneGenerationReq, CancelSceneGenerationResponseDto, GenerationStreamStatus,
-    RespondEditScopeExpansionReq, RespondEditScopeExpansionResponseDto,
-    SceneGenerationResultDto, SceneGenerationStreamEvent, StartSceneGenerationReq,
+    RespondEditScopeExpansionReq, RespondEditScopeExpansionResponseDto, SceneGenerationResultDto,
+    SceneGenerationStreamEvent, StartSceneGenerationReq,
 };
 use crate::providers::traits::{
     LlmProvider, ProviderError, ProviderStreamChunk, ProviderStreamRequest,
@@ -143,7 +143,11 @@ impl WritingGenerationService {
     }
 
     /// Retrieves a specific generation buffer from RAM.
-    pub fn get_buffer(&self, chapter_id: Uuid, generation_id: Uuid) -> Option<SceneGenerationBuffer> {
+    pub fn get_buffer(
+        &self,
+        chapter_id: Uuid,
+        generation_id: Uuid,
+    ) -> Option<SceneGenerationBuffer> {
         let state = self.state.read().unwrap();
         state
             .buffers
@@ -174,7 +178,10 @@ impl WritingGenerationService {
     /// Returns the generation_id of the currently active generation for chapter_id, if any.
     pub fn get_active_generation_id(&self, chapter_id: Uuid) -> Option<Uuid> {
         let state = self.state.read().unwrap();
-        state.active_generations.get(&chapter_id).map(|g| g.generation_id)
+        state
+            .active_generations
+            .get(&chapter_id)
+            .map(|g| g.generation_id)
     }
 
     // ------------------------------------------------------------------------
@@ -222,7 +229,11 @@ impl WritingGenerationService {
     /// 3. Scene currently unlocked in SQLite (`scenes.is_locked == false`)
     ///
     /// Does NOT write to SQLite `scenes.content` or `scene_versions` (caller performs dirty save).
-    pub fn accept_generation(&self, chapter_id: Uuid, generation_id: Uuid) -> Result<String, IpcError> {
+    pub fn accept_generation(
+        &self,
+        chapter_id: Uuid,
+        generation_id: Uuid,
+    ) -> Result<String, IpcError> {
         let buffer = {
             let state = self.state.read().unwrap();
             let chapter_buffers = state.buffers.get(&chapter_id).ok_or_else(|| {
@@ -231,12 +242,18 @@ impl WritingGenerationService {
                     format!("No buffers found for chapter {}", chapter_id),
                 )
             })?;
-            chapter_buffers.get(&generation_id).cloned().ok_or_else(|| {
-                IpcError::new(
-                    ErrorCode::EntityNotFound,
-                    format!("Generation {} not found in chapter {}", generation_id, chapter_id),
-                )
-            })?
+            chapter_buffers
+                .get(&generation_id)
+                .cloned()
+                .ok_or_else(|| {
+                    IpcError::new(
+                        ErrorCode::EntityNotFound,
+                        format!(
+                            "Generation {} not found in chapter {}",
+                            generation_id, chapter_id
+                        ),
+                    )
+                })?
         };
 
         // Gate 1: Check if invalidated by lock
@@ -288,7 +305,11 @@ impl WritingGenerationService {
     }
 
     /// Discards a generation buffer from RAM without affecting persisted content.
-    pub fn discard_generation(&self, chapter_id: Uuid, generation_id: Uuid) -> Result<(), IpcError> {
+    pub fn discard_generation(
+        &self,
+        chapter_id: Uuid,
+        generation_id: Uuid,
+    ) -> Result<(), IpcError> {
         let mut state = self.state.write().unwrap();
         if let Some(ch_buffers) = state.buffers.get_mut(&chapter_id) {
             ch_buffers.remove(&generation_id);
@@ -314,11 +335,7 @@ impl WritingGenerationService {
         Ok(is_locked.map(|v| v != 0).unwrap_or(false))
     }
 
-    fn verify_scene_in_chapter(
-        &self,
-        scene_id: Uuid,
-        chapter_id: Uuid,
-    ) -> Result<bool, IpcError> {
+    fn verify_scene_in_chapter(&self, scene_id: Uuid, chapter_id: Uuid) -> Result<bool, IpcError> {
         let conn = self
             .pool
             .get()
@@ -388,7 +405,10 @@ impl WritingGenerationService {
         if mode_norm != "generate" && mode_norm != "regenerate" {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
-                format!("Invalid mode '{}'; must be 'generate' or 'regenerate'", req.mode),
+                format!(
+                    "Invalid mode '{}'; must be 'generate' or 'regenerate'",
+                    req.mode
+                ),
             ));
         }
 
@@ -413,7 +433,10 @@ impl WritingGenerationService {
         if is_locked {
             return Err(IpcError::new(
                 ErrorCode::SceneLocked,
-                format!("Cannot generate content for locked scene {} (LOCK-04)", req.scene_id),
+                format!(
+                    "Cannot generate content for locked scene {} (LOCK-04)",
+                    req.scene_id
+                ),
             ));
         }
 
@@ -502,7 +525,9 @@ impl WritingGenerationService {
 
         // 6. Spawn provider stream completion
         let prompt = match (&normalized_note, &req.current_working_content) {
-            (Some(n), Some(c)) => format!("Mode: {}. Working content: {}. Note: {}", req.mode, c, n),
+            (Some(n), Some(c)) => {
+                format!("Mode: {}. Working content: {}. Note: {}", req.mode, c, n)
+            }
             (Some(n), None) => format!("Mode: {}. Note: {}", req.mode, n),
             (None, Some(c)) => format!("Mode: {}. Working content: {}", req.mode, c),
             (None, None) => format!("Mode: {}", req.mode),
@@ -521,9 +546,8 @@ impl WritingGenerationService {
         let s_req = stream_req.clone();
         let c_token = cancel_token.clone();
 
-        let provider_handle = tokio::spawn(async move {
-            prov.stream_completion(&s_req, chunk_tx, c_token).await
-        });
+        let provider_handle =
+            tokio::spawn(async move { prov.stream_completion(&s_req, chunk_tx, c_token).await });
 
         // 7. Streaming pump with fast midstream lock detection
         let mut accumulated_text = String::new();

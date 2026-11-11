@@ -305,7 +305,12 @@ pub fn update_status_cas(
         "UPDATE pending_patches
          SET status = ?1, resolved_at = ?2
          WHERE id = ?3 AND status = ?4",
-        params![new_status, resolved_at, patch_id.to_string(), expected_status],
+        params![
+            new_status,
+            resolved_at,
+            patch_id.to_string(),
+            expected_status
+        ],
     )?;
     Ok(affected > 0)
 }
@@ -360,6 +365,7 @@ pub enum ProposalEvaluationResult {
 /// - `Err(())`: entity `target_code` was not found.
 /// - `Ok(None)`: entity was found, but field is unset or null.
 /// - `Ok(Some(val))`: entity was found, field has `val`.
+#[allow(clippy::result_unit_err)]
 pub fn get_field_value(
     state: &BusinessFlowData,
     target_type: &str,
@@ -370,12 +376,18 @@ pub fn get_field_value(
         "project" => {
             let p = &state.require.project;
             match field_name {
-                "display_name" => Ok(p.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
+                "display_name" => Ok(p
+                    .display_name
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
                 "summary" => Ok(p.summary.value.as_ref().map(|s| Value::String(s.clone()))),
                 "language" => Ok(p.language.value.as_ref().map(|s| Value::String(s.clone()))),
                 "target.arc_count" => Ok(p.target.arc_count.value.map(Value::from)),
                 "target.chapter_count" => Ok(p.target.chapter_count.value.map(Value::from)),
-                "target.word_per_chapter_count" => Ok(p.target.word_per_chapter_count.value.map(Value::from)),
+                "target.word_per_chapter_count" => {
+                    Ok(p.target.word_per_chapter_count.value.map(Value::from))
+                }
                 _ => Ok(None),
             }
         }
@@ -387,10 +399,22 @@ pub fn get_field_value(
                 .find(|ch| ch.code == target_code)
                 .ok_or(())?;
             match field_name {
-                "display_name" => Ok(c.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
+                "display_name" => Ok(c
+                    .display_name
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
                 "nickname" => Ok(c.nickname.value.as_ref().map(|s| Value::String(s.clone()))),
-                "biological_sex" => Ok(c.biological_sex.value.as_ref().map(|s| Value::String(s.clone()))),
-                "motif_code" => Ok(c.motif_code.value.as_ref().map(|s| Value::String(s.clone()))),
+                "biological_sex" => Ok(c
+                    .biological_sex
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
+                "motif_code" => Ok(c
+                    .motif_code
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
                 "role" => Ok(c.role.value.as_ref().map(|s| Value::String(s.clone()))),
                 "notes" => Ok(c.notes.value.as_ref().map(|s| Value::String(s.clone()))),
                 _ => Ok(None),
@@ -405,9 +429,21 @@ pub fn get_field_value(
                 .find(|w| w.code == target_code)
                 .ok_or(())?;
             match field_name {
-                "display_name" | "name" => Ok(ws.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
-                "type" | "setting_type" | "category" => Ok(ws.setting_type.value.as_ref().map(|s| Value::String(s.clone()))),
-                "description" => Ok(ws.description.value.as_ref().map(|s| Value::String(s.clone()))),
+                "display_name" | "name" => Ok(ws
+                    .display_name
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
+                "type" | "setting_type" | "category" => Ok(ws
+                    .setting_type
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
+                "description" => Ok(ws
+                    .description
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
                 _ => Ok(None),
             }
         }
@@ -415,9 +451,27 @@ pub fn get_field_value(
             for ws in &state.optional.world_building_phase.world_settings {
                 if let Some(le) = ws.lore_entries.iter().find(|l| l.code == target_code) {
                     match field_name {
-                        "display_name" | "title" => return Ok(le.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
-                        "description" | "content" => return Ok(le.description.value.as_ref().map(|s| Value::String(s.clone()))),
-                        "type" | "lore_type" | "category" => return Ok(le.lore_type.value.as_ref().map(|s| Value::String(s.clone()))),
+                        "display_name" | "title" => {
+                            return Ok(le
+                                .display_name
+                                .value
+                                .as_ref()
+                                .map(|s| Value::String(s.clone())))
+                        }
+                        "description" | "content" => {
+                            return Ok(le
+                                .description
+                                .value
+                                .as_ref()
+                                .map(|s| Value::String(s.clone())))
+                        }
+                        "type" | "lore_type" | "category" => {
+                            return Ok(le
+                                .lore_type
+                                .value
+                                .as_ref()
+                                .map(|s| Value::String(s.clone())))
+                        }
                         _ => return Ok(None),
                     }
                 }
@@ -433,8 +487,14 @@ pub fn get_field_value(
                 .find(|a| a.code == target_code)
                 .ok_or(())?;
             match field_name {
-                "display_name" | "name" => Ok(arc.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
-                "summary" | "description" => Ok(arc.summary.value.as_ref().map(|s| Value::String(s.clone()))),
+                "display_name" | "name" => Ok(arc
+                    .display_name
+                    .value
+                    .as_ref()
+                    .map(|s| Value::String(s.clone()))),
+                "summary" | "description" => {
+                    Ok(arc.summary.value.as_ref().map(|s| Value::String(s.clone())))
+                }
                 _ => Ok(None),
             }
         }
@@ -442,8 +502,16 @@ pub fn get_field_value(
             for arc in &state.optional.chapter_phase.arcs {
                 if let Some(ch) = arc.chapters.iter().find(|c| c.code == target_code) {
                     match field_name {
-                        "display_name" | "title" => return Ok(ch.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
-                        "summary" => return Ok(ch.summary.value.as_ref().map(|s| Value::String(s.clone()))),
+                        "display_name" | "title" => {
+                            return Ok(ch
+                                .display_name
+                                .value
+                                .as_ref()
+                                .map(|s| Value::String(s.clone())))
+                        }
+                        "summary" => {
+                            return Ok(ch.summary.value.as_ref().map(|s| Value::String(s.clone())))
+                        }
                         _ => return Ok(None),
                     }
                 }
@@ -455,9 +523,27 @@ pub fn get_field_value(
                 for ch in &arc.chapters {
                     if let Some(sc) = ch.scenes.iter().find(|s| s.code == target_code) {
                         match field_name {
-                            "display_name" | "title" => return Ok(sc.display_name.value.as_ref().map(|s| Value::String(s.clone()))),
-                            "summary" => return Ok(sc.summary.value.as_ref().map(|s| Value::String(s.clone()))),
-                            "world_setting_code" | "setting" => return Ok(sc.world_setting_code.value.as_ref().map(|s| Value::String(s.clone()))),
+                            "display_name" | "title" => {
+                                return Ok(sc
+                                    .display_name
+                                    .value
+                                    .as_ref()
+                                    .map(|s| Value::String(s.clone())))
+                            }
+                            "summary" => {
+                                return Ok(sc
+                                    .summary
+                                    .value
+                                    .as_ref()
+                                    .map(|s| Value::String(s.clone())))
+                            }
+                            "world_setting_code" | "setting" => {
+                                return Ok(sc
+                                    .world_setting_code
+                                    .value
+                                    .as_ref()
+                                    .map(|s| Value::String(s.clone())))
+                            }
                             _ => return Ok(None),
                         }
                     }
@@ -494,7 +580,9 @@ fn find_entity_in_json(v: &Value, target_code: &str) -> bool {
             }
             false
         }
-        Value::Array(items) => items.iter().any(|item| find_entity_in_json(item, target_code)),
+        Value::Array(items) => items
+            .iter()
+            .any(|item| find_entity_in_json(item, target_code)),
         _ => false,
     }
 }
@@ -521,7 +609,10 @@ pub fn apply_field_mutation(
                 "summary" => p.summary = TrackedField::user_edited(str_val),
                 "language" => p.language = TrackedField::user_edited(str_val),
                 "target.arc_count" | "target.chapter_count" | "target.word_per_chapter_count" => {
-                    let value = new_value.as_u64().and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+                    let value = new_value
+                        .as_u64()
+                        .and_then(|n| u32::try_from(n).ok())
+                        .filter(|n| *n > 0)
                         .ok_or_else(|| "expected_positive_integer".to_string())?;
                     let field = match field_name {
                         "target.arc_count" => &mut p.target.arc_count,
@@ -562,7 +653,9 @@ pub fn apply_field_mutation(
                 .ok_or_else(|| format!("World setting '{}' not found", target_code))?;
             match field_name {
                 "display_name" | "name" => ws.display_name = TrackedField::user_edited(str_val),
-                "type" | "setting_type" | "category" => ws.setting_type = TrackedField::user_edited(str_val),
+                "type" | "setting_type" | "category" => {
+                    ws.setting_type = TrackedField::user_edited(str_val)
+                }
                 "description" => ws.description = TrackedField::user_edited(str_val),
                 _ => return Err(format!("Unknown world setting field '{}'", field_name)),
             }
@@ -572,9 +665,15 @@ pub fn apply_field_mutation(
             for ws in &mut state.optional.world_building_phase.world_settings {
                 if let Some(le) = ws.lore_entries.iter_mut().find(|l| l.code == target_code) {
                     match field_name {
-                        "display_name" | "title" => le.display_name = TrackedField::user_edited(str_val),
-                        "description" | "content" => le.description = TrackedField::user_edited(str_val),
-                        "type" | "lore_type" | "category" => le.lore_type = TrackedField::user_edited(str_val),
+                        "display_name" | "title" => {
+                            le.display_name = TrackedField::user_edited(str_val)
+                        }
+                        "description" | "content" => {
+                            le.description = TrackedField::user_edited(str_val)
+                        }
+                        "type" | "lore_type" | "category" => {
+                            le.lore_type = TrackedField::user_edited(str_val)
+                        }
                         _ => return Err(format!("Unknown lore entry field '{}'", field_name)),
                     }
                     return Ok(());
@@ -601,7 +700,9 @@ pub fn apply_field_mutation(
             for arc in &mut state.optional.chapter_phase.arcs {
                 if let Some(ch) = arc.chapters.iter_mut().find(|c| c.code == target_code) {
                     match field_name {
-                        "display_name" | "title" => ch.display_name = TrackedField::user_edited(str_val),
+                        "display_name" | "title" => {
+                            ch.display_name = TrackedField::user_edited(str_val)
+                        }
                         "summary" => ch.summary = TrackedField::user_edited(str_val),
                         _ => return Err(format!("Unknown chapter field '{}'", field_name)),
                     }
@@ -615,9 +716,13 @@ pub fn apply_field_mutation(
                 for ch in &mut arc.chapters {
                     if let Some(sc) = ch.scenes.iter_mut().find(|s| s.code == target_code) {
                         match field_name {
-                            "display_name" | "title" => sc.display_name = TrackedField::user_edited(str_val),
+                            "display_name" | "title" => {
+                                sc.display_name = TrackedField::user_edited(str_val)
+                            }
                             "summary" => sc.summary = TrackedField::user_edited(str_val),
-                            "world_setting_code" | "setting" => sc.world_setting_code = TrackedField::user_edited(str_val),
+                            "world_setting_code" | "setting" => {
+                                sc.world_setting_code = TrackedField::user_edited(str_val)
+                            }
                             _ => return Err(format!("Unknown scene field '{}'", field_name)),
                         }
                         return Ok(());
@@ -627,22 +732,6 @@ pub fn apply_field_mutation(
             Err(format!("Scene '{}' not found", target_code))
         }
         _ => Err(format!("Unsupported target_type '{}'", target_type)),
-    }
-}
-
-#[cfg(test)]
-mod project_target_patch_tests {
-    use super::*;
-
-    #[test]
-    fn test_project_target_patch_reads_numeric_baseline_and_applies_confirmed_value() {
-        let mut data = BusinessFlowData::new();
-        data.require.project.target.chapter_count = TrackedField::user(120);
-        assert_eq!(get_field_value(&data, "project", "require.project", "target.chapter_count").unwrap(), Some(serde_json::json!(120)));
-        apply_field_mutation(&mut data, "project", "require.project", "target.chapter_count", &serde_json::json!(122)).unwrap();
-        assert_eq!(data.require.project.target.chapter_count, TrackedField::user_edited(122));
-        assert!(apply_field_mutation(&mut data, "project", "require.project", "target.chapter_count", &serde_json::json!(0)).is_err());
-        assert_eq!(data.require.project.target.chapter_count.value, Some(122));
     }
 }
 
@@ -684,12 +773,40 @@ pub fn evaluate_proposal(
     } else if record.operation == "delete" {
         // Target entity must exist
         let exists = match record.target_type.as_str() {
-            "character" => candidate.require.character.iter().any(|c| c.code == record.target_code),
-            "world_setting" => candidate.optional.world_building_phase.world_settings.iter().any(|w| w.code == record.target_code),
-            "lore_entry" => candidate.optional.world_building_phase.world_settings.iter().any(|w| w.lore_entries.iter().any(|l| l.code == record.target_code)),
-            "arc" => candidate.optional.overview_phase.arcs.iter().any(|a| a.code == record.target_code),
-            "chapter" => candidate.optional.chapter_phase.arcs.iter().any(|a| a.chapters.iter().any(|c| c.code == record.target_code)),
-            "scene" => candidate.optional.chapter_phase.arcs.iter().any(|a| a.chapters.iter().any(|c| c.scenes.iter().any(|s| s.code == record.target_code))),
+            "character" => candidate
+                .require
+                .character
+                .iter()
+                .any(|c| c.code == record.target_code),
+            "world_setting" => candidate
+                .optional
+                .world_building_phase
+                .world_settings
+                .iter()
+                .any(|w| w.code == record.target_code),
+            "lore_entry" => candidate
+                .optional
+                .world_building_phase
+                .world_settings
+                .iter()
+                .any(|w| w.lore_entries.iter().any(|l| l.code == record.target_code)),
+            "arc" => candidate
+                .optional
+                .overview_phase
+                .arcs
+                .iter()
+                .any(|a| a.code == record.target_code),
+            "chapter" => candidate
+                .optional
+                .chapter_phase
+                .arcs
+                .iter()
+                .any(|a| a.chapters.iter().any(|c| c.code == record.target_code)),
+            "scene" => candidate.optional.chapter_phase.arcs.iter().any(|a| {
+                a.chapters
+                    .iter()
+                    .any(|c| c.scenes.iter().any(|s| s.code == record.target_code))
+            }),
             _ => {
                 if let Ok(json_val) = serde_json::to_value(candidate) {
                     find_entity_in_json(&json_val, &record.target_code)
@@ -701,7 +818,10 @@ pub fn evaluate_proposal(
 
         if !exists {
             return ProposalEvaluationResult::Expired {
-                reason: format!("Delete target '{}' does not exist in working state", record.target_code),
+                reason: format!(
+                    "Delete target '{}' does not exist in working state",
+                    record.target_code
+                ),
             };
         }
     }
@@ -753,7 +873,10 @@ pub fn evaluate_proposal(
                 None => {
                     // Dependency path disappeared from candidate state -> expired!
                     return ProposalEvaluationResult::Expired {
-                        reason: format!("Dependency path '{}' not found in candidate state", dep.path),
+                        reason: format!(
+                            "Dependency path '{}' not found in candidate state",
+                            dep.path
+                        ),
                     };
                 }
                 Some(val) => {
@@ -764,7 +887,7 @@ pub fn evaluate_proposal(
                     } else if let Some(s) = val.as_str() {
                         s == dep.scope_fingerprint
                     } else {
-                        val.to_string() == dep.scope_fingerprint
+                        *val == dep.scope_fingerprint
                     };
 
                     if !matches_fp {
@@ -780,7 +903,10 @@ pub fn evaluate_proposal(
         }
 
         // If workflow origin exists and dependencies vector is marked indeterminate or has special test marker
-        if has_workflow_origin && eligibility.dependencies.is_empty() && eligibility.missing_evidence.is_none() {
+        if has_workflow_origin
+            && eligibility.dependencies.is_empty()
+            && eligibility.missing_evidence.is_none()
+        {
             if let Some(ref orig) = eligibility.origin {
                 if orig.task_identity.as_deref() == Some("indeterminate_task") {
                     return ProposalEvaluationResult::Indeterminate {
@@ -914,4 +1040,40 @@ pub fn persist_proposal_tx(
         reused_existing: false,
         accepted_new_origin: true,
     })
+}
+
+#[cfg(test)]
+mod project_target_patch_tests {
+    use super::*;
+
+    #[test]
+    fn test_project_target_patch_reads_numeric_baseline_and_applies_confirmed_value() {
+        let mut data = BusinessFlowData::new();
+        data.require.project.target.chapter_count = TrackedField::user(120);
+        assert_eq!(
+            get_field_value(&data, "project", "require.project", "target.chapter_count").unwrap(),
+            Some(serde_json::json!(120))
+        );
+        apply_field_mutation(
+            &mut data,
+            "project",
+            "require.project",
+            "target.chapter_count",
+            &serde_json::json!(122),
+        )
+        .unwrap();
+        assert_eq!(
+            data.require.project.target.chapter_count,
+            TrackedField::user_edited(122)
+        );
+        assert!(apply_field_mutation(
+            &mut data,
+            "project",
+            "require.project",
+            "target.chapter_count",
+            &serde_json::json!(0)
+        )
+        .is_err());
+        assert_eq!(data.require.project.target.chapter_count.value, Some(122));
+    }
 }

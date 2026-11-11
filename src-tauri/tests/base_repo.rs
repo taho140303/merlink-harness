@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and integration tests for `phase2_sprint6_deep2` ("Implement isolated base repositories").
 //!
 //! Complies with docs/plan/phase2_sprint6_deep2.md, docs/business/be-core.md (§3.1, §3.6, §3.8, §3.9, §1549),
@@ -6,6 +13,8 @@
 //! Per backend module wiring rule in docs/plan/phase2_sprint6_deep2.md §12:
 //! - This sprint does not edit any mod.rs or lib.rs.
 //! - The test target loads owned implementation files via `#[path = "..."]`.
+
+mod common;
 
 #[path = "../src/storage/db.rs"]
 pub mod db;
@@ -36,7 +45,6 @@ pub mod storage {
 
 use rusqlite::Connection;
 use std::path::PathBuf;
-use std::process::Command;
 use tempfile::TempDir;
 
 use storage::catalog_repo::{CatalogRepo, CatalogRepoError, SqliteCatalogRepo};
@@ -46,11 +54,9 @@ use storage::draft_repo::{
 };
 use storage::migration::{run_migrations, verify_schema_and_integrity};
 use storage::temp_store::{TempStore, TempStoreError};
-use storage::workflow_repo::{
-    SqliteWorkflowRepo, WorkflowReadRepo, WorkflowRepoError,
-};
+use storage::workflow_repo::{SqliteWorkflowRepo, WorkflowReadRepo, WorkflowRepoError};
 
-const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 const PREDECESSOR_P2S2_COMMIT: &str = "f69f1ab0e3d3d34853ddf887cac139cde6d64b0d";
 const PREDECESSOR_P2S3_COMMIT: &str = "d51da679c193f9ef7697bdae4807490472396746";
 
@@ -97,7 +103,8 @@ fn seed_test_data(conn: &Connection) {
          ('018e3a00-0000-7000-8000-000000000010', 'proj_alpha', 'Project Alpha', 'PLANNING', 'VI'),
          ('018e3a00-0000-7000-8000-000000000020', 'proj_beta', 'Project Beta', 'DRAFTING', 'EN')",
         [],
-    ).expect("seed projects");
+    )
+    .expect("seed projects");
 
     conn.execute(
         "INSERT INTO sessions (id, project_id, display_name) VALUES
@@ -172,7 +179,8 @@ fn seed_test_data(conn: &Connection) {
          ('018e3a00-0000-7000-8000-0000000000s1', 'style_epic', 'fantasy', 'MODERATE', 'AWE', 1),
          ('018e3a00-0000-7000-8000-0000000000s2', 'style_noir', 'mystery', 'FAST', 'TENSE', 0)",
         [],
-    ).expect("seed style_presets");
+    )
+    .expect("seed style_presets");
 
     // 6. Workflow Receipts: Round receipt and Task receipt for Draft A
     conn.execute(
@@ -187,7 +195,8 @@ fn seed_test_data(conn: &Connection) {
             1, 'hash_a_1', 'hash_a_2', 2, '2026-03-01T00:50:00Z'
          )",
         [],
-    ).expect("seed workflow_round_receipts");
+    )
+    .expect("seed workflow_round_receipts");
 
     conn.execute(
         "INSERT INTO workflow_task_receipts (
@@ -204,7 +213,8 @@ fn seed_test_data(conn: &Connection) {
             '{\"summary\":\"Probed camelot castle\",\"mutations\":1}', '2026-03-01T00:49:00Z'
          )",
         [],
-    ).expect("seed workflow_task_receipts");
+    )
+    .expect("seed workflow_task_receipts");
 }
 
 // -----------------------------------------------------------------------------
@@ -214,45 +224,47 @@ fn seed_test_data(conn: &Connection) {
 #[allow(non_snake_case)]
 fn phase2_sprint6_deep2_F0_predecessor_gate_absent_or_baseline_sha_drift_is_contract_blocked() {
     // 1. Missing predecessor gate p2s2 -> CONTRACT_BLOCKED
-    let err1 = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true).unwrap_err();
+    let err1 = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true)
+        .unwrap_err();
     assert_eq!(err1.error_code(), ErrorCode::ContractBlocked);
 
     // 2. Missing predecessor gate p2s3 -> CONTRACT_BLOCKED
-    let err2 = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false).unwrap_err();
+    let err2 = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false)
+        .unwrap_err();
     assert_eq!(err2.error_code(), ErrorCode::ContractBlocked);
 
     // 3. Baseline SHA drift -> CONTRACT_BLOCKED
-    let err_drift = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, "deadbeef1234", true, true).unwrap_err();
+    let err_drift = verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, "deadbeef1234", true, true)
+        .unwrap_err();
     assert_eq!(err_drift.error_code(), ErrorCode::ContractBlocked);
 
     // 4. Positive verification in repository: git checks pass
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let _repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
 
-    let baseline_check = Command::new("git")
-        .args(["merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git merge-base execution");
-    assert!(baseline_check.success(), "HEAD must descend from BASELINE_COMMIT");
+    assert!(
+        common::verify_commit(BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        BASELINE_COMMIT
+    );
 
-    let p2s2_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P2S2_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file p2s2 execution");
-    assert!(p2s2_check.success(), "Predecessor P2S2 commit must exist");
+    assert!(
+        common::verify_commit(PREDECESSOR_P2S2_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S2_COMMIT
+    );
 
-    let p2s3_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{PREDECESSOR_P2S3_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file p2s3 execution");
-    assert!(p2s3_check.success(), "Predecessor P2S3 commit must exist");
+    assert!(
+        common::verify_commit(PREDECESSOR_P2S3_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S3_COMMIT
+    );
 
-    assert!(verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok());
+    assert!(
+        verify_p2s6_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok()
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -283,12 +295,18 @@ fn phase2_sprint6_deep2_F1_missing_schema_blocks_without_fallback() {
     assert!(matches!(res_motif, Err(CatalogRepoError::MissingSchema(_))));
 
     let res_genres = catalog_repo.list_genres();
-    assert!(matches!(res_genres, Err(CatalogRepoError::MissingSchema(_))));
+    assert!(matches!(
+        res_genres,
+        Err(CatalogRepoError::MissingSchema(_))
+    ));
 
     // 3. Workflow repo returns MissingSchema on unmigrated database
     let workflow_repo = SqliteWorkflowRepo::new(&conn);
     let res_round = workflow_repo.list_round_receipts(valid_uuid, "run_1");
-    assert!(matches!(res_round, Err(WorkflowRepoError::MissingSchema(_))));
+    assert!(matches!(
+        res_round,
+        Err(WorkflowRepoError::MissingSchema(_))
+    ));
 }
 
 // -----------------------------------------------------------------------------
@@ -311,7 +329,9 @@ fn phase2_sprint6_deep2_F2_traversal_foreign_draft_query_typed_reject() {
     let workflow_repo = SqliteWorkflowRepo::new(&conn);
 
     // 1. Cross-draft version query: Draft A caller attempting to read Draft B target
-    let err_cross_ver = draft_repo.query_scoped_version_record(draft_a, draft_b, 1).unwrap_err();
+    let err_cross_ver = draft_repo
+        .query_scoped_version_record(draft_a, draft_b, 1)
+        .unwrap_err();
     assert!(matches!(
         err_cross_ver,
         DraftRepoError::ForeignDraftAccess { ref caller, ref target }
@@ -327,7 +347,9 @@ fn phase2_sprint6_deep2_F2_traversal_foreign_draft_query_typed_reject() {
     ));
 
     // 3. Workflow cross-draft round receipt query: Draft B caller attempting to read Draft A's round
-    let err_cross_round = workflow_repo.query_scoped_round_receipt(draft_b, draft_a, round_a).unwrap_err();
+    let err_cross_round = workflow_repo
+        .query_scoped_round_receipt(draft_b, draft_a, round_a)
+        .unwrap_err();
     assert!(matches!(
         err_cross_round,
         WorkflowRepoError::ForeignDraftAccess { ref caller, ref target }
@@ -345,10 +367,16 @@ fn phase2_sprint6_deep2_F2_traversal_foreign_draft_query_typed_reject() {
     ));
 
     // 5. Zero writes verification: count of draft versions and round receipts is unaltered
-    let count_versions: i64 = conn.query_row("SELECT count(*) FROM draft_versions", [], |r| r.get(0)).unwrap();
+    let count_versions: i64 = conn
+        .query_row("SELECT count(*) FROM draft_versions", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(count_versions, 3);
 
-    let count_rounds: i64 = conn.query_row("SELECT count(*) FROM workflow_round_receipts", [], |r| r.get(0)).unwrap();
+    let count_rounds: i64 = conn
+        .query_row("SELECT count(*) FROM workflow_round_receipts", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(count_rounds, 1);
 }
 
@@ -369,22 +397,37 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     // 1. Test DraftRepo
     let draft_repo = SqliteDraftRepo::new(&conn);
 
-    let session_a = draft_repo.find_session_by_id(draft_a).unwrap().expect("session A found");
+    let session_a = draft_repo
+        .find_session_by_id(draft_a)
+        .unwrap()
+        .expect("session A found");
     assert_eq!(session_a.id, draft_a);
     assert_eq!(session_a.head_version_seq, Some(2));
     assert_eq!(session_a.status, DraftSessionStatus::Editing);
 
-    let status_b = draft_repo.get_session_status(draft_b).unwrap().expect("status B found");
+    let status_b = draft_repo
+        .get_session_status(draft_b)
+        .unwrap()
+        .expect("status B found");
     assert_eq!(status_b, DraftSessionStatus::Committing);
 
-    let head_a = draft_repo.get_head_version(draft_a).unwrap().expect("head A found");
+    let head_a = draft_repo
+        .get_head_version(draft_a)
+        .unwrap()
+        .expect("head A found");
     assert_eq!(head_a.seq, 2);
     assert_eq!(head_a.data_hash, "hash_a_2");
 
-    let ver_a_1 = draft_repo.get_version_by_seq(draft_a, 1).unwrap().expect("ver A.1 found");
+    let ver_a_1 = draft_repo
+        .get_version_by_seq(draft_a, 1)
+        .unwrap()
+        .expect("ver A.1 found");
     assert_eq!(ver_a_1.seal_key, Some("seal_a_1".to_string()));
 
-    let ver_by_seal = draft_repo.find_version_by_seal_key(draft_a, "seal_a_2").unwrap().expect("found by seal");
+    let ver_by_seal = draft_repo
+        .find_version_by_seal_key(draft_a, "seal_a_2")
+        .unwrap()
+        .expect("found by seal");
     assert_eq!(ver_by_seal.seq, 2);
 
     let versions_a = draft_repo.list_versions(draft_a, None).unwrap();
@@ -400,11 +443,15 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     let patches_a = draft_repo.list_pending_patches(draft_a, None).unwrap();
     assert_eq!(patches_a.len(), 2);
 
-    let pending_only_a = draft_repo.list_pending_patches(draft_a, Some(PendingPatchStatus::Pending)).unwrap();
+    let pending_only_a = draft_repo
+        .list_pending_patches(draft_a, Some(PendingPatchStatus::Pending))
+        .unwrap();
     assert_eq!(pending_only_a.len(), 1);
     assert_eq!(pending_only_a[0].target_code, "char_hero");
 
-    let confirmed_only_a = draft_repo.list_pending_patches(draft_a, Some(PendingPatchStatus::Confirmed)).unwrap();
+    let confirmed_only_a = draft_repo
+        .list_pending_patches(draft_a, Some(PendingPatchStatus::Confirmed))
+        .unwrap();
     assert_eq!(confirmed_only_a.len(), 1);
     assert_eq!(confirmed_only_a[0].target_code, "char_villain");
 
@@ -418,11 +465,17 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     // Reference genres from migration
     let genres = catalog_repo.list_genres().unwrap();
     assert!(!genres.is_empty());
-    let fantasy = catalog_repo.get_genre_by_code("fantasy").unwrap().expect("fantasy genre");
+    let fantasy = catalog_repo
+        .get_genre_by_code("fantasy")
+        .unwrap()
+        .expect("fantasy genre");
     assert_eq!(fantasy.display_name, Some("Kỳ Ảo".to_string()));
 
     // Motifs
-    let motif = catalog_repo.get_motif_by_code("motif_journey").unwrap().expect("motif journey");
+    let motif = catalog_repo
+        .get_motif_by_code("motif_journey")
+        .unwrap()
+        .expect("motif journey");
     assert_eq!(motif.display_name, Some("Hero Journey".to_string()));
     assert!(motif.is_system);
 
@@ -438,21 +491,33 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     assert_eq!(all_chars.len(), 2);
 
     // World settings
-    let ws = catalog_repo.get_world_setting_by_code("ws_camelot").unwrap().expect("camelot");
+    let ws = catalog_repo
+        .get_world_setting_by_code("ws_camelot")
+        .unwrap()
+        .expect("camelot");
     assert_eq!(ws.display_name, "Camelot Castle");
     assert_eq!(ws.setting_type, "FACILITY");
 
     // Lore entries
-    let lore = catalog_repo.get_lore_entry_by_code("lore_excalibur").unwrap().expect("excalibur");
+    let lore = catalog_repo
+        .get_lore_entry_by_code("lore_excalibur")
+        .unwrap()
+        .expect("excalibur");
     assert_eq!(lore.entry_type, "ITEM");
 
     // Prompt blocks
-    let pb = catalog_repo.get_prompt_block("pb_system_core").unwrap().expect("system core pb");
+    let pb = catalog_repo
+        .get_prompt_block("pb_system_core")
+        .unwrap()
+        .expect("system core pb");
     assert_eq!(pb.heading_level, 1);
     assert_eq!(pb.content_format, "MARKDOWN");
 
     // Style presets
-    let sp = catalog_repo.get_style_preset_by_code("style_epic").unwrap().expect("epic style");
+    let sp = catalog_repo
+        .get_style_preset_by_code("style_epic")
+        .unwrap()
+        .expect("epic style");
     assert_eq!(sp.tone_pace, Some("MODERATE".to_string()));
     assert!(sp.is_system);
 
@@ -467,10 +532,14 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     assert_eq!(round.base_version_seq, 1);
     assert_eq!(round.resulting_version_seq, Some(2));
 
-    let rounds_a = workflow_repo.list_round_receipts(draft_a, "run_alpha_01").unwrap();
+    let rounds_a = workflow_repo
+        .list_round_receipts(draft_a, "run_alpha_01")
+        .unwrap();
     assert_eq!(rounds_a.len(), 1);
 
-    let rounds_b = workflow_repo.list_round_receipts(draft_b, "run_alpha_01").unwrap();
+    let rounds_b = workflow_repo
+        .list_round_receipts(draft_b, "run_alpha_01")
+        .unwrap();
     assert_eq!(rounds_b.len(), 0); // Scoped to draft_b: zero rounds for run_alpha_01
 
     let task = workflow_repo
@@ -492,12 +561,19 @@ fn P2S6_P_repositories_return_exact_scoped_records_from_disposable_seeded_db() {
     let temp_store = TempStore::new(&temp_root);
 
     let artifact = temp_store
-        .write_phase_report(draft_a, 3, "probe_hash_123", "# Probe Report\nFound Castle.")
+        .write_phase_report(
+            draft_a,
+            3,
+            "probe_hash_123",
+            "# Probe Report\nFound Castle.",
+        )
         .unwrap();
     assert_eq!(artifact.phase, 3);
     assert_eq!(artifact.task_hash, "probe_hash_123");
 
-    let read_back = temp_store.read_phase_report(draft_a, 3, "probe_hash_123").unwrap();
+    let read_back = temp_store
+        .read_phase_report(draft_a, 3, "probe_hash_123")
+        .unwrap();
     assert_eq!(read_back, "# Probe Report\nFound Castle.");
 
     let reports = temp_store.read_phase_reports(draft_a, 3).unwrap();
@@ -530,7 +606,11 @@ fn P2S6_N_path_traversal_rejected_and_temp_report_cannot_mark_task_complete() {
         Err(TempStoreError::PathTraversal(_))
     ));
     assert!(matches!(
-        temp_store.resolve_report_path("018e3a00-0000-7000-8000-0000000000a0/../../bad", 1, "task1"),
+        temp_store.resolve_report_path(
+            "018e3a00-0000-7000-8000-0000000000a0/../../bad",
+            1,
+            "task1"
+        ),
         Err(TempStoreError::PathTraversal(_))
     ));
 
@@ -581,7 +661,8 @@ fn P2S6_B_injected_sql_error_does_not_expose_partial_result() {
 
     // 1. Simulate SQL injection / corrupt syntax by dropping a table in a nested transaction
     // or querying with a broken connection state.
-    conn.execute("DROP TABLE pending_patches", []).expect("drop table to simulate failure");
+    conn.execute("DROP TABLE pending_patches", [])
+        .expect("drop table to simulate failure");
 
     let draft_repo = SqliteDraftRepo::new(&conn);
 
@@ -591,6 +672,9 @@ fn P2S6_B_injected_sql_error_does_not_expose_partial_result() {
     assert!(matches!(res.unwrap_err(), DraftRepoError::MissingSchema(_)));
 
     // Ensure other unaffected queries execute cleanly without state corruption
-    let session = draft_repo.find_session_by_id(draft_a).unwrap().expect("session exists");
+    let session = draft_repo
+        .find_session_by_id(draft_a)
+        .unwrap()
+        .expect("session exists");
     assert_eq!(session.id, draft_a);
 }

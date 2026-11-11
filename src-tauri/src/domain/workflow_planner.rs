@@ -112,7 +112,10 @@ impl Default for WorkflowConfig {
 impl WorkflowConfig {
     /// Validates runtime configuration invariants (`0 <= outline_lookback < outline_cap`, positive units and `max_parallel`).
     pub fn validate(&self) -> Result<(), PlannerError> {
-        if self.outline_cap <= 0 || self.outline_lookback < 0 || self.outline_lookback >= self.outline_cap {
+        if self.outline_cap <= 0
+            || self.outline_lookback < 0
+            || self.outline_lookback >= self.outline_cap
+        {
             return Err(PlannerError::validation_failed(format!(
                 "invalid outline window config: require 0 <= lookback ({}) < cap ({})",
                 self.outline_lookback, self.outline_cap
@@ -131,7 +134,9 @@ impl WorkflowConfig {
             )));
         }
         if self.unit_world_lore <= 0 || self.unit_character <= 0 || self.unit_relationship <= 0 {
-            return Err(PlannerError::validation_failed("world/lore, character and relationship units must be >= 1"));
+            return Err(PlannerError::validation_failed(
+                "world/lore, character and relationship units must be >= 1",
+            ));
         }
         if self.context_margin < 0 {
             return Err(PlannerError::validation_failed(format!(
@@ -188,17 +193,17 @@ impl OutlineWindow {
     }
 
     /// Canonical `task_identity` for Phase 1 or Phase 2 (`p{phase}:s0:outline_window:arc={arc_code}:ch={lo}..{hi}`).
-    pub fn task_identity(&self, phase: i32, fallback_arc_code: &str) -> Result<String, PlannerError> {
+    pub fn task_identity(
+        &self,
+        phase: i32,
+        fallback_arc_code: &str,
+    ) -> Result<String, PlannerError> {
         if phase != 1 && phase != 2 {
             return Err(PlannerError::validation_failed(format!(
                 "outline_window task_identity is only valid for phase 1 or 2, got phase={phase}"
             )));
         }
-        let arc = self
-            .arc_code
-            .as_deref()
-            .unwrap_or(fallback_arc_code)
-            .trim();
+        let arc = self.arc_code.as_deref().unwrap_or(fallback_arc_code).trim();
         if arc.is_empty() {
             return Err(PlannerError::validation_failed(
                 "arc_code must not be empty for outline_window task_identity",

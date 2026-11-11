@@ -160,7 +160,10 @@ pub enum ProviderError {
     AuthFailed { status: u16, message: String },
 
     #[error("Provider unreachable (status={status:?}, network/timeout): {message}")]
-    Unreachable { status: Option<u16>, message: String },
+    Unreachable {
+        status: Option<u16>,
+        message: String,
+    },
 
     #[error("Operation cancelled by user/token")]
     Cancelled,

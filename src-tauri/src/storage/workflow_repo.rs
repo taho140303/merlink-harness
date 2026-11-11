@@ -12,7 +12,9 @@ use rusqlite::{params, Connection, Row};
 /// Canonical error type for workflow receipt queries.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum WorkflowRepoError {
-    #[error("Foreign draft access rejected: caller '{caller}' attempted access to draft '{target}'")]
+    #[error(
+        "Foreign draft access rejected: caller '{caller}' attempted access to draft '{target}'"
+    )]
     ForeignDraftAccess { caller: String, target: String },
 
     #[error("Invalid draft session ID (UUID format required): {0}")]
@@ -235,7 +237,12 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
 
         let mut rows = stmt
             .query_map(
-                params![draft_session_id, workflow_run_id, plan_generation, round_index],
+                params![
+                    draft_session_id,
+                    workflow_run_id,
+                    plan_generation,
+                    round_index
+                ],
                 WorkflowRoundReceiptRecord::from_row,
             )
             .map_err(map_sqlite_err)?;
@@ -266,7 +273,10 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let mut rows = stmt
-            .query_map(params![draft_session_id, round_receipt_id], WorkflowRoundReceiptRecord::from_row)
+            .query_map(
+                params![draft_session_id, round_receipt_id],
+                WorkflowRoundReceiptRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         match rows.next() {
@@ -295,7 +305,10 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let mut rows = stmt
-            .query_map(params![draft_session_id, round_seal_key], WorkflowRoundReceiptRecord::from_row)
+            .query_map(
+                params![draft_session_id, round_seal_key],
+                WorkflowRoundReceiptRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         match rows.next() {
@@ -325,7 +338,10 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let rows = stmt
-            .query_map(params![draft_session_id, workflow_run_id], WorkflowRoundReceiptRecord::from_row)
+            .query_map(
+                params![draft_session_id, workflow_run_id],
+                WorkflowRoundReceiptRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         let mut records = Vec::new();
@@ -358,7 +374,12 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
 
         let mut rows = stmt
             .query_map(
-                params![draft_session_id, workflow_run_id, plan_generation, task_identity],
+                params![
+                    draft_session_id,
+                    workflow_run_id,
+                    plan_generation,
+                    task_identity
+                ],
                 WorkflowTaskReceiptRecord::from_row,
             )
             .map_err(map_sqlite_err)?;
@@ -389,7 +410,10 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let mut rows = stmt
-            .query_map(params![draft_session_id, task_receipt_id], WorkflowTaskReceiptRecord::from_row)
+            .query_map(
+                params![draft_session_id, task_receipt_id],
+                WorkflowTaskReceiptRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         match rows.next() {
@@ -419,7 +443,10 @@ impl<'a> WorkflowReadRepo for SqliteWorkflowRepo<'a> {
             .map_err(map_sqlite_err)?;
 
         let rows = stmt
-            .query_map(params![draft_session_id, round_receipt_id], WorkflowTaskReceiptRecord::from_row)
+            .query_map(
+                params![draft_session_id, round_receipt_id],
+                WorkflowTaskReceiptRecord::from_row,
+            )
             .map_err(map_sqlite_err)?;
 
         let mut records = Vec::new();

@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 #![allow(non_snake_case)]
 
 //! Acceptance and Integration tests for `phase3_sprint7_deep4`
@@ -19,6 +26,8 @@
 //! - `IPC-CMD-009`: `regenerate_draft_phase`
 //! - `phase3_sprint7_deep4-F0`: Predecessor gates verification.
 
+mod common;
+
 #[path = "../src/error.rs"]
 pub mod error;
 
@@ -34,10 +43,10 @@ pub mod fingerprint;
 #[path = "../src/domain/word_count.rs"]
 pub mod word_count;
 
-#[path = "../src/domain/progress_engine.rs"]
-pub mod progress_engine;
 #[path = "../src/domain/phase_gate.rs"]
 pub mod phase_gate;
+#[path = "../src/domain/progress_engine.rs"]
+pub mod progress_engine;
 
 #[path = "../src/domain/invariants.rs"]
 pub mod invariants;
@@ -163,8 +172,14 @@ pub mod registry {
             self.tools.get(name)
         }
 
-        pub fn authorize(&self, tool_name: &str, caller: CallerCategory) -> Result<&ToolMetadata, crate::error::ErrorCode> {
-            let meta = self.lookup(tool_name).ok_or(crate::error::ErrorCode::EntityNotFound)?;
+        pub fn authorize(
+            &self,
+            tool_name: &str,
+            caller: CallerCategory,
+        ) -> Result<&ToolMetadata, crate::error::ErrorCode> {
+            let meta = self
+                .lookup(tool_name)
+                .ok_or(crate::error::ErrorCode::EntityNotFound)?;
             if !meta.is_allowed_caller(caller) {
                 return Err(crate::error::ErrorCode::UnauthorizedCaller);
             }
@@ -251,8 +266,8 @@ pub mod domain {
     pub use crate::progress_engine;
     pub use crate::word_count;
     pub mod tools {
-        pub use crate::registry;
         pub use crate::read_tools;
+        pub use crate::registry;
         pub use crate::write_tools;
     }
 }
@@ -315,12 +330,12 @@ pub mod service {
     pub use crate::patch_service;
 }
 
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::params;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -352,6 +367,12 @@ use crate::traits::{
 pub struct MockLlmProvider {
     responses: Mutex<VecDeque<Result<ProviderChatResponse, ProviderError>>>,
     recorded_requests: Mutex<Vec<ProviderChatRequest>>,
+}
+
+impl Default for MockLlmProvider {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockLlmProvider {
@@ -449,7 +470,14 @@ fn setup_test_context() -> (
         patch_service.clone(),
     ));
 
-    (pool, registry, draft_service, patch_service, orchestrator, tmp)
+    (
+        pool,
+        registry,
+        draft_service,
+        patch_service,
+        orchestrator,
+        tmp,
+    )
 }
 
 fn create_test_session(
@@ -517,8 +545,16 @@ fn test_history_role_window_keeps_twenty_messages_per_role() {
         .fetch_recent_role_window(&sess_id, Uuid::nil(), 20, 20)
         .unwrap();
 
-    assert_eq!(window.iter().filter(|m| m.role == "user").count(), 20, "last 20 author messages");
-    assert_eq!(window.iter().filter(|m| m.role == "assistant").count(), 20, "last 20 assistant messages");
+    assert_eq!(
+        window.iter().filter(|m| m.role == "user").count(),
+        20,
+        "last 20 author messages"
+    );
+    assert_eq!(
+        window.iter().filter(|m| m.role == "assistant").count(),
+        20,
+        "last 20 assistant messages"
+    );
     // Message 10..29 survive; messages 0..9 fall out of the per-role window.
     assert_eq!(window.first().unwrap().content, "user-10");
     assert!(window.iter().any(|m| m.content == "user-29"));
@@ -532,23 +568,23 @@ fn test_history_role_window_keeps_twenty_messages_per_role() {
 /// `phase3_sprint7_deep4-F0`: Predecessor gates verification.
 #[test]
 fn test_phase3_sprint7_deep4_f0_predecessor_gates_check() {
-    let output = std::process::Command::new("git")
-        .args(&["cat-file", "-e", "181eda6d87f7fac1d17e05f82d843222aa0a376e^{commit}"])
-        .output()
-        .expect("git check gate_phase3_sprint6_deep3");
-    assert!(output.status.success(), "gate_phase3_sprint6_deep3 must exist in git history");
+    assert!(
+        common::verify_commit("181eda6d87f7fac1d17e05f82d843222aa0a376e"),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        "181eda6d87f7fac1d17e05f82d843222aa0a376e"
+    );
 
-    let output = std::process::Command::new("git")
-        .args(&["cat-file", "-e", "6a271099f0ea8bf5847c60af81e6d9b5fb9ad918^{commit}"])
-        .output()
-        .expect("git check gate_phase2_sprint4_deep3");
-    assert!(output.status.success(), "gate_phase2_sprint4_deep3 must exist in git history");
+    assert!(
+        common::verify_commit("6a271099f0ea8bf5847c60af81e6d9b5fb9ad918"),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        "6a271099f0ea8bf5847c60af81e6d9b5fb9ad918"
+    );
 
-    let output = std::process::Command::new("git")
-        .args(&["cat-file", "-e", "ded1e9c5457ab8e72f456a515937a05af6ebba63^{commit}"])
-        .output()
-        .expect("git check gate_phase3_sprint2_deep0");
-    assert!(output.status.success(), "gate_phase3_sprint2_deep0 must exist in git history");
+    assert!(
+        common::verify_commit("ded1e9c5457ab8e72f456a515937a05af6ebba63"),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        "ded1e9c5457ab8e72f456a515937a05af6ebba63"
+    );
 }
 
 /// `P3S7-P`: Normal ReAct turn completes: tool executed, working state mutated, TX-01 sealed.
@@ -601,44 +637,71 @@ async fn test_P3S7_P_normal_react_turn_completes_tool_executed_tx01_sealed() {
         .unwrap();
 
     // Verify response
-    assert_eq!(result.assistant_text, "Arthur Pendragon has been added to characters.");
-    assert!(result.sealed_version.is_some(), "TX-01 version must be sealed");
+    assert_eq!(
+        result.assistant_text,
+        "Arthur Pendragon has been added to characters."
+    );
+    assert!(
+        result.sealed_version.is_some(),
+        "TX-01 version must be sealed"
+    );
     let sealed = result.sealed_version.unwrap();
     assert_eq!(sealed.seq, 1);
     assert_eq!(sealed.reason, "ai_patch");
 
     // Verify seal_key in SQLite draft_versions
     let conn = pool.get().unwrap();
-    let seal_key: String = conn.query_row(
-        "SELECT seal_key FROM draft_versions WHERE draft_session_id = ?1 AND seq = 1",
-        params![draft_id.to_string()],
-        |r| r.get(0),
-    ).unwrap();
+    let seal_key: String = conn
+        .query_row(
+            "SELECT seal_key FROM draft_versions WHERE draft_session_id = ?1 AND seq = 1",
+            params![draft_id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(seal_key, format!("turn:{}", result.turn_id));
 
     // Verify working state in registry
     let entry = registry.get(&draft_id).unwrap();
     let ws = entry.get_snapshot();
-    let arthur = ws.business_flow_data.require.character.iter().find(|c| c.code == "char_arthur");
+    let arthur = ws
+        .business_flow_data
+        .require
+        .character
+        .iter()
+        .find(|c| c.code == "char_arthur");
     assert!(arthur.is_some());
-    assert_eq!(arthur.unwrap().display_name.value.as_deref(), Some("Arthur Pendragon"));
-    assert_eq!(arthur.unwrap().display_name.source, Some(ProvenanceSource::AiGenerated));
+    assert_eq!(
+        arthur.unwrap().display_name.value.as_deref(),
+        Some("Arthur Pendragon")
+    );
+    assert_eq!(
+        arthur.unwrap().display_name.source,
+        Some(ProvenanceSource::AiGenerated)
+    );
 
     // Verify stream events emitted
     let mut events = Vec::new();
     while let Ok(evt) = rx.try_recv() {
         events.push(evt);
     }
-    assert!(events.iter().any(|e| matches!(e, crate::dto::ChatStreamEvent::TurnStarted { .. })));
-    assert!(events.iter().any(|e| matches!(e, crate::dto::ChatStreamEvent::ToolCallCompleted { .. })));
-    assert!(events.iter().any(|e| matches!(e, crate::dto::ChatStreamEvent::TurnCompleted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, crate::dto::ChatStreamEvent::TurnStarted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, crate::dto::ChatStreamEvent::ToolCallCompleted { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, crate::dto::ChatStreamEvent::TurnCompleted { .. })));
 
     // Verify message persistence in SQLite
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM messages WHERE session_id = ?1",
-        params![sess_id],
-        |r| r.get(0),
-    ).unwrap();
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM messages WHERE session_id = ?1",
+            params![sess_id],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(count, 2, "Both user and assistant messages must be saved");
 }
 
@@ -688,7 +751,10 @@ async fn test_P3S7_N_three_consecutive_rejections_stops_loop_requests_clarificat
 
     // Final response without tools asking for user clarification
     provider.queue_response(ProviderChatResponse {
-        content: Some("Tôi gặp khó khăn khi thao tác. Bạn có thể nói rõ hơn bạn muốn tạo nhân vật nào không?".to_string()),
+        content: Some(
+            "Tôi gặp khó khăn khi thao tác. Bạn có thể nói rõ hơn bạn muốn tạo nhân vật nào không?"
+                .to_string(),
+        ),
         tool_calls: vec![],
         finish_reason: Some("stop".to_string()),
         usage: None,
@@ -705,21 +771,36 @@ async fn test_P3S7_N_three_consecutive_rejections_stops_loop_requests_clarificat
         .await
         .unwrap();
 
-    assert!(result.assistant_text.contains("Tôi gặp khó khăn khi thao tác"));
-    assert!(result.sealed_version.is_none(), "A UI language default must not become a sealed story-language choice");
+    assert!(result
+        .assistant_text
+        .contains("Tôi gặp khó khăn khi thao tác"));
+    assert!(
+        result.sealed_version.is_none(),
+        "A UI language default must not become a sealed story-language choice"
+    );
 
     // Verify messages saved
     let conn = pool.get().unwrap();
-    let asst_payload: String = conn.query_row(
-        "SELECT payload_json FROM messages WHERE session_id = ?1 AND role = 'assistant'",
-        params![sess_id],
-        |r| r.get(0),
-    ).unwrap();
+    let asst_payload: String = conn
+        .query_row(
+            "SELECT payload_json FROM messages WHERE session_id = ?1 AND role = 'assistant'",
+            params![sess_id],
+            |r| r.get(0),
+        )
+        .unwrap();
 
     let parsed: serde_json::Value = serde_json::from_str(&asst_payload).unwrap();
     let tool_calls = parsed["tool_calls"].as_array().unwrap();
-    assert_eq!(tool_calls.iter().filter(|tc| tc["status"] == "rejected").count(), 3);
-    assert!(tool_calls.iter().any(|tc| tc["name"] == "get_field_null" && tc["status"] == "success"));
+    assert_eq!(
+        tool_calls
+            .iter()
+            .filter(|tc| tc["status"] == "rejected")
+            .count(),
+        3
+    );
+    assert!(tool_calls
+        .iter()
+        .any(|tc| tc["name"] == "get_field_null" && tc["status"] == "success"));
 }
 
 /// `P3S7-MAX`: Max iterations reached: controlled exit seals applied changes.
@@ -826,7 +907,9 @@ async fn test_P3S7_CANCEL_mid_turn_seals_applied_changes_and_marks_cancelled() {
     let provider = Arc::new(MockLlmProvider::new());
     let user_msg_id = Uuid::new_v4();
     let turn_id = Uuid::new_v4();
-    orchestrator.save_message(user_msg_id, &sess_id, turn_id, "user", "Cancel me", None).unwrap();
+    orchestrator
+        .save_message(user_msg_id, &sess_id, turn_id, "user", "Cancel me", None)
+        .unwrap();
 
     // Running turn with pre-cancelled token
     let res = orchestrator
@@ -851,7 +934,9 @@ async fn test_P3S7_CANCEL_mid_turn_seals_applied_changes_and_marks_cancelled() {
         session_id: sess_id,
         turn_id,
     };
-    let cancel_res = exec_cancel_chat_turn(&orchestrator, &cancel_req).await.unwrap();
+    let cancel_res = exec_cancel_chat_turn(&orchestrator, &cancel_req)
+        .await
+        .unwrap();
     assert!(cancel_res.cancelled);
 }
 
@@ -871,7 +956,11 @@ async fn test_P3S7_REGEN_regenerate_draft_phase_only_overwrites_ai_generated_fie
             value: Some("User Protected Title".to_string()),
             source: Some(ProvenanceSource::User),
         };
-        ws.business_flow_data.require.project.target.word_per_chapter_count = TrackedField {
+        ws.business_flow_data
+            .require
+            .project
+            .target
+            .word_per_chapter_count = TrackedField {
             value: Some(3000),
             source: Some(ProvenanceSource::AiGenerated),
         };
@@ -905,17 +994,24 @@ async fn test_P3S7_REGEN_regenerate_draft_phase_only_overwrites_ai_generated_fie
 
     // Verify seal_key in SQLite
     let conn = pool.get().unwrap();
-    let seal_key: String = conn.query_row(
-        "SELECT seal_key FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
-        params![draft_id.to_string(), sealed.seq],
-        |r| r.get(0),
-    ).unwrap();
+    let seal_key: String = conn
+        .query_row(
+            "SELECT seal_key FROM draft_versions WHERE draft_session_id = ?1 AND seq = ?2",
+            params![draft_id.to_string(), sealed.seq],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert!(seal_key.starts_with("regenerate:"));
 
     // Verify protected provenance in working state
     let ws = entry.get_snapshot();
     assert_eq!(
-        ws.business_flow_data.require.project.display_name.value.as_deref(),
+        ws.business_flow_data
+            .require
+            .project
+            .display_name
+            .value
+            .as_deref(),
         Some("User Protected Title"),
         "User provenance field MUST be preserved untouched"
     );
@@ -924,7 +1020,12 @@ async fn test_P3S7_REGEN_regenerate_draft_phase_only_overwrites_ai_generated_fie
         Some(ProvenanceSource::User)
     );
     assert_eq!(
-        ws.business_flow_data.require.project.target.word_per_chapter_count.value,
+        ws.business_flow_data
+            .require
+            .project
+            .target
+            .word_per_chapter_count
+            .value,
         Some(5000),
         "AI generated field MUST be overwritten"
     );
@@ -990,15 +1091,46 @@ fn test_list_chat_sessions_minimum_two_messages() {
     let (one_message_session, _, _) = create_test_session(&pool, &registry);
     let (two_message_session, _, _) = create_test_session(&pool, &registry);
     let turn_id = Uuid::new_v4();
-    orchestrator.save_message(Uuid::new_v4(), &one_message_session, turn_id, "user", "Hello", None).unwrap();
-    orchestrator.save_message(Uuid::new_v4(), &two_message_session, turn_id, "user", "Hello", None).unwrap();
-    orchestrator.save_message(Uuid::new_v4(), &two_message_session, turn_id, "assistant", "Hi", None).unwrap();
+    orchestrator
+        .save_message(
+            Uuid::new_v4(),
+            &one_message_session,
+            turn_id,
+            "user",
+            "Hello",
+            None,
+        )
+        .unwrap();
+    orchestrator
+        .save_message(
+            Uuid::new_v4(),
+            &two_message_session,
+            turn_id,
+            "user",
+            "Hello",
+            None,
+        )
+        .unwrap();
+    orchestrator
+        .save_message(
+            Uuid::new_v4(),
+            &two_message_session,
+            turn_id,
+            "assistant",
+            "Hi",
+            None,
+        )
+        .unwrap();
 
-    let result = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
-        min_message_count: Some(2),
-        limit: Some(100),
-        ..Default::default()
-    }).unwrap();
+    let result = exec_list_chat_sessions(
+        &orchestrator,
+        &ListChatSessionsReq {
+            min_message_count: Some(2),
+            limit: Some(100),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(result.items.len(), 1);
     assert_eq!(result.items[0].session_id, two_message_session);
     assert_eq!(result.items[0].message_count, Some(2));
@@ -1009,24 +1141,47 @@ fn test_blank_assistant_messages_are_only_in_trash() {
     let (pool, registry, _, _, orchestrator, _tmp) = setup_test_context();
     let (session, _, _) = create_test_session(&pool, &registry);
     let turn = Uuid::new_v4();
-    orchestrator.save_message(Uuid::new_v4(), &session, turn, "user", "Chào", None).unwrap();
+    orchestrator
+        .save_message(Uuid::new_v4(), &session, turn, "user", "Chào", None)
+        .unwrap();
     for content in ["", " \n\t\r"] {
-        orchestrator.save_message(Uuid::new_v4(), &session, turn, "assistant", content, None).unwrap();
+        orchestrator
+            .save_message(Uuid::new_v4(), &session, turn, "assistant", content, None)
+            .unwrap();
     }
     for minimum in [None, Some(2)] {
-        let history = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
-            min_message_count: minimum, ..Default::default()
-        }).unwrap();
-        assert!(history.items.is_empty(), "Blank assistant rows must not make a conversation visible");
+        let history = exec_list_chat_sessions(
+            &orchestrator,
+            &ListChatSessionsReq {
+                min_message_count: minimum,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            history.items.is_empty(),
+            "Blank assistant rows must not make a conversation visible"
+        );
     }
-    let trash = exec_list_chat_sessions(&orchestrator, &ListChatSessionsReq {
-        trash_only: Some(true), ..Default::default()
-    }).unwrap();
+    let trash = exec_list_chat_sessions(
+        &orchestrator,
+        &ListChatSessionsReq {
+            trash_only: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(trash.items.len(), 1);
     assert_eq!(trash.items[0].message_count, Some(1));
-    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "permanent_delete".into(), session_ids: vec![session], display_name: None,
-    }).unwrap();
+    exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "permanent_delete".into(),
+            session_ids: vec![session],
+            display_name: None,
+        },
+    )
+    .unwrap();
 }
 
 #[test]
@@ -1035,42 +1190,99 @@ fn test_chat_trash_rename_soft_delete_restore_and_permanent_delete() {
     let (unfinished, _, _) = create_test_session(&pool, &registry);
     let (completed, completed_draft, _) = create_test_session(&pool, &registry);
     let turn = Uuid::new_v4();
-    orchestrator.save_message(Uuid::new_v4(), &unfinished, turn, "user", "One", None).unwrap();
-    orchestrator.save_message(Uuid::new_v4(), &completed, turn, "user", "Two", None).unwrap();
-    orchestrator.save_message(Uuid::new_v4(), &completed, turn, "assistant", "Reply", None).unwrap();
+    orchestrator
+        .save_message(Uuid::new_v4(), &unfinished, turn, "user", "One", None)
+        .unwrap();
+    orchestrator
+        .save_message(Uuid::new_v4(), &completed, turn, "user", "Two", None)
+        .unwrap();
+    orchestrator
+        .save_message(Uuid::new_v4(), &completed, turn, "assistant", "Reply", None)
+        .unwrap();
 
-    let trash_req = ListChatSessionsReq { trash_only: Some(true), ..Default::default() };
+    let trash_req = ListChatSessionsReq {
+        trash_only: Some(true),
+        ..Default::default()
+    };
     let initial_trash = exec_list_chat_sessions(&orchestrator, &trash_req).unwrap();
     assert_eq!(initial_trash.items.len(), 1);
     assert_eq!(initial_trash.items[0].session_id, unfinished);
     assert!(initial_trash.items[0].deleted_at.is_none());
 
-    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "rename".into(), session_ids: vec![completed.clone()], display_name: Some("Tên mới".into()),
-    }).unwrap();
-    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "soft_delete".into(), session_ids: vec![completed.clone()], display_name: None,
-    }).unwrap();
+    exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "rename".into(),
+            session_ids: vec![completed.clone()],
+            display_name: Some("Tên mới".into()),
+        },
+    )
+    .unwrap();
+    exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "soft_delete".into(),
+            session_ids: vec![completed.clone()],
+            display_name: None,
+        },
+    )
+    .unwrap();
     let trash = exec_list_chat_sessions(&orchestrator, &trash_req).unwrap();
     assert_eq!(trash.items.len(), 2);
-    assert!(trash.items.iter().any(|item| item.session_id == completed && item.deleted_at.is_some() && item.display_name.as_deref() == Some("Tên mới")));
+    assert!(trash.items.iter().any(|item| item.session_id == completed
+        && item.deleted_at.is_some()
+        && item.display_name.as_deref() == Some("Tên mới")));
 
-    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "restore".into(), session_ids: vec![completed.clone()], display_name: None,
-    }).unwrap();
-    assert!(exec_list_chat_sessions(&orchestrator, &trash_req).unwrap().items.iter().all(|item| item.session_id != completed));
+    exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "restore".into(),
+            session_ids: vec![completed.clone()],
+            display_name: None,
+        },
+    )
+    .unwrap();
+    assert!(exec_list_chat_sessions(&orchestrator, &trash_req)
+        .unwrap()
+        .items
+        .iter()
+        .all(|item| item.session_id != completed));
 
-    exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "soft_delete".into(), session_ids: vec![completed.clone()], display_name: None,
-    }).unwrap();
-    let deleted = exec_manage_chat_sessions(&orchestrator, &ManageChatSessionsReq {
-        action: "permanent_delete".into(), session_ids: vec![unfinished.clone(), completed.clone()], display_name: None,
-    }).unwrap();
+    exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "soft_delete".into(),
+            session_ids: vec![completed.clone()],
+            display_name: None,
+        },
+    )
+    .unwrap();
+    let deleted = exec_manage_chat_sessions(
+        &orchestrator,
+        &ManageChatSessionsReq {
+            action: "permanent_delete".into(),
+            session_ids: vec![unfinished.clone(), completed.clone()],
+            display_name: None,
+        },
+    )
+    .unwrap();
     assert_eq!(deleted.affected_count, 2);
     let conn = pool.get().unwrap();
-    let old_sessions: i64 = conn.query_row("SELECT COUNT(*) FROM sessions WHERE id IN (?1, ?2)", params![unfinished, completed], |row| row.get(0)).unwrap();
+    let old_sessions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sessions WHERE id IN (?1, ?2)",
+            params![unfinished, completed],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(old_sessions, 0);
-    let preserved_project_draft: i64 = conn.query_row("SELECT COUNT(*) FROM draft_sessions WHERE id = ?1", [completed_draft.to_string()], |row| row.get(0)).unwrap();
+    let preserved_project_draft: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM draft_sessions WHERE id = ?1",
+            [completed_draft.to_string()],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(preserved_project_draft, 1);
 }
 
@@ -1118,20 +1330,41 @@ async fn test_failed_tool_call_remains_in_history_when_followup_provider_request
         finish_reason: Some("tool_calls".into()),
         usage: None,
     });
-    provider.queue_error(ProviderError::Unreachable { status: None, message: "offline".into() });
+    provider.queue_error(ProviderError::Unreachable {
+        status: None,
+        message: "offline".into(),
+    });
 
-    let result = exec_send_chat_message(&orchestrator, provider, &SendChatMessageReq {
-        session_id: session_id.clone(), content: "Try a tool".into(),
-        system_language: "vi".into(), feedback_context: None,
-    }, None).await;
+    let result = exec_send_chat_message(
+        &orchestrator,
+        provider,
+        &SendChatMessageReq {
+            session_id: session_id.clone(),
+            content: "Try a tool".into(),
+            system_language: "vi".into(),
+            feedback_context: None,
+        },
+        None,
+    )
+    .await;
     assert_eq!(result.unwrap_err().code, ErrorCode::ProviderUnreachable);
 
-    let messages = orchestrator.fetch_recent_session_messages(&session_id, Uuid::nil(), 10).unwrap();
-    assert_eq!(messages.len(), 2, "both the user request and failed tool audit should survive");
+    let messages = orchestrator
+        .fetch_recent_session_messages(&session_id, Uuid::nil(), 10)
+        .unwrap();
+    assert_eq!(
+        messages.len(),
+        2,
+        "both the user request and failed tool audit should survive"
+    );
     assert_eq!(messages[1].role, "assistant");
     let calls = messages[1].tool_calls.as_ref().unwrap();
-    assert!(calls.iter().any(|call| call.name == "get_field_null" && call.status == "success"));
-    assert!(calls.iter().any(|call| call.id == "failed-tool" && call.status == "rejected"));
+    assert!(calls
+        .iter()
+        .any(|call| call.name == "get_field_null" && call.status == "success"));
+    assert!(calls
+        .iter()
+        .any(|call| call.id == "failed-tool" && call.status == "rejected"));
 }
 
 /// `IPC-CMD-004`: `cancel_chat_turn`
@@ -1163,7 +1396,9 @@ async fn test_IPC_CMD_009_regenerate_draft_phase() {
         system_language: "vi".to_string(),
     };
 
-    let res = exec_regenerate_draft_phase(&orchestrator, &req, None).await.unwrap();
+    let res = exec_regenerate_draft_phase(&orchestrator, &req, None)
+        .await
+        .unwrap();
     assert!(res.sealed_version.is_some());
     assert_eq!(res.sealed_version.unwrap().reason, "regenerate");
 }

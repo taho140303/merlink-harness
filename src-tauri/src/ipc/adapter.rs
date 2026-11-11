@@ -8,8 +8,8 @@ use serde_json::{Map, Value};
 
 /// Convert a single string identifier from snake_case to camelCase.
 pub fn snake_to_camel(s: &str) -> String {
-    if s.starts_with('_') {
-        let mut inner = snake_to_camel(&s[1..]);
+    if let Some(rest) = s.strip_prefix('_') {
+        let mut inner = snake_to_camel(rest);
         if let Some(first_char) = inner.chars().next() {
             let lower_first = first_char.to_lowercase().to_string();
             inner.replace_range(0..first_char.len_utf8(), &lower_first);
@@ -35,8 +35,8 @@ pub fn snake_to_camel(s: &str) -> String {
 
 /// Convert a single string identifier from camelCase to snake_case.
 pub fn camel_to_snake(s: &str) -> String {
-    if s.starts_with('_') {
-        return format!("_{}", camel_to_snake(&s[1..]));
+    if let Some(rest) = s.strip_prefix('_') {
+        return format!("_{}", camel_to_snake(rest));
     }
     let mut result = String::with_capacity(s.len() + 4);
     for (i, c) in s.chars().enumerate() {
@@ -145,7 +145,9 @@ mod tests {
 
         let camel = to_camel_case_value(&original);
         assert!(camel.get("draftSessionId").is_some());
-        assert!(camel["require"]["project"]["target"].get("arcCount").is_some());
+        assert!(camel["require"]["project"]["target"]
+            .get("arcCount")
+            .is_some());
         assert_eq!(camel["require"]["characters"][0]["displayName"], "Alice");
 
         let back_to_snake = to_snake_case_value(&camel);

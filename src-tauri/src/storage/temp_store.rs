@@ -127,7 +127,9 @@ impl TempStore {
     /// Validate `task_hash` ensuring it contains no traversal or separator characters.
     pub fn validate_task_hash(task_hash: &str) -> Result<(), TempStoreError> {
         if task_hash.is_empty() {
-            return Err(TempStoreError::InvalidTaskHash("empty task hash".to_string()));
+            return Err(TempStoreError::InvalidTaskHash(
+                "empty task hash".to_string(),
+            ));
         }
 
         if task_hash.contains("..")
@@ -164,7 +166,11 @@ impl TempStore {
     }
 
     /// Resolve the directory path for a phase: `<root>/<draft_session_id>/<phase>/`.
-    pub fn resolve_phase_dir(&self, draft_session_id: &str, phase: u8) -> Result<PathBuf, TempStoreError> {
+    pub fn resolve_phase_dir(
+        &self,
+        draft_session_id: &str,
+        phase: u8,
+    ) -> Result<PathBuf, TempStoreError> {
         Self::validate_draft_session_id(draft_session_id)?;
         Self::validate_phase(phase)?;
         let path = self
@@ -258,7 +264,9 @@ impl TempStore {
         let file_path = self.resolve_report_path(draft_session_id, phase, task_hash)?;
 
         if !file_path.exists() {
-            return Err(TempStoreError::NotFound(file_path.to_string_lossy().to_string()));
+            return Err(TempStoreError::NotFound(
+                file_path.to_string_lossy().to_string(),
+            ));
         }
 
         let content = fs::read_to_string(&file_path)?;
@@ -284,9 +292,7 @@ impl TempStore {
             if path.is_file() {
                 if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
                     if filename.starts_with("task_") && filename.ends_with(".md") {
-                        let hash = filename
-                            .trim_start_matches("task_")
-                            .trim_end_matches(".md");
+                        let hash = filename.trim_start_matches("task_").trim_end_matches(".md");
                         let content = fs::read_to_string(&path)?;
                         reports.push((hash.to_string(), content));
                     }
@@ -309,7 +315,10 @@ impl TempStore {
 
     /// Enforce REQ-DB-004: Temp report cannot mark task complete or serve as durable proof.
     /// Always returns `Err(TempStoreError::NonAuthoritativeProof)`.
-    pub fn verify_durable_completion(&self, _artifact: &TempReportArtifact) -> Result<(), TempStoreError> {
+    pub fn verify_durable_completion(
+        &self,
+        _artifact: &TempReportArtifact,
+    ) -> Result<(), TempStoreError> {
         Err(TempStoreError::NonAuthoritativeProof)
     }
 }

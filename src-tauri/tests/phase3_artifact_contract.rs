@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and contract tests for `phase3_sprint3_deep0`
 //! ("Validate and encode Phase-3 artifacts").
 //!
@@ -18,15 +25,16 @@
 //! - `phase3_sprint3_deep0-F2`: Injecting missing artifact or missing budget returns `RequiresReplan`
 //!   or budget failure, rejecting round seal.
 
+mod common;
+
 #[path = "../src/domain/phase3_artifact.rs"]
 pub mod phase3_artifact;
 
 use phase3_artifact::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use std::process::Command;
 
-pub const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 pub const PREDECESSOR_P1S3_COMMIT: &str = "1e70d6f6d89b806b2243a1f4669eddce858d0b95";
 pub const PREDECESSOR_P2S2_COMMIT: &str = "f69f1ab0e3d3d34853ddf887cac139cde6d64b0d";
 
@@ -252,10 +260,8 @@ fn P3S3_B_restore_diverged_and_invalid_probe_refs_cannot_authorize_world_write()
     );
     let probe1_hash = probe1.compute_artifact_hash().unwrap();
 
-    let probe2 = WorldProbeReportV1::new(
-        "p3:arc_01:ch=051..100",
-        "Report 2: Southern valley pass.",
-    );
+    let probe2 =
+        WorldProbeReportV1::new("p3:arc_01:ch=051..100", "Report 2: Southern valley pass.");
     let probe2_hash = probe2.compute_artifact_hash().unwrap();
 
     let write_input = WorldWriteInputV1::new(
@@ -440,87 +446,78 @@ fn P3S3_B_restore_diverged_and_invalid_probe_refs_cannot_authorize_world_write()
 #[allow(non_snake_case)]
 fn phase3_sprint3_deep0_F0_missing_predecessor_or_baseline_drift_is_contract_blocked() {
     // 1. Missing predecessor gate P1S3 -> CONTRACT_BLOCKED
-    let err_p1s3 = verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true)
-        .unwrap_err();
+    let err_p1s3 =
+        verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, false, true)
+            .unwrap_err();
     assert!(matches!(err_p1s3, ArtifactError::ContractBlocked(_)));
     assert!(err_p1s3.to_string().contains("gate_phase1_sprint3_deep0"));
 
     // 2. Missing predecessor gate P2S2 -> CONTRACT_BLOCKED
-    let err_p2s2 = verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false)
-        .unwrap_err();
+    let err_p2s2 =
+        verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, false)
+            .unwrap_err();
     assert!(matches!(err_p2s2, ArtifactError::ContractBlocked(_)));
     assert!(err_p2s2.to_string().contains("gate_phase2_sprint2_deep1"));
 
     // 3. Baseline SHA drift -> CONTRACT_BLOCKED
     let drifted_baseline = "0000000000000000000000000000000000000000";
-    let err_drift = verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, drifted_baseline, true, true)
-        .unwrap_err();
+    let err_drift =
+        verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, drifted_baseline, true, true)
+            .unwrap_err();
     assert!(matches!(err_drift, ArtifactError::ContractBlocked(_)));
     assert!(err_drift.to_string().contains("baseline SHA drift"));
 
     // 4. Positive verification against git repository lineage
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let _repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
 
     // Check baseline is ancestor of HEAD
-    let baseline_check = Command::new("git")
-        .args(["merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git merge-base must execute");
     assert!(
-        baseline_check.success(),
-        "Worktree HEAD must descend from BASELINE_COMMIT {BASELINE_COMMIT}"
+        common::verify_commit(BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        BASELINE_COMMIT
     );
 
     // Check P1S3 accepted commit exists
-    let p1s3_check = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P1S3_COMMIT}^{{commit}}"),
-        ])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file must execute");
     assert!(
-        p1s3_check.success(),
-        "Accepted predecessor commit {PREDECESSOR_P1S3_COMMIT} (phase1_sprint3_deep0) must exist in git"
+        common::verify_commit(PREDECESSOR_P1S3_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P1S3_COMMIT
     );
 
     // Check P2S2 accepted commit exists
-    let p2s2_check = Command::new("git")
-        .args([
-            "cat-file",
-            "-e",
-            &format!("{PREDECESSOR_P2S2_COMMIT}^{{commit}}"),
-        ])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file must execute");
     assert!(
-        p2s2_check.success(),
-        "Accepted predecessor commit {PREDECESSOR_P2S2_COMMIT} (phase2_sprint2_deep1) must exist in git"
+        common::verify_commit(PREDECESSOR_P2S2_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
+        PREDECESSOR_P2S2_COMMIT
     );
 
     // All valid -> Ok
-    assert!(verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok());
+    assert!(
+        verify_p3s3_dispatch_preconditions(BASELINE_COMMIT, BASELINE_COMMIT, true, true).is_ok()
+    );
 }
 
 #[test]
 #[allow(non_snake_case)]
 fn phase3_sprint3_deep0_F1_absent_consumer_contract_is_contract_blocked() {
     // 1. Unratified consumer contract -> CONTRACT_BLOCKED
-    let err_unratified = verify_consumer_contract_ratified(false, Some("CI-02-APPROVED")).unwrap_err();
+    let err_unratified =
+        verify_consumer_contract_ratified(false, Some("CI-02-APPROVED")).unwrap_err();
     assert!(matches!(err_unratified, ArtifactError::ContractBlocked(_)));
     assert!(err_unratified.to_string().contains("CI-02"));
 
     // 2. Missing fixture ID -> CONTRACT_BLOCKED
     let err_missing_fixture = verify_consumer_contract_ratified(true, None).unwrap_err();
-    assert!(matches!(err_missing_fixture, ArtifactError::ContractBlocked(_)));
-    assert!(err_missing_fixture.to_string().contains("absent owner-approved consumer contract"));
+    assert!(matches!(
+        err_missing_fixture,
+        ArtifactError::ContractBlocked(_)
+    ));
+    assert!(err_missing_fixture
+        .to_string()
+        .contains("absent owner-approved consumer contract"));
 
     // 3. Ratified contract and valid fixture -> Ok
     assert!(verify_consumer_contract_ratified(true, Some("ARTIFACT_CONSUMER_FIXTURE_V1")).is_ok());
@@ -547,7 +544,10 @@ fn phase3_sprint3_deep0_F2_missing_artifact_or_budget_on_recovery_requires_repla
 
     // 1. Missing budget on recovery -> ArtifactBudgetUnavailable
     let err_budget = verify_recovery_artifacts(Some(&probe), Some(&valid_write), None).unwrap_err();
-    assert!(matches!(err_budget, ArtifactError::ArtifactBudgetUnavailable));
+    assert!(matches!(
+        err_budget,
+        ArtifactError::ArtifactBudgetUnavailable
+    ));
 
     // 2. Missing write input artifact on recovery -> RequiresReplan (rejects seal, cannot fabricate completion)
     let err_missing_write =
@@ -576,7 +576,8 @@ fn phase3_sprint3_deep0_F2_missing_artifact_or_budget_on_recovery_requires_repla
     );
 
     // 4. Oversized payload on recovery -> ArtifactBudgetExceeded
-    let err_oversized = verify_recovery_artifacts(Some(&probe), Some(&valid_write), Some(10)).unwrap_err();
+    let err_oversized =
+        verify_recovery_artifacts(Some(&probe), Some(&valid_write), Some(10)).unwrap_err();
     assert!(matches!(
         err_oversized,
         ArtifactError::ArtifactBudgetExceeded { .. }

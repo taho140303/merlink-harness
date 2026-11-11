@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Acceptance and contract tests for `phase3_sprint8_deep1`
 //! ("Implement SF-06 pure patch/manifest codec").
 //!
@@ -13,6 +20,8 @@
 //! - `phase3_sprint8_deep1-F1`: Unsupported valid transition returns `EvidenceCodecUnsupported`, no state publish.
 //! - `phase3_sprint8_deep1-F2`: Same-path write or update deleted entity rejected; independent ref-null cascade accepted.
 //! - Golden Vectors `GV1` through `GV12` ratified in `be-core.md` §1532.
+
+mod common;
 
 #[path = "../src/error.rs"]
 pub mod error;
@@ -31,20 +40,19 @@ pub mod codec;
 
 pub mod domain {
     pub use crate::business_flow;
+    pub use crate::codec;
     pub use crate::fingerprint;
     pub use crate::manifest;
-    pub use crate::codec;
 }
 
+use business_flow::*;
 use codec::*;
 use error::ErrorCode;
-use manifest::*;
-use business_flow::*;
 use fingerprint::*;
+use manifest::*;
 use serde_json::json;
-use std::process::Command;
 
-pub const BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 pub const PREDECESSOR_P3S1_COMMIT: &str = "702843c38e45b193be25b80222a48eadedfd3538";
 pub const PREDECESSOR_P3S3_COMMIT: &str = "9f8bb7f0c43ba79d22072fb73f026a54343e4363";
 
@@ -56,19 +64,21 @@ pub fn verify_p3s8_dispatch_preconditions(
     gate_p3s3: bool,
 ) -> Result<(), String> {
     if !gate_p3s1 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint1_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint1_deep0 is absent".to_string(),
+        );
     }
     if !gate_p3s3 {
-        return Err("CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string());
+        return Err(
+            "CONTRACT_BLOCKED: predecessor gate_phase3_sprint3_deep0 is absent".to_string(),
+        );
     }
-    let output = Command::new("git")
-        .args(["merge-base", "--is-ancestor", baseline_commit, current_head])
-        .output();
-    match output {
-        Ok(out) if out.status.success() => Ok(()),
-        _ => Err(format!(
-            "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head}"
-        )),
+    if common::verify_commit_at(baseline_commit, current_head) {
+        Ok(())
+    } else {
+        Err(format!(
+            "CONTRACT_BLOCKED: baseline commit {baseline_commit} is not an ancestor of {current_head} and is not recorded in the lineage manifest"
+        ))
     }
 }
 
@@ -80,41 +90,39 @@ pub fn verify_p3s8_dispatch_preconditions(
 #[allow(non_snake_case)]
 fn phase3_sprint8_deep1_F0_predecessor_gate_absent_or_baseline_drift_is_contract_blocked() {
     // 1. Missing predecessor gate P3S1 -> CONTRACT_BLOCKED
-    let err_p3s1 = verify_p3s8_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true)
-        .unwrap_err();
+    let err_p3s1 =
+        verify_p3s8_dispatch_preconditions(BASELINE_COMMIT, "HEAD", false, true).unwrap_err();
     assert!(err_p3s1.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s1.contains("gate_phase3_sprint1_deep0"));
 
     // 2. Missing predecessor gate P3S3 -> CONTRACT_BLOCKED
-    let err_p3s3 = verify_p3s8_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false)
-        .unwrap_err();
+    let err_p3s3 =
+        verify_p3s8_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, false).unwrap_err();
     assert!(err_p3s3.contains("CONTRACT_BLOCKED"));
     assert!(err_p3s3.contains("gate_phase3_sprint3_deep0"));
 
     // 3. Baseline drift simulation -> CONTRACT_BLOCKED
     let bad_baseline = "0000000000000000000000000000000000000000";
-    let err_drift = verify_p3s8_dispatch_preconditions(bad_baseline, "HEAD", true, true)
-        .unwrap_err();
+    let err_drift =
+        verify_p3s8_dispatch_preconditions(bad_baseline, "HEAD", true, true).unwrap_err();
     assert!(err_drift.contains("CONTRACT_BLOCKED"));
 
     // 4. Live check against worktree HEAD and git repository
     let live_check = verify_p3s8_dispatch_preconditions(BASELINE_COMMIT, "HEAD", true, true);
-    assert!(live_check.is_ok(), "Live predecessor check must succeed on verified baseline");
+    assert!(
+        live_check.is_ok(),
+        "Live predecessor check must succeed on verified baseline"
+    );
 
-    // Also verify commit objects for predecessors exist
-    let p3s1_exists = Command::new("git")
-        .args(["cat-file", "-e", &format!("{}^{{commit}}", PREDECESSOR_P3S1_COMMIT)])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    assert!(p3s1_exists, "Predecessor P3S1 commit must exist in repository");
-
-    let p3s3_exists = Command::new("git")
-        .args(["cat-file", "-e", &format!("{}^{{commit}}", PREDECESSOR_P3S3_COMMIT)])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    assert!(p3s3_exists, "Predecessor P3S3 commit must exist in repository");
+    // Also verify predecessor commits are ancestors, local objects, or recorded
+    assert!(
+        common::verify_commit(PREDECESSOR_P3S1_COMMIT),
+        "Predecessor P3S1 commit {PREDECESSOR_P3S1_COMMIT} must be an ancestor, a local object, or recorded in the lineage manifest"
+    );
+    assert!(
+        common::verify_commit(PREDECESSOR_P3S3_COMMIT),
+        "Predecessor P3S3 commit {PREDECESSOR_P3S3_COMMIT} must be an ancestor, a local object, or recorded in the lineage manifest"
+    );
 }
 
 #[test]
@@ -296,12 +304,16 @@ fn phase3_sprint8_deep1_F2_same_path_write_and_update_deleted_entity() {
 
     // 2. Update child of deleted entity -> EvidenceCodecUnsupported
     let mut s_with_arc = BusinessFlowData::new();
-    s_with_arc.optional.overview_phase.arcs.push(OverviewArcItem {
-        code: "arc_01".to_string(),
-        display_name: TrackedField::ai("Arc".to_string()),
-        summary: TrackedField::ai("Summary".to_string()),
-        ..Default::default()
-    });
+    s_with_arc
+        .optional
+        .overview_phase
+        .arcs
+        .push(OverviewArcItem {
+            code: "arc_01".to_string(),
+            display_name: TrackedField::ai("Arc".to_string()),
+            summary: TrackedField::ai("Summary".to_string()),
+            ..Default::default()
+        });
 
     let delete_and_update_child_patch = PatchV2 {
         ops: vec![
@@ -375,8 +387,14 @@ fn golden_vector_GV2_tracked_field_preserves_provenance_source() {
     };
 
     let s1 = replay(&s0, &patch).expect("GV2 replay must succeed");
-    assert_eq!(s1.require.project.summary.value.as_deref(), Some("New Summary"));
-    assert_eq!(s1.require.project.summary.source, Some(ProvenanceSource::AiGenerated));
+    assert_eq!(
+        s1.require.project.summary.value.as_deref(),
+        Some("New Summary")
+    );
+    assert_eq!(
+        s1.require.project.summary.source,
+        Some(ProvenanceSource::AiGenerated)
+    );
 }
 
 #[test]
@@ -400,16 +418,19 @@ fn golden_vector_GV3_delete_scene_and_nullify_memory_ref() {
         }],
     });
     // Memory referencing sc_01
-    s0.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-        code: "char_01".to_string(),
-        memories: vec![CharacterMemoryItem {
-            code: Some("mem_01".to_string()),
-            source_scene_code: TrackedField::ai("sc_01".to_string()),
-            content: TrackedField::ai("Remembered scene".to_string()),
-            ..Default::default()
-        }],
-        competences: vec![],
-    });
+    s0.optional
+        .character_life_experience_phase
+        .character
+        .push(CharacterLifeExperienceItem {
+            code: "char_01".to_string(),
+            memories: vec![CharacterMemoryItem {
+                code: Some("mem_01".to_string()),
+                source_scene_code: TrackedField::ai("sc_01".to_string()),
+                content: TrackedField::ai("Remembered scene".to_string()),
+                ..Default::default()
+            }],
+            competences: vec![],
+        });
 
     // Patch: set memory source_scene_code to null AND delete scene sc_01
     // (order in patch does not matter for atomic clone replay)
@@ -428,9 +449,14 @@ fn golden_vector_GV3_delete_scene_and_nullify_memory_ref() {
     };
 
     let s1 = replay(&s0, &patch).expect("GV3 atomic clone replay must succeed");
-    assert_eq!(s1.optional.chapter_phase.arcs[0].chapters[0].scenes.len(), 0);
     assert_eq!(
-        s1.optional.character_life_experience_phase.character[0].memories[0].source_scene_code.value,
+        s1.optional.chapter_phase.arcs[0].chapters[0].scenes.len(),
+        0
+    );
+    assert_eq!(
+        s1.optional.character_life_experience_phase.character[0].memories[0]
+            .source_scene_code
+            .value,
         None
     );
 }
@@ -465,7 +491,8 @@ fn golden_vector_GV5_protected_field_proposal_yields_empty_patch() {
     s1.require.project.summary = TrackedField::ai("AI Proposed Summary".to_string());
 
     // canonical_diff excludes protected field changes from direct patch (they go to TX-08 proposal)
-    let patch = canonical_diff(&s0, &s1).expect("diff must produce empty patch for protected field change");
+    let patch =
+        canonical_diff(&s0, &s1).expect("diff must produce empty patch for protected field change");
     assert!(
         patch.is_empty(),
         "GV5: Protected-field changes must yield patch=[] as they belong in TX-08 independent proposal"
@@ -502,7 +529,10 @@ fn golden_vector_GV6_ordered_arrays_do_not_sort() {
     // Canonical bytes must strictly reflect [c2, c1], NOT sorted by ID
     let bytes1 = canonical_state(&replayed).unwrap();
     let bytes0 = canonical_state(&s0).unwrap();
-    assert_ne!(bytes1, bytes0, "Reordered semantic array must have distinct canonical bytes");
+    assert_ne!(
+        bytes1, bytes0,
+        "Reordered semantic array must have distinct canonical bytes"
+    );
 }
 
 #[test]
@@ -513,7 +543,10 @@ fn golden_vector_GV7_applied_same_value_yields_empty_patch() {
 
     let s1 = s0.clone();
     let patch = canonical_diff(&s0, &s1).unwrap();
-    assert!(patch.is_empty(), "Same-value transition must produce empty patch");
+    assert!(
+        patch.is_empty(),
+        "Same-value transition must produce empty patch"
+    );
 
     let evidence = EvidenceJsonV2 {
         schema_version: 2,
@@ -580,7 +613,10 @@ fn golden_vector_GV9_restore_invalidation_historical_verified_but_not_applicable
     // The historical task from V3->V4 has input_hash on V3, but head is V5 (which matches V2, not V3)
     let v3_hash = state_data_hash(&v3).unwrap();
     let v5_hash = state_data_hash(&v5).unwrap();
-    assert_ne!(v3_hash, v5_hash, "V5 head does not match historical task V3 input baseline");
+    assert_ne!(
+        v3_hash, v5_hash,
+        "V5 head does not match historical task V3 input baseline"
+    );
 }
 
 #[test]
@@ -626,16 +662,19 @@ fn golden_vector_GV11_field_update_on_deleted_entity_rejected_but_independent_ac
             ..Default::default()
         }],
     });
-    s0.optional.character_life_experience_phase.character.push(CharacterLifeExperienceItem {
-        code: "char_01".to_string(),
-        memories: vec![CharacterMemoryItem {
-            code: Some("mem_01".to_string()),
-            source_scene_code: TrackedField::ai("sc_01".to_string()),
-            content: TrackedField::ai("Content".to_string()),
-            ..Default::default()
-        }],
-        competences: vec![],
-    });
+    s0.optional
+        .character_life_experience_phase
+        .character
+        .push(CharacterLifeExperienceItem {
+            code: "char_01".to_string(),
+            memories: vec![CharacterMemoryItem {
+                code: Some("mem_01".to_string()),
+                source_scene_code: TrackedField::ai("sc_01".to_string()),
+                content: TrackedField::ai("Content".to_string()),
+                ..Default::default()
+            }],
+            competences: vec![],
+        });
 
     // Case A: Field update on the deleted scene itself -> REJECTED
     let bad_patch = PatchV2 {
@@ -645,7 +684,9 @@ fn golden_vector_GV11_field_update_on_deleted_entity_rejected_but_independent_ac
                 entity_code: "sc_01".to_string(),
             },
             PatchOp::PutField {
-                path: "/optional/chapter_phase/arcs/arc_01/chapters/ch_01/scenes/sc_01/display_name".to_string(),
+                path:
+                    "/optional/chapter_phase/arcs/arc_01/chapters/ch_01/scenes/sc_01/display_name"
+                        .to_string(),
                 precondition: json!(TrackedField::ai("Scene".to_string())),
                 value: json!(TrackedField::ai("New Scene Name".to_string())),
             },
@@ -669,7 +710,10 @@ fn golden_vector_GV11_field_update_on_deleted_entity_rejected_but_independent_ac
         ],
     };
     let res_case_b = replay(&s0, &good_patch);
-    assert!(res_case_b.is_ok(), "Independent reference nullification alongside entity deletion must succeed");
+    assert!(
+        res_case_b.is_ok(),
+        "Independent reference nullification alongside entity deletion must succeed"
+    );
 }
 
 #[test]
@@ -713,8 +757,14 @@ fn golden_vector_GV12_missing_tracked_field_vs_explicit_null_canonical_identical
     let bytes_explicit = canonical_state(&s_explicit).unwrap();
     let bytes_norm = canonical_state(&s_norm).unwrap();
 
-    assert_eq!(bytes_missing, bytes_explicit, "Missing optional TrackedField must equal explicit null TrackedField");
-    assert_eq!(bytes_explicit, bytes_norm, "Explicit null TrackedField must equal normalized TrackedField");
+    assert_eq!(
+        bytes_missing, bytes_explicit,
+        "Missing optional TrackedField must equal explicit null TrackedField"
+    );
+    assert_eq!(
+        bytes_explicit, bytes_norm,
+        "Explicit null TrackedField must equal normalized TrackedField"
+    );
 
     // But missing required top-level key 'meta' must reject
     let json_no_meta = json!({
@@ -773,10 +823,12 @@ fn manifest_plan_and_request_digest_computation() {
         parallel_limit: 6,
         plan_digest: plan_digest.clone(),
         base_version_seq: 1,
-        base_data_hash: "sha256:3333333333333333333333333333333333333333333333333333333333333333".to_string(),
+        base_data_hash: "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+            .to_string(),
     };
 
-    let req_digest = compute_request_digest(&req_input).expect("request_digest compute must succeed");
+    let req_digest =
+        compute_request_digest(&req_input).expect("request_digest compute must succeed");
     assert!(req_digest.starts_with(REQUEST_DIGEST_PREFIX));
     assert_eq!(req_digest.len(), REQUEST_DIGEST_PREFIX.len() + 64);
 

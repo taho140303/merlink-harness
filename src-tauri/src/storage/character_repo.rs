@@ -224,16 +224,24 @@ pub fn to_unaccented(input: &str) -> String {
             | 'Ẩ' | 'Ẫ' | 'Ậ' => 'A',
             'đ' => 'd',
             'Đ' => 'D',
-            'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' => 'e',
-            'È' | 'É' | 'Ẻ' | 'Ẽ' | 'Ẹ' | 'Ê' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' => 'E',
+            'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' => {
+                'e'
+            }
+            'È' | 'É' | 'Ẻ' | 'Ẽ' | 'Ẹ' | 'Ê' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' => {
+                'E'
+            }
             'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị' => 'i',
             'Ì' | 'Í' | 'Ỉ' | 'Ĩ' | 'Ị' => 'I',
             'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ' | 'ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ' | 'ơ' | 'ờ' | 'ớ'
             | 'ở' | 'ỡ' | 'ợ' => 'o',
             'Ò' | 'Ó' | 'Ỏ' | 'Õ' | 'Ọ' | 'Ô' | 'Ồ' | 'Ố' | 'Ổ' | 'Ỗ' | 'Ộ' | 'Ơ' | 'Ờ' | 'Ớ'
             | 'Ở' | 'Ỡ' | 'Ợ' => 'O',
-            'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' => 'u',
-            'Ù' | 'Ú' | 'Ủ' | 'Ũ' | 'Ụ' | 'Ư' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' => 'U',
+            'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' => {
+                'u'
+            }
+            'Ù' | 'Ú' | 'Ủ' | 'Ũ' | 'Ụ' | 'Ư' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' => {
+                'U'
+            }
             'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ' => 'y',
             'Ỳ' | 'Ý' | 'Ỷ' | 'Ỹ' | 'Ỵ' => 'Y',
             other => other,
@@ -433,17 +441,35 @@ pub fn list_characters(
         let mut substring_matches = Vec::new();
 
         for c in candidates {
-            let name_nfc = c.display_name.as_deref().map(|n| normalize_to_nfc(n).to_lowercase());
-            let nick_nfc = c.nickname.as_deref().map(|n| normalize_to_nfc(n).to_lowercase());
+            let name_nfc = c
+                .display_name
+                .as_deref()
+                .map(|n| normalize_to_nfc(n).to_lowercase());
+            let nick_nfc = c
+                .nickname
+                .as_deref()
+                .map(|n| normalize_to_nfc(n).to_lowercase());
 
-            let is_prefix = name_nfc.as_deref().map(|n| n.starts_with(&q_nfc_lower)).unwrap_or(false)
-                || nick_nfc.as_deref().map(|n| n.starts_with(&q_nfc_lower)).unwrap_or(false);
+            let is_prefix = name_nfc
+                .as_deref()
+                .map(|n| n.starts_with(&q_nfc_lower))
+                .unwrap_or(false)
+                || nick_nfc
+                    .as_deref()
+                    .map(|n| n.starts_with(&q_nfc_lower))
+                    .unwrap_or(false);
 
             if is_prefix {
                 prefix_matches.push(c.clone());
             } else {
-                let is_substr = name_nfc.as_deref().map(|n| n.contains(&q_nfc_lower)).unwrap_or(false)
-                    || nick_nfc.as_deref().map(|n| n.contains(&q_nfc_lower)).unwrap_or(false);
+                let is_substr = name_nfc
+                    .as_deref()
+                    .map(|n| n.contains(&q_nfc_lower))
+                    .unwrap_or(false)
+                    || nick_nfc
+                        .as_deref()
+                        .map(|n| n.contains(&q_nfc_lower))
+                        .unwrap_or(false);
                 if is_substr {
                     substring_matches.push(c.clone());
                 }
@@ -548,15 +574,33 @@ pub fn get_character_detail(
         }
     };
 
-    let id_str: String = row.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let code: Option<String> = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let display_name: Option<String> = row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let nickname: Option<String> = row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let species: Option<String> = row.get(4).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let biological_sex: Option<String> = row.get(5).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let gender_identity: Option<String> = row.get(6).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let gender_expression: Option<String> = row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let default_summary: Option<String> = row.get(8).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let id_str: String = row
+        .get(0)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let code: Option<String> = row
+        .get(1)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let display_name: Option<String> = row
+        .get(2)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let nickname: Option<String> = row
+        .get(3)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let species: Option<String> = row
+        .get(4)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let biological_sex: Option<String> = row
+        .get(5)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let gender_identity: Option<String> = row
+        .get(6)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let gender_expression: Option<String> = row
+        .get(7)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let default_summary: Option<String> = row
+        .get(8)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
     let primary_project_id: Option<Uuid> = conn
         .query_row(
@@ -580,7 +624,14 @@ pub fn get_character_detail(
                 |r| r.get(0),
             )
             .unwrap_or(false);
-        (linked, if linked { Some(*pid) } else { primary_project_id })
+        (
+            linked,
+            if linked {
+                Some(*pid)
+            } else {
+                primary_project_id
+            },
+        )
     } else {
         (primary_project_id.is_some(), primary_project_id)
     };
@@ -589,7 +640,10 @@ pub fn get_character_detail(
         id: *character_id,
         project_id: resolved_project_id,
         code: code.unwrap_or_default(),
-        name: display_name.clone().or_else(|| nickname.clone()).unwrap_or_else(|| id_str.clone()),
+        name: display_name
+            .clone()
+            .or_else(|| nickname.clone())
+            .unwrap_or_else(|| id_str.clone()),
         nickname,
         species: species.unwrap_or_else(|| "HUMAN".to_string()),
         biological_sex: biological_sex.unwrap_or_else(|| "NONE".to_string()),
@@ -664,7 +718,10 @@ pub fn create_or_update_library_character(
         let sc_id = comp.scene_id.ok_or_else(|| {
             IpcError::new(
                 ErrorCode::ValidationFailed,
-                format!("Competence '{}' requires non-null scene_id", comp.competence_name),
+                format!(
+                    "Competence '{}' requires non-null scene_id",
+                    comp.competence_name
+                ),
             )
         })?;
 
@@ -686,7 +743,12 @@ pub fn create_or_update_library_character(
 
     let tx = conn
         .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Begin transaction failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Begin transaction failed: {}", e),
+            )
+        })?;
 
     let now = Utc::now().to_rfc3339();
     let cid = match character_id {
@@ -770,7 +832,12 @@ pub fn create_or_update_library_character(
              ON CONFLICT (project_id, character_id) DO UPDATE SET deleted_at = NULL",
             params![pc_id, pid_str, cid_str, now],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Link project_characters failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Link project_characters failed: {}", e),
+            )
+        })?;
     }
 
     // Upsert Appearance
@@ -839,7 +906,12 @@ pub fn create_or_update_library_character(
             "DELETE FROM character_memories WHERE character_id = ?1",
             params![cid_str],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Delete old memories failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Delete old memories failed: {}", e),
+            )
+        })?;
 
         for mem in &profile.memories {
             let mem_id = if mem.id.is_nil() {
@@ -860,7 +932,12 @@ pub fn create_or_update_library_character(
                  VALUES (?1, ?2, ?3, ?4)",
                 params![mem_id, cid_str, content_payload, now],
             )
-            .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Insert memory failed: {}", e)))?;
+            .map_err(|e| {
+                IpcError::new(
+                    ErrorCode::DatabaseError,
+                    format!("Insert memory failed: {}", e),
+                )
+            })?;
         }
     }
 
@@ -870,7 +947,12 @@ pub fn create_or_update_library_character(
             "DELETE FROM character_competences WHERE character_id = ?1",
             params![cid_str],
         )
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Delete old competences failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Delete old competences failed: {}", e),
+            )
+        })?;
 
         for comp in &profile.competences {
             let comp_id = if comp.id.is_nil() {
@@ -897,8 +979,12 @@ pub fn create_or_update_library_character(
         }
     }
 
-    tx.commit()
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Commit character upsert failed: {}", e)))?;
+    tx.commit().map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Commit character upsert failed: {}", e),
+        )
+    })?;
 
     get_character_detail(conn, &cid, project_id.as_ref())
 }
@@ -907,7 +993,10 @@ pub fn create_or_update_library_character(
 // Internal Helpers for Queries and Sub-tables
 // ----------------------------------------------------------------------------
 
-fn fetch_appearance(conn: &Connection, char_id: &str) -> Result<Option<CharacterAppearanceDto>, IpcError> {
+fn fetch_appearance(
+    conn: &Connection,
+    char_id: &str,
+) -> Result<Option<CharacterAppearanceDto>, IpcError> {
     let sql = "SELECT ca.height, ca.weight,
                       COALESCE(hc.display_name, hc.code, ca.hair_note, '') AS hair,
                       COALESCE(ec.display_name, ec.code, ca.eyes_note, '') AS eyes,
@@ -931,7 +1020,10 @@ fn fetch_appearance(conn: &Connection, char_id: &str) -> Result<Option<Character
         .query(params![char_id])
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    if let Some(r) = rows.next().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))? {
+    if let Some(r) = rows
+        .next()
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+    {
         let height_int: Option<i64> = r.get(0).ok();
         let weight_int: Option<i64> = r.get(1).ok();
         let hair: String = r.get(2).unwrap_or_default();
@@ -976,7 +1068,10 @@ fn fetch_distinguishing_marks(conn: &Connection, char_id: &str) -> Result<Vec<St
     Ok(marks)
 }
 
-fn fetch_psychological(conn: &Connection, char_id: &str) -> Result<Option<CharacterPsychologicalDto>, IpcError> {
+fn fetch_psychological(
+    conn: &Connection,
+    char_id: &str,
+) -> Result<Option<CharacterPsychologicalDto>, IpcError> {
     let sql = "SELECT the_wound, moral_code, stress_trigger, persona_type
                FROM character_psychological
                WHERE character_id = ?1";
@@ -989,7 +1084,10 @@ fn fetch_psychological(conn: &Connection, char_id: &str) -> Result<Option<Charac
         .query(params![char_id])
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    if let Some(r) = rows.next().map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))? {
+    if let Some(r) = rows
+        .next()
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
+    {
         let the_wound: Option<String> = r.get(0).ok();
         let moral_code: Option<String> = r.get(1).ok();
         let stress_trigger: Option<String> = r.get(2).ok();
@@ -1043,12 +1141,16 @@ fn fetch_memories(conn: &Connection, char_id: &str) -> Result<Vec<CharacterMemor
 
     let mut memories = Vec::new();
     for r in rows {
-        let (id, content) = r.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        let (id, content) =
+            r.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
             let memory_type = val["memoryType"].as_str().unwrap_or("EPISODIC").to_string();
             let title = val["title"].as_str().unwrap_or(&content).to_string();
             let description = val["description"].as_str().unwrap_or(&content).to_string();
-            let emotional_charge = val["emotionalCharge"].as_str().unwrap_or("NEUTRAL").to_string();
+            let emotional_charge = val["emotionalCharge"]
+                .as_str()
+                .unwrap_or("NEUTRAL")
+                .to_string();
             memories.push(CharacterMemoryDto {
                 id,
                 memory_type,
@@ -1069,7 +1171,10 @@ fn fetch_memories(conn: &Connection, char_id: &str) -> Result<Vec<CharacterMemor
     Ok(memories)
 }
 
-fn fetch_competences(conn: &Connection, char_id: &str) -> Result<Vec<CharacterCompetenceDto>, IpcError> {
+fn fetch_competences(
+    conn: &Connection,
+    char_id: &str,
+) -> Result<Vec<CharacterCompetenceDto>, IpcError> {
     let sql = "SELECT cc.id, cd.display_name, cc.display_name, dl.display_name, cc.scene_id
                FROM character_competences cc
                JOIN competence_domains cd ON cc.domain_id = cd.id
@@ -1108,7 +1213,10 @@ fn fetch_competences(conn: &Connection, char_id: &str) -> Result<Vec<CharacterCo
     Ok(competences)
 }
 
-fn fetch_relationships(conn: &Connection, char_id: &str) -> Result<Vec<CharacterRelationshipDto>, IpcError> {
+fn fetch_relationships(
+    conn: &Connection,
+    char_id: &str,
+) -> Result<Vec<CharacterRelationshipDto>, IpcError> {
     let sql = "SELECT r.to_character_id, COALESCE(rc.category, 'SOCIAL'),
                       COALESCE(rs.trust, 'MODERATE'), COALESCE(cm.description, '')
                FROM relationships r
@@ -1225,7 +1333,11 @@ fn ensure_competence_domain(conn: &Connection, domain_name: &str) -> Result<Stri
 }
 
 fn allocate_unique_character_code(conn: &Connection, base_slug: &str) -> Result<String, IpcError> {
-    let base = if base_slug.is_empty() { "char" } else { base_slug };
+    let base = if base_slug.is_empty() {
+        "char"
+    } else {
+        base_slug
+    };
     let mut candidate = base.to_string();
     let mut suffix = 2;
 

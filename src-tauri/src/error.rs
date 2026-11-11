@@ -295,9 +295,10 @@ impl From<AppError> for IpcError {
             AppError::Json(json_err) => {
                 IpcError::new(ErrorCode::ValidationFailed, json_err.to_string())
             }
-            AppError::ContractBlocked { reason } => {
-                IpcError::new(ErrorCode::ValidationFailed, format!("CONTRACT_BLOCKED: {reason}"))
-            }
+            AppError::ContractBlocked { reason } => IpcError::new(
+                ErrorCode::ValidationFailed,
+                format!("CONTRACT_BLOCKED: {reason}"),
+            ),
             AppError::Internal(msg) => IpcError::new(ErrorCode::InternalError, msg),
         }
     }

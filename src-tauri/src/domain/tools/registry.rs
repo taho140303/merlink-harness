@@ -178,7 +178,11 @@ impl ToolRegistry {
     ///
     /// Rejects unauthorized AI calls to UI-only tools (`confirm_phase`, `set_scene_lock`, `commit_draft`)
     /// with `ErrorCode::UnauthorizedCaller`.
-    pub fn authorize(&self, tool_name: &str, caller: CallerCategory) -> Result<&ToolMetadata, ErrorCode> {
+    pub fn authorize(
+        &self,
+        tool_name: &str,
+        caller: CallerCategory,
+    ) -> Result<&ToolMetadata, ErrorCode> {
         let meta = self.lookup(tool_name).ok_or(ErrorCode::EntityNotFound)?;
 
         if !meta.is_allowed_caller(caller) {

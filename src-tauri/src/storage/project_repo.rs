@@ -49,9 +49,12 @@ pub fn list_projects(
          {order_clause}"
     );
 
-    let mut stmt = conn
-        .prepare(&sql)
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Prepare list_projects failed: {}", e)))?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Prepare list_projects failed: {}", e),
+        )
+    })?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -64,24 +67,49 @@ pub fn list_projects(
             let created_at: Option<String> = row.get(6)?;
             let updated_at: Option<String> = row.get(7)?;
 
-            Ok((id, code, display_name, status, cover, summary, created_at, updated_at))
+            Ok((
+                id,
+                code,
+                display_name,
+                status,
+                cover,
+                summary,
+                created_at,
+                updated_at,
+            ))
         })
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Query list_projects failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Query list_projects failed: {}", e),
+            )
+        })?;
 
     let norm_q = query.map(normalize_query).filter(|q| !q.is_empty());
 
     let mut items = Vec::new();
     for r in rows {
         let (id, code, display_name, status, cover, summary, created_at, updated_at) =
-            r.map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Row mapping failed: {}", e)))?;
+            r.map_err(|e| {
+                IpcError::new(
+                    ErrorCode::DatabaseError,
+                    format!("Row mapping failed: {}", e),
+                )
+            })?;
 
-        let title = display_name.unwrap_or_else(|| code.clone().unwrap_or_else(|| "Untitled Project".to_string()));
+        let title = display_name.unwrap_or_else(|| {
+            code.clone()
+                .unwrap_or_else(|| "Untitled Project".to_string())
+        });
         let desc = summary.unwrap_or_default();
 
         if let Some(ref q) = norm_q {
             let title_match = title.to_lowercase().contains(q);
             let desc_match = desc.to_lowercase().contains(q);
-            let code_match = code.as_deref().map(|c| c.to_lowercase().contains(q)).unwrap_or(false);
+            let code_match = code
+                .as_deref()
+                .map(|c| c.to_lowercase().contains(q))
+                .unwrap_or(false);
             if !title_match && !desc_match && !code_match {
                 continue;
             }
@@ -139,16 +167,33 @@ pub fn get_project_detail(
         }
     };
 
-    let id: String = row.get(0).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let code: Option<String> = row.get(1).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let display_name: Option<String> = row.get(2).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let status: Option<String> = row.get(3).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let cover: Option<String> = row.get(4).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let summary: Option<String> = row.get(5).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let created_at: Option<String> = row.get(6).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
-    let updated_at: Option<String> = row.get(7).map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let id: String = row
+        .get(0)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let code: Option<String> = row
+        .get(1)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let display_name: Option<String> = row
+        .get(2)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let status: Option<String> = row
+        .get(3)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let cover: Option<String> = row
+        .get(4)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let summary: Option<String> = row
+        .get(5)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let created_at: Option<String> = row
+        .get(6)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+    let updated_at: Option<String> = row
+        .get(7)
+        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    let title = display_name.unwrap_or_else(|| code.unwrap_or_else(|| "Untitled Project".to_string()));
+    let title =
+        display_name.unwrap_or_else(|| code.unwrap_or_else(|| "Untitled Project".to_string()));
     let desc = summary.unwrap_or_default();
     let genres = fetch_project_genres(conn, &id)?;
     let details = fetch_project_details_counts(conn, &id, created_at.as_deref().unwrap_or(""))?;
@@ -238,7 +283,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
 
     let tx = conn
         .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Begin transaction failed: {}", e)))?;
+        .map_err(|e| {
+            IpcError::new(
+                ErrorCode::DatabaseError,
+                format!("Begin transaction failed: {}", e),
+            )
+        })?;
 
     // Verify project exists and is not deleted
     let exists: bool = tx
@@ -268,7 +318,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          ) AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete scenes failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete scenes failed: {}", e),
+        )
+    })?;
 
     // 2. Soft-delete chapters
     tx.execute(
@@ -279,7 +334,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          ) AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete chapters failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete chapters failed: {}", e),
+        )
+    })?;
 
     // 3. Soft-delete arcs
     tx.execute(
@@ -287,7 +347,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          WHERE project_id = ?2 AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete arcs failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete arcs failed: {}", e),
+        )
+    })?;
 
     // 4. Soft-delete themes belonging to project arcs
     tx.execute(
@@ -295,7 +360,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          WHERE arc_id IN (SELECT a.id FROM arcs a WHERE a.project_id = ?2) AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete themes failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete themes failed: {}", e),
+        )
+    })?;
 
     // 5. Soft-delete project_characters (links only, characters table preserved)
     tx.execute(
@@ -303,7 +373,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          WHERE project_id = ?2 AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete project_characters failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete project_characters failed: {}", e),
+        )
+    })?;
 
     // 6. Soft-delete lore_entries belonging to project-specific world_settings
     tx.execute(
@@ -313,7 +388,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          ) AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete lore_entries failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete lore_entries failed: {}", e),
+        )
+    })?;
 
     // 7. Soft-delete world_settings belonging to this project (NOT template ones where project_id IS NULL)
     tx.execute(
@@ -321,7 +401,12 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          WHERE project_id = ?2 AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete world_settings failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete world_settings failed: {}", e),
+        )
+    })?;
 
     // 8. Soft-delete project itself
     tx.execute(
@@ -329,10 +414,19 @@ pub fn delete_project(conn: &mut Connection, project_id: &Uuid) -> Result<bool, 
          WHERE id = ?2 AND deleted_at IS NULL",
         params![now, proj_id_str],
     )
-    .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Soft delete projects failed: {}", e)))?;
+    .map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Soft delete projects failed: {}", e),
+        )
+    })?;
 
-    tx.commit()
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Commit soft delete failed: {}", e)))?;
+    tx.commit().map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Commit soft delete failed: {}", e),
+        )
+    })?;
 
     Ok(true)
 }
@@ -431,7 +525,10 @@ fn fetch_project_details_counts(
     })
 }
 
-fn fetch_project_arcs_hierarchy(conn: &Connection, project_id: &str) -> Result<Vec<ArcItemUiDto>, IpcError> {
+fn fetch_project_arcs_hierarchy(
+    conn: &Connection,
+    project_id: &str,
+) -> Result<Vec<ArcItemUiDto>, IpcError> {
     let mut arc_stmt = conn
         .prepare(
             "SELECT a.id, a.display_name, a.code
@@ -452,7 +549,8 @@ fn fetch_project_arcs_hierarchy(conn: &Connection, project_id: &str) -> Result<V
 
     let mut arcs = Vec::new();
     for a in arc_rows {
-        let (arc_id, arc_title) = a.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+        let (arc_id, arc_title) =
+            a.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         let mut ch_stmt = conn
             .prepare(
@@ -470,13 +568,18 @@ fn fetch_project_arcs_hierarchy(conn: &Connection, project_id: &str) -> Result<V
                 let code: Option<String> = r.get(2)?;
                 let created_at: Option<String> = r.get(3)?;
                 let updated_at: Option<String> = r.get(4)?;
-                Ok((id, display_name.unwrap_or_else(|| code.unwrap_or_default()), created_at.or(updated_at).unwrap_or_default()))
+                Ok((
+                    id,
+                    display_name.unwrap_or_else(|| code.unwrap_or_default()),
+                    created_at.or(updated_at).unwrap_or_default(),
+                ))
             })
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
         let mut chapters = Vec::new();
         for ch in ch_rows {
-            let (ch_id, ch_title, ch_date) = ch.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
+            let (ch_id, ch_title, ch_date) =
+                ch.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
             let mut sc_stmt = conn
                 .prepare(
@@ -506,7 +609,8 @@ fn fetch_project_arcs_hierarchy(conn: &Connection, project_id: &str) -> Result<V
 
             let mut blocks = Vec::new();
             for sc in sc_rows {
-                blocks.push(sc.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?);
+                blocks
+                    .push(sc.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?);
             }
 
             chapters.push(ChapterItemUiDto {

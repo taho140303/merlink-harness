@@ -3,7 +3,7 @@
   "title": "Phase-3 Producer-Consumer Artifact Fixture Vectors",
   "description": "Golden vectors for WorldProbeReportV1 and WorldWriteInputV1 testing RFC 8785 JCS UTF-8 serialization, domain separation prefix, and SHA-256 hash digests (REQ-ART-001, CI-02).",
   "metadata": {
-    "authoritySha": "57a462efb953a665e3673b15e6cc33622a4f2d39",
+    "authoritySha": "ddda30cd3c842113599c7bfb7d0e221936330428",
     "predecessorP1S3Sha": "1e70d6f6d89b806b2243a1f4669eddce858d0b95",
     "predecessorP2S2Sha": "f69f1ab0e3d3d34853ddf887cac139cde6d64b0d",
     "domainPrefix": "merlink.sf06.artifact.v1\\0",

@@ -327,7 +327,9 @@ impl WorkflowService {
     }
 
     pub fn set_error_injection(&self, draft_session_id: &Uuid, injection: WorkflowErrorInjection) {
-        self.error_injection.write().insert(*draft_session_id, injection);
+        self.error_injection
+            .write()
+            .insert(*draft_session_id, injection);
     }
 
     pub fn get_applied_task_order(&self, draft_session_id: &Uuid) -> Vec<usize> {
@@ -344,7 +346,8 @@ impl WorkflowService {
         req: &StartOrResumeWorkflowReq,
         event_tx: Option<mpsc::Sender<WorkflowProgressEvent>>,
     ) -> Result<WorkflowExecutionSummaryDto, IpcError> {
-        self.start_or_resume_workflow_with_config(req, event_tx, self.get_config()).await
+        self.start_or_resume_workflow_with_config(req, event_tx, self.get_config())
+            .await
     }
 
     /// Snapshot settings once per run; saving settings cannot change an in-flight plan.
@@ -373,7 +376,7 @@ impl WorkflowService {
         }
 
         if req.phase == 5 {
-            if !matches!(req.subphase, Some(1 | 2 | 3)) {
+            if !matches!(req.subphase, Some(1..=3)) {
                 return Err(IpcError::new(
                     ErrorCode::ValidationFailed,
                     "Phase 5 requires subphase to be Some(1), Some(2), or Some(3)",
@@ -382,7 +385,10 @@ impl WorkflowService {
         } else if req.subphase.is_some() {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
-                format!("Subphase is only valid for Phase 5, received for phase {}", req.phase),
+                format!(
+                    "Subphase is only valid for Phase 5, received for phase {}",
+                    req.phase
+                ),
             ));
         }
 
@@ -418,7 +424,9 @@ impl WorkflowService {
         }
 
         // Ensure runtime entry exists
-        let runtime_entry = self.draft_service.get_or_load_runtime_entry(req.draft_session_id)?;
+        let runtime_entry = self
+            .draft_service
+            .get_or_load_runtime_entry(req.draft_session_id)?;
 
         // Check if workflow is already actively running on this draft
         {
@@ -473,7 +481,9 @@ impl WorkflowService {
         // A workflow phase may only start when the previous phase completed its optional payload;
         // Phase 1 also needs the Phase 0 requirement. This mirrors `confirm_phase` gating.
         let previous_missing = if req.phase == 1 {
-            let eval = crate::domain::progress_engine::evaluate_progress(&working_state.business_flow_data);
+            let eval = crate::domain::progress_engine::evaluate_progress(
+                &working_state.business_flow_data,
+            );
             if eval.is_require_complete {
                 Vec::new()
             } else {
@@ -504,17 +514,15 @@ impl WorkflowService {
                 format!(
                     "Không thể chạy phase {}{} khi phase trước chưa hoàn tất: {}",
                     req.phase,
-                    req.subphase.map(|sub| format!(".{sub}")).unwrap_or_default(),
+                    req.subphase
+                        .map(|sub| format!(".{sub}"))
+                        .unwrap_or_default(),
                     previous_missing.join("; ")
                 ),
             ));
         }
-        let mut plan_rounds = self.build_rounds_for_phase(
-            req.phase,
-            req.subphase,
-            &working_state,
-            &cfg,
-        )?;
+        let mut plan_rounds =
+            self.build_rounds_for_phase(req.phase, req.subphase, &working_state, &cfg)?;
 
         let (mut phase_prompt, tool_schemas) = self.compose_phase_prompt(req.phase)?;
         if let Some(handoff) = self.recent_author_handoff(&req.draft_session_id) {
@@ -525,11 +533,8 @@ impl WorkflowService {
         let total_tasks: u32 = plan_rounds.iter().map(|r| r.len() as u32).sum();
 
         // 4. Resume Classification (§6.4.4): Check existing receipts
-        let existing_receipts = self.query_existing_receipts(
-            &conn,
-            &req.draft_session_id,
-            &workflow_run_id,
-        )?;
+        let existing_receipts =
+            self.query_existing_receipts(&conn, &req.draft_session_id, &workflow_run_id)?;
 
         if !existing_receipts.is_empty() {
             // Check for missing intermediate evidence
@@ -545,7 +550,11 @@ impl WorkflowService {
                             recovery_reason: Some("insufficient_task_evidence".to_string()),
                             completed_tasks: 0,
                             total_tasks,
-                            last_sealed_version: self.get_head_version_summary(&conn, &req.draft_session_id, head_seq)?,
+                            last_sealed_version: self.get_head_version_summary(
+                                &conn,
+                                &req.draft_session_id,
+                                head_seq,
+                            )?,
                             pending_patches: working_state.pending_patches.clone(),
                         });
                     }
@@ -561,7 +570,11 @@ impl WorkflowService {
                             recovery_reason: Some("insufficient_task_evidence".to_string()),
                             completed_tasks: 0,
                             total_tasks,
-                            last_sealed_version: self.get_head_version_summary(&conn, &req.draft_session_id, head_seq)?,
+                            last_sealed_version: self.get_head_version_summary(
+                                &conn,
+                                &req.draft_session_id,
+                                head_seq,
+                            )?,
                             pending_patches: working_state.pending_patches.clone(),
                         });
                     }
@@ -575,7 +588,11 @@ impl WorkflowService {
                         recovery_reason: Some("insufficient_task_evidence".to_string()),
                         completed_tasks: 0,
                         total_tasks,
-                        last_sealed_version: self.get_head_version_summary(&conn, &req.draft_session_id, head_seq)?,
+                        last_sealed_version: self.get_head_version_summary(
+                            &conn,
+                            &req.draft_session_id,
+                            head_seq,
+                        )?,
                         pending_patches: working_state.pending_patches.clone(),
                     });
                 }
@@ -661,7 +678,7 @@ impl WorkflowService {
 
             let active_task_identities: Vec<String> = round_tasks
                 .iter()
-                .map(|t| canonical_task_identity(t))
+                .map(canonical_task_identity)
                 .collect();
 
             self.emit_event(
@@ -700,7 +717,11 @@ impl WorkflowService {
                 let err_inj = *error_injection.read();
 
                 compute_futs.push(async move {
-                    if let WorkflowErrorInjection::DelayTask { task_index: d_idx, delay_ms } = err_inj {
+                    if let WorkflowErrorInjection::DelayTask {
+                        task_index: d_idx,
+                        delay_ms,
+                    } = err_inj
+                    {
                         if d_idx == task_idx {
                             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                         }
@@ -769,7 +790,9 @@ impl WorkflowService {
             let mut any_applied_write = false;
 
             let current_working_state = runtime_entry.get_snapshot();
-            let base_version_seq = current_working_state.head_version_seq.unwrap_or(head_seq as i32) as i64;
+            let base_version_seq = current_working_state
+                .head_version_seq
+                .unwrap_or(head_seq as i32) as i64;
             let base_data_hash = state_data_hash(&current_working_state.business_flow_data)
                 .map_err(|e| IpcError::new(ErrorCode::InternalError, e.to_string()))?;
 
@@ -809,7 +832,9 @@ impl WorkflowService {
                 prev_flow_data = next_flow_data;
 
                 if let Some(artifact) = &out.artifact {
-                    if let Ok(report) = serde_json::from_value::<WorldProbeReportV1>(artifact.clone()) {
+                    if let Ok(report) =
+                        serde_json::from_value::<WorldProbeReportV1>(artifact.clone())
+                    {
                         probe_reports.push((out.task_identity.clone(), report.report_text));
                     }
                 }
@@ -852,7 +877,10 @@ impl WorkflowService {
             }
 
             // Seal round atomically via TX-04
-            let round_seal_key = format!("wf_round:{}:{}:{}", workflow_run_id, plan_generation, round_idx);
+            let round_seal_key = format!(
+                "wf_round:{}:{}:{}",
+                workflow_run_id, plan_generation, round_idx
+            );
             let seal_req = WorkflowRoundSealRequest {
                 draft_session_id: req.draft_session_id.to_string(),
                 workflow_run_id: workflow_run_id.to_string(),
@@ -888,8 +916,8 @@ impl WorkflowService {
                 .get()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-            let seal_res = seal_workflow_round_tx(&mut conn_tx, &seal_req, &plan_ctx)
-                .map_err(|e| {
+            let seal_res =
+                seal_workflow_round_tx(&mut conn_tx, &seal_req, &plan_ctx).map_err(|e| {
                     IpcError::new(
                         ErrorCode::VersionSealFailed,
                         format!("TX-04 round seal failed: {}", e.message),
@@ -901,7 +929,8 @@ impl WorkflowService {
                     ws.head_version_seq = Some(seq as i32);
                 });
 
-                let summary = self.get_head_version_summary(&conn_tx, &req.draft_session_id, seq)?;
+                let summary =
+                    self.get_head_version_summary(&conn_tx, &req.draft_session_id, seq)?;
                 *active_state.last_sealed_version.write() = summary.clone();
                 summary
             } else {
@@ -929,7 +958,9 @@ impl WorkflowService {
 
             // After the last probe round, merge the sealed reports and append the write rounds.
             if req.phase == 3
-                && round_tasks.iter().all(|task| task.task_kind == "world_probe")
+                && round_tasks
+                    .iter()
+                    .all(|task| task.task_kind == "world_probe")
                 && round_cursor == plan_rounds.len()
             {
                 let existing_codes: Vec<String> = runtime_entry
@@ -1152,7 +1183,9 @@ impl WorkflowService {
     /// Arc windows derived from the real `chapter_phase` Arc codes. Event-block chapter ranges are
     /// honoured when present; otherwise the confirmed chapter target is split across the arcs in
     /// order. Never invents codes that do not exist in the draft.
-    pub fn draft_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
+    pub fn draft_arc_ranges(
+        flow: &crate::domain::business_flow::BusinessFlowData,
+    ) -> Vec<(String, i32, i32)> {
         let codes: Vec<String> = flow
             .optional
             .chapter_phase
@@ -1191,8 +1224,7 @@ impl WorkflowService {
                     }
                     (lo, hi)
                 })
-                .filter(|(lo, hi)| *lo != i32::MAX && *hi >= *lo)
-                .map(|(lo, hi)| (lo, hi));
+                .filter(|(lo, hi)| *lo != i32::MAX && *hi >= *lo);
             if let Some((lo, hi)) = from_event_blocks {
                 ranges.push((code.clone(), lo, hi));
                 start = start.max(hi + 1);
@@ -1211,7 +1243,9 @@ impl WorkflowService {
 
     /// Deterministic Arc window fallback from the confirmed target counts (no entity names
     /// are fabricated: the codes only identify planning scopes, never draft entities).
-    fn planned_arc_ranges(flow: &crate::domain::business_flow::BusinessFlowData) -> Vec<(String, i32, i32)> {
+    fn planned_arc_ranges(
+        flow: &crate::domain::business_flow::BusinessFlowData,
+    ) -> Vec<(String, i32, i32)> {
         let arc_count = flow.require.project.target.arc_count.value.unwrap_or(0) as i32;
         let chapter_count = flow.require.project.target.chapter_count.value.unwrap_or(0) as i32;
         if arc_count <= 0 || chapter_count <= 0 {
@@ -1239,7 +1273,10 @@ impl WorkflowService {
     /// (`prompt_blocks` + `prompt_block_tools`, `core.md` §3.8).
     /// Latest assistant message for the draft's chat session, wrapped as a planning decision.
     /// Used as a deterministic fallback when the model did not persist the author's approval.
-    fn capture_recent_approval(&self, draft_session_id: &Uuid) -> Option<crate::domain::business_flow::DecisionLogEntry> {
+    fn capture_recent_approval(
+        &self,
+        draft_session_id: &Uuid,
+    ) -> Option<crate::domain::business_flow::DecisionLogEntry> {
         let conn = self.pool.get().ok()?;
         let session_id: String = conn
             .query_row(
@@ -1268,7 +1305,9 @@ impl WorkflowService {
     /// Seal a new base version after a structural repair (duplicate Arc positions), so the next
     /// TX-04 round compares against a stored hash that matches the runtime state.
     fn seal_repaired_base(&self, draft_session_id: &Uuid) -> Result<(), IpcError> {
-        let entry = self.draft_service.get_or_load_runtime_entry(*draft_session_id)?;
+        let entry = self
+            .draft_service
+            .get_or_load_runtime_entry(*draft_session_id)?;
         let snap = entry.get_snapshot();
         let data_json = serde_json::to_string(&snap.business_flow_data)
             .map_err(|e| IpcError::new(ErrorCode::InternalError, e.to_string()))?;
@@ -1276,18 +1315,19 @@ impl WorkflowService {
             .map_err(|e| IpcError::new(ErrorCode::ValidationFailed, e.to_string()))?;
         let base_seq = snap.head_version_seq.unwrap_or(0);
         let seal_key = format!("repair_arcs:{}:{}", base_seq, Uuid::new_v4());
-        self.draft_service.seal_version(&crate::service::draft_service::SealVersionParams {
-            draft_session_id: *draft_session_id,
-            seal_key,
-            reason: "repair_arcs".to_string(),
-            phase: snap.phase,
-            subphase: snap.subphase,
-            data_json,
-            data_hash,
-            parent_seq: Some(base_seq),
-            turn_id: None,
-            chat_message_id: None,
-        })?;
+        self.draft_service
+            .seal_version(&crate::service::draft_service::SealVersionParams {
+                draft_session_id: *draft_session_id,
+                seal_key,
+                reason: "repair_arcs".to_string(),
+                phase: snap.phase,
+                subphase: snap.subphase,
+                data_json,
+                data_hash,
+                parent_seq: Some(base_seq),
+                turn_id: None,
+                chat_message_id: None,
+            })?;
         Ok(())
     }
 
@@ -1330,16 +1370,17 @@ impl WorkflowService {
         );
         for (role, content) in items {
             let text: String = content.chars().take(1500).collect();
-            let label = if role == "user" { "Tác giả" } else { "Trợ lý" };
+            let label = if role == "user" {
+                "Tác giả"
+            } else {
+                "Trợ lý"
+            };
             out.push_str(&format!("- {label}: {}\n", text.replace('\n', " ")));
         }
         Some(out)
     }
 
-    pub fn compose_phase_prompt(
-        &self,
-        phase: i32,
-    ) -> Result<(String, Vec<Value>), IpcError> {
+    pub fn compose_phase_prompt(&self, phase: i32) -> Result<(String, Vec<Value>), IpcError> {
         let conn = self
             .pool
             .get()
@@ -1370,7 +1411,10 @@ impl WorkflowService {
                 sections.push(format!("# {code}\n{content}"));
             }
         }
-        if !sections.iter().any(|section| section.starts_with(&format!("# {phase_code}"))) {
+        if !sections
+            .iter()
+            .any(|section| section.starts_with(&format!("# {phase_code}")))
+        {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
                 format!("Prompt block '{phase_code}' is not seeded; run pending migrations"),
@@ -1397,13 +1441,15 @@ impl WorkflowService {
             .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?
             .filter_map(Result::ok)
             .filter_map(|(code, description, schema)| {
-                serde_json::from_str::<Value>(&schema).ok().map(|parameters| {
-                    json!({
-                        "name": code,
-                        "description": description.unwrap_or_default(),
-                        "parameters": parameters,
+                serde_json::from_str::<Value>(&schema)
+                    .ok()
+                    .map(|parameters| {
+                        json!({
+                            "name": code,
+                            "description": description.unwrap_or_default(),
+                            "parameters": parameters,
+                        })
                     })
-                })
             })
             .collect();
 
@@ -1446,8 +1492,8 @@ impl WorkflowService {
                 // Phase 1–2: sequential outline windows over the Arc ranges in the draft.
                 // Before Phase 1 writes anything, fall back to the user-confirmed target
                 // allocation so the phase can actually run on a fresh draft.
-                let mut arc_ranges = extract_arc_chapter_ranges(flow)
-                    .map_err(|e| invalid(e.to_string()))?;
+                let mut arc_ranges =
+                    extract_arc_chapter_ranges(flow).map_err(|e| invalid(e.to_string()))?;
                 if arc_ranges.is_empty() {
                     arc_ranges = Self::draft_arc_ranges(flow);
                 }
@@ -1473,9 +1519,16 @@ impl WorkflowService {
 
                     for run in outline_runs {
                         let arc = run.arc_code.as_deref().unwrap_or(&arc_code);
-                        let kind = if phase == 2 { "chapter_outline" } else { "outline_window" };
+                        let kind = if phase == 2 {
+                            "chapter_outline"
+                        } else {
+                            "outline_window"
+                        };
                         let task_id = if phase == 2 {
-                            format!("p2:s0:chapter_outline:arc={arc}:ch={}..={}", run.write.0, run.write.1)
+                            format!(
+                                "p2:s0:chapter_outline:arc={arc}:ch={}..={}",
+                                run.write.0, run.write.1
+                            )
                         } else {
                             format_arc_chapter_task_identity(
                                 phase,
@@ -1513,8 +1566,8 @@ impl WorkflowService {
             }
             3 => {
                 // Phase 3 Stage 1: chapter probes over the Arc ranges actually present in the draft.
-                let mut arc_ranges = extract_arc_chapter_ranges(flow)
-                    .map_err(|e| invalid(e.to_string()))?;
+                let mut arc_ranges =
+                    extract_arc_chapter_ranges(flow).map_err(|e| invalid(e.to_string()))?;
                 if arc_ranges.is_empty() {
                     arc_ranges = Self::draft_arc_ranges(flow);
                 }
@@ -1555,12 +1608,11 @@ impl WorkflowService {
                     }
                     rounds.push(round_specs);
                 }
-
             }
             4 => {
                 // Phase 4: scene configuration over the Arc ranges actually present in the draft.
-                let mut arc_ranges = extract_arc_chapter_ranges(flow)
-                    .map_err(|e| invalid(e.to_string()))?;
+                let mut arc_ranges =
+                    extract_arc_chapter_ranges(flow).map_err(|e| invalid(e.to_string()))?;
                 if arc_ranges.is_empty() {
                     arc_ranges = Self::draft_arc_ranges(flow);
                 }
@@ -1618,8 +1670,9 @@ impl WorkflowService {
                     ));
                 }
 
-                let plan = plan_character_subphase(sub, &char_codes, cfg.unit_character, cfg.max_parallel)
-                    .map_err(|e| invalid(e.to_string()))?;
+                let plan =
+                    plan_character_subphase(sub, &char_codes, cfg.unit_character, cfg.max_parallel)
+                        .map_err(|e| invalid(e.to_string()))?;
 
                 for r in plan.rounds {
                     let mut round_specs = Vec::new();
@@ -1647,7 +1700,12 @@ impl WorkflowService {
                     .relationship_phase
                     .relationship
                     .iter()
-                    .map(|item| (item.character.from_code.clone(), item.character.to_code.clone()))
+                    .map(|item| {
+                        (
+                            item.character.from_code.clone(),
+                            item.character.to_code.clone(),
+                        )
+                    })
                     .collect();
                 if pairs.is_empty() {
                     // Phase 6 creates the relationship matrix, so plan over character pairs.
@@ -1777,7 +1835,11 @@ impl WorkflowService {
         Ok(summary)
     }
 
-    fn emit_event(&self, tx: &Option<mpsc::Sender<WorkflowProgressEvent>>, event: WorkflowProgressEvent) {
+    fn emit_event(
+        &self,
+        tx: &Option<mpsc::Sender<WorkflowProgressEvent>>,
+        event: WorkflowProgressEvent,
+    ) {
         if let Some(ref sender) = tx {
             let _ = sender.try_send(event);
         }
@@ -1793,7 +1855,6 @@ struct ExistingReceiptRow {
     base_version_seq: i64,
     resulting_version_seq: Option<i64>,
 }
-
 
 /// Build a `decision_log` entry from approved prose. Pure helper so the capture fallback can be
 /// tested without a database or Tauri runtime.
@@ -1831,42 +1892,80 @@ mod approved_outline_tests {
     }
 }
 
-
 /// Tool surface for one workflow phase. Read tools are stripped later by the executor and do not
 /// need to appear here. Keep this list aligned with the phase guidance text.
 pub(crate) fn phase_tool_codes(phase: i32) -> &'static [&'static str] {
     match phase {
         1 => &[
-            "add_arc", "set_arc", "set_arc_motif", "add_arc_event_block", "set_arc_event_block",
-            "delete_arc", "delete_arc_event_block", "add_theme", "set_theme", "add_theme_argument",
-            "set_theme_argument", "delete_theme", "delete_theme_argument", "add_character",
-            "set_character", "add_project_genre", "save_approved_outline",
+            "add_arc",
+            "set_arc",
+            "set_arc_motif",
+            "add_arc_event_block",
+            "set_arc_event_block",
+            "delete_arc",
+            "delete_arc_event_block",
+            "add_theme",
+            "set_theme",
+            "add_theme_argument",
+            "set_theme_argument",
+            "delete_theme",
+            "delete_theme_argument",
+            "add_character",
+            "set_character",
+            "add_project_genre",
+            "save_approved_outline",
         ],
         2 => &[
-            "add_chapter", "set_chapter", "delete_chapter", "add_scene", "set_scene",
-            "delete_scene", "save_approved_outline",
+            "add_chapter",
+            "set_chapter",
+            "delete_chapter",
+            "add_scene",
+            "set_scene",
+            "delete_scene",
+            "save_approved_outline",
         ],
         3 => &[
-            "add_world_setting", "set_world_setting", "delete_world_setting", "add_lore_entry",
-            "set_lore_entry", "delete_lore_entry", "save_approved_outline",
+            "add_world_setting",
+            "set_world_setting",
+            "delete_world_setting",
+            "add_lore_entry",
+            "set_lore_entry",
+            "delete_lore_entry",
+            "save_approved_outline",
         ],
         4 => &[
-            "set_scene_config", "add_scene_character", "delete_scene_character",
-            "add_scene_lore_entry", "delete_scene_lore_entry",
+            "set_scene_config",
+            "add_scene_character",
+            "delete_scene_character",
+            "add_scene_lore_entry",
+            "delete_scene_lore_entry",
         ],
         5 => &[
-            "add_character_appearance", "set_character_appearance",
-            "add_character_psychological", "set_character_psychological",
-            "add_character_memory", "set_character_memory", "delete_character_memory",
-            "add_character_competence", "set_character_competence", "delete_character_competence",
+            "add_character_appearance",
+            "set_character_appearance",
+            "add_character_psychological",
+            "set_character_psychological",
+            "add_character_memory",
+            "set_character_memory",
+            "delete_character_memory",
+            "add_character_competence",
+            "set_character_competence",
+            "delete_character_competence",
         ],
         6 => &[
-            "add_relationship", "set_relationship", "delete_relationship",
-            "add_relationship_role", "set_relationship_state",
+            "add_relationship",
+            "set_relationship",
+            "delete_relationship",
+            "add_relationship_role",
+            "set_relationship_state",
         ],
         _ => &[
-            "set_project", "add_character", "set_character", "add_project_genre",
-            "delete_project_genre", "save_approved_outline",
+            "set_project",
+            "add_character",
+            "set_character",
+            "add_project_genre",
+            "delete_project_genre",
+            "save_approved_outline",
         ],
     }
 }

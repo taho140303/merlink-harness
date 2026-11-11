@@ -37,8 +37,8 @@ use uuid::Uuid;
 
 use crate::domain::business_flow::{BusinessFlowData, ProvenanceSource};
 use crate::domain::fingerprint::state_data_hash;
-use crate::domain::tools::registry::{CallerCategory, ToolRegistry, ToolType};
 use crate::domain::tools::read_tools::{get_array_element_fields, get_field_null};
+use crate::domain::tools::registry::{CallerCategory, ToolRegistry, ToolType};
 use crate::domain::tools::write_tools::{
     register_all_write_tools, ExecutionGuard, ToolCall, ToolExecutor, ToolOutcome,
 };
@@ -51,9 +51,7 @@ use crate::providers::traits::{
     LlmProvider, ProviderChatRequest, ProviderMessage, ProviderToolCall, ProviderToolDefinition,
 };
 use crate::service::chat_catalog;
-use crate::service::draft_runtime::{
-    DraftRuntimeEntry, DraftRuntimeRegistry, DRAFT_LOCK_TIMEOUT,
-};
+use crate::service::draft_runtime::{DraftRuntimeEntry, DraftRuntimeRegistry, DRAFT_LOCK_TIMEOUT};
 use crate::service::draft_service::{DraftService, SealVersionParams};
 use crate::service::patch_service::{compute_progress_dto, PatchService};
 use crate::storage::pending_repo::{persist_proposal_tx, PersistProposalParams};
@@ -61,16 +59,13 @@ use crate::storage::pending_repo::{persist_proposal_tx, PersistProposalParams};
 /// Format specification for a prompt block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
+#[derive(Default)]
 pub enum PromptBlockFormat {
     Json,
+    #[default]
     Markdown,
 }
 
-impl Default for PromptBlockFormat {
-    fn default() -> Self {
-        Self::Markdown
-    }
-}
 
 /// Dynamic prompt block retrieved from database or default seed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,7 +121,6 @@ impl Default for OrchestratorConfig {
         }
     }
 }
-
 
 /// Field-level parameter guide per phase. Mirrors `WorkflowService::phase_tool_guidance`.
 /// The chat path needs the guide because the JSON schema stays permissive; tests compile this
@@ -242,7 +236,10 @@ impl PromptComposer {
     }
 
     /// Retrieve tool definitions associated with a prompt block from `prompt_block_tools` JOIN `tools`.
-    pub fn get_tools_by_prompt(&self, prompt_code: &str) -> Result<Vec<ProviderToolDefinition>, IpcError> {
+    pub fn get_tools_by_prompt(
+        &self,
+        prompt_code: &str,
+    ) -> Result<Vec<ProviderToolDefinition>, IpcError> {
         let conn = self
             .pool
             .get()
@@ -270,9 +267,15 @@ impl PromptComposer {
             let code: String = row.get(0).unwrap_or_default();
             let desc: Option<String> = row.get(1).unwrap_or(None);
             let schema_str: Option<String> = row.get(2).unwrap_or(None);
-            let Some(parameters) = schema_str.and_then(|s| serde_json::from_str::<Value>(&s).ok())
-                .filter(|schema| schema["type"] == "object") else { continue; };
-            let Some(description) = desc.filter(|text| !text.trim().is_empty()) else { continue; };
+            let Some(parameters) = schema_str
+                .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+                .filter(|schema| schema["type"] == "object")
+            else {
+                continue;
+            };
+            let Some(description) = desc.filter(|text| !text.trim().is_empty()) else {
+                continue;
+            };
 
             tools.push(ProviderToolDefinition {
                 name: code,
@@ -316,7 +319,10 @@ impl PromptComposer {
             if !(1..=6).contains(&block.heading_level) {
                 return Err(IpcError::new(
                     ErrorCode::ValidationFailed,
-                    format!("Invalid heading level {} for block {}", block.heading_level, code),
+                    format!(
+                        "Invalid heading level {} for block {}",
+                        block.heading_level, code
+                    ),
                 ));
             }
 
@@ -360,8 +366,6 @@ impl PromptComposer {
             tools,
         })
     }
-
-
 }
 
 /// Central application service orchestrating ReAct AI chat turns, prompt composition,
@@ -385,10 +389,17 @@ impl ChatOrchestrator {
     ) -> Self {
         let mut tool_registry = ToolRegistry::new();
         register_all_write_tools(&mut tool_registry);
-        use crate::domain::tools::registry::{AllowedCaller, SourceParamMode, ToolMetadata, ToolScope};
+        use crate::domain::tools::registry::{
+            AllowedCaller, SourceParamMode, ToolMetadata, ToolScope,
+        };
         tool_registry.register(ToolMetadata::new(
-            "get_tool_definition", "Inspect a tool contract available in this run",
-            ToolType::Read, ToolScope::System, AllowedCaller::AiOnly, SourceParamMode::None, false,
+            "get_tool_definition",
+            "Inspect a tool contract available in this run",
+            ToolType::Read,
+            ToolScope::System,
+            AllowedCaller::AiOnly,
+            SourceParamMode::None,
+            false,
         ));
 
         Self {
@@ -448,10 +459,9 @@ impl ChatOrchestrator {
         stream_tx: Option<tokio::sync::mpsc::Sender<ChatStreamEvent>>,
         cancel_token: CancellationToken,
     ) -> Result<SendChatTurnResponseDto, IpcError> {
-        let entry = self
-            .registry
-            .get(&draft_session_id)
-            .ok_or_else(|| IpcError::new(ErrorCode::EntityNotFound, "Draft session not in runtime"))?;
+        let entry = self.registry.get(&draft_session_id).ok_or_else(|| {
+            IpcError::new(ErrorCode::EntityNotFound, "Draft session not in runtime")
+        })?;
 
         // 1. Acquire draft operation lock with timeout (30s)
         let _draft_guard = entry
@@ -526,9 +536,15 @@ impl ChatOrchestrator {
                 composed.prompt.push('\n');
             }
         }
-        if !composed.tools.iter().any(|tool| tool.name == "get_field_null") {
-            return Err(IpcError::new(ErrorCode::ValidationFailed,
-                "Chat prompt is missing the required get_field_null tool"));
+        if !composed
+            .tools
+            .iter()
+            .any(|tool| tool.name == "get_field_null")
+        {
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                "Chat prompt is missing the required get_field_null tool",
+            ));
         }
 
         // 3. Assemble conversation history for provider request
@@ -578,7 +594,8 @@ impl ChatOrchestrator {
             Err(err) => {
                 // If error occurred but we already have applied mutations, still seal TX-01!
                 if state.has_applied_write {
-                    let _ = self.seal_turn_version(&entry, draft_session_id, turn_id, user_message_id);
+                    let _ =
+                        self.seal_turn_version(&entry, draft_session_id, turn_id, user_message_id);
                 }
                 // Keep the tool audit even when the next provider request fails.
                 // The caller removes the user message only when no assistant audit exists.
@@ -593,7 +610,11 @@ impl ChatOrchestrator {
                         &state.assistant_text
                     };
                     self.save_message(
-                        Uuid::new_v4(), session_id, turn_id, "assistant", audit_text,
+                        Uuid::new_v4(),
+                        session_id,
+                        turn_id,
+                        "assistant",
+                        audit_text,
                         Some(&serde_json::json!({
                             "tool_calls": state.all_tool_calls,
                             "turn_error": err.code,
@@ -601,7 +622,12 @@ impl ChatOrchestrator {
                     )?;
                 }
                 if let Some(ref tx) = stream_tx {
-                    let _ = tx.send(ChatStreamEvent::TurnError { turn_id, error: err.clone() }).await;
+                    let _ = tx
+                        .send(ChatStreamEvent::TurnError {
+                            turn_id,
+                            error: err.clone(),
+                        })
+                        .await;
                 }
                 return Err(err);
             }
@@ -610,7 +636,8 @@ impl ChatOrchestrator {
         // 5. Turn Finalization & TX-01 Sealing
         let mut sealed_version = None;
         if state.has_applied_write {
-            let sealed = self.seal_turn_version(&entry, draft_session_id, turn_id, user_message_id)?;
+            let sealed =
+                self.seal_turn_version(&entry, draft_session_id, turn_id, user_message_id)?;
             sealed_version = Some(sealed);
         }
 
@@ -678,13 +705,20 @@ impl ChatOrchestrator {
         // 19 of them backend-injected, in one recorded turn).
         let mut injected_reads: Option<InjectedReads> = None;
         let initial = entry.get_snapshot();
-        if composed.tools.iter().any(|tool| tool.name == "get_field_null") {
+        if composed
+            .tools
+            .iter()
+            .any(|tool| tool.name == "get_field_null")
+        {
             injected_reads = push_injected_reads(
                 messages,
                 &mut state.all_tool_calls,
                 &initial.business_flow_data,
                 system_language,
-                composed.tools.iter().any(|tool| tool.name == "get_array_element_fields"),
+                composed
+                    .tools
+                    .iter()
+                    .any(|tool| tool.name == "get_array_element_fields"),
                 turn_id,
                 stream_tx,
             );
@@ -740,9 +774,12 @@ impl ChatOrchestrator {
                 state.assistant_text = resp.content.unwrap_or_default();
                 if !state.assistant_text.is_empty() {
                     if let Some(tx) = stream_tx {
-                        let _ = tx.send(ChatStreamEvent::AssistantDelta {
-                            turn_id, delta: state.assistant_text.clone(),
-                        }).await;
+                        let _ = tx
+                            .send(ChatStreamEvent::AssistantDelta {
+                                turn_id,
+                                delta: state.assistant_text.clone(),
+                            })
+                            .await;
                     }
                 }
                 return Ok(state.assistant_text.clone());
@@ -778,7 +815,8 @@ impl ChatOrchestrator {
 
                 // Gated check: Authorize tool against ToolRegistry
                 let tool_meta = if composed.tools.iter().any(|tool| tool.name == tool_name) {
-                    self.tool_registry.authorize(&tool_name, CallerCategory::AiCaller)
+                    self.tool_registry
+                        .authorize(&tool_name, CallerCategory::AiCaller)
                 } else {
                     Err(ErrorCode::UnauthorizedCaller)
                 };
@@ -809,7 +847,9 @@ impl ChatOrchestrator {
                                         };
                                         lookup.unwrap_or_else(|_| serde_json::json!({"status":"rejected","error":"catalog_lookup_failed"}))
                                     }
-                                    Err(_) => serde_json::json!({"status":"rejected","error":"catalog_unavailable"}),
+                                    Err(_) => {
+                                        serde_json::json!({"status":"rejected","error":"catalog_unavailable"})
+                                    }
                                 }
                             } else if tool_name.starts_with("search_") {
                                 match self.pool.get() {
@@ -818,53 +858,102 @@ impl ChatOrchestrator {
                                     Err(_) => serde_json::json!({"status":"rejected","error":"catalog_unavailable"}),
                                 }
                             } else {
-                                read_tool_result(&tool_name, &call.arguments, &snap.business_flow_data, system_language)
+                                read_tool_result(
+                                    &tool_name,
+                                    &call.arguments,
+                                    &snap.business_flow_data,
+                                    system_language,
+                                )
                             };
-                            let status = result["status"].as_str().unwrap_or("rejected").to_string();
+                            let status =
+                                result["status"].as_str().unwrap_or("rejected").to_string();
                             (
-                                ToolOutcome { status, results: Vec::new(), authenticated_effect: None },
+                                ToolOutcome {
+                                    status,
+                                    results: Vec::new(),
+                                    authenticated_effect: None,
+                                },
                                 start_time.elapsed().as_millis() as u64,
                                 Some(result),
                             )
                         } else {
-                        // Reference codes must exist in the seeded catalog before a write.
-                        let catalog_field = match tool_name.as_str() {
-                            "add_project_genre" => Some(("genre_code", false)),
-                            "add_character" | "set_character" if call.arguments.get("motif_code").is_some() => Some(("motif_code", true)),
-                            _ => None,
-                        };
-                        if let Some((field, is_motif)) = catalog_field {
-                            if let Some(code) = call.arguments.get(field).and_then(Value::as_str) {
-                                let valid = self.pool.get().ok().and_then(|conn| {
-                                    let result = if is_motif {
-                                        chat_catalog::validate_motif_code(&conn, code)
-                                    } else {
-                                        chat_catalog::validate_genre_code(&conn, code)
-                                    };
-                                    result.ok()
-                                }).unwrap_or(false);
-                                if !valid {
-                                    let result = serde_json::json!({"status":"rejected", "error":"unknown_catalog_code", "field":field,
+                            // Reference codes must exist in the seeded catalog before a write.
+                            let catalog_field = match tool_name.as_str() {
+                                "add_project_genre" => Some(("genre_code", false)),
+                                "add_character" | "set_character"
+                                    if call.arguments.get("motif_code").is_some() =>
+                                {
+                                    Some(("motif_code", true))
+                                }
+                                _ => None,
+                            };
+                            if let Some((field, is_motif)) = catalog_field {
+                                if let Some(code) =
+                                    call.arguments.get(field).and_then(Value::as_str)
+                                {
+                                    let valid = self
+                                        .pool
+                                        .get()
+                                        .ok()
+                                        .and_then(|conn| {
+                                            let result = if is_motif {
+                                                chat_catalog::validate_motif_code(&conn, code)
+                                            } else {
+                                                chat_catalog::validate_genre_code(&conn, code)
+                                            };
+                                            result.ok()
+                                        })
+                                        .unwrap_or(false);
+                                    if !valid {
+                                        let result = serde_json::json!({"status":"rejected", "error":"unknown_catalog_code", "field":field,
                                         "recovery": if is_motif {"Search character_arc motifs with search_motif before retrying."} else {"Search genres with search_genre before retrying."}});
-                                    (ToolOutcome::rejected("unknown_catalog_code"), start_time.elapsed().as_millis() as u64, Some(result))
+                                        (
+                                            ToolOutcome::rejected("unknown_catalog_code"),
+                                            start_time.elapsed().as_millis() as u64,
+                                            Some(result),
+                                        )
+                                    } else {
+                                        self.execute_chat_mutation(
+                                            entry,
+                                            draft_session_id,
+                                            &call,
+                                            &tool_name,
+                                            meta.writes_draft_state,
+                                            state,
+                                            start_time,
+                                        )
+                                    }
                                 } else {
-                                    self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
+                                    self.execute_chat_mutation(
+                                        entry,
+                                        draft_session_id,
+                                        &call,
+                                        &tool_name,
+                                        meta.writes_draft_state,
+                                        state,
+                                        start_time,
+                                    )
                                 }
                             } else {
-                                self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
+                                self.execute_chat_mutation(
+                                    entry,
+                                    draft_session_id,
+                                    &call,
+                                    &tool_name,
+                                    meta.writes_draft_state,
+                                    state,
+                                    start_time,
+                                )
                             }
-                        } else {
-                            self.execute_chat_mutation(&entry, draft_session_id, &call, &tool_name, meta.writes_draft_state, state, start_time)
-                        }
                         }
                     }
                 };
 
                 let outcome_status = outcome.status.clone();
-                let outcome_json = read_result.unwrap_or_else(||
+                let outcome_json = read_result.unwrap_or_else(|| {
                     serde_json::to_value(&outcome)
                         .unwrap_or_else(|_| serde_json::json!({ "status": outcome_status }))
-                );
+                });
 
                 // Track consecutive rejections
                 if outcome_status == "rejected" {
@@ -939,7 +1028,12 @@ impl ChatOrchestrator {
 
                     // Report what was actually saved; a tool fault must not become a repeated data question.
                     let current = entry.get_snapshot();
-                    messages[0].content = render_chat_prompt_with_phase(&composed.prompt, &current.business_flow_data, &current.pending_patches, current.phase);
+                    messages[0].content = render_chat_prompt_with_phase(
+                        &composed.prompt,
+                        &current.business_flow_data,
+                        &current.pending_patches,
+                        current.phase,
+                    );
                     messages.push(ProviderMessage::system(
                         "Tool execution stopped. Briefly distinguish saved changes from unsaved ones. Do not ask the user to repeat facts already supplied. Reply in the configured communication language."
                     ));
@@ -951,7 +1045,10 @@ impl ChatOrchestrator {
                         max_tokens: None,
                     };
 
-                    if let Ok(final_resp) = provider.chat_with_tools(&final_req, cancel_token.clone()).await {
+                    if let Ok(final_resp) = provider
+                        .chat_with_tools(&final_req, cancel_token.clone())
+                        .await
+                    {
                         if let Some(txt) = final_resp.content {
                             if !txt.is_empty() {
                                 state.assistant_text = txt;
@@ -999,12 +1096,28 @@ impl ChatOrchestrator {
         started: std::time::Instant,
     ) -> (ToolOutcome, u64, Option<Value>) {
         let snapshot = entry.get_snapshot();
-        let guard = ExecutionGuard::with_session(&snapshot.business_flow_data, draft_session_id.to_string());
-        let mut request = ToolCall::new(tool_name.to_string(), CallerCategory::AiCaller, call.arguments.clone());
-        if let Some(map) = call.arguments.get("declared_sources").and_then(Value::as_object) {
-            let sources = map.iter().filter_map(|(name, value)|
-                serde_json::from_value::<ProvenanceSource>(value.clone()).ok().map(|source| (name.clone(), source))
-            ).collect();
+        let guard = ExecutionGuard::with_session(
+            &snapshot.business_flow_data,
+            draft_session_id.to_string(),
+        );
+        let mut request = ToolCall::new(
+            tool_name.to_string(),
+            CallerCategory::AiCaller,
+            call.arguments.clone(),
+        );
+        if let Some(map) = call
+            .arguments
+            .get("declared_sources")
+            .and_then(Value::as_object)
+        {
+            let sources = map
+                .iter()
+                .filter_map(|(name, value)| {
+                    serde_json::from_value::<ProvenanceSource>(value.clone())
+                        .ok()
+                        .map(|source| (name.clone(), source))
+                })
+                .collect();
             request.declared_sources = Some(sources);
         } else if let Some(value) = call.arguments.get("declared_source") {
             request.declared_source = serde_json::from_value(value.clone()).ok();
@@ -1017,24 +1130,39 @@ impl ChatOrchestrator {
             }
         }
         if !outcome.pending_patches().is_empty() {
-            if let Ok(mut conn) = self.pool.get() {
+            if let Ok(conn) = self.pool.get() {
                 let current = entry.get_snapshot();
                 for proposal in outcome.pending_patches() {
                     let params = PersistProposalParams {
-                        draft_session_id, base_version_seq: current.head_version_seq,
-                        target_type: proposal.target_type.clone(), target_code: proposal.target_code.clone(),
-                        field_name: proposal.field_name.clone(), operation: proposal.operation.clone(),
-                        previous_value: proposal.previous_value.clone(), new_value: proposal.new_value.clone(),
-                        target_source: Some("user".to_string()), eligibility_json: None, require_new_origin: false,
+                        draft_session_id,
+                        base_version_seq: current.head_version_seq,
+                        target_type: proposal.target_type.clone(),
+                        target_code: proposal.target_code.clone(),
+                        field_name: proposal.field_name.clone(),
+                        operation: proposal.operation.clone(),
+                        previous_value: proposal.previous_value.clone(),
+                        new_value: proposal.new_value.clone(),
+                        target_source: Some("user".to_string()),
+                        eligibility_json: None,
+                        require_new_origin: false,
                     };
-                    if let Ok(saved) = persist_proposal_tx(&mut conn, &params, Some(&current.business_flow_data)) {
-                        entry.mutate_working_state(|ws| ws.pending_patches.push(PendingPatchDto {
-                            id: saved.patch_id, draft_session_id, target_code: proposal.target_code.clone(),
-                            field_path: proposal.field_name.clone().unwrap_or_default(), operation: proposal.operation.clone(),
-                            previous_value: proposal.previous_value.clone(),
-                            proposed_value: proposal.new_value.clone().unwrap_or(Value::Null),
-                            status: "pending".to_string(), reason: None, created_at: Utc::now().to_rfc3339(),
-                        }));
+                    if let Ok(saved) =
+                        persist_proposal_tx(&conn, &params, Some(&current.business_flow_data))
+                    {
+                        entry.mutate_working_state(|ws| {
+                            ws.pending_patches.push(PendingPatchDto {
+                                id: saved.patch_id,
+                                draft_session_id,
+                                target_code: proposal.target_code.clone(),
+                                field_path: proposal.field_name.clone().unwrap_or_default(),
+                                operation: proposal.operation.clone(),
+                                previous_value: proposal.previous_value.clone(),
+                                proposed_value: proposal.new_value.clone().unwrap_or(Value::Null),
+                                status: "pending".to_string(),
+                                reason: None,
+                                created_at: Utc::now().to_rfc3339(),
+                            })
+                        });
                     }
                 }
             }
@@ -1089,10 +1217,9 @@ impl ChatOrchestrator {
         subphase: Option<i32>,
         candidate_override: Option<BusinessFlowData>,
     ) -> Result<DraftVersionSummaryDto, IpcError> {
-        let entry = self
-            .registry
-            .get(&draft_session_id)
-            .ok_or_else(|| IpcError::new(ErrorCode::EntityNotFound, "Draft session not in runtime"))?;
+        let entry = self.registry.get(&draft_session_id).ok_or_else(|| {
+            IpcError::new(ErrorCode::EntityNotFound, "Draft session not in runtime")
+        })?;
 
         let _draft_guard = entry
             .acquire_operation_lock("regenerate_draft_phase", self.config.draft_lock_timeout)
@@ -1108,11 +1235,7 @@ impl ChatOrchestrator {
                     subphase,
                 );
             } else {
-                Self::reset_ai_generated_phase_fields(
-                    &mut ws.business_flow_data,
-                    phase,
-                    subphase,
-                );
+                Self::reset_ai_generated_phase_fields(&mut ws.business_flow_data, phase, subphase);
             }
             ws.phase = phase;
             ws.subphase = subphase;
@@ -1151,26 +1274,78 @@ impl ChatOrchestrator {
         match phase {
             0 => {
                 // Project metadata
-                if !target.require.project.display_name.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
-                    target.require.project.display_name = candidate.require.project.display_name.clone();
+                if !target
+                    .require
+                    .project
+                    .display_name
+                    .source
+                    .unwrap_or(ProvenanceSource::Incomplete)
+                    .is_protected_from_ai_overwrite()
+                {
+                    target.require.project.display_name =
+                        candidate.require.project.display_name.clone();
                 }
-                if !target.require.project.language.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
+                if !target
+                    .require
+                    .project
+                    .language
+                    .source
+                    .unwrap_or(ProvenanceSource::Incomplete)
+                    .is_protected_from_ai_overwrite()
+                {
                     target.require.project.language = candidate.require.project.language.clone();
                 }
-                if !target.require.project.target.word_per_chapter_count.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
-                    target.require.project.target.word_per_chapter_count = candidate.require.project.target.word_per_chapter_count.clone();
+                if !target
+                    .require
+                    .project
+                    .target
+                    .word_per_chapter_count
+                    .source
+                    .unwrap_or(ProvenanceSource::Incomplete)
+                    .is_protected_from_ai_overwrite()
+                {
+                    target.require.project.target.word_per_chapter_count = candidate
+                        .require
+                        .project
+                        .target
+                        .word_per_chapter_count
+                        .clone();
                 }
-                if !target.require.project.target.chapter_count.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
-                    target.require.project.target.chapter_count = candidate.require.project.target.chapter_count.clone();
+                if !target
+                    .require
+                    .project
+                    .target
+                    .chapter_count
+                    .source
+                    .unwrap_or(ProvenanceSource::Incomplete)
+                    .is_protected_from_ai_overwrite()
+                {
+                    target.require.project.target.chapter_count =
+                        candidate.require.project.target.chapter_count.clone();
                 }
 
                 // Characters: preserve user-created characters, update or add ai_generated ones
                 for cand_char in &candidate.require.character {
-                    if let Some(target_char) = target.require.character.iter_mut().find(|c| c.code == cand_char.code) {
-                        if !target_char.display_name.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
+                    if let Some(target_char) = target
+                        .require
+                        .character
+                        .iter_mut()
+                        .find(|c| c.code == cand_char.code)
+                    {
+                        if !target_char
+                            .display_name
+                            .source
+                            .unwrap_or(ProvenanceSource::Incomplete)
+                            .is_protected_from_ai_overwrite()
+                        {
                             target_char.display_name = cand_char.display_name.clone();
                         }
-                        if !target_char.role.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
+                        if !target_char
+                            .role
+                            .source
+                            .unwrap_or(ProvenanceSource::Incomplete)
+                            .is_protected_from_ai_overwrite()
+                        {
                             target_char.role = cand_char.role.clone();
                         }
                     } else {
@@ -1181,8 +1356,19 @@ impl ChatOrchestrator {
             1 => {
                 // Overview phase
                 for cand_arc in &candidate.optional.overview_phase.arcs {
-                    if let Some(t_arc) = target.optional.overview_phase.arcs.iter_mut().find(|a| a.code == cand_arc.code) {
-                        if !t_arc.display_name.source.unwrap_or(ProvenanceSource::Incomplete).is_protected_from_ai_overwrite() {
+                    if let Some(t_arc) = target
+                        .optional
+                        .overview_phase
+                        .arcs
+                        .iter_mut()
+                        .find(|a| a.code == cand_arc.code)
+                    {
+                        if !t_arc
+                            .display_name
+                            .source
+                            .unwrap_or(ProvenanceSource::Incomplete)
+                            .is_protected_from_ai_overwrite()
+                        {
                             t_arc.display_name = cand_arc.display_name.clone();
                         }
                     } else {
@@ -1202,13 +1388,20 @@ impl ChatOrchestrator {
     ) {
         if phase == 0 {
             if target.require.project.display_name.source == Some(ProvenanceSource::AiGenerated) {
-                target.require.project.display_name = crate::domain::business_flow::TrackedField::unset();
+                target.require.project.display_name =
+                    crate::domain::business_flow::TrackedField::unset();
             }
-            if target.require.project.target.word_per_chapter_count.source == Some(ProvenanceSource::AiGenerated) {
-                target.require.project.target.word_per_chapter_count = crate::domain::business_flow::TrackedField::unset();
+            if target.require.project.target.word_per_chapter_count.source
+                == Some(ProvenanceSource::AiGenerated)
+            {
+                target.require.project.target.word_per_chapter_count =
+                    crate::domain::business_flow::TrackedField::unset();
             }
             target.require.character.retain(|c| {
-                c.display_name.source.map(|s| s.is_protected_from_ai_overwrite()).unwrap_or(false)
+                c.display_name
+                    .source
+                    .map(|s| s.is_protected_from_ai_overwrite())
+                    .unwrap_or(false)
             });
         }
     }
@@ -1364,7 +1557,12 @@ impl ChatOrchestrator {
                 )
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             let mut rows = stmt
-                .query(params![session_id, exclude_id.to_string(), role, limit as i64])
+                .query(params![
+                    session_id,
+                    exclude_id.to_string(),
+                    role,
+                    limit as i64
+                ])
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
             while let Some(row) = rows
                 .next()
@@ -1398,9 +1596,7 @@ impl ChatOrchestrator {
             }
         }
 
-        picked.sort_by(|left, right| {
-            left.0.cmp(&right.0).then(left.1.cmp(&right.1))
-        });
+        picked.sort_by(|left, right| left.0.cmp(&right.0).then(left.1.cmp(&right.1)));
         Ok(picked.into_iter().map(|(_, _, message)| message).collect())
     }
 }
@@ -1408,7 +1604,13 @@ impl ChatOrchestrator {
 /// Builds a conversation title from the first user message: whitespace is
 /// collapsed and at most 10 characters are kept, as required by the sidebar UI.
 fn session_title_from_message(content: &str) -> String {
-    content.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(10).collect()
+    content
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(10)
+        .collect()
 }
 
 /// Keep backend mutation evidence in the audit, not in the model context.
@@ -1422,8 +1624,15 @@ fn model_tool_result(result: &Value) -> Value {
         }
         if object.get("status").and_then(Value::as_str) == Some("rejected")
             && !object.contains_key("error")
-            && object.get("results").and_then(Value::as_array).map_or(true, |results| results.is_empty()) {
-            object.insert("error".into(), Value::String("missing_error_details".into()));
+            && object
+                .get("results")
+                .and_then(Value::as_array)
+                .map_or(true, |results| results.is_empty())
+        {
+            object.insert(
+                "error".into(),
+                Value::String("missing_error_details".into()),
+            );
             object.insert("recovery".into(), Value::String("Inspect get_tool_definition before retrying; do not repeat unchanged arguments or ask for known user values.".into()));
         }
     }
@@ -1452,13 +1661,19 @@ fn replay_tool_flags(history: &[ChatMessageDto], budget: usize) -> Vec<bool> {
         if message.role != "assistant" {
             continue;
         }
-        let Some(calls) = message.tool_calls.as_ref().filter(|calls| !calls.is_empty()) else {
+        let Some(calls) = message
+            .tool_calls
+            .as_ref()
+            .filter(|calls| !calls.is_empty())
+        else {
             continue;
         };
         let size: usize = calls
             .iter()
             .map(|call| {
-                serde_json::to_string(call).map(|raw| raw.len()).unwrap_or(0)
+                serde_json::to_string(call)
+                    .map(|raw| raw.len())
+                    .unwrap_or(0)
             })
             .sum();
         if spent.saturating_add(size) <= budget {
@@ -1496,7 +1711,12 @@ fn scalar_observation(data: &BusinessFlowData, system_language: &str) -> Value {
 
 /// Build the observation for one probe. `get_field_null` is parameterless; the array probe needs
 /// an `array_path`, so one probe covers genres and another covers the first incomplete character.
-fn probe(data: &BusinessFlowData, system_language: &str, kind: ProbeKind, limit: usize) -> (Value, Value) {
+fn probe(
+    data: &BusinessFlowData,
+    system_language: &str,
+    kind: ProbeKind,
+    limit: usize,
+) -> (Value, Value) {
     match kind {
         ProbeKind::Scalar => (
             serde_json::json!({ "limit": 3 }),
@@ -1507,7 +1727,8 @@ fn probe(data: &BusinessFlowData, system_language: &str, kind: ProbeKind, limit:
                 "array_path": "require.project.genres",
                 "limit": limit.max(1),
             });
-            let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
+            let observation =
+                read_tool_result("get_array_element_fields", &args, data, system_language);
             (args, observation)
         }
         ProbeKind::Characters => {
@@ -1524,7 +1745,8 @@ fn probe(data: &BusinessFlowData, system_language: &str, kind: ProbeKind, limit:
                 "code": code,
                 "limit": limit.max(1),
             });
-            let observation = read_tool_result("get_array_element_fields", &args, data, system_language);
+            let observation =
+                read_tool_result("get_array_element_fields", &args, data, system_language);
             (args, observation)
         }
     }
@@ -1597,7 +1819,7 @@ fn push_injected_reads(
     });
 
     let mut slots = Vec::new();
-    for (call, (args, observation)) in calls.into_iter().zip(observations.into_iter()) {
+    for (call, (args, observation)) in calls.into_iter().zip(observations) {
         let result_index = messages.len();
         messages.push(ProviderMessage::tool_result(
             call.id.clone(),
@@ -1652,7 +1874,11 @@ impl InjectedReads {
             .find(|(kind, _, _)| *kind == ProbeKind::Scalar)
             .and_then(|(_, index, _)| messages.get(*index))
             .and_then(|message| serde_json::from_str::<Value>(&message.content).ok())
-            .and_then(|value| value["questions"].as_array().map(|questions| questions.len()))
+            .and_then(|value| {
+                value["questions"]
+                    .as_array()
+                    .map(|questions| questions.len())
+            })
             .unwrap_or(0);
         let mut remaining = 3usize.saturating_sub(scalar_count).max(1);
 
@@ -1698,16 +1924,33 @@ fn append_chat_history(
     if history.role == "user" {
         messages.push(ProviderMessage::user(history.content));
     } else if history.role == "assistant" {
-        if let Some(calls) = history.tool_calls.filter(|calls| !calls.is_empty() && replay_tools) {
+        if let Some(calls) = history
+            .tool_calls
+            .filter(|calls| !calls.is_empty() && replay_tools)
+        {
             messages.push(ProviderMessage {
-                role: "assistant".into(), content: String::new(), name: None, tool_call_id: None,
-                tool_calls: Some(calls.iter().map(|call| ProviderToolCall {
-                    id: call.id.clone(), name: call.name.clone(), arguments: call.parameters.clone(),
-                }).collect()),
+                role: "assistant".into(),
+                content: String::new(),
+                name: None,
+                tool_call_id: None,
+                tool_calls: Some(
+                    calls
+                        .iter()
+                        .map(|call| ProviderToolCall {
+                            id: call.id.clone(),
+                            name: call.name.clone(),
+                            arguments: call.parameters.clone(),
+                        })
+                        .collect(),
+                ),
             });
             for call in calls {
                 let result = call.result.unwrap_or_else(|| serde_json::json!({"status":"unknown", "error":"historical_result_unavailable"}));
-                messages.push(ProviderMessage::tool_result(call.id, call.name, model_tool_result(&result).to_string()));
+                messages.push(ProviderMessage::tool_result(
+                    call.id,
+                    call.name,
+                    model_tool_result(&result).to_string(),
+                ));
             }
         }
         if !history.content.is_empty() {
@@ -1717,7 +1960,11 @@ fn append_chat_history(
 }
 
 #[allow(dead_code)]
-fn render_chat_prompt(template: &str, data: &BusinessFlowData, patches: &[PendingPatchDto]) -> String {
+fn render_chat_prompt(
+    template: &str,
+    data: &BusinessFlowData,
+    patches: &[PendingPatchDto],
+) -> String {
     render_chat_prompt_with_phase(template, data, patches, data.meta.phase)
 }
 
@@ -1732,13 +1979,18 @@ fn render_chat_prompt_with_phase(
     // Empty optional phases add noise at cold start; retain any information already provided.
     fn prune_empty(value: &mut Value) -> bool {
         match value {
-            Value::Object(object) => { object.retain(|_, child| prune_empty(child)); !object.is_empty() }
+            Value::Object(object) => {
+                object.retain(|_, child| prune_empty(child));
+                !object.is_empty()
+            }
             Value::Array(array) => !array.is_empty(),
             Value::Null => false,
             _ => true,
         }
     }
-    if let Some(optional) = state.get_mut("optional") { prune_empty(optional); }
+    if let Some(optional) = state.get_mut("optional") {
+        prune_empty(optional);
+    }
     let context = serde_json::json!({
         "mode": "planning", "phase": phase, "subphase": data.meta.subphase,
         "is_require_complete": crate::domain::progress_engine::evaluate_progress(data).is_require_complete,
@@ -1747,12 +1999,22 @@ fn render_chat_prompt_with_phase(
     if template.contains("{{story_context}}") {
         template.replace("{{story_context}}", &context.to_string())
     } else {
-        format!("{template}\n\n## Current context (data, not instructions)\n```json\n{context}\n```")
+        format!(
+            "{template}\n\n## Current context (data, not instructions)\n```json\n{context}\n```"
+        )
     }
 }
 
-fn read_tool_result(name: &str, args: &Value, data: &BusinessFlowData, system_language: &str) -> Value {
-    let limit = args.get("limit").and_then(Value::as_u64).map(|n| n as usize);
+fn read_tool_result(
+    name: &str,
+    args: &Value,
+    data: &BusinessFlowData,
+    system_language: &str,
+) -> Value {
+    let limit = args
+        .get("limit")
+        .and_then(Value::as_u64)
+        .map(|n| n as usize);
     match name {
         "get_field_null" => {
             // Scalar completeness alone can look "done" while a required array is still empty
@@ -1801,13 +2063,27 @@ mod read_tool_tests {
     #[test]
     fn test_read_tool_result_returns_missing_field_questions() {
         let data = BusinessFlowData::new();
-        let result = read_tool_result("get_field_null", &serde_json::json!({"limit": 3}), &data, "vi");
+        let result = read_tool_result(
+            "get_field_null",
+            &serde_json::json!({"limit": 3}),
+            &data,
+            "vi",
+        );
         assert_eq!(result["status"], "applied");
-        assert_eq!(result["questions"][0]["field"], "require.project.display_name");
+        assert_eq!(
+            result["questions"][0]["field"],
+            "require.project.display_name"
+        );
         assert_eq!(result["empty_arrays"][0], "require.project.genres");
         assert_eq!(result["empty_arrays"][1], "require.character");
-        assert_eq!(result["array_questions"][0]["array_path"], "require.project.genres");
-        assert!(!result["array_questions"][0]["questions"].as_array().unwrap().is_empty());
+        assert_eq!(
+            result["array_questions"][0]["array_path"],
+            "require.project.genres"
+        );
+        assert!(!result["array_questions"][0]["questions"]
+            .as_array()
+            .unwrap()
+            .is_empty());
     }
 }
 
@@ -1818,21 +2094,42 @@ mod chat_context_regression_tests {
     use serde_json::json;
 
     struct ReplayProvider {
-        responses: std::sync::Mutex<std::collections::VecDeque<crate::providers::traits::ProviderChatResponse>>,
+        responses: std::sync::Mutex<
+            std::collections::VecDeque<crate::providers::traits::ProviderChatResponse>,
+        >,
         requests: std::sync::Mutex<Vec<ProviderChatRequest>>,
     }
 
     #[async_trait::async_trait]
     impl LlmProvider for ReplayProvider {
-        fn provider_id(&self) -> &'static str { "regression-test" }
-        async fn chat_with_tools(&self, request: &ProviderChatRequest, _: CancellationToken)
-            -> Result<crate::providers::traits::ProviderChatResponse, crate::providers::traits::ProviderError> {
-            self.requests.lock().unwrap().push(request.clone());
-            Ok(self.responses.lock().unwrap().pop_front().expect("unexpected extra request"))
+        fn provider_id(&self) -> &'static str {
+            "regression-test"
         }
-        async fn stream_completion(&self, _: &crate::providers::traits::ProviderStreamRequest,
-            _: tokio::sync::mpsc::Sender<crate::providers::traits::ProviderStreamChunk>, _: CancellationToken)
-            -> Result<crate::providers::traits::ProviderStreamSummary, crate::providers::traits::ProviderError> {
+        async fn chat_with_tools(
+            &self,
+            request: &ProviderChatRequest,
+            _: CancellationToken,
+        ) -> Result<
+            crate::providers::traits::ProviderChatResponse,
+            crate::providers::traits::ProviderError,
+        > {
+            self.requests.lock().unwrap().push(request.clone());
+            Ok(self
+                .responses
+                .lock()
+                .unwrap()
+                .pop_front()
+                .expect("unexpected extra request"))
+        }
+        async fn stream_completion(
+            &self,
+            _: &crate::providers::traits::ProviderStreamRequest,
+            _: tokio::sync::mpsc::Sender<crate::providers::traits::ProviderStreamChunk>,
+            _: CancellationToken,
+        ) -> Result<
+            crate::providers::traits::ProviderStreamSummary,
+            crate::providers::traits::ProviderError,
+        > {
             unreachable!("planning does not stream scene content")
         }
     }
@@ -1842,12 +2139,20 @@ mod chat_context_regression_tests {
         use crate::domain::business_flow::RequireGenreItem;
         use crate::providers::traits::ProviderChatResponse;
         let tmp = tempfile::tempdir().unwrap();
-        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        let pool = Pool::builder()
+            .max_size(2)
+            .build(SqliteConnectionManager::file(tmp.path().join("chat.db")))
+            .unwrap();
         crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
         let registry = Arc::new(DraftRuntimeRegistry::new());
         let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
-        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
-        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let patch_service = Arc::new(PatchService::new(
+            pool.clone(),
+            registry.clone(),
+            draft_service.clone(),
+        ));
+        let orchestrator =
+            ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
         let id = Uuid::new_v4();
         registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
         let entry = registry.get(&id).unwrap();
@@ -1871,42 +2176,98 @@ mod chat_context_regression_tests {
             character.motif_code = TrackedField::user("positive_change_arc".into());
             ws.business_flow_data.require.character.push(character);
         });
-        let composed = orchestrator.composer.compose(&["tool_library"], "vi", "VI").unwrap();
+        let composed = orchestrator
+            .composer
+            .compose(&["tool_library"], "vi", "VI")
+            .unwrap();
         let provider = ReplayProvider {
             requests: Default::default(),
-            responses: std::sync::Mutex::new([
-                ProviderChatResponse { content: Some("Okey, mình ghi nhận.".into()), ..Default::default() },
-            ].into()),
+            responses: std::sync::Mutex::new(
+                [ProviderChatResponse {
+                    content: Some("Okey, mình ghi nhận.".into()),
+                    ..Default::default()
+                }]
+                .into(),
+            ),
         };
-        let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user("okey đấy")];
+        let mut messages = vec![
+            ProviderMessage::system(composed.prompt.clone()),
+            ProviderMessage::user("okey đấy"),
+        ];
         let mut state = TurnState::default();
-        orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
-            &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
+        orchestrator
+            .run_turn_loop(
+                &entry,
+                id,
+                Uuid::new_v4(),
+                &composed,
+                &mut messages,
+                &mut state,
+                "vi",
+                &provider,
+                None,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
 
         // No missing Phase 0 field: internal read probes must stay out of the turn entirely, so the
         // UI does not show "3 công cụ" for a plain approval message.
-        assert!(state.all_tool_calls.is_empty(), "no probe expected when nothing is missing");
+        assert!(
+            state.all_tool_calls.is_empty(),
+            "no probe expected when nothing is missing"
+        );
         let requests = provider.requests.lock().unwrap();
-        assert!(requests[0].messages.iter().all(|message| message.role != "tool"));
+        assert!(requests[0]
+            .messages
+            .iter()
+            .all(|message| message.role != "tool"));
     }
 
     #[tokio::test]
     async fn test_chat_recovers_tool_error_and_refreshes_context_before_questions() {
         use crate::providers::traits::ProviderChatResponse;
         let tmp = tempfile::tempdir().unwrap();
-        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        let pool = Pool::builder()
+            .max_size(2)
+            .build(SqliteConnectionManager::file(tmp.path().join("chat.db")))
+            .unwrap();
         crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
         let registry = Arc::new(DraftRuntimeRegistry::new());
         let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
-        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
-        let orchestrator = ChatOrchestrator::new(pool.clone(), registry.clone(), draft_service, patch_service);
+        let patch_service = Arc::new(PatchService::new(
+            pool.clone(),
+            registry.clone(),
+            draft_service.clone(),
+        ));
+        let orchestrator =
+            ChatOrchestrator::new(pool.clone(), registry.clone(), draft_service, patch_service);
         let id = Uuid::new_v4();
         registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
         let entry = registry.get(&id).unwrap();
-        let composed = orchestrator.composer.compose(&["introduction", "invariant_rule", "planning_mode", "exception_handling", "tool_library", "story_context"], "vi", "VI").unwrap();
+        let composed = orchestrator
+            .composer
+            .compose(
+                &[
+                    "introduction",
+                    "invariant_rule",
+                    "planning_mode",
+                    "exception_handling",
+                    "tool_library",
+                    "story_context",
+                ],
+                "vi",
+                "VI",
+            )
+            .unwrap();
         let call = |name: &str, args: Value, index: usize| ProviderChatResponse {
             content: Some("Thông báo tạm trước khi biết kết quả tool".into()),
-            tool_calls: vec![ProviderToolCall { id: format!("call-{index}"), name: name.into(), arguments: args }], ..Default::default()
+            tool_calls: vec![ProviderToolCall {
+                id: format!("call-{index}"),
+                name: name.into(),
+                arguments: args,
+            }],
+            ..Default::default()
         };
         let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
             call("set_project", json!({"target":{"chapter_count":120}}), 1),
@@ -1916,31 +2277,97 @@ mod chat_context_regression_tests {
             call("get_field_null", json!({"limit":3}), 4),
             ProviderChatResponse { content: Some("Đã lưu các mục tiêu bạn đưa ra.".into()), ..Default::default() },
         ].into()) };
-        let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user("1 Arc, 120 chương, mỗi chương 2400 từ")];
+        let mut messages = vec![
+            ProviderMessage::system(composed.prompt.clone()),
+            ProviderMessage::user("1 Arc, 120 chương, mỗi chương 2400 từ"),
+        ];
         let mut state = TurnState::default();
         let (tx, mut rx) = tokio::sync::mpsc::channel(32);
-        orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages, &mut state, "vi", &provider, Some(&tx), CancellationToken::new()).await.unwrap();
+        orchestrator
+            .run_turn_loop(
+                &entry,
+                id,
+                Uuid::new_v4(),
+                &composed,
+                &mut messages,
+                &mut state,
+                "vi",
+                &provider,
+                Some(&tx),
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
         let mut visible_text = Vec::new();
         while let Ok(event) = rx.try_recv() {
-            if let ChatStreamEvent::AssistantDelta { delta, .. } = event { visible_text.push(delta); }
+            if let ChatStreamEvent::AssistantDelta { delta, .. } = event {
+                visible_text.push(delta);
+            }
         }
         assert_eq!(visible_text, vec!["Đã lưu các mục tiêu bạn đưa ra."]);
         let calls = &state.all_tool_calls;
-        assert_eq!(calls.iter().find(|call| call.id == "call-1").unwrap().result.as_ref().unwrap()["results"][0]["error"], "missing_or_invalid_declared_source");
-        assert_eq!(calls.iter().find(|call| call.id == "call-2").unwrap().result.as_ref().unwrap()["input_schema"]["properties"]["target"]["type"], "object");
-        assert_eq!(entry.get_snapshot().business_flow_data.require.project.target.chapter_count.value, Some(120));
+        assert_eq!(
+            calls
+                .iter()
+                .find(|call| call.id == "call-1")
+                .unwrap()
+                .result
+                .as_ref()
+                .unwrap()["results"][0]["error"],
+            "missing_or_invalid_declared_source"
+        );
+        assert_eq!(
+            calls
+                .iter()
+                .find(|call| call.id == "call-2")
+                .unwrap()
+                .result
+                .as_ref()
+                .unwrap()["input_schema"]["properties"]["target"]["type"],
+            "object"
+        );
+        assert_eq!(
+            entry
+                .get_snapshot()
+                .business_flow_data
+                .require
+                .project
+                .target
+                .chapter_count
+                .value,
+            Some(120)
+        );
         assert!(state.has_applied_write);
-        let questions = &calls.iter().find(|call| call.id == "call-4").unwrap().result.as_ref().unwrap()["questions"];
+        let questions = &calls
+            .iter()
+            .find(|call| call.id == "call-4")
+            .unwrap()
+            .result
+            .as_ref()
+            .unwrap()["questions"];
         assert!(!questions.to_string().contains("target."));
         // One fixed read per turn, refreshed in place after the write instead of appended again.
-        let automatic_reads: Vec<_> = calls.iter().filter(|call| call.name == "get_field_null" && call.id != "call-4").collect();
-        assert_eq!(automatic_reads.len(), 1, "the fixed read is injected once and refreshed in place");
-        assert!(!automatic_reads[0].result.as_ref().unwrap()["questions"].to_string().contains("target."));
+        let automatic_reads: Vec<_> = calls
+            .iter()
+            .filter(|call| call.name == "get_field_null" && call.id != "call-4")
+            .collect();
+        assert_eq!(
+            automatic_reads.len(),
+            1,
+            "the fixed read is injected once and refreshed in place"
+        );
+        assert!(!automatic_reads[0].result.as_ref().unwrap()["questions"]
+            .to_string()
+            .contains("target."));
         let automatic_array_reads: Vec<_> = calls
             .iter()
             .filter(|call| call.name == "get_array_element_fields")
             .collect();
-        assert_eq!(automatic_array_reads.len(), 2, "genres and characters probes stay fixed");
+        assert_eq!(
+            automatic_array_reads.len(),
+            2,
+            "genres and characters probes stay fixed"
+        );
         let requests = provider.requests.lock().unwrap();
         // The fixed probe set never grows: every request keeps exactly the same three probe
         // messages (one scalar + two arrays) regardless of how many writes the loop performed.
@@ -1949,69 +2376,154 @@ mod chat_context_regression_tests {
             .map(|call| call.id.as_str())
             .chain(automatic_array_reads.iter().map(|call| call.id.as_str()))
             .collect();
-        assert!(requests.iter().all(|request| {
-            request
-                .messages
-                .iter()
-                .filter(|message| {
-                    message.role == "tool"
-                        && message
-                            .tool_call_id
-                            .as_deref()
-                            .map(|id| injected_ids.contains(id))
-                            .unwrap_or(false)
-                })
-                .count()
-                == 3
-        }), "read probes must not be appended per state change");
+        assert!(
+            requests.iter().all(|request| {
+                request
+                    .messages
+                    .iter()
+                    .filter(|message| {
+                        message.role == "tool"
+                            && message
+                                .tool_call_id
+                                .as_deref()
+                                .map(|id| injected_ids.contains(id))
+                                .unwrap_or(false)
+                    })
+                    .count()
+                    == 3
+            }),
+            "read probes must not be appended per state change"
+        );
         assert!(requests[3].messages[0].content.contains("2400"));
-        assert!(!requests[3].messages[0].content.contains("{{story_context}}"));
-        assert!(requests.iter().flat_map(|r| &r.messages).filter(|m| m.role == "tool").all(|m| !m.content.contains("authenticated_effect")));
-        assert!(orchestrator.composer.compose(&["out_of_scope"], "vi", "VI").unwrap().tools.is_empty());
+        assert!(!requests[3].messages[0]
+            .content
+            .contains("{{story_context}}"));
+        assert!(requests
+            .iter()
+            .flat_map(|r| &r.messages)
+            .filter(|m| m.role == "tool")
+            .all(|m| !m.content.contains("authenticated_effect")));
+        assert!(orchestrator
+            .composer
+            .compose(&["out_of_scope"], "vi", "VI")
+            .unwrap()
+            .tools
+            .is_empty());
     }
 
     #[tokio::test]
     async fn test_every_chat_request_reads_null_fields_even_without_model_tool_calls() {
         use crate::providers::traits::ProviderChatResponse;
         let tmp = tempfile::tempdir().unwrap();
-        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        let pool = Pool::builder()
+            .max_size(2)
+            .build(SqliteConnectionManager::file(tmp.path().join("chat.db")))
+            .unwrap();
         crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
         let registry = Arc::new(DraftRuntimeRegistry::new());
         let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
-        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
-        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let patch_service = Arc::new(PatchService::new(
+            pool.clone(),
+            registry.clone(),
+            draft_service.clone(),
+        ));
+        let orchestrator =
+            ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
         let id = Uuid::new_v4();
         registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
         let entry = registry.get(&id).unwrap();
-        let composed = orchestrator.composer.compose(&["tool_library", "story_context"], "vi", "VI").unwrap();
-        assert!(composed.tools.iter().any(|tool| tool.name == "get_field_null"));
-        for name in ["get_array_element_fields", "search_genre", "search_motif", "add_project_genre"] {
-            assert!(composed.tools.iter().any(|tool| tool.name == name), "missing {name}");
-        }
-        assert_eq!(composed.tools.iter().find(|tool| tool.name == "set_project").unwrap()
-            .parameters["properties"]["target"]["properties"]["chapter_tolerance"]["minimum"], 0);
-        let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
-            ProviderChatResponse { content: Some("Xin chào".into()), ..Default::default() },
-            ProviderChatResponse { content: Some("Đã ghi nhận".into()), ..Default::default() },
-        ].into()) };
-        for (index, text) in ["Chào", "Tên arc không cần đặt"].iter().enumerate() {
-            let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user(*text)];
-            let mut state = TurnState::default();
-            orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
-                &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
-            // Every turn audits both the scalar-null read and the array-element read.
-            assert!(state.all_tool_calls.len() >= 2, "turn {index} must audit both reads");
-            assert_eq!(state.all_tool_calls[0].name, "get_field_null");
-            assert_eq!(state.all_tool_calls[0].result.as_ref().unwrap()["status"], "applied");
+        let composed = orchestrator
+            .composer
+            .compose(&["tool_library", "story_context"], "vi", "VI")
+            .unwrap();
+        assert!(composed
+            .tools
+            .iter()
+            .any(|tool| tool.name == "get_field_null"));
+        for name in [
+            "get_array_element_fields",
+            "search_genre",
+            "search_motif",
+            "add_project_genre",
+        ] {
             assert!(
-                state.all_tool_calls.iter().any(|call| call.name == "get_array_element_fields"),
+                composed.tools.iter().any(|tool| tool.name == name),
+                "missing {name}"
+            );
+        }
+        assert_eq!(
+            composed
+                .tools
+                .iter()
+                .find(|tool| tool.name == "set_project")
+                .unwrap()
+                .parameters["properties"]["target"]["properties"]["chapter_tolerance"]["minimum"],
+            0
+        );
+        let provider = ReplayProvider {
+            requests: Default::default(),
+            responses: std::sync::Mutex::new(
+                [
+                    ProviderChatResponse {
+                        content: Some("Xin chào".into()),
+                        ..Default::default()
+                    },
+                    ProviderChatResponse {
+                        content: Some("Đã ghi nhận".into()),
+                        ..Default::default()
+                    },
+                ]
+                .into(),
+            ),
+        };
+        for (index, text) in ["Chào", "Tên arc không cần đặt"].iter().enumerate() {
+            let mut messages = vec![
+                ProviderMessage::system(composed.prompt.clone()),
+                ProviderMessage::user(*text),
+            ];
+            let mut state = TurnState::default();
+            orchestrator
+                .run_turn_loop(
+                    &entry,
+                    id,
+                    Uuid::new_v4(),
+                    &composed,
+                    &mut messages,
+                    &mut state,
+                    "vi",
+                    &provider,
+                    None,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap();
+            // Every turn audits both the scalar-null read and the array-element read.
+            assert!(
+                state.all_tool_calls.len() >= 2,
+                "turn {index} must audit both reads"
+            );
+            assert_eq!(state.all_tool_calls[0].name, "get_field_null");
+            assert_eq!(
+                state.all_tool_calls[0].result.as_ref().unwrap()["status"],
+                "applied"
+            );
+            assert!(
+                state
+                    .all_tool_calls
+                    .iter()
+                    .any(|call| call.name == "get_array_element_fields"),
                 "turn {index} must also probe array element fields"
             );
             let requests = provider.requests.lock().unwrap();
             let request = &requests[index];
-            assert_eq!(request.messages[2].tool_calls.as_ref().unwrap()[0].id,
-                state.all_tool_calls[0].id);
-            assert_eq!(request.messages[3].tool_call_id.as_deref(), Some(state.all_tool_calls[0].id.as_str()));
+            assert_eq!(
+                request.messages[2].tool_calls.as_ref().unwrap()[0].id,
+                state.all_tool_calls[0].id
+            );
+            assert_eq!(
+                request.messages[3].tool_call_id.as_deref(),
+                Some(state.all_tool_calls[0].id.as_str())
+            );
             assert_eq!(request.messages[3].role, "tool");
         }
     }
@@ -2021,12 +2533,20 @@ mod chat_context_regression_tests {
         use crate::domain::business_flow::RequireCharacterItem;
         use crate::providers::traits::ProviderChatResponse;
         let tmp = tempfile::tempdir().unwrap();
-        let pool = Pool::builder().max_size(2).build(SqliteConnectionManager::file(tmp.path().join("chat.db"))).unwrap();
+        let pool = Pool::builder()
+            .max_size(2)
+            .build(SqliteConnectionManager::file(tmp.path().join("chat.db")))
+            .unwrap();
         crate::storage::migration::run_migrations(&mut pool.get().unwrap()).unwrap();
         let registry = Arc::new(DraftRuntimeRegistry::new());
         let draft_service = Arc::new(DraftService::new(pool.clone(), registry.clone()));
-        let patch_service = Arc::new(PatchService::new(pool.clone(), registry.clone(), draft_service.clone()));
-        let orchestrator = ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
+        let patch_service = Arc::new(PatchService::new(
+            pool.clone(),
+            registry.clone(),
+            draft_service.clone(),
+        ));
+        let orchestrator =
+            ChatOrchestrator::new(pool, registry.clone(), draft_service, patch_service);
         let id = Uuid::new_v4();
         registry.get_or_register(id, crate::service::draft_runtime::WorkingState::new(id));
         let entry = registry.get(&id).unwrap();
@@ -2044,40 +2564,103 @@ mod chat_context_regression_tests {
             character.biological_sex = TrackedField::user("MALE".into());
             ws.business_flow_data.require.character.push(character);
         });
-        let composed = orchestrator.composer.compose(&["tool_library"], "vi", "VI").unwrap();
-        let provider = ReplayProvider { requests: Default::default(), responses: std::sync::Mutex::new([
-            ProviderChatResponse { content: Some("Đã hiểu".into()), ..Default::default() },
-        ].into()) };
-        let mut messages = vec![ProviderMessage::system(composed.prompt.clone()), ProviderMessage::user("Xin chào")];
+        let composed = orchestrator
+            .composer
+            .compose(&["tool_library"], "vi", "VI")
+            .unwrap();
+        let provider = ReplayProvider {
+            requests: Default::default(),
+            responses: std::sync::Mutex::new(
+                [ProviderChatResponse {
+                    content: Some("Đã hiểu".into()),
+                    ..Default::default()
+                }]
+                .into(),
+            ),
+        };
+        let mut messages = vec![
+            ProviderMessage::system(composed.prompt.clone()),
+            ProviderMessage::user("Xin chào"),
+        ];
         let mut state = TurnState::default();
-        orchestrator.run_turn_loop(&entry, id, Uuid::new_v4(), &composed, &mut messages,
-            &mut state, "vi", &provider, None, CancellationToken::new()).await.unwrap();
-        assert_eq!(state.all_tool_calls.iter().map(|call| call.name.as_str()).collect::<Vec<_>>(),
-            vec!["get_field_null", "get_array_element_fields", "get_array_element_fields"]);
-        assert_eq!(state.all_tool_calls[1].parameters["array_path"], "require.project.genres");
-        assert_eq!(state.all_tool_calls[2].result.as_ref().unwrap()["questions"][0]["field"], "motif_code");
+        orchestrator
+            .run_turn_loop(
+                &entry,
+                id,
+                Uuid::new_v4(),
+                &composed,
+                &mut messages,
+                &mut state,
+                "vi",
+                &provider,
+                None,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            state
+                .all_tool_calls
+                .iter()
+                .map(|call| call.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "get_field_null",
+                "get_array_element_fields",
+                "get_array_element_fields"
+            ]
+        );
+        assert_eq!(
+            state.all_tool_calls[1].parameters["array_path"],
+            "require.project.genres"
+        );
+        assert_eq!(
+            state.all_tool_calls[2].result.as_ref().unwrap()["questions"][0]["field"],
+            "motif_code"
+        );
         let requests = provider.requests.lock().unwrap();
-        assert_eq!(requests[0].messages.iter().filter(|m| m.role == "tool").count(), 3);
+        assert_eq!(
+            requests[0]
+                .messages
+                .iter()
+                .filter(|m| m.role == "tool")
+                .count(),
+            3
+        );
     }
 
     #[test]
     fn test_tool_help_returns_only_current_run_contract() {
-        let tools = vec![ProviderToolDefinition { name: "set_project".into(), description: "Update project targets".into(),
-            parameters: json!({"type":"object", "examples":[{"target":{"chapter_count":120},"declared_sources":{"target.chapter_count":"user"}}]}) }];
+        let tools = vec![ProviderToolDefinition {
+            name: "set_project".into(),
+            description: "Update project targets".into(),
+            parameters: json!({"type":"object", "examples":[{"target":{"chapter_count":120},"declared_sources":{"target.chapter_count":"user"}}]}),
+        }];
         let result = tool_definition_result(&json!({"tool_name":"set_project"}), &tools);
         assert_eq!(result["status"], "applied");
         assert_eq!(result["input_schema"], tools[0].parameters);
         assert_eq!(result["examples"][0]["target"]["chapter_count"], 120);
-        assert_eq!(tool_definition_result(&json!({"tool_name":"commit_draft"}), &tools)["error"], "tool_not_available");
+        assert_eq!(
+            tool_definition_result(&json!({"tool_name":"commit_draft"}), &tools)["error"],
+            "tool_not_available"
+        );
     }
 
     #[test]
     fn test_model_observation_keeps_field_errors_without_internal_state() {
-        let result = model_tool_result(&json!({"status":"applied", "results":[{"field":"summary", "status":"rejected", "error":"missing_or_invalid_declared_source"}],
-            "authenticated_effect":{"mutated_state":{"_counters":{"secret":1}},"pending_patches":[],"has_mutations":true}}));
-        assert_eq!(result["results"][0]["error"], "missing_or_invalid_declared_source");
+        let result = model_tool_result(
+            &json!({"status":"applied", "results":[{"field":"summary", "status":"rejected", "error":"missing_or_invalid_declared_source"}],
+            "authenticated_effect":{"mutated_state":{"_counters":{"secret":1}},"pending_patches":[],"has_mutations":true}}),
+        );
+        assert_eq!(
+            result["results"][0]["error"],
+            "missing_or_invalid_declared_source"
+        );
         assert!(result.get("authenticated_effect").is_none());
-        assert_eq!(model_tool_result(&json!({"status":"rejected","results":[]}))["error"], "missing_error_details");
+        assert_eq!(
+            model_tool_result(&json!({"status":"rejected","results":[]}))["error"],
+            "missing_error_details"
+        );
     }
 
     #[test]
@@ -2087,7 +2670,10 @@ mod chat_context_regression_tests {
                 "result":{"status":"rejected","results":[]},"status":"rejected"}]})).unwrap();
         let mut history = Vec::new();
         append_chat_history(&mut history, message, true);
-        assert_eq!(history.iter().map(|m| m.role.as_str()).collect::<Vec<_>>(), vec!["assistant","tool","assistant"]);
+        assert_eq!(
+            history.iter().map(|m| m.role.as_str()).collect::<Vec<_>>(),
+            vec!["assistant", "tool", "assistant"]
+        );
         assert_eq!(history[0].tool_calls.as_ref().unwrap()[0].id, "call-1");
         assert_eq!(history[1].tool_call_id.as_deref(), Some("call-1"));
         assert!(history[1].content.contains("rejected"));

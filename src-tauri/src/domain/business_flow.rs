@@ -22,6 +22,7 @@ use thiserror::Error;
 /// `"system"`, and `"incomplete"` (used when normalizing missing/null `TrackedField<T>` values per `be-core.md` §6.4.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ProvenanceSource {
     /// Provided directly by the user (`"user"`). Protected from direct AI overwrite or deletion.
     User,
@@ -35,6 +36,7 @@ pub enum ProvenanceSource {
     /// System-populated default or structural metadata (`"system"`).
     System,
     /// Normalized sentinel for an unset / `null` field (`"incomplete"`, `be-core.md` §6.4.2).
+    #[default]
     Incomplete,
 }
 
@@ -74,11 +76,6 @@ impl ProvenanceSource {
     }
 }
 
-impl Default for ProvenanceSource {
-    fn default() -> Self {
-        ProvenanceSource::Incomplete
-    }
-}
 
 /// A nullable domain field paired with its provenance source (`be-core.md` §4.1, §6.4.2).
 ///
@@ -194,7 +191,13 @@ pub enum Language {
     Ja,
     #[serde(rename = "ZH_HANT", alias = "zh_hant", alias = "zh-Hant")]
     ZhHant,
-    #[serde(rename = "ZH_HANS", alias = "zh_hans", alias = "zh-Hans", alias = "ZH", alias = "zh")]
+    #[serde(
+        rename = "ZH_HANS",
+        alias = "zh_hans",
+        alias = "zh-Hans",
+        alias = "ZH",
+        alias = "zh"
+    )]
     ZhHans,
 }
 
@@ -271,7 +274,7 @@ impl DraftMeta {
             });
         }
         match (self.phase, self.subphase) {
-            (5, Some(1 | 2 | 3)) | (5, None) => Ok(()),
+            (5, Some(1..=3)) | (5, None) => Ok(()),
             (5, Some(_)) => Err(DomainError::InvalidPhaseSubphase {
                 phase: self.phase,
                 subphase: self.subphase,
@@ -1128,10 +1131,11 @@ impl BusinessFlowData {
             });
         }
 
-        let state: Self =
-            serde_json::from_value(value.clone()).map_err(|err| DomainError::UnknownStateShape {
+        let state: Self = serde_json::from_value(value.clone()).map_err(|err| {
+            DomainError::UnknownStateShape {
                 reason: err.to_string(),
-            })?;
+            }
+        })?;
         state.validate_structure()?;
         Ok(state)
     }

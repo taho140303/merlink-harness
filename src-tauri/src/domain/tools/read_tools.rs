@@ -118,17 +118,29 @@ pub trait CatalogRepo {
     fn get_genre_by_code(&self, code: &str) -> Result<Option<GenreRecord>, CatalogRepoError>;
     fn list_genres(&self) -> Result<Vec<GenreRecord>, CatalogRepoError>;
 
-    fn get_character_by_code(&self, code: &str) -> Result<Option<CharacterRecord>, CatalogRepoError>;
-    fn list_characters(&self, include_deleted: bool) -> Result<Vec<CharacterRecord>, CatalogRepoError>;
+    fn get_character_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<CharacterRecord>, CatalogRepoError>;
+    fn list_characters(
+        &self,
+        include_deleted: bool,
+    ) -> Result<Vec<CharacterRecord>, CatalogRepoError>;
 
-    fn get_world_setting_by_code(&self, code: &str) -> Result<Option<WorldSettingRecord>, CatalogRepoError>;
+    fn get_world_setting_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<WorldSettingRecord>, CatalogRepoError>;
     fn list_world_settings(
         &self,
         project_id: Option<&str>,
         include_deleted: bool,
     ) -> Result<Vec<WorldSettingRecord>, CatalogRepoError>;
 
-    fn get_lore_entry_by_code(&self, code: &str) -> Result<Option<LoreEntryRecord>, CatalogRepoError>;
+    fn get_lore_entry_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<LoreEntryRecord>, CatalogRepoError>;
     fn list_lore_entries(
         &self,
         world_setting_id: Option<&str>,
@@ -193,11 +205,21 @@ pub fn get_field_null(
     }
 
     // 3. require.project.language
-    if data.require.project.language.value.as_deref().map_or(true, |value| value.trim().is_empty())
-        || !matches!(data.require.project.language.source,
-            Some(crate::domain::business_flow::ProvenanceSource::User
-                | crate::domain::business_flow::ProvenanceSource::UserEdited
-                | crate::domain::business_flow::ProvenanceSource::AiGenerated))
+    if data
+        .require
+        .project
+        .language
+        .value
+        .as_deref()
+        .map_or(true, |value| value.trim().is_empty())
+        || !matches!(
+            data.require.project.language.source,
+            Some(
+                crate::domain::business_flow::ProvenanceSource::User
+                    | crate::domain::business_flow::ProvenanceSource::UserEdited
+                    | crate::domain::business_flow::ProvenanceSource::AiGenerated
+            )
+        )
     {
         questions.push(FieldNullQuestion {
             field: "require.project.language".to_string(),
@@ -210,7 +232,14 @@ pub fn get_field_null(
     }
 
     // 4. require.project.target.word_per_chapter_count
-    if data.require.project.target.word_per_chapter_count.value.is_none() {
+    if data
+        .require
+        .project
+        .target
+        .word_per_chapter_count
+        .value
+        .is_none()
+    {
         questions.push(FieldNullQuestion {
             field: "require.project.target.word_per_chapter_count".to_string(),
             question: if is_vi {
@@ -289,8 +318,17 @@ pub fn get_array_element_fields(
                 match found {
                     Some(char_item) => {
                         let mut questions = Vec::new();
-                        if char_item.display_name.value.as_deref().map_or(true, |value| value.trim().is_empty())
-                            && char_item.nickname.value.as_deref().map_or(true, |value| value.trim().is_empty()) {
+                        if char_item
+                            .display_name
+                            .value
+                            .as_deref()
+                            .map_or(true, |value| value.trim().is_empty())
+                            && char_item
+                                .nickname
+                                .value
+                                .as_deref()
+                                .map_or(true, |value| value.trim().is_empty())
+                        {
                             questions.push(ArrayElementFieldQuestion {
                                 field: "display_name".to_string(),
                                 question: if is_vi {

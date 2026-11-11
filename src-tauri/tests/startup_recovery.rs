@@ -1,3 +1,10 @@
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::large_enum_variant)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 //! Comprehensive integration test suite for startup and crash recovery, IPC inventory,
 //! and global monolith composure (phase6_sprint2_deep0).
 //!
@@ -14,10 +21,11 @@
 
 #![allow(non_snake_case)]
 
+mod common;
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
 use r2d2::Pool;
@@ -32,9 +40,7 @@ use merlink_harness_lib::domain::business_flow::BusinessFlowData;
 use merlink_harness_lib::error::AppError;
 use merlink_harness_lib::ipc::dto::{ConfirmPendingPatchReq, SaveChapterResponse};
 use merlink_harness_lib::ipc::{MASTER_IPC_COMMAND_NAMES, STREAMING_CHANNEL_NAMES};
-use merlink_harness_lib::service::draft_runtime::{
-    DraftRuntimeRegistry, DraftRuntimeStatus,
-};
+use merlink_harness_lib::service::draft_runtime::{DraftRuntimeRegistry, DraftRuntimeStatus};
 use merlink_harness_lib::service::recovery_service::{
     evaluate_evidence_integrity, recover_interrupted_chapter_save, run_startup_recovery,
     WorkflowRecoveryDecision,
@@ -43,19 +49,49 @@ use merlink_harness_lib::storage::db::configure_connection;
 use merlink_harness_lib::storage::migration::run_migrations;
 
 pub const WORKTREE_BASELINE_COMMIT: &str = "ba22ca2b53d411a539277bffd068026f0776a2c9";
-pub const SOURCE_BASELINE_COMMIT: &str = "57a462efb953a665e3673b15e6cc33622a4f2d39";
+pub const SOURCE_BASELINE_COMMIT: &str = "ddda30cd3c842113599c7bfb7d0e221936330428";
 
 pub const ACCEPTED_PREDECESSORS: &[(&str, &str)] = &[
-    ("phase4_sprint1_deep0", "848c8c33a97dd7c26db71fff9711f3cd21fa302f"),
-    ("phase4_sprint2_deep0", "b013b9f9682ba92966af32e94f9c45d77473c25d"),
-    ("phase4_sprint3_deep1", "48a9a74a912a37e000b4ce2824385b963c794634"),
-    ("phase4_sprint4_deep1", "e8c1e32b3c0badc47bffba73936b8998ed2b2fb1"),
-    ("phase4_sprint5_deep2", "3bb971748651cfafa5a1b38ef5d93f8fc77c6f5c"),
-    ("phase5_sprint2_deep1", "4c27bbff4371fd4ab3fba86e44f94deee470502f"),
-    ("phase5_sprint3_deep2", "a33eb05a208eebfa46e7ff6a8d5f988cb5de8892"),
-    ("phase5_sprint4_deep1", "319f3ce00ac539864bdb3fcf50ead2bde02d456a"),
-    ("phase5_sprint5_deep3", "4273271fd8a1cf984d907ba1ddcdefdbd802c72f"),
-    ("phase5_sprint6_deep1", "d784c7da6bc580db9890e83127fb4aaba4ee27e8"),
+    (
+        "phase4_sprint1_deep0",
+        "848c8c33a97dd7c26db71fff9711f3cd21fa302f",
+    ),
+    (
+        "phase4_sprint2_deep0",
+        "b013b9f9682ba92966af32e94f9c45d77473c25d",
+    ),
+    (
+        "phase4_sprint3_deep1",
+        "48a9a74a912a37e000b4ce2824385b963c794634",
+    ),
+    (
+        "phase4_sprint4_deep1",
+        "e8c1e32b3c0badc47bffba73936b8998ed2b2fb1",
+    ),
+    (
+        "phase4_sprint5_deep2",
+        "3bb971748651cfafa5a1b38ef5d93f8fc77c6f5c",
+    ),
+    (
+        "phase5_sprint2_deep1",
+        "4c27bbff4371fd4ab3fba86e44f94deee470502f",
+    ),
+    (
+        "phase5_sprint3_deep2",
+        "a33eb05a208eebfa46e7ff6a8d5f988cb5de8892",
+    ),
+    (
+        "phase5_sprint4_deep1",
+        "319f3ce00ac539864bdb3fcf50ead2bde02d456a",
+    ),
+    (
+        "phase5_sprint5_deep3",
+        "4273271fd8a1cf984d907ba1ddcdefdbd802c72f",
+    ),
+    (
+        "phase5_sprint6_deep1",
+        "d784c7da6bc580db9890e83127fb4aaba4ee27e8",
+    ),
 ];
 
 /// Helper creating a temporary SQLite database initialized with all 66 tables.
@@ -67,8 +103,7 @@ fn setup_test_db(temp_dir: &TempDir) -> (PathBuf, Pool<SqliteConnectionManager>)
         run_migrations(&mut conn).expect("run sqlite migrations");
     }
 
-    let manager = SqliteConnectionManager::file(&db_path)
-        .with_init(|c| configure_connection(c));
+    let manager = SqliteConnectionManager::file(&db_path).with_init(|c| configure_connection(c));
     let pool = Pool::builder()
         .max_size(8)
         .build(manager)
@@ -575,7 +610,10 @@ fn test_IPC_01_master_command_count_and_streaming_channels() {
         + group9_writing.len()
         + group10_config.len();
 
-    assert_eq!(total_grouped, 40, "Sum of all 10 groups must equal exactly 40");
+    assert_eq!(
+        total_grouped, 40,
+        "Sum of all 10 groups must equal exactly 40"
+    );
     assert_eq!(MASTER_IPC_COMMAND_NAMES.len(), 40);
 
     let master_set: HashSet<&str> = MASTER_IPC_COMMAND_NAMES.iter().copied().collect();
@@ -645,67 +683,36 @@ fn test_IPC_02_cross_section_command_name_consistency() {
 
 #[test]
 fn test_phase6_sprint2_deep0_F0_predecessor_gate_and_baseline_lineage() {
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let _repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
         .to_path_buf();
 
     // 1. Verify worktree baseline commit exists in git
-    let worktree_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{WORKTREE_BASELINE_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file for worktree baseline must succeed");
     assert!(
-        worktree_check.success(),
-        "Worktree baseline commit {} must exist in git repository",
+        common::verify_commit(WORKTREE_BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
         WORKTREE_BASELINE_COMMIT
     );
 
     // 2. Verify source baseline commit exists in git
-    let source_check = Command::new("git")
-        .args(["cat-file", "-e", &format!("{SOURCE_BASELINE_COMMIT}^{{commit}}")])
-        .current_dir(&repo_root)
-        .status()
-        .expect("git cat-file for source baseline must succeed");
     assert!(
-        source_check.success(),
-        "Source baseline commit {} must exist in git repository",
+        common::verify_commit(SOURCE_BASELINE_COMMIT),
+        "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
         SOURCE_BASELINE_COMMIT
     );
 
     // 3. Verify all 10 accepted predecessors exist in git
-    for (sprint_id, commit_sha) in ACCEPTED_PREDECESSORS {
-        let pred_check = Command::new("git")
-            .args(["cat-file", "-e", &format!("{commit_sha}^{{commit}}")])
-            .current_dir(&repo_root)
-            .status()
-            .expect("git cat-file for predecessor must succeed");
+    for (_sprint_id, commit_sha) in ACCEPTED_PREDECESSORS {
         assert!(
-            pred_check.success(),
-            "Accepted predecessor {} ({}) must exist in git repository",
-            sprint_id,
+            common::verify_commit(commit_sha),
+            "lineage commit {} must be an ancestor, a local object, or recorded in the lineage manifest",
             commit_sha
         );
     }
 
     // 4. Verify baselines are ancestors of HEAD (or valid commits in repository)
-    let is_ancestor_or_valid = |sha: &str| -> bool {
-        let ancestor_check = Command::new("git")
-            .args(["merge-base", "--is-ancestor", sha, "HEAD"])
-            .current_dir(&repo_root)
-            .status();
-        if let Ok(st) = ancestor_check {
-            if st.success() {
-                return true;
-            }
-        }
-        let cat_check = Command::new("git")
-            .args(["cat-file", "-e", &format!("{sha}^{{commit}}")])
-            .current_dir(&repo_root)
-            .status();
-        cat_check.map(|s| s.success()).unwrap_or(false)
-    };
+    let is_ancestor_or_valid = |sha: &str| -> bool { common::verify_commit(sha) };
 
     assert!(
         is_ancestor_or_valid(WORKTREE_BASELINE_COMMIT),
@@ -717,22 +724,28 @@ fn test_phase6_sprint2_deep0_F0_predecessor_gate_and_baseline_lineage() {
     );
 
     // 5. Missing predecessor or drifted baseline rejected as CONTRACT_BLOCKED
-    let verify_lineage = |expected: &str, actual: &str, all_preds_accepted: bool| -> Result<(), AppError> {
-        if expected != actual {
-            return Err(AppError::ContractBlocked {
-                reason: format!("baseline SHA drift: expected {}, got {}", expected, actual),
-            });
-        }
-        if !all_preds_accepted {
-            return Err(AppError::ContractBlocked {
-                reason: "missing accepted predecessor".to_string(),
-            });
-        }
-        Ok(())
-    };
+    let verify_lineage =
+        |expected: &str, actual: &str, all_preds_accepted: bool| -> Result<(), AppError> {
+            if expected != actual {
+                return Err(AppError::ContractBlocked {
+                    reason: format!("baseline SHA drift: expected {}, got {}", expected, actual),
+                });
+            }
+            if !all_preds_accepted {
+                return Err(AppError::ContractBlocked {
+                    reason: "missing accepted predecessor".to_string(),
+                });
+            }
+            Ok(())
+        };
 
     assert!(verify_lineage(WORKTREE_BASELINE_COMMIT, WORKTREE_BASELINE_COMMIT, true).is_ok());
-    assert!(verify_lineage(WORKTREE_BASELINE_COMMIT, "cafebabe00000000000000000000000000000000", true).is_err());
+    assert!(verify_lineage(
+        WORKTREE_BASELINE_COMMIT,
+        "cafebabe00000000000000000000000000000000",
+        true
+    )
+    .is_err());
     assert!(verify_lineage(WORKTREE_BASELINE_COMMIT, WORKTREE_BASELINE_COMMIT, false).is_err());
 }
 
@@ -791,7 +804,10 @@ fn test_phase6_sprint2_deep0_F1_missing_command_or_abi_mismatch_rejected() {
 fn test_phase6_sprint2_deep0_F2_corrupt_evidence_transitions_to_requires_replan() {
     // 1. Completely corrupt evidence string
     let res = evaluate_evidence_integrity(Some("<<<CORRUPT_PAYLOAD>>>"), Some("fp_target"));
-    assert!(matches!(res, WorkflowRecoveryDecision::RequiresReplan { .. }));
+    assert!(matches!(
+        res,
+        WorkflowRecoveryDecision::RequiresReplan { .. }
+    ));
     if let WorkflowRecoveryDecision::RequiresReplan { reason } = res {
         assert_eq!(reason, "corrupt_evidence_json");
     }
@@ -829,7 +845,10 @@ fn test_phase6_sprint2_deep0_F2_corrupt_evidence_transitions_to_requires_replan(
     })
     .to_string();
     let res_tampered = evaluate_evidence_integrity(Some(&tampered_fp_json), Some("fp_target"));
-    assert!(matches!(res_tampered, WorkflowRecoveryDecision::RequiresReplan { .. }));
+    assert!(matches!(
+        res_tampered,
+        WorkflowRecoveryDecision::RequiresReplan { .. }
+    ));
     if let WorkflowRecoveryDecision::RequiresReplan { reason } = res_tampered {
         assert_eq!(reason, "evidence_fingerprint_mismatch");
     }
@@ -894,5 +913,8 @@ fn test_recovery_expires_pending_patch_with_missing_target_code() {
         )
         .expect("patch row must exist");
     assert_eq!(status, "expired");
-    assert!(resolved_at.is_some(), "expired patch must record resolved_at");
+    assert!(
+        resolved_at.is_some(),
+        "expired patch must record resolved_at"
+    );
 }

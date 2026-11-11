@@ -16,9 +16,9 @@ use crate::domain::fingerprint::canonical_json_value;
 use crate::domain::word_count::count_words;
 use crate::error::{ErrorCode, IpcError};
 use crate::ipc::dto::{
-    BulkSceneLockStateDto, ChapterWritingReadModelDto, DirtySceneSaveItem,
-    SaveChapterRequest, SaveChapterResponse, SaveReceiptLookupDto, SavedSceneResultDto,
-    SceneLockStateDto, SceneReadModelDto, SceneVersionItemDto, SceneVersionListDto,
+    BulkSceneLockStateDto, ChapterWritingReadModelDto, DirtySceneSaveItem, SaveChapterRequest,
+    SaveChapterResponse, SaveReceiptLookupDto, SavedSceneResultDto, SceneLockStateDto,
+    SceneReadModelDto, SceneVersionItemDto, SceneVersionListDto,
 };
 
 // ============================================================================
@@ -51,14 +51,19 @@ pub fn from_db_scene_source(s: &str) -> &'static str {
 ///
 /// Formulation (`be-core.md` §8.4.1, `SF-02`):
 /// `payload_hash = SHA-256(JCS([{"content", "expected_version_number", "scene_id", "scene_source", "summary"}]))`
-pub fn compute_save_chapter_payload_hash(dirty_scenes: &[DirtySceneSaveItem]) -> Result<String, IpcError> {
+pub fn compute_save_chapter_payload_hash(
+    dirty_scenes: &[DirtySceneSaveItem],
+) -> Result<String, IpcError> {
     let mut sorted = dirty_scenes.to_vec();
     sorted.sort_by_key(|s| s.scene_id);
     let items: Vec<serde_json::Value> = sorted
         .iter()
         .map(|s| {
             let mut map = serde_json::Map::new();
-            map.insert("content".to_string(), serde_json::Value::String(s.content.clone()));
+            map.insert(
+                "content".to_string(),
+                serde_json::Value::String(s.content.clone()),
+            );
             map.insert(
                 "expected_version_number".to_string(),
                 serde_json::Value::Number(s.expected_version_number.into()),
@@ -72,14 +77,21 @@ pub fn compute_save_chapter_payload_hash(dirty_scenes: &[DirtySceneSaveItem]) ->
                 serde_json::Value::String(s.scene_source.clone()),
             );
             if let Some(ref sum) = s.summary {
-                map.insert("summary".to_string(), serde_json::Value::String(sum.clone()));
+                map.insert(
+                    "summary".to_string(),
+                    serde_json::Value::String(sum.clone()),
+                );
             }
             serde_json::Value::Object(map)
         })
         .collect();
 
-    let jcs = canonical_json_value(&serde_json::Value::Array(items))
-        .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("JCS encoding error: {e:?}")))?;
+    let jcs = canonical_json_value(&serde_json::Value::Array(items)).map_err(|e| {
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("JCS encoding error: {e:?}"),
+        )
+    })?;
     let hash = hex::encode(Sha256::digest(&jcs));
     Ok(hash)
 }
@@ -240,10 +252,15 @@ pub fn load_chapter_scenes_read_model(
             raw_source,
         ) = row.map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-        let id = Uuid::parse_str(&id_str)
-            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid scene UUID: {e}")))?;
-        let cid = Uuid::parse_str(&chapter_id_str)
-            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid chapter UUID: {e}")))?;
+        let id = Uuid::parse_str(&id_str).map_err(|e| {
+            IpcError::new(ErrorCode::InternalError, format!("Invalid scene UUID: {e}"))
+        })?;
+        let cid = Uuid::parse_str(&chapter_id_str).map_err(|e| {
+            IpcError::new(
+                ErrorCode::InternalError,
+                format!("Invalid chapter UUID: {e}"),
+            )
+        })?;
 
         let current_scene_source = match raw_source {
             Some(ref s) if !s.trim().is_empty() => from_db_scene_source(s).to_string(),
@@ -452,10 +469,7 @@ pub fn set_chapter_scenes_lock_bulk_tx(
     tx.commit()
         .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
 
-    Ok(BulkSceneLockStateDto {
-        chapter_id,
-        scenes,
-    })
+    Ok(BulkSceneLockStateDto { chapter_id, scenes })
 }
 
 // ============================================================================
@@ -580,7 +594,12 @@ pub fn save_chapter_tx(
         if stored_hash == payload_hash {
             // Idempotent replay: return cached response with was_idempotent_replay = true
             let mut cached_resp: SaveChapterResponse = serde_json::from_str(&response_json)
-                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid receipt JSON: {e}")))?;
+                .map_err(|e| {
+                    IpcError::new(
+                        ErrorCode::InternalError,
+                        format!("Invalid receipt JSON: {e}"),
+                    )
+                })?;
             cached_resp.was_idempotent_replay = true;
             tx.commit()
                 .map_err(|e| IpcError::new(ErrorCode::DatabaseError, e.to_string()))?;
@@ -646,7 +665,10 @@ pub fn save_chapter_tx(
             None => {
                 return Err(IpcError::new(
                     ErrorCode::EntityNotFound,
-                    format!("Scene {} not found in chapter {}", item.scene_id, req.chapter_id),
+                    format!(
+                        "Scene {} not found in chapter {}",
+                        item.scene_id, req.chapter_id
+                    ),
                 ));
             }
         };
@@ -766,8 +788,12 @@ pub fn save_chapter_tx(
     // ------------------------------------------------------------------------
     // Step 5: Insert Receipt into `chapter_save_receipts` (SF-02)
     // ------------------------------------------------------------------------
-    let response_json = serde_json::to_string(&response)
-        .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Serialization error: {e}")))?;
+    let response_json = serde_json::to_string(&response).map_err(|e| {
+        IpcError::new(
+            ErrorCode::InternalError,
+            format!("Serialization error: {e}"),
+        )
+    })?;
     let receipt_id = Uuid::now_v7().to_string();
 
     let inserted = tx
@@ -853,8 +879,12 @@ pub fn get_chapter_save_receipt(
 
     match receipt_json {
         Some(json_str) => {
-            let receipt: SaveChapterResponse = serde_json::from_str(&json_str)
-                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid receipt JSON: {e}")))?;
+            let receipt: SaveChapterResponse = serde_json::from_str(&json_str).map_err(|e| {
+                IpcError::new(
+                    ErrorCode::InternalError,
+                    format!("Invalid receipt JSON: {e}"),
+                )
+            })?;
             Ok(SaveReceiptLookupDto {
                 found: true,
                 receipt: Some(receipt),

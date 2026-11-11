@@ -13,16 +13,19 @@ use crate::ipc::dto::{
 };
 use crate::providers::credentials::{CredentialManager, CredentialStorageMode};
 use crate::providers::redaction::Redactor;
-use parking_lot::RwLock;
+use crate::providers::traits::{
+    LlmProvider, ProviderChatRequest, ProviderChatResponse, ProviderError, ProviderStreamChunk,
+    ProviderStreamRequest, ProviderStreamSummary,
+};
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use crate::providers::traits::{LlmProvider, ProviderChatRequest, ProviderChatResponse, ProviderError, ProviderStreamChunk, ProviderStreamRequest, ProviderStreamSummary};
-use tokio_util::sync::CancellationToken;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 /// In-memory runtime state for provider settings and runtime subagent options (`CI-10`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,31 +82,65 @@ impl RuntimeConfigState {
     pub fn with_persistence(path: PathBuf) -> Result<Self, IpcError> {
         let state = Self::default();
         if path.exists() {
-            let bytes = std::fs::read(&path)
-                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot read provider settings: {e}")))?;
-            let saved: PersistedRuntimeConfig = serde_json::from_slice(&bytes)
-                .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Invalid provider settings: {e}")))?;
+            let bytes = std::fs::read(&path).map_err(|e| {
+                IpcError::new(
+                    ErrorCode::InternalError,
+                    format!("Cannot read provider settings: {e}"),
+                )
+            })?;
+            let saved: PersistedRuntimeConfig = serde_json::from_slice(&bytes).map_err(|e| {
+                IpcError::new(
+                    ErrorCode::InternalError,
+                    format!("Invalid provider settings: {e}"),
+                )
+            })?;
             if saved.version != 1 {
-                return Err(IpcError::new(ErrorCode::ValidationFailed, "Unsupported provider settings version"));
+                return Err(IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Unsupported provider settings version",
+                ));
             }
             validate_subagent_config(&saved.subagent_config)?;
-            if !saved.active_provider_id.is_empty() && !saved.providers.contains_key(&saved.active_provider_id) {
-                return Err(IpcError::new(ErrorCode::ValidationFailed, "Active provider is missing from saved settings"));
+            if !saved.active_provider_id.is_empty()
+                && !saved.providers.contains_key(&saved.active_provider_id)
+            {
+                return Err(IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Active provider is missing from saved settings",
+                ));
             }
             *state.subagent_config.write() = saved.subagent_config;
             *state.active_provider_id.write() = saved.active_provider_id;
             *state.providers.write() = saved.providers;
         }
-        Ok(Self { persistence_path: Some(path), ..state })
+        Ok(Self {
+            persistence_path: Some(path),
+            ..state
+        })
     }
 
     fn persist_config(&self, config: &PersistedRuntimeConfig) -> Result<(), IpcError> {
-        let Some(path) = &self.persistence_path else { return Ok(()); };
-        let bytes = serde_json::to_vec(config)
-            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot encode provider settings: {e}")))?;
-        let parent = path.parent().ok_or_else(|| IpcError::new(ErrorCode::InternalError, "Provider settings path has no parent"))?;
-        std::fs::create_dir_all(parent)
-            .map_err(|e| IpcError::new(ErrorCode::InternalError, format!("Cannot create settings directory: {e}")))?;
+        let Some(path) = &self.persistence_path else {
+            return Ok(());
+        };
+        let bytes = serde_json::to_vec(config).map_err(|e| {
+            IpcError::new(
+                ErrorCode::InternalError,
+                format!("Cannot encode provider settings: {e}"),
+            )
+        })?;
+        let parent = path.parent().ok_or_else(|| {
+            IpcError::new(
+                ErrorCode::InternalError,
+                "Provider settings path has no parent",
+            )
+        })?;
+        std::fs::create_dir_all(parent).map_err(|e| {
+            IpcError::new(
+                ErrorCode::InternalError,
+                format!("Cannot create settings directory: {e}"),
+            )
+        })?;
         let temp_path = path.with_extension(format!("tmp-{}", uuid::Uuid::new_v4()));
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create_new(true);
@@ -121,7 +158,10 @@ impl RuntimeConfigState {
         })();
         if let Err(err) = result {
             let _ = std::fs::remove_file(&temp_path);
-            return Err(IpcError::new(ErrorCode::InternalError, format!("Cannot save provider settings: {err}")));
+            return Err(IpcError::new(
+                ErrorCode::InternalError,
+                format!("Cannot save provider settings: {err}"),
+            ));
         }
         Ok(())
     }
@@ -138,17 +178,35 @@ impl RuntimeConfigState {
         let (id, override_model) = if choice == "chat" {
             (self.active_provider_id.read().clone(), None)
         } else {
-            let (provider_id, model_id) = choice.split_once('/').ok_or_else(||
-                IpcError::new(ErrorCode::ValidationFailed, "Subagent model must be provider/model"))?;
+            let (provider_id, model_id) = choice.split_once('/').ok_or_else(|| {
+                IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Subagent model must be provider/model",
+                )
+            })?;
             if provider_id.trim().is_empty() || model_id.trim().is_empty() {
-                return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent provider and model must be non-empty"));
+                return Err(IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Subagent provider and model must be non-empty",
+                ));
             }
             (provider_id.to_string(), Some(model_id.to_string()))
         };
-        let settings = self.providers.read().get(&id).cloned().ok_or_else(||
-            IpcError::new(ErrorCode::ValidationFailed, "Subagent provider is not configured"))?;
-        let model = override_model.or(settings.model_name).filter(|s| !s.trim().is_empty()).ok_or_else(||
-            IpcError::new(ErrorCode::ValidationFailed, "Subagent model is not configured"))?;
+        let settings = self.providers.read().get(&id).cloned().ok_or_else(|| {
+            IpcError::new(
+                ErrorCode::ValidationFailed,
+                "Subagent provider is not configured",
+            )
+        })?;
+        let model = override_model
+            .or(settings.model_name)
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| {
+                IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Subagent model is not configured",
+                )
+            })?;
         Ok((id, model))
     }
 
@@ -157,31 +215,51 @@ impl RuntimeConfigState {
         self.provider_for_model(&id, Some(model))
     }
 
-    fn provider_for_model(&self, id: &str, override_model: Option<String>) -> Result<Arc<dyn LlmProvider>, IpcError> {
+    fn provider_for_model(
+        &self,
+        id: &str,
+        override_model: Option<String>,
+    ) -> Result<Arc<dyn LlmProvider>, IpcError> {
         if id.is_empty() {
-            return Err(IpcError::new(ErrorCode::ValidationFailed, "No active AI provider configured"));
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                "No active AI provider configured",
+            ));
         }
         let settings = self.providers.read().get(id).cloned().ok_or_else(|| {
             IpcError::new(ErrorCode::ValidationFailed, "Unsupported active provider")
         })?;
-        let endpoint = settings.endpoint_url.filter(|s| !s.trim().is_empty()).ok_or_else(|| {
-            IpcError::new(ErrorCode::ValidationFailed, "Selected provider endpoint is missing")
-        })?;
-        let model = override_model.or(settings.model_name).filter(|s| !s.trim().is_empty()).ok_or_else(|| {
-            IpcError::new(ErrorCode::ValidationFailed, "Selected provider model is missing")
-        })?;
+        let endpoint = settings
+            .endpoint_url
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| {
+                IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Selected provider endpoint is missing",
+                )
+            })?;
+        let model = override_model
+            .or(settings.model_name)
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| {
+                IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    "Selected provider model is missing",
+                )
+            })?;
         let adapter: Arc<dyn crate::providers::traits::LlmProvider> = match id {
             "ollama" => Arc::new(crate::providers::ollama::OllamaProvider::new(
-                normalize_provider_endpoint(&endpoint, "api/chat")?, false,
+                normalize_provider_endpoint(&endpoint, "api/chat")?,
+                false,
             )),
             "opencode" => Arc::new(crate::providers::opencode::OpenCodeProvider::new(
                 normalize_provider_endpoint(&endpoint, "chat/completions")?,
-                self.credential_manager.get_api_key(&id),
+                self.credential_manager.get_api_key(id),
             )),
             // Any other (custom) provider is treated as OpenAI-compatible.
             _ => Arc::new(crate::providers::opencode::OpenCodeProvider::new(
                 normalize_provider_endpoint(&endpoint, "chat/completions")?,
-                self.credential_manager.get_api_key(&id),
+                self.credential_manager.get_api_key(id),
             )),
         };
         Ok(Arc::new(SelectedModelProvider { adapter, model }))
@@ -221,15 +299,24 @@ impl RuntimeConfigState {
 }
 
 fn normalize_provider_endpoint(raw: &str, route: &str) -> Result<String, IpcError> {
-    let url = url::Url::parse(raw.trim()).map_err(|_| IpcError::new(ErrorCode::ValidationFailed, "Invalid provider endpoint URL"))?;
+    let url = url::Url::parse(raw.trim())
+        .map_err(|_| IpcError::new(ErrorCode::ValidationFailed, "Invalid provider endpoint URL"))?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Invalid provider endpoint URL"));
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Invalid provider endpoint URL",
+        ));
     }
     let base = raw.trim().trim_end_matches('/');
-    if base.ends_with(&format!("/{route}")) { return Ok(base.to_string()); }
+    if base.ends_with(&format!("/{route}")) {
+        return Ok(base.to_string());
+    }
     let prefix = if route == "api/chat" { "api" } else { "v1" };
     if base.ends_with(&format!("/{prefix}")) {
-        return Ok(format!("{base}/{}", route.strip_prefix(&format!("{prefix}/")).unwrap_or(route)));
+        return Ok(format!(
+            "{base}/{}",
+            route.strip_prefix(&format!("{prefix}/")).unwrap_or(route)
+        ));
     }
     Ok(format!("{base}/{route}"))
 }
@@ -241,15 +328,26 @@ struct SelectedModelProvider {
 
 #[async_trait::async_trait]
 impl LlmProvider for SelectedModelProvider {
-    fn provider_id(&self) -> &'static str { self.adapter.provider_id() }
+    fn provider_id(&self) -> &'static str {
+        self.adapter.provider_id()
+    }
 
-    async fn chat_with_tools(&self, req: &ProviderChatRequest, cancel: CancellationToken) -> Result<ProviderChatResponse, ProviderError> {
+    async fn chat_with_tools(
+        &self,
+        req: &ProviderChatRequest,
+        cancel: CancellationToken,
+    ) -> Result<ProviderChatResponse, ProviderError> {
         let mut req = req.clone();
         req.model = self.model.clone();
         self.adapter.chat_with_tools(&req, cancel).await
     }
 
-    async fn stream_completion(&self, req: &ProviderStreamRequest, tx: mpsc::Sender<ProviderStreamChunk>, cancel: CancellationToken) -> Result<ProviderStreamSummary, ProviderError> {
+    async fn stream_completion(
+        &self,
+        req: &ProviderStreamRequest,
+        tx: mpsc::Sender<ProviderStreamChunk>,
+        cancel: CancellationToken,
+    ) -> Result<ProviderStreamSummary, ProviderError> {
         let mut req = req.clone();
         req.model = self.model.clone();
         self.adapter.stream_completion(&req, tx, cancel).await
@@ -265,17 +363,24 @@ mod provider_selection_tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("provider-config.json");
         let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
-        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
-            active_provider_id: Some("custom".into()),
-            endpoint_url: Some("https://example.com/v1".into()),
-            model_name: Some("story-model".into()),
-            ..UpdateRuntimeConfigReq::default()
-        }).unwrap();
+        exec_update_runtime_and_provider_config(
+            &state,
+            &UpdateRuntimeConfigReq {
+                active_provider_id: Some("custom".into()),
+                endpoint_url: Some("https://example.com/v1".into()),
+                model_name: Some("story-model".into()),
+                ..UpdateRuntimeConfigReq::default()
+            },
+        )
+        .unwrap();
         drop(state);
 
         let restored = RuntimeConfigState::with_persistence(path.clone()).unwrap();
         assert_eq!(&*restored.active_provider_id.read(), "custom");
-        assert_eq!(restored.providers.read()["custom"].model_name.as_deref(), Some("story-model"));
+        assert_eq!(
+            restored.providers.read()["custom"].model_name.as_deref(),
+            Some("story-model")
+        );
         assert!(!std::fs::read_to_string(path).unwrap().contains("api_key"));
     }
 
@@ -309,19 +414,36 @@ mod provider_selection_tests {
         let path = dir.path().join("provider-config.json");
         let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
         let saved = SubagentConfigDto {
-            max_subagents: 4, rejected_threshold: 5, outline_capacity: 75,
-            outline_lookback: 12, context_margin: 3, chapters_per_subagent: 15,
-            lore_records_per_subagent: 6, characters_per_subagent: 2,
-            relationship_pairs_per_subagent: 7, model: "chat".into(),
+            max_subagents: 4,
+            rejected_threshold: 5,
+            outline_capacity: 75,
+            outline_lookback: 12,
+            context_margin: 3,
+            chapters_per_subagent: 15,
+            lore_records_per_subagent: 6,
+            characters_per_subagent: 2,
+            relationship_pairs_per_subagent: 7,
+            model: "chat".into(),
         };
-        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
-            subagent_config: Some(saved.clone()), ..UpdateRuntimeConfigReq::default()
-        }).unwrap();
+        exec_update_runtime_and_provider_config(
+            &state,
+            &UpdateRuntimeConfigReq {
+                subagent_config: Some(saved.clone()),
+                ..UpdateRuntimeConfigReq::default()
+            },
+        )
+        .unwrap();
         let restored = RuntimeConfigState::with_persistence(path).unwrap();
         assert_eq!(*restored.subagent_config.read(), saved);
-        let bad = SubagentConfigDto { chapters_per_subagent: 0, ..saved.clone() };
+        let bad = SubagentConfigDto {
+            chapters_per_subagent: 0,
+            ..saved.clone()
+        };
         assert!(validate_subagent_config(&bad).is_err());
-        let overflow = SubagentConfigDto { outline_capacity: i32::MAX as u32 + 1, ..saved };
+        let overflow = SubagentConfigDto {
+            outline_capacity: i32::MAX as u32 + 1,
+            ..saved
+        };
         assert!(validate_subagent_config(&overflow).is_err());
     }
 
@@ -329,15 +451,25 @@ mod provider_selection_tests {
     fn test_subagent_model_resolution_fails_closed_on_missing_provider() {
         let state = RuntimeConfigState::default();
         assert!(state.subagent_provider().is_err());
-        state.providers.write().insert("custom".into(), ProviderRuntimeSettings {
-            provider_id: "custom".into(), name: "Custom".into(),
-            endpoint_url: Some("https://example.com/v1".into()),
-            model_name: Some("chat-model".into()),
-        });
+        state.providers.write().insert(
+            "custom".into(),
+            ProviderRuntimeSettings {
+                provider_id: "custom".into(),
+                name: "Custom".into(),
+                endpoint_url: Some("https://example.com/v1".into()),
+                model_name: Some("chat-model".into()),
+            },
+        );
         *state.active_provider_id.write() = "custom".into();
-        assert_eq!(state.resolve_subagent_model().unwrap(), ("custom".into(), "chat-model".into()));
+        assert_eq!(
+            state.resolve_subagent_model().unwrap(),
+            ("custom".into(), "chat-model".into())
+        );
         state.subagent_config.write().model = "custom/worker-model".into();
-        assert_eq!(state.resolve_subagent_model().unwrap(), ("custom".into(), "worker-model".into()));
+        assert_eq!(
+            state.resolve_subagent_model().unwrap(),
+            ("custom".into(), "worker-model".into())
+        );
         assert_eq!(state.subagent_provider().unwrap().provider_id(), "opencode");
         state.subagent_config.write().model = "missing/worker-model".into();
         assert!(state.subagent_provider().is_err());
@@ -348,16 +480,24 @@ mod provider_selection_tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("provider-config.json");
         let state = RuntimeConfigState::with_persistence(path.clone()).unwrap();
-        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
-            active_provider_id: Some("custom".into()),
-            endpoint_url: Some("https://example.com/v1".into()),
-            model_name: Some("story-model".into()),
-            ..UpdateRuntimeConfigReq::default()
-        }).unwrap();
-        exec_update_runtime_and_provider_config(&state, &UpdateRuntimeConfigReq {
-            remove_provider_id: Some("custom".into()),
-            ..UpdateRuntimeConfigReq::default()
-        }).unwrap();
+        exec_update_runtime_and_provider_config(
+            &state,
+            &UpdateRuntimeConfigReq {
+                active_provider_id: Some("custom".into()),
+                endpoint_url: Some("https://example.com/v1".into()),
+                model_name: Some("story-model".into()),
+                ..UpdateRuntimeConfigReq::default()
+            },
+        )
+        .unwrap();
+        exec_update_runtime_and_provider_config(
+            &state,
+            &UpdateRuntimeConfigReq {
+                remove_provider_id: Some("custom".into()),
+                ..UpdateRuntimeConfigReq::default()
+            },
+        )
+        .unwrap();
         let restored = RuntimeConfigState::with_persistence(path).unwrap();
         assert!(restored.providers.read().is_empty());
         assert!(restored.active_provider_id.read().is_empty());
@@ -382,8 +522,18 @@ mod provider_selection_tests {
         assert_eq!(state.selected_provider().unwrap().provider_id(), "opencode");
         *state.active_provider_id.write() = "unsupported".into();
         assert!(state.selected_provider().is_err());
-        assert_eq!(normalize_provider_endpoint("http://127.0.0.1:11434", "api/chat").unwrap(), "http://127.0.0.1:11434/api/chat");
-        assert_eq!(normalize_provider_endpoint("https://example.com/v1/chat/completions", "chat/completions").unwrap(), "https://example.com/v1/chat/completions");
+        assert_eq!(
+            normalize_provider_endpoint("http://127.0.0.1:11434", "api/chat").unwrap(),
+            "http://127.0.0.1:11434/api/chat"
+        );
+        assert_eq!(
+            normalize_provider_endpoint(
+                "https://example.com/v1/chat/completions",
+                "chat/completions"
+            )
+            .unwrap(),
+            "https://example.com/v1/chat/completions"
+        );
     }
 }
 
@@ -401,15 +551,34 @@ pub fn validate_subagent_config(cfg: &SubagentConfigDto) -> Result<(), IpcError>
         ));
     }
 
-    if cfg.rejected_threshold == 0 || cfg.outline_capacity == 0 || cfg.chapters_per_subagent == 0
-        || cfg.lore_records_per_subagent == 0 || cfg.characters_per_subagent == 0
-        || cfg.relationship_pairs_per_subagent == 0 {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent thresholds and task sizes must be positive"));
+    if cfg.rejected_threshold == 0
+        || cfg.outline_capacity == 0
+        || cfg.chapters_per_subagent == 0
+        || cfg.lore_records_per_subagent == 0
+        || cfg.characters_per_subagent == 0
+        || cfg.relationship_pairs_per_subagent == 0
+    {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Subagent thresholds and task sizes must be positive",
+        ));
     }
-    if [cfg.outline_capacity, cfg.outline_lookback, cfg.context_margin, cfg.chapters_per_subagent,
-        cfg.lore_records_per_subagent, cfg.characters_per_subagent, cfg.relationship_pairs_per_subagent]
-        .iter().any(|&value| value > i32::MAX as u32) {
-        return Err(IpcError::new(ErrorCode::ValidationFailed, "Subagent task sizes exceed planner limits"));
+    if [
+        cfg.outline_capacity,
+        cfg.outline_lookback,
+        cfg.context_margin,
+        cfg.chapters_per_subagent,
+        cfg.lore_records_per_subagent,
+        cfg.characters_per_subagent,
+        cfg.relationship_pairs_per_subagent,
+    ]
+    .iter()
+    .any(|&value| value > i32::MAX as u32)
+    {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            "Subagent task sizes exceed planner limits",
+        ));
     }
     if cfg.outline_lookback >= cfg.outline_capacity {
         return Err(IpcError::new(
@@ -438,7 +607,9 @@ pub fn workflow_config_from_subagent(cfg: &SubagentConfigDto) -> Result<Workflow
         unit_relationship: cfg.relationship_pairs_per_subagent as i32,
         ..WorkflowConfig::default()
     };
-    config.validate().map_err(|error| IpcError::new(ErrorCode::ValidationFailed, error.to_string()))?;
+    config
+        .validate()
+        .map_err(|error| IpcError::new(ErrorCode::ValidationFailed, error.to_string()))?;
     Ok(config)
 }
 
@@ -477,13 +648,22 @@ pub fn exec_update_runtime_and_provider_config(
         subagent_config = subagent_cfg.clone();
     }
 
-    let removed_id = req.remove_provider_id.as_deref().map(str::trim).filter(|id| !id.is_empty());
+    let removed_id = req
+        .remove_provider_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty());
     if let Some(id) = removed_id {
         if req.active_provider_id.as_deref().map(str::trim) == Some(id) {
-            return Err(IpcError::new(ErrorCode::ValidationFailed, "Cannot select and remove the same provider"));
+            return Err(IpcError::new(
+                ErrorCode::ValidationFailed,
+                "Cannot select and remove the same provider",
+            ));
         }
         providers.remove(id);
-        if active_id == id { active_id.clear(); }
+        if active_id == id {
+            active_id.clear();
+        }
     }
 
     if let Some(requested_active_id) = &req.active_provider_id {
@@ -495,12 +675,14 @@ pub fn exec_update_runtime_and_provider_config(
             ));
         }
         // Custom (OpenAI-compatible) providers are registered on first save.
-        providers.entry(trimmed.to_string()).or_insert_with(|| ProviderRuntimeSettings {
-            provider_id: trimmed.to_string(),
-            name: trimmed.to_string(),
-            endpoint_url: None,
-            model_name: None,
-        });
+        providers
+            .entry(trimmed.to_string())
+            .or_insert_with(|| ProviderRuntimeSettings {
+                provider_id: trimmed.to_string(),
+                name: trimmed.to_string(),
+                endpoint_url: None,
+                model_name: None,
+            });
         active_id = trimmed.to_string();
     }
 

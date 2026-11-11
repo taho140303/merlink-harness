@@ -1,9 +1,9 @@
 //! SQLite schema migration orchestrator, transactional execution, and integrity verifier.
 //! Strictly enforces docs/business/be-core.md (§3.4, §3.5) and docs/db.dbml physical SSOT.
 
+use rusqlite::Connection;
 use std::collections::BTreeSet;
 use std::path::Path;
-use rusqlite::Connection;
 
 use super::db::{backup_path, perform_online_backup, DbError};
 
@@ -177,11 +177,13 @@ mod prompt_seed_tests {
     fn test_prompt_seed_contains_merlink_identity_and_callable_tools() {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
-        let identity: String = conn.query_row(
-            "SELECT content FROM prompt_blocks WHERE prompt_code = 'introduction'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let identity: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code = 'introduction'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert!(identity.contains("Merlink Harness"));
         let phase_blocks: i64 = conn.query_row(
             "SELECT COUNT(*) FROM prompt_blocks WHERE prompt_code LIKE 'planning_phase_%' OR prompt_code = 'writing_chapter'",
@@ -190,8 +192,14 @@ mod prompt_seed_tests {
         ).unwrap();
         assert_eq!(phase_blocks, 8, "every phase prompt must be seeded");
         for code in [
-            "planning_phase_0", "planning_phase_1", "planning_phase_2", "planning_phase_3",
-            "planning_phase_4", "planning_phase_5", "planning_phase_6", "writing_chapter",
+            "planning_phase_0",
+            "planning_phase_1",
+            "planning_phase_2",
+            "planning_phase_3",
+            "planning_phase_4",
+            "planning_phase_5",
+            "planning_phase_6",
+            "writing_chapter",
         ] {
             let linked: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN prompt_blocks pb ON pb.id = pbt.prompt_block_id WHERE pb.prompt_code = ?1",
@@ -199,18 +207,30 @@ mod prompt_seed_tests {
             ).unwrap();
             assert!(linked > 0, "{code} must grant at least one tool");
         }
-        let theme_count: i64 = conn.query_row("SELECT COUNT(*) FROM themes", [], |row| row.get(0)).unwrap();
-        assert_eq!(theme_count, 85, "theme catalog must be seeded from docs/temp_seed/system/theme.md");
-        let parent_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM themes WHERE parent_theme_id IS NULL", [], |row| row.get(0),
-        ).unwrap();
+        let theme_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM themes", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            theme_count, 85,
+            "theme catalog must be seeded from docs/temp_seed/system/theme.md"
+        );
+        let parent_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM themes WHERE parent_theme_id IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(parent_count, 12, "12 parent themes expected");
         let ui_only: i64 = conn.query_row(
             "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id WHERE t.code IN ('commit_draft','confirm_phase','lock_scene','write_scene_content')",
             [],
             |row| row.get(0),
         ).unwrap();
-        assert_eq!(ui_only, 0, "UI-only or locked tools must never be granted by prompts");
+        assert_eq!(
+            ui_only, 0,
+            "UI-only or locked tools must never be granted by prompts"
+        );
     }
 }
 
@@ -227,13 +247,19 @@ mod session_trash_migration_tests {
 
         run_migrations(&mut conn).unwrap();
 
-        let (title, deleted_at): (String, Option<String>) = conn.query_row(
-            "SELECT display_name, deleted_at FROM sessions WHERE id = 'legacy-chat'", [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ).unwrap();
+        let (title, deleted_at): (String, Option<String>) = conn
+            .query_row(
+                "SELECT display_name, deleted_at FROM sessions WHERE id = 'legacy-chat'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
         assert_eq!(title, "Legacy");
         assert_eq!(deleted_at, None);
-        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+        assert_eq!(
+            get_user_version(&conn).unwrap(),
+            MAX_SUPPORTED_SCHEMA_VERSION
+        );
     }
 }
 
@@ -245,15 +271,27 @@ mod tool_inventory_migration_tests {
     fn test_documented_tool_codes_are_seeded_without_exposing_unimplemented_tools() {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
-        let total: i64 = conn.query_row("SELECT COUNT(*) FROM tools", [], |row| row.get(0)).unwrap();
-        let linked: i64 = conn.query_row("SELECT COUNT(*) FROM prompt_block_tools", [], |row| row.get(0)).unwrap();
+        let total: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tools", [], |row| row.get(0))
+            .unwrap();
+        let linked: i64 = conn
+            .query_row("SELECT COUNT(*) FROM prompt_block_tools", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         let incomplete: i64 = conn.query_row(
             "SELECT COUNT(*) FROM tools WHERE display_name IS NULL AND description IS NULL AND input_schema IS NULL",
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(total, 88);
-        assert!(linked > 12, "phase prompts must grant tools in addition to the shared blocks");
-        assert_eq!(incomplete, 0, "every seeded tool must carry a callable schema");
+        assert!(
+            linked > 12,
+            "phase prompts must grant tools in addition to the shared blocks"
+        );
+        assert_eq!(
+            incomplete, 0,
+            "every seeded tool must carry a callable schema"
+        );
     }
 
     #[test]
@@ -262,23 +300,35 @@ mod tool_inventory_migration_tests {
         run_migrations(&mut conn).unwrap();
         // `get_tools_by_prompt` silently drops tools without a description, so a granted tool
         // with an empty description never reaches the model through function calling.
-        let stripped: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id
+        let stripped: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM prompt_block_tools pbt JOIN tools t ON t.id = pbt.tool_id
              WHERE trim(coalesce(t.description, '')) = ''",
-            [], |row| row.get(0),
-        ).unwrap();
-        assert_eq!(stripped, 0, "granted tools must carry a non-empty description");
-        let exposed: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM prompt_block_tools pbt
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stripped, 0,
+            "granted tools must carry a non-empty description"
+        );
+        let exposed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM prompt_block_tools pbt
              JOIN prompt_blocks pb ON pb.id = pbt.prompt_block_id
              JOIN tools t ON t.id = pbt.tool_id
              WHERE pb.prompt_code = 'planning_phase_0'
                AND trim(coalesce(t.description, '')) <> ''
                AND json_valid(t.input_schema)
                AND json_extract(t.input_schema, '$.type') = 'object'",
-            [], |row| row.get(0),
-        ).unwrap();
-        assert_eq!(exposed, 76, "Phase 0 must expose the full planning tool surface");
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            exposed, 76,
+            "Phase 0 must expose the full planning tool surface"
+        );
         let role_enum: String = conn.query_row(
             "SELECT json_extract(input_schema, '$.properties.role.enum') FROM tools WHERE code = 'add_theme_argument'",
             [], |row| row.get(0),
@@ -304,16 +354,26 @@ mod tool_inventory_migration_tests {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
         let schema = |code: &str| -> String {
-            conn.query_row("SELECT input_schema FROM tools WHERE code = ?1", [code], |row| row.get(0))
-                .unwrap()
+            conn.query_row(
+                "SELECT input_schema FROM tools WHERE code = ?1",
+                [code],
+                |row| row.get(0),
+            )
+            .unwrap()
         };
         let add_arc = schema("add_arc");
-        assert!(add_arc.contains("\"motif_code\""), "add_arc must expose motif_code: {add_arc}");
+        assert!(
+            add_arc.contains("\"motif_code\""),
+            "add_arc must expose motif_code: {add_arc}"
+        );
         let set_motif = schema("set_arc_motif");
         assert!(set_motif.contains("\"motif_code\"") && set_motif.contains("\"declared_sources\""));
         let search_genre = schema("search_genre");
         for key in ["\"code\"", "\"query\"", "\"limit\"", "\"offset\""] {
-            assert!(search_genre.contains(key), "search_genre missing {key}: {search_genre}");
+            assert!(
+                search_genre.contains(key),
+                "search_genre missing {key}: {search_genre}"
+            );
         }
         let add_theme = schema("add_theme");
         assert!(add_theme.contains("\"question\"") && add_theme.contains("\"message\""));
@@ -337,7 +397,10 @@ mod tool_inventory_migration_tests {
             [], |row| row.get(0),
         ).unwrap();
         assert_eq!(content, "My custom rules");
-        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+        assert_eq!(
+            get_user_version(&conn).unwrap(),
+            MAX_SUPPORTED_SCHEMA_VERSION
+        );
     }
 }
 
@@ -350,18 +413,37 @@ mod chat_contract_migration_tests {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM tools t JOIN prompt_block_tools p ON t.id=p.tool_id WHERE t.code='get_tool_definition'", [], |r| r.get(0)).unwrap();
-        assert!(count >= 1, "get_tool_definition must stay granted to at least one prompt");
-        let schema: String = conn.query_row("SELECT input_schema FROM tools WHERE code='set_project'", [], |r| r.get(0)).unwrap();
+        assert!(
+            count >= 1,
+            "get_tool_definition must stay granted to at least one prompt"
+        );
+        let schema: String = conn
+            .query_row(
+                "SELECT input_schema FROM tools WHERE code='set_project'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         let schema: serde_json::Value = serde_json::from_str(&schema).unwrap();
         assert_eq!(schema["examples"][0]["target"]["chapter_count"], 120);
-        assert_eq!(schema["properties"]["target"]["properties"]["arc_count"]["minimum"], 1);
+        assert_eq!(
+            schema["properties"]["target"]["properties"]["arc_count"]["minimum"],
+            1
+        );
         let (format, content): (String, String) = conn.query_row("SELECT content_format,content FROM prompt_blocks WHERE prompt_code='story_context'", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
         assert_eq!(format, "JSON");
         assert_eq!(content, "{{story_context}}");
         let introduction: String = conn
-            .query_row("SELECT content FROM prompt_blocks WHERE prompt_code='introduction'", [], |r| r.get(0))
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='introduction'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert!(introduction.contains("SSOT"), "global prompt must state the loaded JSON is the SSOT");
+        assert!(
+            introduction.contains("SSOT"),
+            "global prompt must state the loaded JSON is the SSOT"
+        );
     }
 
     #[test]
@@ -369,12 +451,31 @@ mod chat_contract_migration_tests {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
         conn.execute("UPDATE prompt_blocks SET content='Author custom prompt' WHERE prompt_code='invariant_rule'", []).unwrap();
-        conn.execute("UPDATE tools SET description='Custom description' WHERE code='set_project'", []).unwrap();
+        conn.execute(
+            "UPDATE tools SET description='Custom description' WHERE code='set_project'",
+            [],
+        )
+        .unwrap();
         run_migrations(&mut conn).unwrap();
-        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
-        let content: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
+        assert_eq!(
+            get_user_version(&conn).unwrap(),
+            MAX_SUPPORTED_SCHEMA_VERSION
+        );
+        let content: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(content, "Author custom prompt");
-        let description: String = conn.query_row("SELECT description FROM tools WHERE code='set_project'", [], |r| r.get(0)).unwrap();
+        let description: String = conn
+            .query_row(
+                "SELECT description FROM tools WHERE code='set_project'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(description, "Custom description");
     }
 }
@@ -428,20 +529,36 @@ mod system_catalog_migration_tests {
     fn test_system_catalogs_seeded_with_genres_motifs_narrators_and_directives() {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
-        let genres: i64 = conn.query_row("SELECT COUNT(*) FROM genres", [], |r| r.get(0)).unwrap();
+        let genres: i64 = conn
+            .query_row("SELECT COUNT(*) FROM genres", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(genres, 50);
-        let motifs: i64 = conn.query_row("SELECT COUNT(*) FROM motifs", [], |r| r.get(0)).unwrap();
+        let motifs: i64 = conn
+            .query_row("SELECT COUNT(*) FROM motifs", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(motifs, 19);
-        let narrators: i64 = conn.query_row("SELECT COUNT(*) FROM narrator_configs", [], |r| r.get(0)).unwrap();
+        let narrators: i64 = conn
+            .query_row("SELECT COUNT(*) FROM narrator_configs", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(narrators, 64);
-        let directives: i64 = conn.query_row("SELECT COUNT(*) FROM narrative_directives", [], |r| r.get(0)).unwrap();
+        let directives: i64 = conn
+            .query_row("SELECT COUNT(*) FROM narrative_directives", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
         assert_eq!(directives, 73);
-        assert_eq!(get_user_version(&conn).unwrap(), MAX_SUPPORTED_SCHEMA_VERSION);
+        assert_eq!(
+            get_user_version(&conn).unwrap(),
+            MAX_SUPPORTED_SCHEMA_VERSION
+        );
     }
 }
 
 /// Run migrations including physical backup creation when upgrading an existing non-empty DB (§3.4, DB-P02, MIG-02).
-pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) -> Result<(), DbError> {
+pub fn run_migrations_with_backup(
+    conn: &mut Connection,
+    app_data_dir: &Path,
+) -> Result<(), DbError> {
     let current_version = get_user_version(conn)?;
 
     if current_version > MAX_SUPPORTED_SCHEMA_VERSION {
@@ -472,8 +589,8 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 ///    - SF-01: `draft_versions.seal_key` exists
 ///    - SF-02: `chapter_save_receipts` table exists
 ///    - SF-06: `workflow_round_receipts` table exists with 15 columns;
-///             `workflow_task_receipts` has 3 new nullable columns;
-///             `pending_patches.eligibility_json` exists
+///      `workflow_task_receipts` has 3 new nullable columns;
+///      `pending_patches.eligibility_json` exists
 ///    - SF-07: `scene_versions.parent_id` is NOT NULL
 /// 5. Mandatory indexes exist
 /// 6. PRAGMA foreign_key_check returns 0 violations
@@ -589,18 +706,20 @@ pub fn verify_schema_and_integrity(conn: &Connection) -> Result<(), DbError> {
     let dv_indices = get_index_names(conn, "draft_versions")?;
     if !dv_indices.iter().any(|idx| idx.contains("seal_key")) {
         // Also check if an unnamed UNIQUE constraint created an index
-        let mut idx_list = conn.prepare("PRAGMA index_list(draft_versions);")
+        let mut idx_list = conn
+            .prepare("PRAGMA index_list(draft_versions);")
             .map_err(|e| DbError::MigrationFailed(e.to_string()))?;
-        let has_seal_key_idx = idx_list.query_map([], |row| {
-            let idx_name: String = row.get(1)?;
-            Ok(idx_name)
-        })
-        .map_err(|e| DbError::MigrationFailed(e.to_string()))?
-        .filter_map(|r| r.ok())
-        .any(|idx_name| {
-            let cols = get_index_columns(conn, &idx_name).unwrap_or_default();
-            cols.contains(&"seal_key".to_string())
-        });
+        let has_seal_key_idx = idx_list
+            .query_map([], |row| {
+                let idx_name: String = row.get(1)?;
+                Ok(idx_name)
+            })
+            .map_err(|e| DbError::MigrationFailed(e.to_string()))?
+            .filter_map(|r| r.ok())
+            .any(|idx_name| {
+                let cols = get_index_columns(conn, &idx_name).unwrap_or_default();
+                cols.contains(&"seal_key".to_string())
+            });
         if !has_seal_key_idx {
             return Err(DbError::MigrationFailed(
                 "SF-01 violation: unique index on draft_versions(draft_session_id, seal_key) missing".into(),
@@ -689,8 +808,20 @@ mod summary_prompt_tests {
     fn test_author_facing_prompt_does_not_narrate_internal_mechanics() {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
-        let rule: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
-        let exceptions: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='exception_handling'", [], |r| r.get(0)).unwrap();
+        let rule: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let exceptions: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='exception_handling'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert!(rule.contains("Không kể quy trình kỹ thuật nội bộ"));
         assert!(rule.contains("Không bắt chước cách nói lỗi"));
         assert!(exceptions.contains("không yêu cầu tác giả xác nhận lại để sửa lỗi kỹ thuật"));
@@ -701,7 +832,13 @@ mod summary_prompt_tests {
     fn test_summary_rule_is_migrated_for_existing_databases() {
         let mut conn = Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
-        let rule: String = conn.query_row("SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'", [], |r| r.get(0)).unwrap();
+        let rule: String = conn
+            .query_row(
+                "SELECT content FROM prompt_blocks WHERE prompt_code='invariant_rule'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert!(rule.contains("150–200 từ"));
         assert!(rule.contains("declared_sources.summary=user"));
         assert!(rule.contains("không hỏi lại tác giả"));

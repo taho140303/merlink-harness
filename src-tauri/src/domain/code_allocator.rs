@@ -118,8 +118,7 @@ impl CodeAllocator {
         }
 
         let mut candidate_counters = state.counters.clone();
-        let allocated_code =
-            Self::allocate_on_parts(&mut candidate_counters, &occupied, spec)?;
+        let allocated_code = Self::allocate_on_parts(&mut candidate_counters, &occupied, spec)?;
 
         // Verify monotonicity before committing candidate counters back to state.
         Self::verify_counter_monotonicity(&state.counters, &candidate_counters)?;
@@ -282,12 +281,12 @@ impl CodeAllocator {
         separator_and_tag: &str,
     ) -> Result<String, DomainError> {
         let current = counters.get(counter_key).copied().unwrap_or(0);
-        let mut next = current.checked_add(1).ok_or_else(|| {
-            DomainError::InvalidEntityCode {
+        let mut next = current
+            .checked_add(1)
+            .ok_or_else(|| DomainError::InvalidEntityCode {
                 code: code_prefix.to_string(),
                 reason: format!("counter overflow for key '{counter_key}'"),
-            }
-        })?;
+            })?;
 
         loop {
             let candidate = format!("{code_prefix}{separator_and_tag}{next}");
@@ -295,12 +294,12 @@ impl CodeAllocator {
                 counters.insert(counter_key.to_string(), next);
                 return Ok(candidate);
             }
-            next = next.checked_add(1).ok_or_else(|| {
-                DomainError::InvalidEntityCode {
+            next = next
+                .checked_add(1)
+                .ok_or_else(|| DomainError::InvalidEntityCode {
                     code: code_prefix.to_string(),
                     reason: format!("counter overflow for key '{counter_key}'"),
-                }
-            })?;
+                })?;
         }
     }
 }
@@ -311,22 +310,22 @@ fn fold_vietnamese_and_latin_char(ch: char) -> Option<char> {
         return Some(ch);
     }
     match ch {
-        'à' | 'á' | 'ả' | 'ã' | 'ạ' | 'ă' | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ' | 'â' | 'ầ' | 'ấ'
-        | 'ẩ' | 'ẫ' | 'ậ' | 'À' | 'Á' | 'Ả' | 'Ã' | 'Ạ' | 'Ă' | 'Ằ' | 'Ắ' | 'Ẳ' | 'Ẵ' | 'Ặ'
-        | 'Â' | 'Ầ' | 'Ấ' | 'Ẩ' | 'Ẫ' | 'Ậ' | 'ä' | 'å' | 'æ' | 'Ä' | 'Å' | 'Æ' => {
+        'à' | 'á' | 'ả' | 'ã' | 'ạ' | 'ă' | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ' | 'â' | 'ầ' | 'ấ' | 'ẩ'
+        | 'ẫ' | 'ậ' | 'À' | 'Á' | 'Ả' | 'Ã' | 'Ạ' | 'Ă' | 'Ằ' | 'Ắ' | 'Ẳ' | 'Ẵ' | 'Ặ' | 'Â'
+        | 'Ầ' | 'Ấ' | 'Ẩ' | 'Ẫ' | 'Ậ' | 'ä' | 'å' | 'æ' | 'Ä' | 'Å' | 'Æ' => {
             Some('a')
         }
         'đ' | 'Đ' => Some('d'),
-        'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' | 'È' | 'É' | 'Ẻ'
-        | 'Ẽ' | 'Ẹ' | 'Ê' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' | 'ë' | 'Ë' => Some('e'),
+        'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ' | 'ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ' | 'È' | 'É' | 'Ẻ' | 'Ẽ'
+        | 'Ẹ' | 'Ê' | 'Ề' | 'Ế' | 'Ể' | 'Ễ' | 'Ệ' | 'ë' | 'Ë' => Some('e'),
         'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị' | 'Ì' | 'Í' | 'Ỉ' | 'Ĩ' | 'Ị' | 'î' | 'ï' | 'Î' | 'Ï' => {
             Some('i')
         }
-        'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ' | 'ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ' | 'ơ' | 'ờ' | 'ớ'
-        | 'ở' | 'ỡ' | 'ợ' | 'Ò' | 'Ó' | 'Ỏ' | 'Õ' | 'Ọ' | 'Ô' | 'Ồ' | 'Ố' | 'Ổ' | 'Ỗ' | 'Ộ'
-        | 'Ơ' | 'Ờ' | 'Ớ' | 'Ở' | 'Ỡ' | 'Ợ' | 'ö' | 'ø' | 'Ö' | 'Ø' => Some('o'),
-        'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' | 'Ù' | 'Ú' | 'Ủ'
-        | 'Ũ' | 'Ụ' | 'Ư' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' | 'ü' | 'û' | 'Ü' | 'Û' => {
+        'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ' | 'ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ' | 'ơ' | 'ờ' | 'ớ' | 'ở'
+        | 'ỡ' | 'ợ' | 'Ò' | 'Ó' | 'Ỏ' | 'Õ' | 'Ọ' | 'Ô' | 'Ồ' | 'Ố' | 'Ổ' | 'Ỗ' | 'Ộ' | 'Ơ'
+        | 'Ờ' | 'Ớ' | 'Ở' | 'Ỡ' | 'Ợ' | 'ö' | 'ø' | 'Ö' | 'Ø' => Some('o'),
+        'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ' | 'ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự' | 'Ù' | 'Ú' | 'Ủ' | 'Ũ'
+        | 'Ụ' | 'Ư' | 'Ừ' | 'Ứ' | 'Ử' | 'Ữ' | 'Ự' | 'ü' | 'û' | 'Ü' | 'Û' => {
             Some('u')
         }
         'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ' | 'Ỳ' | 'Ý' | 'Ỷ' | 'Ỹ' | 'Ỵ' | 'ÿ' | 'Ÿ' => {

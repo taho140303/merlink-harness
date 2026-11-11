@@ -282,8 +282,8 @@ impl WorldProbeReportV1 {
             ));
         }
 
-        let val = serde_json::to_value(self)
-            .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
+        let val =
+            serde_json::to_value(self).map_err(|e| ArtifactError::Serialization(e.to_string()))?;
         let canonical_bytes = canonical_json_value(&val)?;
 
         validate_budget(canonical_bytes.len(), budget)?;
@@ -292,8 +292,8 @@ impl WorldProbeReportV1 {
 
     /// Serializes to RFC 8785 JCS canonical UTF-8 bytes without enforcing budget.
     pub fn canonical_jcs_bytes(&self) -> Result<Vec<u8>, ArtifactError> {
-        let val = serde_json::to_value(self)
-            .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
+        let val =
+            serde_json::to_value(self).map_err(|e| ArtifactError::Serialization(e.to_string()))?;
         canonical_json_value(&val)
     }
 
@@ -307,7 +307,10 @@ impl WorldProbeReportV1 {
     }
 
     /// Validates budget and returns both canonical JCS bytes and domain-separated SHA-256 hash.
-    pub fn encode_and_hash(&self, budget: Option<usize>) -> Result<(Vec<u8>, String), ArtifactError> {
+    pub fn encode_and_hash(
+        &self,
+        budget: Option<usize>,
+    ) -> Result<(Vec<u8>, String), ArtifactError> {
         let canonical_bytes = self.validate(budget)?;
         let mut hasher = Sha256::new();
         hasher.update(ARTIFACT_DOMAIN_PREFIX);
@@ -394,8 +397,8 @@ impl WorldWriteInputV1 {
             }
         }
 
-        let val = serde_json::to_value(self)
-            .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
+        let val =
+            serde_json::to_value(self).map_err(|e| ArtifactError::Serialization(e.to_string()))?;
         let canonical_bytes = canonical_json_value(&val)?;
 
         validate_budget(canonical_bytes.len(), budget)?;
@@ -404,8 +407,8 @@ impl WorldWriteInputV1 {
 
     /// Serializes to RFC 8785 JCS canonical UTF-8 bytes without enforcing budget.
     pub fn canonical_jcs_bytes(&self) -> Result<Vec<u8>, ArtifactError> {
-        let val = serde_json::to_value(self)
-            .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
+        let val =
+            serde_json::to_value(self).map_err(|e| ArtifactError::Serialization(e.to_string()))?;
         canonical_json_value(&val)
     }
 
@@ -419,7 +422,10 @@ impl WorldWriteInputV1 {
     }
 
     /// Validates budget and returns both canonical JCS bytes and domain-separated SHA-256 hash.
-    pub fn encode_and_hash(&self, budget: Option<usize>) -> Result<(Vec<u8>, String), ArtifactError> {
+    pub fn encode_and_hash(
+        &self,
+        budget: Option<usize>,
+    ) -> Result<(Vec<u8>, String), ArtifactError> {
         let canonical_bytes = self.validate(budget)?;
         let mut hasher = Sha256::new();
         hasher.update(ARTIFACT_DOMAIN_PREFIX);
@@ -457,7 +463,10 @@ impl WorldWriteInputV1 {
         for ref_entry in &self.probe_refs {
             let probe = sealed_probes
                 .iter()
-                .find(|p| p.task_identity == ref_entry.task_identity && p.round_receipt_id == ref_entry.round_receipt_id)
+                .find(|p| {
+                    p.task_identity == ref_entry.task_identity
+                        && p.round_receipt_id == ref_entry.round_receipt_id
+                })
                 .ok_or_else(|| ArtifactError::MissingProbeRef {
                     task_identity: ref_entry.task_identity.clone(),
                 })?;
@@ -577,7 +586,8 @@ pub fn verify_recovery_artifacts(
         }
     } else {
         return Err(ArtifactError::RequiresReplan(
-            "missing required write input artifact on recovery; cannot fabricate completion".to_string(),
+            "missing required write input artifact on recovery; cannot fabricate completion"
+                .to_string(),
         ));
     }
 
@@ -611,42 +621,85 @@ pub fn verify_p3s3_dispatch_preconditions(
 
 /// Validate the Owner-approved JSON report before accepting it as a durable probe artifact.
 /// `tempKey` is scoped to one report and never becomes a draft entity code.
-pub fn validate_probe_candidates(report_text: &str, existing_world_codes: &[String]) -> Result<Value, ArtifactError> {
+pub fn validate_probe_candidates(
+    report_text: &str,
+    existing_world_codes: &[String],
+) -> Result<Value, ArtifactError> {
     use std::collections::{BTreeMap, BTreeSet};
     let report: Value = serde_json::from_str(report_text)
         .map_err(|e| ArtifactError::Serialization(e.to_string()))?;
-    let object = report.as_object().ok_or_else(|| ArtifactError::Serialization("ProbeCandidatesV1 must be an object".into()))?;
+    let object = report.as_object().ok_or_else(|| {
+        ArtifactError::Serialization("ProbeCandidatesV1 must be an object".into())
+    })?;
     if !object.contains_key("worldSettings")
         || !object.contains_key("loreEntries")
         || object.get("schemaVersion").and_then(Value::as_u64) != Some(1)
     {
-        return Err(ArtifactError::Serialization("Invalid ProbeCandidatesV1 version or keys".into()));
+        return Err(ArtifactError::Serialization(
+            "Invalid ProbeCandidatesV1 version or keys".into(),
+        ));
     }
-    let worlds = object.get("worldSettings").and_then(Value::as_array)
+    let worlds = object
+        .get("worldSettings")
+        .and_then(Value::as_array)
         .ok_or_else(|| ArtifactError::Serialization("worldSettings must be an array".into()))?;
-    let lores = object.get("loreEntries").and_then(Value::as_array)
+    let lores = object
+        .get("loreEntries")
+        .and_then(Value::as_array)
         .ok_or_else(|| ArtifactError::Serialization("loreEntries must be an array".into()))?;
     let existing: BTreeSet<&str> = existing_world_codes.iter().map(String::as_str).collect();
     let mut parents = BTreeMap::<&str, Option<&str>>::new();
     for item in worlds {
-        let entry = item.as_object().ok_or_else(|| ArtifactError::Serialization("World candidate must be an object".into()))?;
-        let get = |key: &str| entry.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty());
-        let key = get("tempKey").ok_or_else(|| ArtifactError::Serialization("Missing world tempKey".into()))?;
+        let entry = item.as_object().ok_or_else(|| {
+            ArtifactError::Serialization("World candidate must be an object".into())
+        })?;
+        let get = |key: &str| {
+            entry
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+        };
+        let key = get("tempKey")
+            .ok_or_else(|| ArtifactError::Serialization("Missing world tempKey".into()))?;
         let access_value = entry
             .get("access")
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty());
         if get("displayName").is_none()
-            || !matches!(get("type"), Some("REALM" | "WORLD" | "REGION" | "COUNTRY" | "CITY" | "TOWN" | "FACILITY" | "STREET" | "ROOM"))
-            || access_value.is_some() && !matches!(access_value, Some("PUBLIC" | "PRIVATE" | "SECRET" | "LOCKED" | "GUARDED" | "RESTRICTED")) {
-            return Err(ArtifactError::Serialization("Invalid world candidate fields or enum".into()));
+            || !matches!(
+                get("type"),
+                Some(
+                    "REALM"
+                        | "WORLD"
+                        | "REGION"
+                        | "COUNTRY"
+                        | "CITY"
+                        | "TOWN"
+                        | "FACILITY"
+                        | "STREET"
+                        | "ROOM"
+                )
+            )
+            || access_value.is_some()
+                && !matches!(
+                    access_value,
+                    Some("PUBLIC" | "PRIVATE" | "SECRET" | "LOCKED" | "GUARDED" | "RESTRICTED")
+                )
+        {
+            return Err(ArtifactError::Serialization(
+                "Invalid world candidate fields or enum".into(),
+            ));
         }
         let parent = get("parentTempKey");
         let external = get("existingParentCode");
-        if parent.is_some() && external.is_some() || external.is_some_and(|code| !existing.contains(code))
-            || parents.insert(key, parent).is_some() {
-            return Err(ArtifactError::Serialization("Invalid or duplicate world parent reference".into()));
+        if parent.is_some() && external.is_some()
+            || external.is_some_and(|code| !existing.contains(code))
+            || parents.insert(key, parent).is_some()
+        {
+            return Err(ArtifactError::Serialization(
+                "Invalid or duplicate world parent reference".into(),
+            ));
         }
     }
     for key in parents.keys() {
@@ -658,42 +711,46 @@ pub fn validate_probe_candidates(report_text: &str, existing_world_codes: &[Stri
             }
             next = match parents.get(current) {
                 Some(parent) => *parent,
-                None => return Err(ArtifactError::Serialization("Missing world parentTempKey".into())),
+                None => {
+                    return Err(ArtifactError::Serialization(
+                        "Missing world parentTempKey".into(),
+                    ))
+                }
             };
         }
     }
     let mut lore_keys = BTreeSet::new();
     for item in lores {
-        let entry = item.as_object().ok_or_else(|| ArtifactError::Serialization("Lore candidate must be an object".into()))?;
-        let get = |key: &str| entry.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty());
-        let key = get("tempKey").ok_or_else(|| ArtifactError::Serialization("Missing lore tempKey".into()))?;
+        let entry = item.as_object().ok_or_else(|| {
+            ArtifactError::Serialization("Lore candidate must be an object".into())
+        })?;
+        let get = |key: &str| {
+            entry
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+        };
+        let key = get("tempKey")
+            .ok_or_else(|| ArtifactError::Serialization("Missing lore tempKey".into()))?;
         let world = get("worldTempKey");
         let external = get("existingWorldCode");
-        if !lore_keys.insert(key) || get("displayName").is_none()
-            || !matches!(get("type"), Some("CULTURE" | "HISTORY" | "FACTION" | "ITEM"))
+        if !lore_keys.insert(key)
+            || get("displayName").is_none()
+            || !matches!(
+                get("type"),
+                Some("CULTURE" | "HISTORY" | "FACTION" | "ITEM")
+            )
             || !entry.get("data").is_some_and(Value::is_object)
             || world.is_some() == external.is_some()
             || world.is_some_and(|code| !parents.contains_key(code))
-            || external.is_some_and(|code| !existing.contains(code)) {
-            return Err(ArtifactError::Serialization("Invalid lore candidate or world reference".into()));
+            || external.is_some_and(|code| !existing.contains(code))
+        {
+            return Err(ArtifactError::Serialization(
+                "Invalid lore candidate or world reference".into(),
+            ));
         }
     }
     Ok(report)
-}
-
-#[cfg(test)]
-mod probe_candidates_tests {
-    use super::*;
-
-    #[test]
-    fn test_probe_candidates_validate_parent_and_lore_references() {
-        let valid = r#"{"schemaVersion":1,"worldSettings":[{"tempKey":"w1","displayName":"City","type":"CITY"},{"tempKey":"w2","parentTempKey":"w1","displayName":"Library","type":"FACILITY"}],"loreEntries":[{"tempKey":"l1","worldTempKey":"w2","displayName":"Fire","type":"HISTORY","data":{}}]}"#;
-        assert!(validate_probe_candidates(valid, &[]).is_ok());
-        assert!(validate_probe_candidates(&valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"missing\""), &[]).is_err());
-        assert!(validate_probe_candidates(&valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"w2\""), &[]).is_err());
-        assert!(validate_probe_candidates(&valid.replace("\"worldTempKey\":\"w2\"", "\"worldTempKey\":\"missing\""), &[]).is_err());
-        assert!(validate_probe_candidates(&valid.replace("\"type\":\"CITY\"", "\"type\":\"UNKNOWN\""), &[]).is_err());
-    }
 }
 
 // ============================================================================
@@ -841,4 +898,35 @@ fn write_jcs_number(
     Err(ArtifactError::NonFiniteNumber {
         path: path.to_string(),
     })
+}
+
+#[cfg(test)]
+mod probe_candidates_tests {
+    use super::*;
+
+    #[test]
+    fn test_probe_candidates_validate_parent_and_lore_references() {
+        let valid = r#"{"schemaVersion":1,"worldSettings":[{"tempKey":"w1","displayName":"City","type":"CITY"},{"tempKey":"w2","parentTempKey":"w1","displayName":"Library","type":"FACILITY"}],"loreEntries":[{"tempKey":"l1","worldTempKey":"w2","displayName":"Fire","type":"HISTORY","data":{}}]}"#;
+        assert!(validate_probe_candidates(valid, &[]).is_ok());
+        assert!(validate_probe_candidates(
+            &valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"missing\""),
+            &[]
+        )
+        .is_err());
+        assert!(validate_probe_candidates(
+            &valid.replace("\"parentTempKey\":\"w1\"", "\"parentTempKey\":\"w2\""),
+            &[]
+        )
+        .is_err());
+        assert!(validate_probe_candidates(
+            &valid.replace("\"worldTempKey\":\"w2\"", "\"worldTempKey\":\"missing\""),
+            &[]
+        )
+        .is_err());
+        assert!(validate_probe_candidates(
+            &valid.replace("\"type\":\"CITY\"", "\"type\":\"UNKNOWN\""),
+            &[]
+        )
+        .is_err());
+    }
 }

@@ -171,8 +171,7 @@ pub fn validate_round_tasks_pre_mutation<'a>(
     plan_ctx: &AuthorizedRoundPlanContext,
 ) -> Result<Vec<&'a CompletedTaskOutcome>, IpcError> {
     // 1. Validate workflow run, plan generation, phase/subphase, and round index metadata
-    if req.workflow_run_id.trim().to_ascii_lowercase()
-        != plan_ctx.workflow_run_id.trim().to_ascii_lowercase()
+    if !req.workflow_run_id.trim().eq_ignore_ascii_case(plan_ctx.workflow_run_id.trim())
         || req.plan_generation != plan_ctx.plan_generation
         || req.phase != plan_ctx.phase
         || req.subphase != plan_ctx.subphase
@@ -184,7 +183,7 @@ pub fn validate_round_tasks_pre_mutation<'a>(
         ));
     }
 
-    if (req.phase == 5 && !matches!(req.subphase, Some(1 | 2 | 3)))
+    if (req.phase == 5 && !matches!(req.subphase, Some(1..=3)))
         || (req.phase != 5 && req.subphase.is_some())
     {
         return Err(IpcError::new(
@@ -298,6 +297,7 @@ pub fn validate_round_tasks_pre_mutation<'a>(
 }
 
 /// Executes TX-04 transaction boundary to seal a workflow round.
+#[allow(clippy::type_complexity)]
 pub fn seal_workflow_round_tx(
     conn: &mut Connection,
     req: &WorkflowRoundSealRequest,
@@ -948,8 +948,12 @@ pub fn seal_workflow_round_tx(
     }
 
     // 11. Atomic Commit TX-04
-    tx.commit()
-        .map_err(|e| IpcError::new(ErrorCode::DatabaseError, format!("Failed to commit TX-04: {e}")))?;
+    tx.commit().map_err(|e| {
+        IpcError::new(
+            ErrorCode::DatabaseError,
+            format!("Failed to commit TX-04: {e}"),
+        )
+    })?;
 
     Ok(WorkflowRoundSealResponse {
         round_receipt_id: Some(round_receipt_id),

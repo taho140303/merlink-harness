@@ -7,7 +7,6 @@
 
 use std::sync::Arc;
 
-
 use crate::domain::business_flow::{BusinessFlowData, ProvenanceSource};
 use crate::domain::phase3_artifact::{
     validate_probe_candidates, ArtifactError, WorldProbeReportV1, DEFAULT_MAX_ARTIFACT_BUDGET,
@@ -73,13 +72,22 @@ impl LlmWorkflowTaskExecutor {
 
         for candidate in worlds {
             if ctx.cancel_token.is_cancelled() {
-                return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
+                return Err(IpcError::new(
+                    ErrorCode::InternalError,
+                    "Workflow task cancelled",
+                ));
             }
-            let temp_key = candidate.get("tempKey").and_then(|v| v.as_str()).unwrap_or_default();
+            let temp_key = candidate
+                .get("tempKey")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             if temp_key.is_empty() || self.world_codes.lock().unwrap().contains_key(temp_key) {
                 continue;
             }
-            let display_name = candidate.get("displayName").and_then(|v| v.as_str()).unwrap_or("Setting");
+            let display_name = candidate
+                .get("displayName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Setting");
             let existing_parent = candidate
                 .get("existingParentCode")
                 .and_then(|v| v.as_str())
@@ -130,13 +138,19 @@ impl LlmWorkflowTaskExecutor {
                 if let Some(next) = outcome.mutated_state() {
                     state = next.clone();
                     applied += 1;
-                    self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
+                    self.world_codes
+                        .lock()
+                        .unwrap()
+                        .insert(temp_key.to_string(), code);
                 }
             }
         }
 
         for lore in lores {
-            let temp_key = lore.get("tempKey").and_then(|v| v.as_str()).unwrap_or_default();
+            let temp_key = lore
+                .get("tempKey")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             if temp_key.is_empty() || self.world_codes.lock().unwrap().contains_key(temp_key) {
                 continue;
             }
@@ -149,8 +163,13 @@ impl LlmWorkflowTaskExecutor {
                         .and_then(|v| v.as_str())
                         .and_then(|world| self.world_codes.lock().unwrap().get(world).cloned())
                 });
-            let Some(world_code) = world_code else { continue };
-            let display_name = lore.get("displayName").and_then(|v| v.as_str()).unwrap_or("Lore");
+            let Some(world_code) = world_code else {
+                continue;
+            };
+            let display_name = lore
+                .get("displayName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Lore");
             let mut parameters = serde_json::json!({
                 "code": unique_lore_code(&state, display_name),
                 "world_setting_code": world_code,
@@ -175,7 +194,10 @@ impl LlmWorkflowTaskExecutor {
                 if let Some(next) = outcome.mutated_state() {
                     state = next.clone();
                     applied += 1;
-                    self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
+                    self.world_codes
+                        .lock()
+                        .unwrap()
+                        .insert(temp_key.to_string(), code);
                 }
             }
         }
@@ -210,8 +232,13 @@ impl LlmWorkflowTaskExecutor {
                 // Read tools are executed by the read-tools layer, not this executor; the
                 // workflow injects the state slice instead so the model never gets a call
                 // that can only fail.
-                let name = schema.get("name").and_then(|v| v.as_str()).unwrap_or_default();
-                !(name.starts_with("get_") || name.starts_with("search_") || name.starts_with("lookup_"))
+                let name = schema
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                !(name.starts_with("get_")
+                    || name.starts_with("search_")
+                    || name.starts_with("lookup_"))
             })
             .filter_map(|schema| {
                 Some(ProviderToolDefinition {
@@ -261,7 +288,10 @@ generated content with declared_sources = ai_generated instead of asking for con
             .and_then(|value| value.as_array())
             .map(|pairs| pairs.len())
             .unwrap_or(0);
-        let arcs_target = scope.get("arcsTarget").and_then(|value| value.as_u64()).unwrap_or(0) as usize;
+        let arcs_target = scope
+            .get("arcsTarget")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(0) as usize;
         let range_size = scope
             .get("range")
             .and_then(|value| value.as_array())
@@ -276,7 +306,10 @@ generated content with declared_sources = ai_generated instead of asking for con
 
         for _ in 0..max_turns {
             if ctx.cancel_token.is_cancelled() {
-                return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
+                return Err(IpcError::new(
+                    ErrorCode::InternalError,
+                    "Workflow task cancelled",
+                ));
             }
             let request = ProviderChatRequest {
                 model: "chat".to_string(),
@@ -287,7 +320,8 @@ generated content with declared_sources = ai_generated instead of asking for con
             };
             let response = tokio::time::timeout(
                 std::time::Duration::from_secs(180),
-                self.provider.chat_with_tools(&request, ctx.cancel_token.clone()),
+                self.provider
+                    .chat_with_tools(&request, ctx.cancel_token.clone()),
             )
             .await
             .map_err(|_| {
@@ -322,7 +356,7 @@ generated content with declared_sources = ai_generated instead of asking for con
                 } else if outcome.is_pending() {
                     result_note.push_str(" pending_confirmation");
                 }
-                if let Some(results) = serde_json::to_value(&outcome.results).ok() {
+                if let Ok(results) = serde_json::to_value(&outcome.results) {
                     result_note.push_str(&format!(" results={results}"));
                 }
                 messages.push(ProviderMessage::tool_result(
@@ -361,10 +395,7 @@ generated content with declared_sources = ai_generated instead of asking for con
         })
     }
 
-    async fn probe(
-        &self,
-        ctx: &TaskExecutionContext,
-    ) -> Result<TaskExecutionOutput, IpcError> {
+    async fn probe(&self, ctx: &TaskExecutionContext) -> Result<TaskExecutionOutput, IpcError> {
         let scope = ctx.task_spec.assigned_scope.clone();
         let (lo, hi) = probe_range(&scope)?;
         let chapters = chapter_context(&ctx.snapshot.business_flow_data, lo, hi);
@@ -394,12 +425,18 @@ generated content with declared_sources = ai_generated instead of asking for con
             .map_err(|error| error.to_ipc_error())?;
 
         if ctx.cancel_token.is_cancelled() {
-            return Err(IpcError::new(ErrorCode::InternalError, "Workflow task cancelled"));
+            return Err(IpcError::new(
+                ErrorCode::InternalError,
+                "Workflow task cancelled",
+            ));
         }
 
-        let raw = response
-            .content
-            .ok_or_else(|| IpcError::new(ErrorCode::ValidationFailed, "Probe subagent returned no content"))?;
+        let raw = response.content.ok_or_else(|| {
+            IpcError::new(
+                ErrorCode::ValidationFailed,
+                "Probe subagent returned no content",
+            )
+        })?;
         let report_text = strip_code_fences(&raw);
 
         let report = WorldProbeReportV1::new(scope_string(&scope), report_text.clone());
@@ -465,12 +502,18 @@ fn task_instruction(ctx: &TaskExecutionContext) -> String {
         "chapter_outline" => {
             let (lo, hi) = range("writeRange").unwrap_or((1, 1));
             let count = hi.saturating_sub(lo) + 1;
-            let arc = scope.get("arcCode").and_then(|value| value.as_str()).unwrap_or("arc");
+            let arc = scope
+                .get("arcCode")
+                .and_then(|value| value.as_str())
+                .unwrap_or("arc");
             format!(
                 "Hãy tạo đúng {count} chương cho Arc '{arc}', position {lo}..={hi}. Dùng add_chapter với arc_code='{arc}', position và summary cho từng chương. Sau mỗi chương, tạo ít nhất một cảnh bằng add_scene (chapter_code là code trả về, position bắt đầu từ 1, có summary). Không bỏ trống cảnh và không tạo chương ngoài khoảng position được giao."
             )
         }
-        "world_probe" => "Thăm dò bối cảnh theo phạm vi chương được giao và trả về JSON đúng hợp đồng.".to_string(),
+        "world_probe" => {
+            "Thăm dò bối cảnh theo phạm vi chương được giao và trả về JSON đúng hợp đồng."
+                .to_string()
+        }
         "scene_config" => {
             let (lo, hi) = range("range").unwrap_or((1, 1));
             format!(
@@ -484,15 +527,32 @@ fn task_instruction(ctx: &TaskExecutionContext) -> String {
             )
         }
         "rel_matrix" => {
-            let pairs = scope.get("pairs").and_then(|value| value.as_array()).cloned().unwrap_or_default();
-            let listed = pairs.iter().filter_map(|pair| pair.as_array()).filter(|pair| pair.len()==2)
-                .map(|pair| format!("{}->{}", pair[0].as_str().unwrap_or(""), pair[1].as_str().unwrap_or("")))
-                .collect::<Vec<_>>().join(", ");
+            let pairs = scope
+                .get("pairs")
+                .and_then(|value| value.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let listed = pairs
+                .iter()
+                .filter_map(|pair| pair.as_array())
+                .filter(|pair| pair.len() == 2)
+                .map(|pair| {
+                    format!(
+                        "{}->{}",
+                        pair[0].as_str().unwrap_or(""),
+                        pair[1].as_str().unwrap_or("")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
             format!(
                 "Tạo quan hệ có hướng cho các cặp: {listed}. Mỗi cặp gọi add_relationship(from_code, to_code, motif_code), add_relationship_role nếu cần, và set_relationship_state cho các cảnh có thay đổi (ghi đủ 7 chiều với enum NONE/LOW/MODERATE/HIGH/ABSOLUTE)."
             )
         }
-        _ => format!("Hãy thực hiện task '{}' trong phạm vi được giao.", ctx.task_spec.task_kind),
+        _ => format!(
+            "Hãy thực hiện task '{}' trong phạm vi được giao.",
+            ctx.task_spec.task_kind
+        ),
     }
 }
 
@@ -618,12 +678,24 @@ fn slugify(value: &str) -> String {
         }
     }
     let trimmed = slug.trim_matches('_').to_string();
-    if trimmed.is_empty() { "world".to_string() } else { trimmed }
+    if trimmed.is_empty() {
+        "world".to_string()
+    } else {
+        trimmed
+    }
 }
 
 fn unique_code(state: &BusinessFlowData, display_name: &str) -> String {
     let base = format!("ws_{}", slugify(display_name));
-    unique_among(state.optional.world_building_phase.world_settings.iter().map(|w| w.code.as_str()), &base)
+    unique_among(
+        state
+            .optional
+            .world_building_phase
+            .world_settings
+            .iter()
+            .map(|w| w.code.as_str()),
+        &base,
+    )
 }
 
 fn unique_lore_code(state: &BusinessFlowData, display_name: &str) -> String {
@@ -703,7 +775,10 @@ fn probe_range(scope: &serde_json::Value) -> Result<(i32, i32), IpcError> {
         .and_then(|value| value.as_array())
         .filter(|array| array.len() == 2)
         .ok_or_else(|| {
-            IpcError::new(ErrorCode::ValidationFailed, "Probe task scope has no chapter range")
+            IpcError::new(
+                ErrorCode::ValidationFailed,
+                "Probe task scope has no chapter range",
+            )
         })?;
     let lo = array[0].as_i64().unwrap_or(0) as i32;
     let hi = array[1].as_i64().unwrap_or(0) as i32;
@@ -729,7 +804,9 @@ fn chapter_context(
     let mut lines = Vec::new();
     for arc in &flow.optional.chapter_phase.arcs {
         for chapter in &arc.chapters {
-            let Some(position) = chapter.position.value else { continue };
+            let Some(position) = chapter.position.value else {
+                continue;
+            };
             let position = position as i32;
             if position < lo || position > hi {
                 continue;
@@ -762,7 +839,11 @@ fn probe_output_contract() -> String {
 }
 
 fn probe_system_prompt(system_language: &str) -> String {
-    let language = if system_language == "vi" { "Tiếng Việt" } else { "English" };
+    let language = if system_language == "vi" {
+        "Tiếng Việt"
+    } else {
+        "English"
+    };
     format!(
         "Bạn là subagent thăm dò thế giới (world_probe) cho một dàn ý truyện. \
 Chỉ trả về DUY NHẤT một JSON object hợp lệ, không markdown, không giải thích.\n\
@@ -820,11 +901,13 @@ mod tests {
     #[test]
     fn story_context_carries_approved_outline_decisions() {
         let mut flow = BusinessFlowData::new();
-        flow.decision_log.push(crate::domain::business_flow::DecisionLogEntry {
-            id: "decision-1".into(),
-            summary: "5 Arc: Gặp gỡ tình cờ / Thử thách / Khẳng định / Đối đầu / Kết thúc".into(),
-            source: crate::domain::business_flow::ProvenanceSource::User,
-        });
+        flow.decision_log
+            .push(crate::domain::business_flow::DecisionLogEntry {
+                id: "decision-1".into(),
+                summary: "5 Arc: Gặp gỡ tình cờ / Thử thách / Khẳng định / Đối đầu / Kết thúc"
+                    .into(),
+                source: crate::domain::business_flow::ProvenanceSource::User,
+            });
         let context = render_story_context(&flow);
         assert!(context.contains("Approved outlines (decision_log)"));
         assert!(context.contains("5 Arc: Gặp gỡ tình cờ"));
@@ -871,15 +954,18 @@ mod tests {
             calls: std::sync::Mutex::new(0),
         });
         let mut flow = BusinessFlowData::new();
-        flow.optional.chapter_phase.arcs = vec![crate::domain::business_flow::ChapterPhaseArcItem {
-            code: "arc_one".into(),
-            chapters: vec![crate::domain::business_flow::ChapterPhaseChapterItem {
-                code: "arc_one-c1".into(),
-                position: crate::domain::business_flow::TrackedField::user(1),
-                display_name: crate::domain::business_flow::TrackedField::user("Chương 1".to_string()),
-                ..Default::default()
-            }],
-        }];
+        flow.optional.chapter_phase.arcs =
+            vec![crate::domain::business_flow::ChapterPhaseArcItem {
+                code: "arc_one".into(),
+                chapters: vec![crate::domain::business_flow::ChapterPhaseChapterItem {
+                    code: "arc_one-c1".into(),
+                    position: crate::domain::business_flow::TrackedField::user(1),
+                    display_name: crate::domain::business_flow::TrackedField::user(
+                        "Chương 1".to_string(),
+                    ),
+                    ..Default::default()
+                }],
+            }];
         let mut working = WorkingState::new(Uuid::new_v4());
         working.business_flow_data = flow;
         let ctx = TaskExecutionContext {
@@ -921,8 +1007,15 @@ mod tests {
             .await
             .expect("valid probe report must be accepted");
 
-        assert_eq!(*provider.calls.lock().unwrap(), 1, "provider must be called once");
-        assert!(output.mutations.is_empty(), "probe tasks never mutate draft state");
+        assert_eq!(
+            *provider.calls.lock().unwrap(),
+            1,
+            "provider must be called once"
+        );
+        assert!(
+            output.mutations.is_empty(),
+            "probe tasks never mutate draft state"
+        );
         let artifact = output.artifact.expect("probe must seal an artifact");
         assert_eq!(artifact["schemaVersion"], 1);
         assert_eq!(artifact["reportText"].as_str().unwrap(), report);
@@ -967,7 +1060,9 @@ mod tests {
             _tx: mpsc::Sender<ProviderStreamChunk>,
             _cancel: CancellationToken,
         ) -> Result<ProviderStreamSummary, crate::providers::traits::ProviderError> {
-            Err(crate::providers::traits::ProviderError::Internal("not used".into()))
+            Err(crate::providers::traits::ProviderError::Internal(
+                "not used".into(),
+            ))
         }
     }
 
@@ -992,14 +1087,22 @@ mod tests {
         let provider = Arc::new(ScriptedProvider { responses: calls });
         let (_, mut ctx) = probe_context("{}");
         ctx.task_spec.task_kind = "outline_window".into();
-        ctx.tool_schemas = vec![json!({"name": "add_arc", "description": "Add arc", "parameters": {"type": "object"}})];
+        ctx.tool_schemas = vec![
+            json!({"name": "add_arc", "description": "Add arc", "parameters": {"type": "object"}}),
+        ];
 
         let output = LlmWorkflowTaskExecutor::new(provider as Arc<dyn LlmProvider>)
             .execute_task(&ctx)
             .await
             .expect("tool loop must succeed");
-        assert!(output.applied_write_count >= 1, "applied tool call must be counted");
-        assert!(!output.mutations.is_empty(), "applied mutation must produce patch ops");
+        assert!(
+            output.applied_write_count >= 1,
+            "applied tool call must be counted"
+        );
+        assert!(
+            !output.mutations.is_empty(),
+            "applied mutation must produce patch ops"
+        );
     }
 
     #[tokio::test]
@@ -1023,16 +1126,27 @@ mod tests {
             .execute_task(&ctx)
             .await
             .expect("world write must succeed");
-        assert_eq!(output.applied_write_count, 3, "two worlds and one lore must be written");
-        assert!(!output.mutations.is_empty(), "writes must produce canonical patch ops");
+        assert_eq!(
+            output.applied_write_count, 3,
+            "two worlds and one lore must be written"
+        );
+        assert!(
+            !output.mutations.is_empty(),
+            "writes must produce canonical patch ops"
+        );
         // The task patch must be replayable as ONE patch; concatenating per-write diffs produced
         // duplicate SetCounter ops and failed Phase 3 with EvidenceCodecUnsupported.
         let replayed = crate::domain::sf06::codec::replay(
             &ctx.snapshot.business_flow_data,
-            &crate::domain::sf06::codec::PatchV2 { ops: output.mutations.clone() },
+            &crate::domain::sf06::codec::PatchV2 {
+                ops: output.mutations.clone(),
+            },
         )
         .expect("task patch must replay");
-        assert_eq!(replayed.optional.world_building_phase.world_settings.len(), 2);
+        assert_eq!(
+            replayed.optional.world_building_phase.world_settings.len(),
+            2
+        );
         let lore_count: usize = replayed
             .optional
             .world_building_phase
@@ -1061,7 +1175,11 @@ mod tests {
             .execute_task(&ctx)
             .await
             .expect_err("unresolved parent must not silently become a root");
-        assert!(error.message.contains("unresolved parentTempKey"), "{}", error.message);
+        assert!(
+            error.message.contains("unresolved parentTempKey"),
+            "{}",
+            error.message
+        );
     }
 
     #[tokio::test]
@@ -1069,7 +1187,10 @@ mod tests {
         let (provider, mut ctx) = probe_context("{}");
         ctx.task_spec.task_kind = "world_write".into();
         ctx.tool_schemas = Vec::new();
-        let output = executor(provider).execute_task(&ctx).await.expect("outcome");
+        let output = executor(provider)
+            .execute_task(&ctx)
+            .await
+            .expect("outcome");
         assert!(output.mutations.is_empty());
         assert_eq!(output.applied_write_count, 0);
         assert!(output.artifact.is_none());

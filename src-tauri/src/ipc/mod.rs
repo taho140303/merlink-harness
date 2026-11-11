@@ -8,9 +8,9 @@ pub mod config_commands;
 pub mod draft_commands;
 pub mod dto;
 pub mod patch_commands;
+pub mod project_commands;
 pub mod provider_probe_commands;
 pub mod system_prompt_commands;
-pub mod project_commands;
 pub mod workflow_commands;
 pub mod writing_generation_commands;
 pub mod writing_persistence_commands;
@@ -92,9 +92,7 @@ pub use character_commands::{
 pub use chat_commands::{
     cancel_chat_turn, create_or_load_chat_session, list_chat_sessions, regenerate_draft_phase,
 };
-pub use commit_commands::{
-    commit_draft, get_commit_confirmation_preview, reopen_committed_draft,
-};
+pub use commit_commands::{commit_draft, get_commit_confirmation_preview, reopen_committed_draft};
 pub use config_commands::{
     get_runtime_and_provider_config, set_provider_api_key, update_runtime_and_provider_config,
 };
@@ -147,7 +145,10 @@ pub async fn send_chat_message(
             .map_err(|_| {
                 IpcError::new(
                     ErrorCode::EntityNotFound,
-                    format!("Draft session for session_id '{}' not found", req.session_id),
+                    format!(
+                        "Draft session for session_id '{}' not found",
+                        req.session_id
+                    ),
                 )
             })?;
 

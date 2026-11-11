@@ -164,12 +164,18 @@ impl OpenCodeProvider {
             .iter()
             .map(|m| {
                 let mut map = serde_json::Map::new();
-                map.insert("role".to_string(), serde_json::Value::String(m.role.clone()));
+                map.insert(
+                    "role".to_string(),
+                    serde_json::Value::String(m.role.clone()),
+                );
 
                 if m.role == "assistant" && m.tool_calls.is_some() && m.content.is_empty() {
                     map.insert("content".to_string(), serde_json::Value::Null);
                 } else {
-                    map.insert("content".to_string(), serde_json::Value::String(m.content.clone()));
+                    map.insert(
+                        "content".to_string(),
+                        serde_json::Value::String(m.content.clone()),
+                    );
                 }
 
                 if let Some(ref name) = m.name {
@@ -177,7 +183,10 @@ impl OpenCodeProvider {
                 }
 
                 if let Some(ref tid) = m.tool_call_id {
-                    map.insert("tool_call_id".to_string(), serde_json::Value::String(tid.clone()));
+                    map.insert(
+                        "tool_call_id".to_string(),
+                        serde_json::Value::String(tid.clone()),
+                    );
                 }
 
                 if let Some(ref tcs) = m.tool_calls {
@@ -187,7 +196,8 @@ impl OpenCodeProvider {
                             let args_str = if tc.arguments.is_string() {
                                 tc.arguments.as_str().unwrap().to_string()
                             } else {
-                                serde_json::to_string(&tc.arguments).unwrap_or_else(|_| "{}".to_string())
+                                serde_json::to_string(&tc.arguments)
+                                    .unwrap_or_else(|_| "{}".to_string())
                             };
                             serde_json::json!({
                                 "id": tc.id,
@@ -277,7 +287,11 @@ impl LlmProvider for OpenCodeProvider {
         let body = Self::build_chat_payload(req);
         let headers = self.prepare_headers();
 
-        let request = self.client.post(&self.endpoint).headers(headers).json(&body);
+        let request = self
+            .client
+            .post(&self.endpoint)
+            .headers(headers)
+            .json(&body);
 
         let response = tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -300,7 +314,10 @@ impl LlmProvider for OpenCodeProvider {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::from_http_status(status.as_u16(), &error_text));
+            return Err(ProviderError::from_http_status(
+                status.as_u16(),
+                &error_text,
+            ));
         }
 
         let resp_body: OpenCodeChatResponseBody = response.json().await.map_err(|err| {
@@ -310,11 +327,10 @@ impl LlmProvider for OpenCodeProvider {
             ))
         })?;
 
-        let choice = resp_body
-            .choices
-            .into_iter()
-            .next()
-            .ok_or_else(|| ProviderError::Protocol("Empty choices from OpenCode".to_string()))?;
+        let choice =
+            resp_body.choices.into_iter().next().ok_or_else(|| {
+                ProviderError::Protocol("Empty choices from OpenCode".to_string())
+            })?;
 
         let mut tool_calls = Vec::new();
         let mut content = None;
@@ -357,7 +373,11 @@ impl LlmProvider for OpenCodeProvider {
         let body = Self::build_stream_payload(req);
         let headers = self.prepare_headers();
 
-        let request = self.client.post(&self.endpoint).headers(headers).json(&body);
+        let request = self
+            .client
+            .post(&self.endpoint)
+            .headers(headers)
+            .json(&body);
 
         let response = tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -380,7 +400,10 @@ impl LlmProvider for OpenCodeProvider {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::from_http_status(status.as_u16(), &error_text));
+            return Err(ProviderError::from_http_status(
+                status.as_u16(),
+                &error_text,
+            ));
         }
 
         let mut total_text = String::new();
@@ -427,7 +450,9 @@ impl LlmProvider for OpenCodeProvider {
                             break;
                         }
 
-                        if let Ok(chunk_body) = serde_json::from_str::<OpenCodeStreamChunkBody>(payload) {
+                        if let Ok(chunk_body) =
+                            serde_json::from_str::<OpenCodeStreamChunkBody>(payload)
+                        {
                             if let Some(ch) = chunk_body.choices.into_iter().next() {
                                 if let Some(delta) = ch.delta {
                                     if let Some(content) = delta.content {
