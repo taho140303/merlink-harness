@@ -391,9 +391,9 @@ fn phase2_sprint3_deep1_F2_invalid_migration_or_backup_failure_rolls_back_and_st
     let mut conn = Connection::open(&db_path).unwrap();
     configure_connection(&conn).unwrap();
 
+    // The baseline is squashed to v1 = schema and v2 = seed, so a pending upgrade is a v1 database.
     conn.execute_batch(MIGRATION_0001_SQL).unwrap();
-    conn.execute_batch(MIGRATION_0002_SQL).unwrap();
-    assert_eq!(get_user_version(&conn).unwrap(), 2);
+    assert_eq!(get_user_version(&conn).unwrap(), 1);
 
     // Seed baseline user row
     conn.execute("INSERT INTO genres (id, code, display_name) VALUES ('018e3a00-0000-7000-8000-000000000009', 'g_f2', 'Genre F2');", []).unwrap();
@@ -402,7 +402,7 @@ fn phase2_sprint3_deep1_F2_invalid_migration_or_backup_failure_rolls_back_and_st
     let bad_backup_dir = Path::new("/proc/invalid_non_writable_dir/merlink-harness");
     let backup_res = run_migrations_with_backup(&mut conn, bad_backup_dir);
     assert!(backup_res.is_err());
-    assert_eq!(get_user_version(&conn).unwrap(), 2, "user_version must remain unchanged on backup failure");
+    assert_eq!(get_user_version(&conn).unwrap(), 1, "user_version must remain unchanged on backup failure");
 
     // Verify user row preserved
     let count: i64 = conn
@@ -751,10 +751,9 @@ fn DB_P02_pre_migration_backup_uses_sqlite_online_backup_api() {
     let mut conn = Connection::open(&db_path).unwrap();
     configure_connection(&conn).unwrap();
 
-    // Bootstrap at v2 with some data
+    // Bootstrap at v1 (schema only) so the seed upgrade still has a backup to take.
     conn.execute_batch(MIGRATION_0001_SQL).unwrap();
-    conn.execute_batch(MIGRATION_0002_SQL).unwrap();
-    assert_eq!(get_user_version(&conn).unwrap(), 2);
+    assert_eq!(get_user_version(&conn).unwrap(), 1);
 
     let genre_id = "018e3a00-0000-7000-8000-000000000077";
     conn.execute(
@@ -779,5 +778,5 @@ fn DB_P02_pre_migration_backup_uses_sqlite_online_backup_api() {
         .unwrap();
     assert_eq!(count, 1, "Backup must contain valid pre-migration data");
     let backup_version = get_user_version(&backup_conn).unwrap();
-    assert_eq!(backup_version, 2, "Backup must reflect pre-migration version v2");
+    assert_eq!(backup_version, 1, "Backup must reflect pre-migration version v1");
 }

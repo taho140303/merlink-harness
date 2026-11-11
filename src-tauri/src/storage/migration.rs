@@ -8,34 +8,16 @@ use rusqlite::Connection;
 use super::db::{backup_path, perform_online_backup, DbError};
 
 /// Maximum schema migration version supported by this application release (§3.4).
-pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 25;
+///
+/// The forward-only history was squashed to two files ahead of the first public
+/// release: `0001_schema.sql` carries the complete physical schema and
+/// `0002_seed_system_source.sql` carries every system catalog and prompt seed.
+/// New changes always append a new numbered file and bump this constant.
+pub const MAX_SUPPORTED_SCHEMA_VERSION: u32 = 2;
 
 /// Embedded forward-only migration scripts.
-pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_initial_schema.sql");
-pub const MIGRATION_0002_SQL: &str = include_str!("../../migrations/0002_seed_reference_data.sql");
-pub const MIGRATION_0003_SQL: &str = include_str!("../../migrations/0003_sf06_b_plus.sql");
-pub const MIGRATION_0004_SQL: &str = include_str!("../../migrations/0004_seed_style_presets.sql");
-pub const MIGRATION_0005_SQL: &str = include_str!("../../migrations/0005_seed_prompts.sql");
-pub const MIGRATION_0006_SQL: &str = include_str!("../../migrations/0006_seed_prompt_read_tools.sql");
-pub const MIGRATION_0007_SQL: &str = include_str!("../../migrations/0007_fix_prompt_identity.sql");
-pub const MIGRATION_0008_SQL: &str = include_str!("../../migrations/0008_session_trash.sql");
-pub const MIGRATION_0009_SQL: &str = include_str!("../../migrations/0009_tool_catalog_and_invariant.sql");
-pub const MIGRATION_0010_SQL: &str = include_str!("../../migrations/0010_refine_chat_contracts.sql");
-pub const MIGRATION_0013_SQL: &str = include_str!("../../migrations/0013_author_facing_language.sql");
-pub const MIGRATION_0012_SQL: &str = include_str!("../../migrations/0012_clarify_story_summary.sql");
-pub const MIGRATION_0011_SQL: &str = include_str!("../../migrations/0011_clarify_planning_scope.sql");
-pub const MIGRATION_0014_SQL: &str = include_str!("../../migrations/0014_seed_system_catalogs.sql");
-pub const MIGRATION_0015_SQL: &str = include_str!("../../migrations/0015_phase0_catalog_tools.sql");
-pub const MIGRATION_0016_SQL: &str = include_str!("../../migrations/0016_seed_phase_prompts.sql");
-pub const MIGRATION_0017_SQL: &str = include_str!("../../migrations/0017_tool_call_schemas.sql");
-pub const MIGRATION_0018_SQL: &str = include_str!("../../migrations/0018_character_coverage.sql");
-pub const MIGRATION_0019_SQL: &str = include_str!("../../migrations/0019_fix_character_instruction.sql");
-pub const MIGRATION_0020_SQL: &str = include_str!("../../migrations/0020_seed_themes.sql");
-pub const MIGRATION_0021_SQL: &str = include_str!("../../migrations/0021_tool_descriptions_and_schemas.sql");
-pub const MIGRATION_0022_SQL: &str = include_str!("../../migrations/0022_save_approved_outline.sql");
-pub const MIGRATION_0023_SQL: &str = include_str!("../../migrations/0023_tool_schemas_and_catalog_pagination.sql");
-pub const MIGRATION_0024_SQL: &str = include_str!("../../migrations/0024_fix_project_genre_source_schema.sql");
-pub const MIGRATION_0025_SQL: &str = include_str!("../../migrations/0025_ssot_state_rule.sql");
+pub const MIGRATION_0001_SQL: &str = include_str!("../../migrations/0001_schema.sql");
+pub const MIGRATION_0002_SQL: &str = include_str!("../../migrations/0002_seed_system_source.sql");
 
 /// Complete set of exactly 66 physical tables defined in docs/db.dbml (B+ SF-06 target).
 pub const TARGET_TABLES_V3: &[&str] = &[
@@ -124,29 +106,6 @@ pub fn get_migration_sql(target_version: u32) -> Result<&'static str, DbError> {
     match target_version {
         1 => Ok(MIGRATION_0001_SQL),
         2 => Ok(MIGRATION_0002_SQL),
-        3 => Ok(MIGRATION_0003_SQL),
-        4 => Ok(MIGRATION_0004_SQL),
-        5 => Ok(MIGRATION_0005_SQL),
-        6 => Ok(MIGRATION_0006_SQL),
-        7 => Ok(MIGRATION_0007_SQL),
-        8 => Ok(MIGRATION_0008_SQL),
-        9 => Ok(MIGRATION_0009_SQL),
-        10 => Ok(MIGRATION_0010_SQL),
-        11 => Ok(MIGRATION_0011_SQL),
-        12 => Ok(MIGRATION_0012_SQL),
-        13 => Ok(MIGRATION_0013_SQL),
-        14 => Ok(MIGRATION_0014_SQL),
-        15 => Ok(MIGRATION_0015_SQL),
-        16 => Ok(MIGRATION_0016_SQL),
-        17 => Ok(MIGRATION_0017_SQL),
-        18 => Ok(MIGRATION_0018_SQL),
-        19 => Ok(MIGRATION_0019_SQL),
-        20 => Ok(MIGRATION_0020_SQL),
-        21 => Ok(MIGRATION_0021_SQL),
-        22 => Ok(MIGRATION_0022_SQL),
-        23 => Ok(MIGRATION_0023_SQL),
-        24 => Ok(MIGRATION_0024_SQL),
-        25 => Ok(MIGRATION_0025_SQL),
         _ => Err(DbError::MigrationFailed(format!(
             "No migration script registered for target version {}",
             target_version
@@ -260,11 +219,10 @@ mod session_trash_migration_tests {
     use super::*;
 
     #[test]
-    fn test_existing_session_survives_soft_delete_column_migration() {
+    fn test_schema_only_database_keeps_existing_rows_when_seed_upgrade_runs() {
         let mut conn = Connection::open_in_memory().unwrap();
-        for version in 1..=7 {
-            conn.execute_batch(get_migration_sql(version).unwrap()).unwrap();
-        }
+        conn.execute_batch(get_migration_sql(1).unwrap()).unwrap();
+        assert_eq!(get_user_version(&conn).unwrap(), 1);
         conn.execute("INSERT INTO sessions (id, display_name, created_at) VALUES ('legacy-chat', 'Legacy', '2026-01-01')", []).unwrap();
 
         run_migrations(&mut conn).unwrap();
@@ -362,11 +320,11 @@ mod tool_inventory_migration_tests {
     }
 
     #[test]
-    fn test_tool_catalog_upgrade_preserves_user_edited_prompt() {
+    fn test_rerunning_migrations_at_max_version_preserves_user_edited_prompt() {
+        // Seed data lands exactly once with `0002_seed_system_source.sql`; a start at the
+        // current version must not re-apply it and must never overwrite an author edit.
         let mut conn = Connection::open_in_memory().unwrap();
-        for version in 1..=8 {
-            conn.execute_batch(get_migration_sql(version).unwrap()).unwrap();
-        }
+        run_migrations(&mut conn).unwrap();
         conn.execute(
             "UPDATE prompt_blocks SET content = 'My custom rules' WHERE id = '45908789-ce45-5763-afeb-ff2bf3c847ee'",
             [],
@@ -409,8 +367,7 @@ mod chat_contract_migration_tests {
     #[test]
     fn test_chat_contract_upgrade_preserves_custom_prompt_and_tool() {
         let mut conn = Connection::open_in_memory().unwrap();
-        for version in 1..=9 { conn.execute_batch(get_migration_sql(version).unwrap()).unwrap(); }
-        set_user_version(&conn, 9).unwrap();
+        run_migrations(&mut conn).unwrap();
         conn.execute("UPDATE prompt_blocks SET content='Author custom prompt' WHERE prompt_code='invariant_rule'", []).unwrap();
         conn.execute("UPDATE tools SET description='Custom description' WHERE code='set_project'", []).unwrap();
         run_migrations(&mut conn).unwrap();
@@ -445,10 +402,7 @@ mod planning_scope_migration_tests {
     #[test]
     fn planning_scope_upgrade_keeps_author_custom_prompt() {
         let mut conn = Connection::open_in_memory().unwrap();
-        for version in 1..=10 {
-            conn.execute_batch(get_migration_sql(version).unwrap()).unwrap();
-        }
-        set_user_version(&conn, 10).unwrap();
+        run_migrations(&mut conn).unwrap();
         conn.execute(
             "UPDATE prompt_blocks SET content='Author custom planning' WHERE prompt_code='planning_mode'",
             [],
@@ -511,7 +465,7 @@ pub fn run_migrations_with_backup(conn: &mut Connection, app_data_dir: &Path) ->
 /// Verify schema structure, constraints, indexes, and referential integrity (§3.5, MIG-05).
 ///
 /// Checks:
-/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION (11)
+/// 1. PRAGMA user_version == MAX_SUPPORTED_SCHEMA_VERSION
 /// 2. PRAGMA quick_check(1) == "ok"
 /// 3. Exactly 66 target tables exist and NO `_schema_migrations` table
 /// 4. Mandatory columns, types, NOT NULL and CHECK constraints:

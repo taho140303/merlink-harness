@@ -95,18 +95,15 @@ mod tests {
 
     #[test]
     fn seeded_reference_tabs_read_real_sqlite_rows() {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(crate::storage::migration::MIGRATION_0001_SQL).unwrap();
-        conn.execute_batch(crate::storage::migration::MIGRATION_0002_SQL).unwrap();
-        conn.execute_batch(crate::storage::migration::MIGRATION_0003_SQL).unwrap();
-        conn.execute_batch(crate::storage::migration::MIGRATION_0004_SQL).unwrap();
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::storage::migration::run_migrations(&mut conn).unwrap();
         assert_eq!(rows_as_json(&conn, "style_presets").unwrap().len(), 54);
-        assert_eq!(rows_as_json(&conn, "genres").unwrap().len(), 3);
+        assert_eq!(rows_as_json(&conn, "genres").unwrap().len(), 50);
         assert_eq!(rows_as_json(&conn, "style_preset_rhetorical_devices").unwrap().len(), 273);
         let style = read_catalog_for_tab(&conn, "stylePresets").unwrap();
         assert_eq!(style["stylePresets"].as_array().unwrap().len(), 54);
         assert!(style.get("motifs").is_none());
-        assert_eq!(read_catalog_for_tab(&conn, "genres").unwrap()["genres"].as_array().unwrap().len(), 3);
+        assert_eq!(read_catalog_for_tab(&conn, "genres").unwrap()["genres"].as_array().unwrap().len(), 50);
         for &(_, table) in TABLES {
             rows_as_json(&conn, table).unwrap();
         }
