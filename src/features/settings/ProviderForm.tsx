@@ -180,7 +180,7 @@ export async function updateProviderConfig(
   clientOrInput?: BackendClient | UpdateProviderConfigInput
 ): Promise<ProviderConfigResultDto> {
   let client: BackendClient = backendClient;
-  let input: UpdateProviderConfigInput = {};
+  let input: UpdateProviderConfigInput;
 
   if (typeof (inputOrClient as any).updateRuntimeAndProviderConfig === "function") {
     client = inputOrClient as BackendClient;
@@ -239,7 +239,7 @@ export async function testProviderConnection(
   paramsOrId: string | TestProviderConnectionParams,
   clientArg?: BackendClient
 ): Promise<TestProviderConnectionResult> {
-  let params: TestProviderConnectionParams = {};
+  let params: TestProviderConnectionParams;
   if (typeof paramsOrId === "string") {
     params = { providerId: paramsOrId };
   } else {
@@ -294,7 +294,11 @@ export async function testProviderConnection(
           error: sanitized,
           code: "provider_auth_failed",
         };
-        if (params.throwOnError) throw new Error(sanitized);
+        if (params.throwOnError) {
+          // The raw error may carry the API key; only the redacted message is rethrown.
+          // eslint-disable-next-line preserve-caught-error
+          throw new Error(sanitized);
+        }
         return res;
       }
 
@@ -306,7 +310,11 @@ export async function testProviderConnection(
           error: sanitized,
           code: invokeErr.code || "provider_unreachable",
         };
-        if (params.throwOnError) throw new Error(sanitized);
+        if (params.throwOnError) {
+          // The raw error may carry the API key; only the redacted message is rethrown.
+          // eslint-disable-next-line preserve-caught-error
+          throw new Error(sanitized);
+        }
         return res;
       }
 
@@ -346,7 +354,11 @@ export async function testProviderConnection(
       error: sanitized,
       code: is401 ? "provider_auth_failed" : (err.code || "PROVIDER_ERROR"),
     };
-    if (params.throwOnError) throw new Error(sanitized);
+    if (params.throwOnError) {
+      // The raw error may carry the API key; only the redacted message is rethrown.
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(sanitized);
+    }
     return res;
   }
 }

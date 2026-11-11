@@ -648,12 +648,9 @@ export function ChatView({
   const beginChatStartup = startup?.beginChatStartup;
   const backendClient = useMemo(() => client ?? new BackendClient(), [client]);
 
-  // Pure controller instance
-  const controllerRef = useRef<ChatBackendController | null>(null);
-  if (!controllerRef.current) {
-    controllerRef.current = new ChatBackendController(backendClient);
-  }
-  const controller = controllerRef.current;
+  // One controller per mounted view. A lazy state initializer keeps the construction out of
+  // the render path (the React Compiler rules reject writing to a ref during render).
+  const [controller] = useState(() => new ChatBackendController(backendClient));
 
   const [controllerState, setControllerState] = useState<ChatBackendState>(() => ({
     ...controller.getState(),
@@ -739,6 +736,8 @@ export function ChatView({
     });
   }, [backendClient, controller, sessionId, beginChatStartup, finishChatStartup]);
 
+  const [isDraftOpen, setIsDraftOpen] = useState(false);
+
   useEffect(() => {
     if (sessionId) return;
     const newChat = () => {
@@ -749,7 +748,6 @@ export function ChatView({
     return () => window.removeEventListener("merlink:new-chat", newChat);
   }, [sessionId, retryInitialization]);
 
-  const [isDraftOpen, setIsDraftOpen] = useState(false);
   const sampleProjects = useMemo(() => [] as { id: string; title: string }[], []);
 
   const handleViewSampleProject = (projectId: string) => {

@@ -5,7 +5,19 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', '.react-router', 'node_modules'] },
+  {
+    ignores: [
+      'dist',
+      'build',
+      '.react-router',
+      'node_modules',
+      // Cargo output and Tauri codegen are generated, not reviewable source.
+      'src-tauri/target',
+      'src-tauri/gen',
+      // Generated from the Rust DTOs by ts-rs; never edited by hand.
+      'src/shared/backend/generated.ts',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

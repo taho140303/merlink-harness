@@ -1018,20 +1018,23 @@ export function DraftWorkspace({
   const t = useT();
   let navigate: ((path: string) => void) | undefined;
   try {
+    // This component is rendered without a router in the isolated unit tests, where
+    // useNavigate throws. The hook order is still stable for a given mounting context.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     navigate = useNavigate();
   } catch {
     // router context unavailable in isolated test environments
   }
 
-  // Pure controller instance
-  const controllerRef = useRef<DraftBackendController | null>(null);
-  if (!controllerRef.current) {
-    controllerRef.current = new DraftBackendController(client, {
-      draftSessionId: draftSessionId ?? `draft-${Date.now()}`,
-      currentVersionLabel: (propOverview ?? DRAFT_OVERVIEW).version || "v.01",
-    });
-  }
-  const controller = controllerRef.current;
+  // One controller per mounted view. A lazy state initializer keeps the construction out of
+  // the render path (the React Compiler rules reject writing to a ref during render).
+  const [controller] = useState(
+    () =>
+      new DraftBackendController(client, {
+        draftSessionId: draftSessionId ?? `draft-${Date.now()}`,
+        currentVersionLabel: (propOverview ?? DRAFT_OVERVIEW).version || "v.01",
+      })
+  );
   const [controllerState, setControllerState] = useState<DraftBackendState>(() =>
     controller.getState()
   );
@@ -1123,6 +1126,8 @@ export function DraftWorkspace({
     controllerState.businessFlowData,
   ]);
 
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading'>('idle');
+
   // Auto-build Phase 1 only for a brand-new draft with no sealed version yet. An existing draft
   // opens as-is; pressing the "Xây dựng bản nháp" button must never rebuild it.
   useEffect(() => {
@@ -1183,7 +1188,6 @@ export function DraftWorkspace({
   }, [isFeedbackMode]);
 
   // Transitions are instant: phase data comes from the backend, not a timed animation.
-  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'fade-out' | 'loading'>('idle');
   const [loadingIdx, setLoadingIdx] = useState(0);
 
   const loadingMessages = [

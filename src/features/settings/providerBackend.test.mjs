@@ -402,8 +402,8 @@ describe("P5S6-B: provider connection failure shown without success", () => {
       createElement(AIProvidersTabModule.AIProvidersTab, {
         initialProviders: [
           {
-            id: "ollama",
-            name: "Ollama Local",
+            id: "openai",
+            name: "OpenAI",
             status: "error",
             lastError: "PROVIDER_ERROR: connection refused",
           },
