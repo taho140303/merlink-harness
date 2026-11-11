@@ -635,7 +635,7 @@ describe("phase5_sprint4_deep1-F2: link failure preserves existing library rows 
 describe("Visual & scope check: 1280/1279px layout preservation and allowed write paths", () => {
   it("preserves 1280px / 1279px split-pane vs compact overlay layout hooks and logic", () => {
     const detailSrc = readFileSync(
-      new URL("./ProjectDetailView.tsx", import.meta.url),
+      path.resolve("src/features/projects/ProjectDetailView.tsx"),
       "utf8"
     );
     assert.match(detailSrc, /useIsCompact\(\)/);
@@ -644,7 +644,7 @@ describe("Visual & scope check: 1280/1279px layout preservation and allowed writ
     assert.match(detailSrc, /isCompact && ['"]absolute inset-0 z-40/);
 
     const charDetailSrc = readFileSync(
-      new URL("../characters/CharacterDetailLayout.tsx", import.meta.url),
+      path.resolve("src/features/characters/CharacterDetailLayout.tsx"),
       "utf8"
     );
     assert.match(charDetailSrc, /useIsCompact\(\)/);
@@ -655,7 +655,7 @@ describe("Visual & scope check: 1280/1279px layout preservation and allowed writ
 
   it("preserves ProjectCreatorPanel tested route navigation invariant (N12)", () => {
     const creatorSrc = readFileSync(
-      new URL("./ProjectCreatorPanel.tsx", import.meta.url),
+      path.resolve("src/features/projects/ProjectCreatorPanel.tsx"),
       "utf8"
     );
     assert.match(

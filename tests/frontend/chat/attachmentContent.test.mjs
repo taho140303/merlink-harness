@@ -1,9 +1,10 @@
+import path from 'node:path';
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { transformWithOxc } from "vite";
 
-const source = readFileSync(new URL("./attachmentContent.ts", import.meta.url), "utf8");
+const source = readFileSync(path.resolve("src/features/chat/attachmentContent.ts"), "utf8");
 const { code } = await transformWithOxc(source, "attachmentContent.ts");
 const { serializeChatAttachments, splitChatAttachmentContent } = await import(`data:text/javascript,${encodeURIComponent(code)}`);
 

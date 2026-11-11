@@ -664,7 +664,7 @@ describe("CI-08 / REQ-WRITE-004: exact 40 IPC commands; version restore flows th
 describe("Visual & scope check: 1280px / 1279px layout preservation and allowed write paths", () => {
   it("preserves 1280px / 1279px split-pane vs compact overlay layout hooks and classes", () => {
     const viewSrc = readFileSync(
-      new URL("./ChapterDetailView.tsx", import.meta.url),
+      path.resolve("src/features/projects/ChapterDetailView.tsx"),
       "utf8"
     );
 

@@ -408,7 +408,7 @@ describe("P5S3-N: Pending patch blocks Confirm and dialog cannot be dismissed wh
 
     // 2. Source-level DOM invariant: verify dialog props, close button concealment, and dismiss prevention
     const dialogSrc = readFileSync(
-      new URL("./CommitConfirmationDialog.tsx", import.meta.url),
+      path.resolve("src/features/draft/CommitConfirmationDialog.tsx"),
       "utf8"
     );
     assert.match(dialogSrc, /pending && "\[&>button:last-child\]:hidden"/, "Must hide close X when pending");

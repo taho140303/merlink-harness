@@ -23,7 +23,7 @@ the Tauri v2 Linux packages listed in the README.
 pnpm install --frozen-lockfile
 
 # what CI runs, in the same order
-pnpm test                 # node --test over src/features/**/*.test.mjs
+pnpm test                 # node --test over tests/frontend/**/*.test.mjs
 pnpm typecheck            # react-router typegen && tsc
 pnpm lint                 # eslint + packaging contract checks
 pnpm build                # react-router build -> build/client

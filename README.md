@@ -92,7 +92,7 @@ The browser-only mode is useful for UI work; anything that touches the backend n
 ## Test and build
 
 ```bash
-pnpm test               # node --test over src/features/**/*.test.mjs
+pnpm test               # node --test over tests/frontend/**/*.test.mjs
 pnpm typecheck          # react-router typegen && tsc
 pnpm lint               # eslint + packaging contract checks
 pnpm build              # react-router build -> build/client
@@ -136,7 +136,9 @@ src-tauri/
   migrations/          0001_schema.sql and 0002_seed_system_source.sql
   icons/               bundle icons generated from public/logo.svg
 public/                logo.svg and favicon
-tests/e2e/             end-to-end smoke script
+tests/
+  frontend/            node --test suites for the frontend contracts
+  e2e/                 end-to-end smoke script
 ```
 
 ## Data and privacy
