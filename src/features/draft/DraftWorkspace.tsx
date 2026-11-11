@@ -22,7 +22,7 @@ import { DRAFT_OVERVIEW } from './mockOverview';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { useT } from '@/shared/i18n/useT';
 import { cn } from '@/shared/utils/cn';
-import type { DraftStep, CharacterSubStep, DraftOverview, FeedbackContext, DraftVersion } from './types';
+import type { DraftStep, CharacterSubStep, DraftOverview, DraftWorldSettings, FeedbackContext, DraftVersion } from './types';
 import { BackendClient } from '@/shared/backend/client';
 import type {
   DraftVersionSummaryDto,
@@ -383,15 +383,42 @@ export class DraftBackendController {
         throw new Error("startOrResumeWorkflow not supported on client");
       }
 
-      const res: WorkflowExecutionSummaryDto = await startFn(
+      // A backend panic can leave the IPC promise pending forever. Bound the wait; every progress
+      // event extends the deadline so long but healthy phases are not cancelled.
+      const idleTimeoutMs = 300_000;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let rejectTimeout: ((reason?: any) => void) | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        rejectTimeout = reject;
+      });
+      const arm = () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          rejectTimeout?.(new Error('WORKFLOW_TIMEOUT: workflow không phản hồi sau 5 phút'));
+        }, idleTimeoutMs);
+      };
+      arm();
+      const request = startFn(
         {
           draftSessionId: this.state.draftSessionId,
           phase,
           subphase,
           systemLanguage: 'vi',
         },
-        onProgress
+        (event) => {
+          arm();
+          onProgress?.(event);
+        }
       );
+      // If the timeout wins, the late rejection must not surface as unhandled.
+      request.catch(() => undefined);
+
+      let res: WorkflowExecutionSummaryDto;
+      try {
+        res = await Promise.race([request, timeoutPromise]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
 
       this.applyWorkflowExecutionResult(res);
       return res;
@@ -523,6 +550,14 @@ export class DraftBackendController {
       workflowRunId: res.workflowRunId,
       workflowStatus: (res.status as any) || 'idle',
       pendingPatches: res.pendingPatches ?? this.state.pendingPatches,
+      lastError:
+        res.status === 'failed'
+          ? {
+              message: res.recoveryReason
+                ? `Workflow failed: ${res.recoveryReason}`
+                : 'Workflow failed before completing its tasks',
+            }
+          : this.state.lastError,
     });
   }
 
@@ -666,6 +701,24 @@ export function deriveStepFromRuntimePhase(
     default:
       return { step: 'overview', subStep: 'appearance' };
   }
+}
+
+/**
+ * Deterministic next phase for the "Tiếp theo" action. A phase may only be skipped when the
+ * runtime phase reports canAdvance; otherwise rerun the current phase instead of jumping ahead.
+ */
+export function resolveNextPhase(
+  stepPhase: number,
+  runtimePhase: number,
+  canAdvance: boolean,
+  headPhase?: number | null,
+): number {
+  const current = Math.max(runtimePhase, headPhase ?? 0);
+  if (current >= 1 && current < 6) {
+    return canAdvance ? current + 1 : current;
+  }
+  if (current === 6) return 6;
+  return Math.max(stepPhase, 1);
 }
 
 export function mapBusinessFlowDataToDraftOverview(
@@ -913,25 +966,118 @@ export function mapBusinessFlowDataToDraftOverview(
   });
 
   const rawWorldSettings = bfd.optional?.world_building_phase?.world_settings;
-  const wsItem = Array.isArray(rawWorldSettings) ? rawWorldSettings[0] : rawWorldSettings;
-  const worldSettings = wsItem
-    ? {
-        code: String(wsItem?.code || "WORLD_01"),
-        displayName: String(unwrapTracked(wsItem?.display_name, "") || "Bối cảnh thế giới"),
-        type: String(unwrapTracked(wsItem?.type, "") || "WORLD"),
-        description: String(unwrapTracked(wsItem?.description, "") || ""),
-        access: String(unwrapTracked(wsItem?.access, "") || "PUBLIC"),
-        loreEntries: (Array.isArray(wsItem?.lore_entries) ? wsItem.lore_entries : []).map(
-          (le: any, lIdx: number) => ({
-            code: String(le?.code || `LORE_${lIdx + 1}`),
-            displayName: String(unwrapTracked(le?.display_name, "") || `Tri thức ${lIdx + 1}`),
-            type: (String(unwrapTracked(le?.category, "HISTORY")) as any) || "HISTORY",
-            description: String(unwrapTracked(le?.description, "") || ""),
-            data: String(unwrapTracked(le?.content, "") || unwrapTracked(le?.description, "") || ""),
-          })
-        ),
-      }
-    : baseOverview.worldSettings;
+  const rawWorldList = Array.isArray(rawWorldSettings)
+    ? rawWorldSettings
+    : rawWorldSettings
+      ? [rawWorldSettings]
+      : [];
+  const worldSettingsList: DraftWorldSettings[] = rawWorldList.map((item: any, index: number) => ({
+    code: String(item?.code || `WORLD_${index + 1}`),
+    displayName: String(unwrapTracked(item?.display_name, "") || `Bối cảnh ${index + 1}`),
+    type: String(unwrapTracked(item?.setting_type, "") || unwrapTracked(item?.type, "") || "WORLD"),
+    parentCode: String(unwrapTracked(item?.parent_code, "") || ""),
+    description: String(unwrapTracked(item?.description, "") || ""),
+    access: String(unwrapTracked(item?.access, "") || "PUBLIC"),
+    loreEntries: (Array.isArray(item?.lore_entries) ? item.lore_entries : []).map(
+      (lore: any, loreIndex: number) => ({
+        code: String(lore?.code || `LORE_${index}_${loreIndex + 1}`),
+        displayName: String(unwrapTracked(lore?.display_name, "") || `Tri thức ${loreIndex + 1}`),
+        type: (String(unwrapTracked(lore?.type, "HISTORY")) as any) || "HISTORY",
+        description: String(unwrapTracked(lore?.description, "") || ""),
+        data: String(unwrapTracked(lore?.content, "") || unwrapTracked(lore?.description, "") || ""),
+      })
+    ),
+  }));
+  const loreByCode = new Map<string, { name: string; type: string; description: string }>();
+  for (const world of worldSettingsList) {
+    for (const lore of world.loreEntries) {
+      loreByCode.set(lore.code, { name: lore.displayName, type: lore.type, description: lore.description });
+    }
+  }
+  const worldSettings = worldSettingsList[0] ?? baseOverview.worldSettings;
+
+  // Phase 4: scene configuration must be mapped explicitly; the previous mapper returned the
+  // empty mock sceneConfig even when 150 configured scenes were present in the draft JSON.
+  const rawSceneConfigs = Array.isArray(bfd.optional?.scene_config_phase?.arcs)
+    ? bfd.optional.scene_config_phase.arcs
+    : [];
+  const sceneConfigArcs = rawSceneConfigs.map((arc: any, arcIndex: number) => {
+    const arcCode = String(arc?.code || `ARC_${arcIndex + 1}`);
+    const overviewArc = optArcs.find((item: any) => item?.code === arcCode);
+    const chapterArcs = chapArcs.find((item: any) => item?.code === arcCode);
+    return {
+      displayName: String(
+        unwrapTracked(overviewArc?.display_name, "") || arcCode
+      ),
+      position: Number(unwrapTracked(overviewArc?.position, arcIndex + 1)) || arcIndex + 1,
+      chapters: (Array.isArray(arc?.chapters) ? arc.chapters : []).map(
+        (chapter: any, chapterIndex: number) => {
+          const chapterCode = String(chapter?.code || `CH_${arcIndex + 1}_${chapterIndex + 1}`);
+          const sourceChapter = Array.isArray(chapterArcs?.chapters)
+            ? chapterArcs.chapters.find((item: any) => item?.code === chapterCode)
+            : undefined;
+          return {
+            displayName: String(
+              unwrapTracked(sourceChapter?.display_name, "") || `Chương ${chapterIndex + 1}`
+            ),
+            position:
+              Number(unwrapTracked(sourceChapter?.position, chapterIndex + 1)) || chapterIndex + 1,
+            scenes: (Array.isArray(chapter?.scenes) ? chapter.scenes : []).map(
+              (scene: any, sceneIndex: number) => {
+                const sceneCode = String(scene?.code || `SC_${chapterIndex + 1}_${sceneIndex + 1}`);
+                const sourceScene = Array.isArray(sourceChapter?.scenes)
+                  ? sourceChapter.scenes.find((item: any) => item?.code === sceneCode)
+                  : undefined;
+                return {
+                  code: sceneCode,
+                  displayName: String(
+                    unwrapTracked(sourceScene?.display_name, "") || `Cảnh ${sceneIndex + 1}`
+                  ),
+                  position:
+                    Number(unwrapTracked(sourceScene?.position, sceneIndex + 1)) || sceneIndex + 1,
+                  summary: String(unwrapTracked(sourceScene?.summary, "") || ""),
+                  worldSettingCode: String(unwrapTracked(scene?.world_setting_code, "") || ""),
+                  stylePresetCode: String(unwrapTracked(scene?.style_preset_code, "") || ""),
+                  narratorConfigCode: String(unwrapTracked(scene?.narrator_config_code, "") || ""),
+                  characters: (Array.isArray(scene?.characters) ? scene.characters : [])
+                    .map((link: any) => {
+                      const code = String(unwrapTracked(link?.character_code, "") || "");
+                      if (!code) return null;
+                      const isPov: any = unwrapTracked(link?.is_pov, false);
+                      return {
+                        characterCode: code,
+                        displayName: charMap.get(code) || code,
+                        isPov: isPov === true || String(isPov).toLowerCase() === "true",
+                      };
+                    })
+                    .filter(Boolean) as Array<{ characterCode: string; displayName: string; isPov: boolean }>,
+                  loreEntries: (Array.isArray(scene?.lore_entries) ? scene.lore_entries : [])
+                    .map((link: any) => {
+                      const code = String(unwrapTracked(link?.lore_entry_code, "") || "");
+                      if (!code) return null;
+                      const lore = loreByCode.get(code);
+                      const reveal = (value: any) =>
+                        String(unwrapTracked(value, "NONE")).toLowerCase() === "true"
+                          ? "FULL"
+                          : String(unwrapTracked(value, "NONE")).toUpperCase();
+                      return {
+                        code,
+                        displayName: lore?.name || code,
+                        usage: "SETTING",
+                        revealToReader: reveal(link?.reveal_to_reader) as any,
+                        revealToPov: reveal(link?.reveal_to_pov) as any,
+                      };
+                    })
+                    .filter(Boolean) as any[],
+                };
+              }
+            ),
+          };
+        }
+      ),
+    };
+  });
+  const sceneConfig = { arcs: sceneConfigArcs };
 
   const rawRels = Array.isArray(bfd.optional?.relationship_phase?.relationship)
     ? bfd.optional.relationship_phase.relationship
@@ -982,6 +1128,8 @@ export function mapBusinessFlowDataToDraftOverview(
     arcs,
     characters,
     worldSettings,
+    worldSettingsList,
+    sceneConfig,
     relationships,
   };
 }
@@ -1026,6 +1174,7 @@ export function DraftWorkspace({
     // router context unavailable in isolated test environments
   }
 
+  // Pure controller instance
   // One controller per mounted view. A lazy state initializer keeps the construction out of
   // the render path (the React Compiler rules reject writing to a ref during render).
   const [controller] = useState(
@@ -1245,24 +1394,52 @@ export function DraftWorkspace({
   };
 
   // Advancing a step generates that phase first; only a successful run moves on.
-  const executeNext = () => {
+  const executeNext = async () => {
     setConfirmOpen(false);
     if (controllerState.workflowStatus === 'running') return;
-    const phase = phaseForStep[currentStep];
-    const subphase = currentStep === 'character'
+    // Re-read the authoritative runtime phase before choosing what to run. The visible step can
+    // lag behind a phase that was already confirmed (e.g. step "chapter" while runtime is already
+    // phase 2 complete), which made "Tiếp theo" rerun Phase 2 forever instead of entering Phase 3.
+    const fresh = await controller.loadWorkspaceState();
+    const headPhase = controllerState.versions.find(
+      (version) => version.seq === controllerState.headVersionSeq,
+    )?.phase;
+    const runtimePhase = Math.max(fresh?.phase ?? controllerState.phase, headPhase ?? 0);
+    const runtimeComplete =
+      Boolean(fresh?.progress?.canAdvancePhase) || controllerState.canAdvancePhase;
+    let phase = phaseForStep[currentStep];
+    let subphase = currentStep === 'character'
       ? ({ appearance: 1, psychological: 2, lifeExperience: 3 } as const)[currentSubStep]
       : null;
-    const currentPhase = controllerState.phase;
-    // Already on this phase and it is complete: do not rerun the phase or seal another
-    // phase_confirm version (that loop kept the draft pinned at Phase 1).
-    if (currentPhase === phase && controllerState.canAdvancePhase) {
-      controller.loadWorkspaceState();
-      return;
+    if (currentStep !== 'character') {
+      phase = resolveNextPhase(phase, runtimePhase, runtimeComplete, headPhase);
+      subphase = null;
     }
+    // Phase 5 is sub-phase scoped; entering it without a sub-phase is rejected by the backend.
+    if (phase === 5 && subphase == null) subphase = 1;
+    if (
+      currentStep === 'character' &&
+      phase === 5 &&
+      subphase != null &&
+      runtimePhase === 5 &&
+      runtimeComplete
+    ) {
+      if (subphase >= 3) {
+        phase = 6;
+        subphase = null;
+      } else {
+        subphase += 1;
+      }
+    }
+    if (phase === 5 && subphase == null) subphase = 1;
+    const currentPhase = runtimePhase;
     setTransitionPhase('loading');
     controller
       .startOrResumeWorkflow(phase, subphase)
-      .then(async () => {
+      .then(async (summary) => {
+        // requires_replan / cancelled must not advance the phase: confirming would seal an empty
+        // phase (Phase 3 was confirmed with zero world settings after a merge failure).
+        if (summary?.status !== 'completed') return;
         if (phase > currentPhase) {
           // Seal the transition so the version history and the reopened workspace both point at
           // the same phase. Without this the runtime phase stayed behind and remounts showed

@@ -22,9 +22,9 @@ use crate::domain::business_flow::{
     CharacterPsychologicalItem,
     CharacterMemoryItem, ChapterPhaseArcItem, ChapterPhaseChapterItem,
     ChapterPhaseSceneItem, LoreEntryItem, OverviewArcItem, ProvenanceSource,
-    RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem,
+    RelationshipCharacterPairSection, RelationshipMotifSection, RelationshipPhaseItem, RelationshipRoleItem,
     RelationshipSceneStateItem, RequireCharacterItem, RequireGenreItem,
-    SceneCharacterLink, SceneConfigArcItem, SceneConfigSceneItem,
+    SceneCharacterLink, SceneConfigArcItem, SceneConfigChapterItem, SceneConfigSceneItem,
     SceneLoreEntryLink, ThemeArgumentItem, TrackedField, WorldSettingItem,
 };
 use crate::domain::cascade_delete::{
@@ -514,6 +514,12 @@ impl ToolExecutor {
                     &mut results,
                     &mut pending_patches,
                 );
+            }
+            "set_relationship" => {
+                self.handle_set_relationship(call, &declared_sources, &mut candidate_state, &mut results);
+            }
+            "add_relationship_role" => {
+                self.handle_add_relationship_role(call, &declared_sources, &mut candidate_state, &mut results);
             }
             "add_relationship" => {
                 self.handle_add_relationship(
@@ -1689,65 +1695,142 @@ impl ToolExecutor {
             }
         };
 
-        // Ensure scene exists in scene_config_phase
-        let has_sc = candidate.optional.scene_config_phase.arcs.iter().flat_map(|a| &a.chapters).flat_map(|c| &c.scenes).any(|s| s.code == sc_code);
-        if !has_sc {
-            // Find in chapter_phase and create container in scene_config_phase if needed
-            let mut found = false;
-            for arc in &candidate.optional.chapter_phase.arcs {
-                for chap in &arc.chapters {
-                    if chap.scenes.iter().any(|s| s.code == sc_code) {
-                        found = true;
-                        let arc_cfg = candidate.optional.scene_config_phase.arcs.iter_mut().find(|a| a.code == arc.code);
-                        if let Some(ac) = arc_cfg {
-                            let chap_cfg = ac.chapters.iter_mut().find(|c| c.code == chap.code);
-                            if let Some(cc) = chap_cfg {
-                                cc.scenes.push(SceneConfigSceneItem {
-                                    code: sc_code.to_string(),
-                                    world_setting_code: TrackedField::unset(),
-                                    style_preset_code: TrackedField::unset(),
-                                    narrator_config_code: TrackedField::unset(),
-                                    lore_entries: Vec::new(),
-                                    characters: Vec::new(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            if !found {
-                results.push(FieldResult {
-                    field: "code".to_string(),
-                    status: "rejected".to_string(),
-                    patch_id: None,
-                    error: Some("target_code_not_found".to_string()),
-                    candidates: None,
-                });
-                return;
-            }
+        // Ensure the scene exists in scene_config_phase. Phase 4 clears/regenerates this section, so
+        // the arc/chapter containers are often absent even though chapter_phase has the scene.
+        if !Self::ensure_scene_config_scene(candidate, sc_code) {
+            results.push(FieldResult {
+                field: "code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("target_code_not_found".to_string()),
+                candidates: None,
+            });
+            return;
         }
 
-        let base_sc = baseline.optional.scene_config_phase.arcs.iter().flat_map(|a| &a.chapters).flat_map(|c| &c.scenes).find(|s| s.code == sc_code);
-        let cand_sc = candidate.optional.scene_config_phase.arcs.iter_mut().flat_map(|a| &mut a.chapters).flat_map(|c| &mut c.scenes).find(|s| s.code == sc_code).unwrap();
+        let base_sc = baseline
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter()
+            .flat_map(|a| &a.chapters)
+            .flat_map(|c| &c.scenes)
+            .find(|s| s.code == sc_code);
+        let Some(cand_sc) = candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|a| &mut a.chapters)
+            .flat_map(|c| &mut c.scenes)
+            .find(|s| s.code == sc_code)
+        else {
+            results.push(FieldResult {
+                field: "code".to_string(),
+                status: "rejected".to_string(),
+                patch_id: None,
+                error: Some("target_code_not_found".to_string()),
+                candidates: None,
+            });
+            return;
+        };
 
-        if let Some(v) = call.parameters.get("world_setting_code").and_then(|v| v.as_str()) {
-            let base_f = base_sc.map(|b| &b.world_setting_code);
+        for field in ["world_setting_code", "style_preset_code", "narrator_config_code"] {
+            let Some(value) = call.parameters.get(field).and_then(|v| v.as_str()) else {
+                continue;
+            };
             let dummy = TrackedField::unset();
-            let base_f_ref = base_f.unwrap_or(&dummy);
-
+            let base_field = base_sc.map(|scene| match field {
+                "world_setting_code" => &scene.world_setting_code,
+                "style_preset_code" => &scene.style_preset_code,
+                _ => &scene.narrator_config_code,
+            });
+            let target = match field {
+                "world_setting_code" => &mut cand_sc.world_setting_code,
+                "style_preset_code" => &mut cand_sc.style_preset_code,
+                _ => &mut cand_sc.narrator_config_code,
+            };
             let res = evaluate_single_field(
                 call.caller,
                 "scene_config",
                 sc_code,
-                "world_setting_code",
-                v.to_string(),
-                base_f_ref,
-                &mut cand_sc.world_setting_code,
+                field,
+                value.to_string(),
+                base_field.unwrap_or(&dummy),
+                target,
                 declared_sources,
                 pending_patches,
             );
             results.push(res);
         }
+    }
+
+    /// Creates the missing scene_config arc/chapter/scene containers for a scene that exists in
+    /// chapter_phase. Returns false when the scene itself does not exist.
+    fn ensure_scene_config_scene(candidate: &mut BusinessFlowData, sc_code: &str) -> bool {
+        if candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter()
+            .flat_map(|arc| &arc.chapters)
+            .flat_map(|chapter| &chapter.scenes)
+            .any(|scene| scene.code == sc_code)
+        {
+            return true;
+        }
+
+        let mut location: Option<(String, String)> = None;
+        for arc in &candidate.optional.chapter_phase.arcs {
+            for chapter in &arc.chapters {
+                if chapter.scenes.iter().any(|scene| scene.code == sc_code) {
+                    location = Some((arc.code.clone(), chapter.code.clone()));
+                }
+            }
+        }
+        let Some((arc_code, chapter_code)) = location else {
+            return false;
+        };
+
+        if !candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter()
+            .any(|arc| arc.code == arc_code)
+        {
+            candidate.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
+                code: arc_code.clone(),
+                chapters: Vec::new(),
+            });
+        }
+        let arc_cfg = candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter_mut()
+            .find(|arc| arc.code == arc_code)
+            .expect("scene_config arc was just created");
+        if !arc_cfg.chapters.iter().any(|chapter| chapter.code == chapter_code) {
+            arc_cfg.chapters.push(SceneConfigChapterItem {
+                code: chapter_code.clone(),
+                scenes: Vec::new(),
+            });
+        }
+        let chapter_cfg = arc_cfg
+            .chapters
+            .iter_mut()
+            .find(|chapter| chapter.code == chapter_code)
+            .expect("scene_config chapter was just created");
+        chapter_cfg.scenes.push(SceneConfigSceneItem {
+            code: sc_code.to_string(),
+            world_setting_code: TrackedField::unset(),
+            style_preset_code: TrackedField::unset(),
+            narrator_config_code: TrackedField::unset(),
+            lore_entries: Vec::new(),
+            characters: Vec::new(),
+        });
+        true
     }
 
     fn handle_add_world_setting(
@@ -2021,6 +2104,106 @@ impl ToolExecutor {
         }
     }
 
+    fn handle_set_relationship(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let Some(code) = call
+            .parameters
+            .get("code")
+            .or_else(|| call.parameters.get("relationship_code"))
+            .and_then(|value| value.as_str())
+        else {
+            results.push(field_rejection("code", "missing_target_code"));
+            return;
+        };
+        let Some(relationship) = candidate
+            .optional
+            .relationship_phase
+            .relationship
+            .iter_mut()
+            .find(|item| item.code == code)
+        else {
+            results.push(field_rejection("code", "target_code_not_found"));
+            return;
+        };
+        let source = *declared_sources
+            .get("motif_code")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        if let Some(motif) = call.parameters.get("motif_code").and_then(|value| value.as_str()) {
+            relationship.motif.code = TrackedField::new(motif.to_string(), source);
+        }
+        results.push(FieldResult {
+            field: "code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![code.to_string()]),
+        });
+    }
+
+    fn handle_add_relationship_role(
+        &self,
+        call: &ToolCall,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
+        candidate: &mut BusinessFlowData,
+        results: &mut Vec<FieldResult>,
+    ) {
+        let Some(code) = call
+            .parameters
+            .get("relationship_code")
+            .or_else(|| call.parameters.get("code"))
+            .and_then(|value| value.as_str())
+        else {
+            results.push(field_rejection("relationship_code", "missing_target_code"));
+            return;
+        };
+        let Some(relationship) = candidate
+            .optional
+            .relationship_phase
+            .relationship
+            .iter_mut()
+            .find(|item| item.code == code)
+        else {
+            results.push(field_rejection("relationship_code", "target_code_not_found"));
+            return;
+        };
+        let source = *declared_sources
+            .get("category_code")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let category = text("category_code");
+        if relationship.character.roles.iter().any(|role| role.category_code.value == category.value) {
+            results.push(field_rejection("category_code", "duplicate_role"));
+            return;
+        }
+        let is_primary = call.parameters.get("is_primary").and_then(|value| value.as_bool());
+        relationship.character.roles.push(RelationshipRoleItem {
+            category_code: category,
+            hierarchy: text("hierarchy"),
+            is_primary: is_primary
+                .map(|value| TrackedField::new(value, source))
+                .unwrap_or_default(),
+            source: Some(source),
+        });
+        results.push(FieldResult {
+            field: "category_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: None,
+        });
+    }
+
     fn handle_add_relationship(
         &self,
         call: &ToolCall,
@@ -2237,123 +2420,144 @@ impl ToolExecutor {
     fn handle_add_scene_character(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str());
-        let char_code = call.parameters.get("character_code").and_then(|v| v.as_str());
-
-        if sc_code.is_none() || char_code.is_none() {
-            results.push(FieldResult {
-                field: "target".to_string(),
-                status: "rejected".to_string(),
-                patch_id: None,
-                error: Some("missing_target_code".to_string()),
-                candidates: None,
-            });
+        let Some(sc_code) = call.parameters.get("scene_code").and_then(|v| v.as_str()) else {
+            results.push(field_rejection("scene_code", "missing_target_code"));
+            return;
+        };
+        let Some(char_code) = call.parameters.get("character_code").and_then(|v| v.as_str()) else {
+            results.push(field_rejection("character_code", "missing_target_code"));
+            return;
+        };
+        if !Self::ensure_scene_config_scene(candidate, sc_code) {
+            results.push(field_rejection("scene_code", "target_code_not_found"));
             return;
         }
-
-        let (sc_code, char_code) = (sc_code.unwrap(), char_code.unwrap());
-        let mut found = false;
-
-        for arc in &mut candidate.optional.scene_config_phase.arcs {
-            for chap in &mut arc.chapters {
-                for sc in &mut chap.scenes {
-                    if sc.code == sc_code {
-                        sc.characters.push(SceneCharacterLink {
-                            character_code: char_code.to_string(),
-                            is_pov: TrackedField::unset(),
-                            source: Some(ProvenanceSource::User),
-                        });
-                        found = true;
-                    }
-                }
+        let source = *declared_sources
+            .get("is_pov")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let is_pov = call.parameters.get("is_pov").and_then(|value| value.as_bool());
+        let Some(scene) = candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|arc| &mut arc.chapters)
+            .flat_map(|chapter| &mut chapter.scenes)
+            .find(|scene| scene.code == sc_code)
+        else {
+            results.push(field_rejection("scene_code", "target_code_not_found"));
+            return;
+        };
+        if let Some(link) = scene
+            .characters
+            .iter_mut()
+            .find(|link| link.character_code == char_code)
+        {
+            if let Some(is_pov) = is_pov {
+                link.is_pov = TrackedField::new(is_pov, source);
             }
-        }
-
-        if found {
-            results.push(FieldResult {
-                field: "character_code".to_string(),
-                status: "applied".to_string(),
-                patch_id: None,
-                error: None,
-                candidates: None,
-            });
         } else {
-            results.push(FieldResult {
-                field: "scene_code".to_string(),
-                status: "rejected".to_string(),
-                patch_id: None,
-                error: Some("target_code_not_found".to_string()),
-                candidates: None,
+            scene.characters.push(SceneCharacterLink {
+                character_code: char_code.to_string(),
+                is_pov: is_pov
+                    .map(|is_pov| TrackedField::new(is_pov, source))
+                    .unwrap_or_default(),
+                source: Some(source),
             });
         }
+        results.push(FieldResult {
+            field: "character_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![char_code.to_string()]),
+        });
     }
 
     fn handle_add_scene_lore_entry(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
         _pending_patches: &mut Vec<PendingProposal>,
     ) {
-        let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str());
-        let lore_code = call.parameters.get("lore_entry_code").and_then(|v| v.as_str());
-
-        if sc_code.is_none() || lore_code.is_none() {
-            results.push(FieldResult {
-                field: "target".to_string(),
-                status: "rejected".to_string(),
-                patch_id: None,
-                error: Some("missing_target_code".to_string()),
-                candidates: None,
-            });
+        let Some(sc_code) = call.parameters.get("scene_code").and_then(|v| v.as_str()) else {
+            results.push(field_rejection("scene_code", "missing_target_code"));
+            return;
+        };
+        let Some(lore_code) = call.parameters.get("lore_entry_code").and_then(|v| v.as_str()) else {
+            results.push(field_rejection("lore_entry_code", "missing_target_code"));
+            return;
+        };
+        if !Self::ensure_scene_config_scene(candidate, sc_code) {
+            results.push(field_rejection("scene_code", "target_code_not_found"));
             return;
         }
-
-        let (sc_code, lore_code) = (sc_code.unwrap(), lore_code.unwrap());
-        let mut found = false;
-
-        for arc in &mut candidate.optional.scene_config_phase.arcs {
-            for chap in &mut arc.chapters {
-                for sc in &mut chap.scenes {
-                    if sc.code == sc_code {
-                        sc.lore_entries.push(SceneLoreEntryLink {
-                            lore_entry_code: lore_code.to_string(),
-                            usage: TrackedField::unset(),
-                            reveal_to_reader: TrackedField::unset(),
-                            reveal_to_pov: TrackedField::unset(),
-                            source: Some(ProvenanceSource::User),
-                        });
-                        found = true;
-                    }
-                }
+        let source = *declared_sources
+            .get("usage")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let usage = call.parameters.get("usage").and_then(|v| v.as_str());
+        let reveal_reader = call.parameters.get("reveal_to_reader").and_then(|v| v.as_bool());
+        let reveal_pov = call.parameters.get("reveal_to_pov").and_then(|v| v.as_bool());
+        let Some(scene) = candidate
+            .optional
+            .scene_config_phase
+            .arcs
+            .iter_mut()
+            .flat_map(|arc| &mut arc.chapters)
+            .flat_map(|chapter| &mut chapter.scenes)
+            .find(|scene| scene.code == sc_code)
+        else {
+            results.push(field_rejection("scene_code", "target_code_not_found"));
+            return;
+        };
+        let text = |value: Option<&str>| {
+            value
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        if let Some(link) = scene
+            .lore_entries
+            .iter_mut()
+            .find(|link| link.lore_entry_code == lore_code)
+        {
+            if usage.is_some() {
+                link.usage = text(usage);
             }
-        }
-
-        if found {
-            results.push(FieldResult {
-                field: "lore_entry_code".to_string(),
-                status: "applied".to_string(),
-                patch_id: None,
-                error: None,
-                candidates: None,
-            });
+            if let Some(value) = reveal_reader {
+                link.reveal_to_reader = TrackedField::new(value.to_string(), source);
+            }
+            if let Some(value) = reveal_pov {
+                link.reveal_to_pov = TrackedField::new(value.to_string(), source);
+            }
         } else {
-            results.push(FieldResult {
-                field: "scene_code".to_string(),
-                status: "rejected".to_string(),
-                patch_id: None,
-                error: Some("target_code_not_found".to_string()),
-                candidates: None,
+            scene.lore_entries.push(SceneLoreEntryLink {
+                lore_entry_code: lore_code.to_string(),
+                usage: text(usage),
+                reveal_to_reader: reveal_reader
+                    .map(|value| TrackedField::new(value.to_string(), source))
+                    .unwrap_or_default(),
+                reveal_to_pov: reveal_pov
+                    .map(|value| TrackedField::new(value.to_string(), source))
+                    .unwrap_or_default(),
+                source: Some(source),
             });
         }
+        results.push(FieldResult {
+            field: "lore_entry_code".to_string(),
+            status: "applied".to_string(),
+            patch_id: None,
+            error: None,
+            candidates: Some(vec![lore_code.to_string()]),
+        });
     }
 
     fn handle_add_project_genre(
@@ -2505,7 +2709,7 @@ impl ToolExecutor {
     fn handle_add_character_memory(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2534,15 +2738,33 @@ impl ToolExecutor {
             });
         }
 
+        let source = *declared_sources
+            .get("content")
+            .or_else(|| declared_sources.get("summary"))
+            .unwrap_or(&ProvenanceSource::AiGenerated);
         let life = candidate.optional.character_life_experience_phase.character.iter_mut().find(|c| c.code == char_code).unwrap();
-        let content = call.parameters.get("content").and_then(|v| v.as_str()).unwrap_or("");
+        let content = call
+            .parameters
+            .get("content")
+            .or_else(|| call.parameters.get("summary"))
+            .or_else(|| call.parameters.get("display_name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let sc_code = call.parameters.get("source_scene_code").and_then(|v| v.as_str());
+        let code = call
+            .parameters
+            .get("code")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("mem-{}", life.memories.len() + 1));
 
         life.memories.push(CharacterMemoryItem {
-            code: Some(format!("mem-{}", life.memories.len() + 1)),
-            source_scene_code: sc_code.map(|s| TrackedField::user(s.to_string())).unwrap_or_else(TrackedField::unset),
-            content: TrackedField::user(content.to_string()),
-            source: Some(ProvenanceSource::User),
+            code: Some(code),
+            source_scene_code: sc_code
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default(),
+            content: TrackedField::new(content.to_string(), source),
+            source: Some(source),
         });
 
         results.push(FieldResult {
@@ -2557,7 +2779,7 @@ impl ToolExecutor {
     fn handle_add_character_competence(
         &self,
         call: &ToolCall,
-        _declared_sources: &BTreeMap<String, ProvenanceSource>,
+        declared_sources: &BTreeMap<String, ProvenanceSource>,
         _baseline: &BusinessFlowData,
         candidate: &mut BusinessFlowData,
         results: &mut Vec<FieldResult>,
@@ -2589,19 +2811,42 @@ impl ToolExecutor {
         let comp_code = call.parameters.get("code").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_else(|| format!("{}-k{}", char_code, life.competences.len() + 1));
         let sc_code = call.parameters.get("scene_code").and_then(|v| v.as_str()).unwrap_or("");
         let disp = call.parameters.get("display_name").and_then(|v| v.as_str()).unwrap_or("Competence");
+        let source = *declared_sources
+            .get("display_name")
+            .unwrap_or(&ProvenanceSource::AiGenerated);
+        let text = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|v| v.as_str())
+                .map(|value| TrackedField::new(value.to_string(), source))
+                .unwrap_or_default()
+        };
+        let list = |key: &str| {
+            call.parameters
+                .get(key)
+                .and_then(|v| v.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str())
+                        .map(|value| TrackedField::new(value.to_string(), source))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
 
         life.competences.push(CharacterCompetenceItem {
             code: comp_code.clone(),
-            domain_code: TrackedField::unset(),
-            level_code: TrackedField::unset(),
-            scene_code: TrackedField::user(sc_code.to_string()),
-            display_name: TrackedField::user(disp.to_string()),
-            description: TrackedField::unset(),
-            reliability: TrackedField::unset(),
-            experience: TrackedField::unset(),
-            capabilities: Vec::new(),
-            limitations: Vec::new(),
-            source: Some(ProvenanceSource::User),
+            domain_code: text("domain_code"),
+            level_code: text("level_code"),
+            scene_code: TrackedField::new(sc_code.to_string(), source),
+            display_name: TrackedField::new(disp.to_string(), source),
+            description: text("description"),
+            reliability: text("reliability"),
+            experience: text("experience"),
+            capabilities: list("capabilities"),
+            limitations: list("limitations"),
+            source: Some(source),
         });
 
         results.push(FieldResult {
@@ -2700,12 +2945,11 @@ impl ToolExecutor {
             });
             return;
         };
-        let source = *declared_sources
-            .get("the_wound")
-            .or_else(|| declared_sources.get("external_want"))
-            .or_else(|| declared_sources.get("internal_need"))
-            .unwrap_or(&ProvenanceSource::AiGenerated);
         let text = |key: &str| {
+            let source = declared_sources
+                .get(key)
+                .copied()
+                .unwrap_or(ProvenanceSource::AiGenerated);
             call.parameters
                 .get(key)
                 .and_then(|value| value.as_str())
@@ -2727,6 +2971,25 @@ impl ToolExecutor {
         if let Some(value) = text("external_want") { item.narrative_engine.external_want = value; }
         if let Some(value) = text("internal_need") { item.narrative_engine.internal_need = value; }
         if let Some(value) = text("internal_conflict") { item.narrative_engine.internal_conflict = value; }
+        if let Some(value) = text("moral_alignment") { item.cognitive_moral_framework.moral_alignment = value; }
+        if let Some(value) = text("moral_code") { item.cognitive_moral_framework.moral_code = value; }
+        if let Some(value) = text("cognitive_bias") { item.cognitive_moral_framework.cognitive_bias = value; }
+        if let Some(value) = text("breaking_point") { item.cognitive_moral_framework.breaking_point = value; }
+        if let Some(value) = text("social_mask_persona_type") {
+            item.behavioral_adaptation.social_mask.persona_type = value;
+        }
+        if let Some(value) = text("social_mask_verbal_style") {
+            item.behavioral_adaptation.social_mask.verbal_style = value;
+        }
+        if let Some(value) = text("defense_primary_reaction") {
+            item.behavioral_adaptation.defense_mechanisms.primary_reaction = value;
+        }
+        if let Some(value) = text("defense_stress_trigger") {
+            item.behavioral_adaptation.defense_mechanisms.stress_trigger = value;
+        }
+        if let Some(value) = text("defense_coping_strategy") {
+            item.behavioral_adaptation.defense_mechanisms.coping_strategy = value;
+        }
         results.push(FieldResult {
             field: "character_code".to_string(),
             status: "applied".to_string(),
@@ -3451,6 +3714,216 @@ mod phase6_7_handlers {
         assert_eq!(executor.execute_call(&unknown, &ExecutionGuard::new(&state)).status, "rejected");
     }
 
+    fn scene_gate_fixture() -> BusinessFlowData {
+        let mut state = BusinessFlowData::default();
+        let mut scene = ChapterPhaseSceneItem::default();
+        scene.code = "scene-1".into();
+        scene.display_name = TrackedField::user("Cảnh 1".into());
+        scene.summary = TrackedField::user("Tóm tắt".into());
+        let mut chapter = ChapterPhaseChapterItem::default();
+        chapter.code = "chapter-1".into();
+        chapter.display_name = TrackedField::user("Chương 1".into());
+        chapter.summary = TrackedField::user("Tóm tắt".into());
+        chapter.scenes.push(scene);
+        state.optional.chapter_phase.arcs.push(ChapterPhaseArcItem {
+            code: "arc-1".into(),
+            chapters: vec![chapter],
+        });
+        state.optional.scene_config_phase.arcs.push(SceneConfigArcItem {
+            code: "arc-1".into(),
+            chapters: Vec::new(),
+        });
+        let mut world = WorldSettingItem::default();
+        world.code = "city".into();
+        world.display_name = TrackedField::user("Thành phố".into());
+        world.setting_type = TrackedField::user("CITY".into());
+        state.optional.world_building_phase.world_settings.push(world);
+        state
+    }
+
+    #[test]
+    fn set_scene_config_creates_missing_containers_and_all_three_fields() {
+        let executor = ToolExecutor::default();
+        let state = scene_gate_fixture();
+        let configure = call(
+            "set_scene_config",
+            serde_json::json!({
+                "scene_code": "scene-1",
+                "world_setting_code": "city",
+                "style_preset_code": "style-1",
+                "narrator_config_code": "narrator-1"
+            }),
+            &[
+                ("world_setting_code", "ai_generated"),
+                ("style_preset_code", "ai_generated"),
+                ("narrator_config_code", "ai_generated"),
+            ],
+        );
+        let outcome = executor.execute_call(&configure, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        let scene = &updated.optional.scene_config_phase.arcs[0].chapters[0].scenes[0];
+        assert_eq!(scene.code, "scene-1");
+        assert_eq!(scene.world_setting_code.value.as_deref(), Some("city"));
+        assert_eq!(scene.style_preset_code.value.as_deref(), Some("style-1"));
+        assert_eq!(scene.narrator_config_code.value.as_deref(), Some("narrator-1"));
+        assert!(
+            crate::domain::phase_gate::missing_for_phase(&updated, 4).is_empty(),
+            "{:?}",
+            crate::domain::phase_gate::missing_for_phase(&updated, 4)
+        );
+    }
+
+    #[test]
+    fn scene_character_and_lore_links_capture_flags_and_dedupe() {
+        let executor = ToolExecutor::default();
+        let state = scene_gate_fixture();
+        let configure = call(
+            "set_scene_config",
+            serde_json::json!({"scene_code": "scene-1", "world_setting_code": "city"}),
+            &[("world_setting_code", "ai_generated")],
+        );
+        let state = executor
+            .execute_call(&configure, &ExecutionGuard::new(&state))
+            .mutated_state()
+            .unwrap()
+            .clone();
+
+        let pov = call(
+            "add_scene_character",
+            serde_json::json!({"scene_code": "scene-1", "character_code": "hero", "is_pov": true}),
+            &[("is_pov", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&pov, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        let state = outcome.mutated_state().unwrap().clone();
+        let outcome = executor.execute_call(&pov, &ExecutionGuard::new(&state));
+        let state = outcome.mutated_state().unwrap().clone();
+        let scene = &state.optional.scene_config_phase.arcs[0].chapters[0].scenes[0];
+        assert_eq!(scene.characters.len(), 1, "character link must dedupe");
+        assert_eq!(scene.characters[0].is_pov.value, Some(true));
+
+        let lore = call(
+            "add_scene_lore_entry",
+            serde_json::json!({
+                "scene_code": "scene-1",
+                "lore_entry_code": "lore-1",
+                "usage": "foreshadow",
+                "reveal_to_reader": true,
+                "reveal_to_pov": false
+            }),
+            &[("usage", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&lore, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        let updated = outcome.mutated_state().unwrap().clone();
+        let scene = &updated.optional.scene_config_phase.arcs[0].chapters[0].scenes[0];
+        assert_eq!(scene.lore_entries.len(), 1);
+        assert_eq!(scene.lore_entries[0].usage.value.as_deref(), Some("foreshadow"));
+        assert_eq!(scene.lore_entries[0].reveal_to_reader.value.as_deref(), Some("true"));
+        assert_eq!(scene.lore_entries[0].reveal_to_pov.value.as_deref(), Some("false"));
+    }
+
+    #[test]
+    fn phase5_memory_and_competence_satisfy_the_life_experience_gate() {
+        let executor = ToolExecutor::default();
+        let mut state = scene_gate_fixture();
+        let mut hero = crate::domain::business_flow::RequireCharacterItem::default();
+        hero.code = "hero".into();
+        hero.display_name = TrackedField::user("Anh hùng".into());
+        state.require.character.push(hero);
+
+        let memory = call(
+            "add_character_memory",
+            serde_json::json!({
+                "character_code": "hero",
+                "content": "Ký ức tuổi thơ",
+                "source_scene_code": "scene-1"
+            }),
+            &[("content", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&memory, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+
+        let competence = call(
+            "add_character_competence",
+            serde_json::json!({
+                "character_code": "hero",
+                "scene_code": "scene-1",
+                "display_name": "Đọc tình huống",
+                "domain_code": "SOCIAL",
+                "level_code": "ADVANCED",
+                "capabilities": ["quan sát"],
+                "limitations": ["cảm xúc"]
+            }),
+            &[("display_name", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&competence, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+
+        let life = state
+            .optional
+            .character_life_experience_phase
+            .character
+            .iter()
+            .find(|item| item.code == "hero")
+            .expect("life experience row");
+        assert_eq!(life.memories.len(), 1);
+        assert_eq!(life.competences.len(), 1);
+        assert_eq!(life.competences[0].domain_code.value.as_deref(), Some("SOCIAL"));
+        assert_eq!(life.competences[0].capabilities.len(), 1);
+        assert!(
+            crate::domain::phase_gate::missing_for_subphase(&state, 3).is_empty(),
+            "{:?}",
+            crate::domain::phase_gate::missing_for_subphase(&state, 3)
+        );
+    }
+
+    #[test]
+    fn phase6_relationship_role_is_stored_and_deduped() {
+        let executor = ToolExecutor::default();
+        let mut state = BusinessFlowData::default();
+        for code in ["hero", "rival"] {
+            let mut character = crate::domain::business_flow::RequireCharacterItem::default();
+            character.code = code.into();
+            character.display_name = TrackedField::user(code.into());
+            state.require.character.push(character);
+        }
+        let add = call(
+            "add_relationship",
+            serde_json::json!({"from_code": "hero", "to_code": "rival", "motif_code": "rivals"}),
+            &[("code", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&add, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let code = state.optional.relationship_phase.relationship[0].code.clone();
+
+        let role = call(
+            "add_relationship_role",
+            serde_json::json!({
+                "relationship_code": code,
+                "category_code": "MENTOR",
+                "hierarchy": "PRIMARY",
+                "is_primary": true
+            }),
+            &[("category_code", "ai_generated")],
+        );
+        let outcome = executor.execute_call(&role, &ExecutionGuard::new(&state));
+        assert!(outcome.is_applied(), "{outcome:?}");
+        state = outcome.mutated_state().unwrap().clone();
+        let relationship = &state.optional.relationship_phase.relationship[0];
+        assert_eq!(relationship.character.roles.len(), 1);
+        assert_eq!(relationship.character.roles[0].category_code.value.as_deref(), Some("MENTOR"));
+        assert_eq!(relationship.character.roles[0].is_primary.value, Some(true));
+
+        let duplicate = executor.execute_call(&role, &ExecutionGuard::new(&state));
+        assert_eq!(duplicate.status, "rejected");
+        assert_eq!(duplicate.results[0].error.as_deref(), Some("duplicate_role"));
+    }
+
     #[test]
     fn add_project_genre_accepts_the_map_source_contract() {
         let executor = ToolExecutor::default();
@@ -3508,14 +3981,39 @@ mod phase6_7_handlers {
                 "character_code": "hero",
                 "the_wound": "Bị bỏ rơi",
                 "external_want": "Được công nhận",
-                "internal_need": "Tự chấp nhận"
+                "internal_need": "Tự chấp nhận",
+                "breaking_point": "Khi niềm tin sụp đổ",
+                "moral_code": "An toàn tài chính là trên hết"
             }),
-            &[("the_wound", "ai_generated")],
+            &[
+                ("the_wound", "ai_generated"),
+                ("breaking_point", "user"),
+                ("moral_code", "user"),
+            ],
         );
         let outcome = executor.execute_call(&psychology, &ExecutionGuard::new(&state));
         assert!(outcome.is_applied(), "{outcome:?}");
         state = outcome.mutated_state().unwrap().clone();
 
+        let psych = state
+            .optional
+            .character_psychological_phase
+            .character
+            .iter()
+            .find(|item| item.code == "hero")
+            .expect("psychology row");
+        assert_eq!(
+            psych.cognitive_moral_framework.breaking_point.value.as_deref(),
+            Some("Khi niềm tin sụp đổ")
+        );
+        assert_eq!(
+            psych.cognitive_moral_framework.moral_code.value.as_deref(),
+            Some("An toàn tài chính là trên hết")
+        );
+        assert_eq!(
+            psych.cognitive_moral_framework.moral_code.source,
+            Some(ProvenanceSource::User)
+        );
         assert!(
             crate::domain::phase_gate::missing_for_subphase(&state, 1).is_empty(),
             "{:?}",

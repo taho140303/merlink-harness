@@ -156,17 +156,16 @@ pub fn merge_probe_reports(
             }
             progress = true;
 
-            let key = match (&parent_canonical, &existing_parent) {
-                (Some(parent), _) => format!("tmp:{parent}|{}|{}", normalize_name(&display_name), setting_type),
-                (None, Some(existing)) => {
-                    format!("ex:{existing}|{}|{}", normalize_name(&display_name), setting_type)
-                }
-                (None, None) => format!("root|{}|{}", normalize_name(&display_name), setting_type),
-            };
+            // Identity is the normalized display name + type, not the parent. Probes often
+            // describe the same real place once as a root and once as a child of another probe's
+            // hierarchy ("Thành phố Hồ Chí Minh" appeared both ways); keying by parent produced
+            // duplicate world settings. Parent information is merged below, preferring a resolved
+            // parent over a root.
+            let key = format!("{}|{}", normalize_name(&display_name), setting_type);
             local_to_canonical.insert(temp_key.clone(), key.clone());
 
             match world_signatures.get_mut(&key) {
-                Some((first_report, first_description, first_access)) => {
+                Some((_first_report, first_description, first_access)) => {
                     // A probe that omits an optional field does not conflict with one that
                     // provides it: keep the known value, only differ when both are known.
                     for (existing, incoming, label) in [
@@ -174,24 +173,33 @@ pub fn merge_probe_reports(
                         (&mut *first_access, &access, "access"),
                     ] {
                         match (&*existing, incoming) {
+                            // Probes describe the same real location with different prose. That is
+                            // not an identity conflict: keep the richer description and the first
+                            // access value instead of aborting the whole Phase 3 merge (which left
+                            // the draft confirmed at Phase 3 with zero world settings).
                             (Some(known), Some(candidate)) if known != candidate => {
-                                return Err(MergeError::Ambiguous {
-                                    kind: "world_setting",
-                                    display_name: format!("{display_name} ({label})"),
-                                    first_report: first_report.clone(),
-                                    second_report: report_label.clone(),
-                                });
+                                if label == "description" && candidate.len() > known.len() {
+                                    *existing = Some(candidate.clone());
+                                }
                             }
                             (None, Some(candidate)) => *existing = Some(candidate.clone()),
                             _ => {}
                         }
                     }
                     let stored = worlds.get_mut(&key).expect("merged world exists");
-                    if stored.description.is_none() {
-                        stored.description = description.clone();
+                    // A resolved parent wins over a root variant; conflicting resolved parents keep
+                    // the first one (the report order is deterministic).
+                    if stored.parent_temp_key.is_none() {
+                        stored.parent_temp_key = parent_canonical.clone();
                     }
+                    if stored.existing_parent_code.is_none() {
+                        stored.existing_parent_code = existing_parent.clone();
+                    }
+                    // The signature keeps the richest description/known access; mirror it into the
+                    // candidate that will be written.
+                    stored.description = first_description.clone();
                     if stored.access.is_none() {
-                        stored.access = access.clone();
+                        stored.access = first_access.clone();
                     }
                 }
                 None => {
@@ -316,15 +324,42 @@ mod tests {
     }
 
     #[test]
-    fn test_merge_rejects_conflicting_payloads_as_ambiguous() {
+    fn test_merge_keeps_richest_description_for_the_same_location() {
+        // Independent chapter probes naturally describe "City" differently. The merger must keep
+        // one candidate (longest description) instead of failing Phase 3 entirely.
         let first = r#"{"tempKey":"w1","displayName":"City","type":"CITY","description":"Port"}"#;
-        let second = r#"{"tempKey":"w1","displayName":"City","type":"CITY","description":"Mountain"}"#;
+        let second = r#"{"tempKey":"w2","displayName":"City","type":"CITY","description":"Port and mountain district"}"#;
         let reports = vec![
             ("probe-a".to_string(), report(first, "")),
             ("probe-b".to_string(), report(second, "")),
         ];
-        let error = merge_probe_reports(&reports, &[]).expect_err("conflict must not auto-merge");
-        assert!(matches!(error, MergeError::Ambiguous { kind: "world_setting", .. }));
+        let merged = merge_probe_reports(&reports, &[]).expect("same location must merge");
+        assert_eq!(merged.world_settings.len(), 1);
+        assert_eq!(merged.world_settings[0].display_name, "City");
+        assert_eq!(
+            merged.world_settings[0].description.as_deref(),
+            Some("Port and mountain district")
+        );
+    }
+
+    #[test]
+    fn test_merge_collapses_root_and_child_variants_of_the_same_place() {
+        // Same real location described as a root by one probe and as a child by another.
+        let root = r#"{"tempKey":"hcm-root","displayName":"Thành phố Hồ Chí Minh","type":"CITY","description":"Southern hub"}"#;
+        let child = r#"{"tempKey":"vn","displayName":"Việt Nam","type":"COUNTRY"},{"tempKey":"hcm-child","parentTempKey":"vn","displayName":"Thành phố Hồ Chí Minh","type":"CITY","description":"Southern hub and startup district"}"#;
+        let reports = vec![
+            ("probe-a".to_string(), report(root, "")),
+            ("probe-b".to_string(), report(child, "")),
+        ];
+        let merged = merge_probe_reports(&reports, &[]).expect("root/child variants must merge");
+        assert_eq!(merged.world_settings.len(), 2, "Vietnam + one Ho Chi Minh City");
+        let hcm = merged
+            .world_settings
+            .iter()
+            .find(|candidate| candidate.display_name == "Thành phố Hồ Chí Minh")
+            .unwrap();
+        assert!(hcm.parent_temp_key.is_some(), "resolved parent must win over root");
+        assert_eq!(hcm.description.as_deref(), Some("Southern hub and startup district"));
     }
 
     #[test]

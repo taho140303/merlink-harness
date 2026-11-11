@@ -264,6 +264,8 @@ export interface DraftOverview {
   arcs: DraftArc[];
   characters: DraftCharacter[];
   worldSettings?: DraftWorldSettings;
+  /** All Phase 3 world settings (the single field above stays for compatibility). */
+  worldSettingsList?: DraftWorldSettings[];
   sceneConfig?: SceneConfigPhase;
   relationships?: DraftRelationship[];
 }

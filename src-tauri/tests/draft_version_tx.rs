@@ -997,7 +997,7 @@ async fn IPC_CMD_008_confirm_phase_gating() {
     let err_gate = exec_confirm_phase(&service, &req_p2).await.unwrap_err();
     assert_eq!(err_gate.code, ErrorCode::ValidationFailed);
     assert!(
-        err_gate.message.contains("Phase 1 chưa hoàn tất"),
+        err_gate.message.contains("Phase 1") && err_gate.message.contains("Arc"),
         "unexpected gate message: {}",
         err_gate.message
     );
@@ -1025,6 +1025,26 @@ async fn IPC_CMD_008_confirm_phase_gating() {
     });
     let resp_p2 = exec_confirm_phase(&service, &req_p2).await.unwrap();
     assert_eq!(resp_p2.phase, 2);
+
+    // 2b. A multi-phase jump is allowed when every skipped phase is complete. This is the case
+    // that used to fail with "Phases must advance one step: current phase 0, requested 2".
+    let entry = service.get_or_load_runtime_entry(draft_id).unwrap();
+    entry.mutate_working_state(|ws| {
+        ws.phase = 0;
+        ws.subphase = None;
+        ws.business_flow_data.meta.phase = 0;
+        ws.business_flow_data.meta.subphase = None;
+    });
+    let req_jump_to_complete_phase = ConfirmPhaseReq {
+        draft_session_id: draft_id,
+        target_phase: 2,
+        target_subphase: None,
+        pre_draft_suggestion: None,
+    };
+    let resp_jump = exec_confirm_phase(&service, &req_jump_to_complete_phase)
+        .await
+        .unwrap();
+    assert_eq!(resp_jump.phase, 2);
 
     // 3. Subphase invalid for Phase 1
     let req_invalid_sub = ConfirmPhaseReq {

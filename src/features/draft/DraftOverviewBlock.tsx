@@ -287,16 +287,33 @@ export function DraftOverviewBlock({
           </div>
         )}
 
-        {activeTab === 'world' && overview.worldSettings && (
-          <div className="space-y-3 duration-300">
-            <p className="text-sm text-fg-muted">{t('draft.overview.worldDesc')}</p>
-            <WorldSettingsBlock 
-              settings={overview.worldSettings} 
-              isFeedbackMode={isFeedbackMode}
-              onAttachFeedback={onAttachFeedback}
-            />
-          </div>
-        )}
+        {activeTab === 'world' && (() => {
+          const worlds = overview.worldSettingsList?.length
+            ? overview.worldSettingsList
+            : overview.worldSettings
+              ? [overview.worldSettings]
+              : [];
+          return (
+            <div className="space-y-3 duration-300">
+              <p className="text-sm text-fg-muted">
+                {t('draft.overview.worldDesc')} ({worlds.length})
+              </p>
+              {worlds.length === 0 && (
+                <p className="rounded-card border border-dashed border-line p-4 text-sm text-fg-subtle">
+                  Chưa có bối cảnh nào.
+                </p>
+              )}
+              {worlds.map((settings, index) => (
+                <WorldSettingsBlock
+                  key={`${settings.code}-${index}`}
+                  settings={settings}
+                  isFeedbackMode={isFeedbackMode}
+                  onAttachFeedback={onAttachFeedback}
+                />
+              ))}
+            </div>
+          );
+        })()}
 
         {activeTab === 'scene' && overview.sceneConfig && (
           <div className="space-y-3 duration-300">

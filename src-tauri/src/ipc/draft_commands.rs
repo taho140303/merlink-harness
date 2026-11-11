@@ -364,52 +364,64 @@ pub async fn exec_confirm_phase(
             ),
         ));
     }
-    if req.target_phase > current_phase + 1 {
-        return Err(IpcError::new(
-            ErrorCode::ValidationFailed,
-            format!(
-                "Phases must advance one step: current phase {}, requested {}",
-                current_phase, req.target_phase
-            ),
-        ));
-    }
     let moving_to_next_phase = req.target_phase > current_phase;
     let moving_to_next_subphase = req.target_phase == 5
         && current_phase == 5
         && req.target_subphase.unwrap_or(0) > current_subphase.unwrap_or(1);
+
+    // A jump to a later phase is allowed only when every phase that would be skipped is already
+    // complete. The UI can derive the visible step from draft data (e.g. Arcs exist) without a
+    // confirm_phase call, so the runtime phase may lag behind; rejecting any multi-step request
+    // produced "Phases must advance one step: current phase 0, requested 2". Gating each skipped
+    // phase keeps the "no incomplete phase may be passed" rule intact.
+    let mut transition_problems: Vec<String> = Vec::new();
     if moving_to_next_phase {
-        let missing = crate::domain::phase_gate::missing_for_phase(
-            &snap.business_flow_data,
-            current_phase,
-        );
-        if !missing.is_empty() {
-            return Err(IpcError::new(
-                ErrorCode::ValidationFailed,
-                format!(
-                    "Phase {} chưa hoàn tất nên không thể chuyển sang phase {}: {}",
-                    current_phase,
-                    req.target_phase,
-                    missing.join("; ")
-                ),
-            ));
+        for phase in current_phase..req.target_phase {
+            if phase == 5 {
+                // Entering 5.x from a lower phase: validate the sub-phases before the target.
+                let last_sub = if req.target_phase == 5 {
+                    req.target_subphase.unwrap_or(1).saturating_sub(1)
+                } else {
+                    3
+                };
+                for sub in 1..=last_sub {
+                    let missing =
+                        crate::domain::phase_gate::missing_for_subphase(&snap.business_flow_data, sub);
+                    if !missing.is_empty() {
+                        transition_problems.push(format!("Phase 5.{sub}: {}", missing.join("; ")));
+                    }
+                }
+            } else {
+                let missing =
+                    crate::domain::phase_gate::missing_for_phase(&snap.business_flow_data, phase);
+                if !missing.is_empty() {
+                    // Phase-gate messages already start with "Phase N: ...".
+                    transition_problems.push(missing.join("; "));
+                }
+            }
         }
     }
     if moving_to_next_subphase {
-        let missing = crate::domain::phase_gate::missing_for_subphase(
-            &snap.business_flow_data,
-            current_subphase.unwrap_or(1),
-        );
-        if !missing.is_empty() {
-            return Err(IpcError::new(
-                ErrorCode::ValidationFailed,
-                format!(
-                    "Phase 5.{} chưa hoàn tất nên không thể sang 5.{}: {}",
-                    current_subphase.unwrap_or(1),
-                    req.target_subphase.unwrap_or(1),
-                    missing.join("; ")
-                ),
-            ));
+        let target_sub = req.target_subphase.unwrap_or(1);
+        for sub in current_subphase.unwrap_or(1)..target_sub {
+            let missing = crate::domain::phase_gate::missing_for_subphase(
+                &snap.business_flow_data,
+                sub,
+            );
+            if !missing.is_empty() {
+                transition_problems.push(format!("Phase 5.{sub}: {}", missing.join("; ")));
+            }
         }
+    }
+    if !transition_problems.is_empty() {
+        return Err(IpcError::new(
+            ErrorCode::ValidationFailed,
+            format!(
+                "Không thể chuyển sang phase {} vì phase trước chưa hoàn tất: {}",
+                req.target_phase,
+                transition_problems.join(" | ")
+            ),
+        ));
     }
 
     let base_seq = snap.head_version_seq.unwrap_or(0);

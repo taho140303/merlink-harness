@@ -11,7 +11,7 @@ const vite = await createServer({
 });
 after(async () => { await vite.close(); });
 
-const { deriveStepFromRuntimePhase, DraftBackendController } = await vite.ssrLoadModule(
+const { deriveStepFromRuntimePhase, resolveNextPhase, DraftBackendController } = await vite.ssrLoadModule(
   '/src/features/draft/DraftWorkspace.tsx',
 );
 
@@ -61,4 +61,13 @@ test('version label follows the sealed head instead of staying at v.01', async (
   assert.equal(controller.getState().phase, 2);
   assert.equal(controller.getState().headVersionSeq, 10);
   assert.equal(controller.getState().currentVersionLabel, 'v.10');
+});
+
+
+test('Next reruns the current phase until it is complete', () => {
+  assert.equal(resolveNextPhase(4, 4, false, 4), 4);
+  assert.equal(resolveNextPhase(2, 2, false, 2), 2);
+  assert.equal(resolveNextPhase(2, 2, true, 2), 3);
+  assert.equal(resolveNextPhase(3, 3, true, 3), 4);
+  assert.equal(resolveNextPhase(1, 0, false, 0), 1);
 });

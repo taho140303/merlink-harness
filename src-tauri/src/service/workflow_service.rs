@@ -158,6 +158,20 @@ pub struct ActiveWorkflowState {
     pub applied_task_order: Arc<parking_lot::Mutex<Vec<usize>>>,
 }
 
+/// Removes an in-flight workflow run on every exit path, including panic.
+struct ActiveRunGuard {
+    active_runs: Arc<RwLock<HashMap<Uuid, Arc<ActiveWorkflowState>>>>,
+    draft_session_id: Uuid,
+    completion_sender: broadcast::Sender<()>,
+}
+
+impl Drop for ActiveRunGuard {
+    fn drop(&mut self) {
+        self.active_runs.write().remove(&self.draft_session_id);
+        let _ = self.completion_sender.send(());
+    }
+}
+
 /// Converts merged candidates into Phase 3 write rounds: parents first, then lore.
 fn build_world_write_rounds(merged: &MergedCandidates) -> Vec<Vec<PlannedTaskSpec>> {
     let mut rounds = Vec::new();
@@ -473,13 +487,24 @@ impl WorkflowService {
         } else {
             Vec::new()
         };
+        // Phase 5 sub-phases are ordered: 5.2 needs 5.1 complete, 5.3 needs 5.2 complete.
+        let mut previous_missing = previous_missing;
+        if req.phase == 5 {
+            let sub = req.subphase.unwrap_or(1);
+            if sub > 1 {
+                previous_missing.extend(crate::domain::phase_gate::missing_for_subphase(
+                    &working_state.business_flow_data,
+                    sub - 1,
+                ));
+            }
+        }
         if !previous_missing.is_empty() {
             return Err(IpcError::new(
                 ErrorCode::ValidationFailed,
                 format!(
-                    "Không thể chạy phase {} khi phase {} chưa hoàn tất: {}",
+                    "Không thể chạy phase {}{} khi phase trước chưa hoàn tất: {}",
                     req.phase,
-                    (req.phase - 1).max(0),
+                    req.subphase.map(|sub| format!(".{sub}")).unwrap_or_default(),
                     previous_missing.join("; ")
                 ),
             ));
@@ -590,6 +615,14 @@ impl WorkflowService {
         self.active_runs
             .write()
             .insert(req.draft_session_id, active_state.clone());
+
+        // Panic-safe cleanup: if a task/tool panics, the future is dropped and this guard still
+        // removes the in-flight entry, so the draft does not stay stuck on `DraftBusy`.
+        let _active_run_guard = ActiveRunGuard {
+            active_runs: self.active_runs.clone(),
+            draft_session_id: req.draft_session_id,
+            completion_sender: active_state.completion_sender.clone(),
+        };
 
         // Emit WorkflowStarted event
         self.emit_event(
@@ -1624,11 +1657,11 @@ impl WorkflowService {
                         .iter()
                         .map(|character| character.code.clone())
                         .collect();
-                    for from in &codes {
-                        for to in &codes {
-                            if from != to {
-                                pairs.push((from.clone(), to.clone()));
-                            }
+                    // Undirected pairs only: directed duplication doubles the LLM rounds for no
+                    // added information (a relationship row already stores from/to).
+                    for i in 0..codes.len() {
+                        for j in (i + 1)..codes.len() {
+                            pairs.push((codes[i].clone(), codes[j].clone()));
                         }
                     }
                 }
@@ -1819,19 +1852,17 @@ pub(crate) fn phase_tool_codes(phase: i32) -> &'static [&'static str] {
         ],
         4 => &[
             "set_scene_config", "add_scene_character", "delete_scene_character",
-            "add_scene_lore_entry", "set_scene_lore_entry", "delete_scene_lore_entry",
+            "add_scene_lore_entry", "delete_scene_lore_entry",
         ],
         5 => &[
             "add_character_appearance", "set_character_appearance",
             "add_character_psychological", "set_character_psychological",
             "add_character_memory", "set_character_memory", "delete_character_memory",
             "add_character_competence", "set_character_competence", "delete_character_competence",
-            "add_character_motif", "add_character_distinguishing_mark",
         ],
         6 => &[
             "add_relationship", "set_relationship", "delete_relationship",
-            "add_relationship_role", "set_relationship_role", "delete_relationship_role",
-            "set_relationship_state",
+            "add_relationship_role", "set_relationship_state",
         ],
         _ => &[
             "set_project", "add_character", "set_character", "add_project_genre",

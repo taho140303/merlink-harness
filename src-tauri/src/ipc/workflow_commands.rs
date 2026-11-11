@@ -46,6 +46,24 @@ fn log_workflow_error(stage: &str, error: &IpcError) {
     let _ = writeln!(file, "{line}");
 }
 
+fn log_workflow_event(message: &str) {
+    use std::io::Write;
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else { return };
+    let dir = home.join(".merlink").join("logs");
+    if std::fs::create_dir_all(&dir).is_err() { return; }
+    let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("backend.log"))
+    else { return; };
+    let line = serde_json::json!({
+        "at": chrono::Utc::now().to_rfc3339(),
+        "stage": "workflow_start",
+        "message": message,
+    });
+    let _ = writeln!(file, "{line}");
+}
+
 #[tauri::command]
 pub async fn start_or_resume_workflow(
     service: tauri::State<'_, Arc<WorkflowService>>,
@@ -68,11 +86,29 @@ pub async fn start_or_resume_workflow(
             return Err(error);
         }
     };
+    log_workflow_event(&format!(
+        "requested draft={} phase={} subphase={:?}",
+        req.draft_session_id, req.phase, req.subphase
+    ));
     let result = service
         .start_or_resume_workflow_with_config(&req, Some(tx), planner_config)
         .await;
-    if let Err(error) = &result {
-        log_workflow_error("workflow_run", error);
+    match &result {
+        Err(error) => log_workflow_error("workflow_run", error),
+        Ok(summary) if summary.status != "completed" => log_workflow_error(
+            "workflow_status",
+            &IpcError::new(
+                crate::error::ErrorCode::ValidationFailed,
+                format!(
+                    "workflow finished with status '{}' (recovery_reason: {:?}, tasks {}/{})",
+                    summary.status,
+                    summary.recovery_reason,
+                    summary.completed_tasks,
+                    summary.total_tasks
+                ),
+            ),
+        ),
+        Ok(_) => {}
     }
     result
 }

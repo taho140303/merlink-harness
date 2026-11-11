@@ -68,7 +68,7 @@ impl LlmWorkflowTaskExecutor {
 
         let executor = ToolExecutor::default();
         let mut state = ctx.snapshot.business_flow_data.clone();
-        let mut mutations: Vec<PatchOp> = Vec::new();
+        let task_start = state.clone();
         let mut applied = 0u32;
 
         for candidate in worlds {
@@ -80,16 +80,29 @@ impl LlmWorkflowTaskExecutor {
                 continue;
             }
             let display_name = candidate.get("displayName").and_then(|v| v.as_str()).unwrap_or("Setting");
-            let parent_code = candidate
+            let existing_parent = candidate
                 .get("existingParentCode")
                 .and_then(|v| v.as_str())
-                .map(str::to_string)
-                .or_else(|| {
-                    candidate
-                        .get("parentTempKey")
-                        .and_then(|v| v.as_str())
-                        .and_then(|parent| self.world_codes.lock().unwrap().get(parent).cloned())
-                });
+                .map(str::to_string);
+            let parent_temp = candidate
+                .get("parentTempKey")
+                .and_then(|v| v.as_str())
+                .filter(|parent| !parent.is_empty());
+            let parent_code = existing_parent.clone().or_else(|| {
+                parent_temp.and_then(|parent| self.world_codes.lock().unwrap().get(parent).cloned())
+            });
+            if existing_parent.is_none() && parent_temp.is_some() && parent_code.is_none() {
+                // Silently falling back to a root world corrupts the merged hierarchy; fail the
+                // task so the workflow status/recovery reason surfaces instead.
+                return Err(IpcError::new(
+                    ErrorCode::ValidationFailed,
+                    format!(
+                        "world candidate '{}' references unresolved parentTempKey '{}'",
+                        display_name,
+                        parent_temp.unwrap_or_default()
+                    ),
+                ));
+            }
             let mut parameters = serde_json::json!({
                 "code": unique_code(&state, display_name),
                 "display_name": display_name,
@@ -112,15 +125,9 @@ impl LlmWorkflowTaskExecutor {
                 declared_sources: None,
                 declared_source: None,
             };
-            let before = state.clone();
             let outcome = executor.execute_call(&call, &ExecutionGuard::new(&state));
             if outcome.is_applied() {
                 if let Some(next) = outcome.mutated_state() {
-                    mutations.extend(
-                        canonical_diff(&before, next)
-                            .map_err(|code| IpcError::new(code, "Canonical diff failed"))?
-                            .ops,
-                    );
                     state = next.clone();
                     applied += 1;
                     self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
@@ -163,21 +170,22 @@ impl LlmWorkflowTaskExecutor {
                 declared_sources: None,
                 declared_source: None,
             };
-            let before = state.clone();
             let outcome = executor.execute_call(&call, &ExecutionGuard::new(&state));
             if outcome.is_applied() {
                 if let Some(next) = outcome.mutated_state() {
-                    mutations.extend(
-                        canonical_diff(&before, next)
-                            .map_err(|code| IpcError::new(code, "Canonical diff failed"))?
-                            .ops,
-                    );
                     state = next.clone();
                     applied += 1;
                     self.world_codes.lock().unwrap().insert(temp_key.to_string(), code);
                 }
             }
         }
+
+        // Build ONE patch for the whole task. Concatenating per-write diffs produced duplicate
+        // SetCounter ops (same counter key) when a task wrote several siblings, which the SF-06
+        // replay rejects as EvidenceCodecUnsupported.
+        let mutations = canonical_diff(&task_start, &state)
+            .map_err(|code| IpcError::new(code, "Canonical diff failed"))?
+            .ops;
 
         Ok(TaskExecutionOutput {
             task_index: ctx.task_index,
@@ -1017,6 +1025,43 @@ mod tests {
             .expect("world write must succeed");
         assert_eq!(output.applied_write_count, 3, "two worlds and one lore must be written");
         assert!(!output.mutations.is_empty(), "writes must produce canonical patch ops");
+        // The task patch must be replayable as ONE patch; concatenating per-write diffs produced
+        // duplicate SetCounter ops and failed Phase 3 with EvidenceCodecUnsupported.
+        let replayed = crate::domain::sf06::codec::replay(
+            &ctx.snapshot.business_flow_data,
+            &crate::domain::sf06::codec::PatchV2 { ops: output.mutations.clone() },
+        )
+        .expect("task patch must replay");
+        assert_eq!(replayed.optional.world_building_phase.world_settings.len(), 2);
+        let lore_count: usize = replayed
+            .optional
+            .world_building_phase
+            .world_settings
+            .iter()
+            .map(|world| world.lore_entries.len())
+            .sum();
+        assert_eq!(lore_count, 1);
+    }
+
+    #[tokio::test]
+    async fn world_write_rejects_an_unresolvable_parent_temp_key() {
+        let (provider, mut ctx) = probe_context("{}");
+        ctx.task_spec.task_kind = "world_write".into();
+        ctx.task_spec.assigned_scope = json!({
+            "groupKey": "depth_1",
+            "range": [1, 1],
+            "candidates": {
+                "worldSettings": [
+                    {"tempKey": "city", "parentTempKey": "missing-world", "displayName": "City", "type": "CITY"}
+                ],
+                "loreEntries": []
+            }
+        });
+        let error = LlmWorkflowTaskExecutor::new(provider as Arc<dyn LlmProvider>)
+            .execute_task(&ctx)
+            .await
+            .expect_err("unresolved parent must not silently become a root");
+        assert!(error.message.contains("unresolved parentTempKey"), "{}", error.message);
     }
 
     #[tokio::test]
