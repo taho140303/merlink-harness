@@ -278,13 +278,44 @@ fn setup_test_fixture() -> TestFixture {
 fn seeded_business_flow() -> BusinessFlowData {
     let tracked = |value: serde_json::Value| serde_json::json!({"value": value, "source": "user"});
     let chapter = |code: &str, position: u32| {
+        // Every chapter needs at least one scene: the phase-3 and phase-5.3 gates both read
+        // the scene list, and a chapter without scenes blocks the workflow before it starts.
         serde_json::json!({
             "code": code,
             "display_name": tracked(serde_json::json!(format!("Chapter {position}"))),
             "position": tracked(serde_json::json!(position)),
             "summary": tracked(serde_json::json!("Summary")),
+            "scenes": [{
+                "code": format!("{code}-s1"),
+                "display_name": tracked(serde_json::json!(format!("Scene {position}.1"))),
+                "position": tracked(serde_json::json!(1)),
+                "summary": tracked(serde_json::json!("Scene summary")),
+                "world_setting_code": tracked(serde_json::json!("city_capital")),
+            }],
         })
     };
+    // Phase 4 must cover every scene produced by phase 2, otherwise the phase-5 gate blocks.
+    let scene_config_arcs: Vec<serde_json::Value> = ["arc_one", "arc_two"]
+        .iter()
+        .map(|arc| {
+            let chapters: Vec<serde_json::Value> = (1..=6)
+                .map(|position| {
+                    serde_json::json!({
+                        "code": format!("{arc}-c{position}"),
+                        "scenes": [{
+                            "code": format!("{arc}-c{position}-s1"),
+                            "world_setting_code": tracked(serde_json::json!("city_capital")),
+                            "style_preset_code": tracked(serde_json::json!("style_classic")),
+                            "narrator_config_code": tracked(serde_json::json!("narrator_third_limited")),
+                            "characters": [{"character_code": "char_a", "is_pov": tracked(serde_json::json!(true))}],
+                        }],
+                    })
+                })
+                .collect();
+            serde_json::json!({"code": arc, "chapters": chapters})
+        })
+        .collect();
+
     let value = serde_json::json!({
         "meta": {"version": "1.0", "phase": 0, "subphase": null, "updated_at": null},
         "require": {
@@ -320,6 +351,22 @@ fn seeded_business_flow() -> BusinessFlowData {
                 {"code": "continent_north", "display_name": tracked(serde_json::json!("North")), "type": tracked(serde_json::json!("REALM"))},
                 {"code": "kingdom_iron", "parent_code": tracked(serde_json::json!("continent_north")), "display_name": tracked(serde_json::json!("Iron")), "type": tracked(serde_json::json!("WORLD"))},
                 {"code": "city_capital", "parent_code": tracked(serde_json::json!("kingdom_iron")), "display_name": tracked(serde_json::json!("Capital")), "type": tracked(serde_json::json!("CITY"))}
+            ]},
+            "scene_config_phase": {"arcs": scene_config_arcs},
+            "character_appearance_phase": {"character": [
+                {"code": "char_a", "default_summary": tracked(serde_json::json!("Tall, ink-stained coat"))},
+                {"code": "char_b", "default_summary": tracked(serde_json::json!("Broad, ceremonial armour"))},
+                {"code": "char_c", "default_summary": tracked(serde_json::json!("Slight, always hooded"))}
+            ]},
+            "character_psychological_phase": {"character": [
+                {"code": "char_a", "core_trauma_and_belief": {"the_wound": tracked(serde_json::json!("Left behind once"))}},
+                {"code": "char_b", "core_trauma_and_belief": {"the_wound": tracked(serde_json::json!("Failed to protect"))}},
+                {"code": "char_c", "core_trauma_and_belief": {"the_wound": tracked(serde_json::json!("Trusted the wrong ally"))}}
+            ]},
+            "character_life_experience_phase": {"character": [
+                {"code": "char_a", "memories": [{"code": "mem_a", "content": tracked(serde_json::json!("The night the border fell")), "source_scene_code": tracked(serde_json::json!("arc_one-c1-s1"))}]},
+                {"code": "char_b", "memories": [{"code": "mem_b", "content": tracked(serde_json::json!("The oath at the gate")), "source_scene_code": tracked(serde_json::json!("arc_one-c1-s1"))}]},
+                {"code": "char_c", "memories": [{"code": "mem_c", "content": tracked(serde_json::json!("The letter never sent")), "source_scene_code": tracked(serde_json::json!("arc_one-c1-s1"))}]}
             ]},
             "relationship_phase": {"relationship": [
                 {"code": "rel_ab", "character": {"from_code": "char_a", "to_code": "char_b"}},
