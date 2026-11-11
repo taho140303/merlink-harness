@@ -48,6 +48,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
+            clang \
+            mold \
             curl \
             file \
             wget \
@@ -61,7 +63,7 @@ jobs:
             librsvg2-dev \
             libxdo-dev \
             patchelf
-          for pkg in pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
+          for pkg in clang mold pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev \
             librsvg2-dev libxdo-dev patchelf; do
             dpkg -s "$pkg" >/dev/null 2>&1 || {
