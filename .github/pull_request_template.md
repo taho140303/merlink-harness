@@ -10,7 +10,7 @@
 - [ ] `pnpm typecheck`
 - [ ] `pnpm lint`
 - [ ] `pnpm build`
-- [ ] `cargo clippy --all-targets --locked -- -D warnings` (in `src-tauri`)
+- [ ] `cargo clippy --all-targets --locked` with no new warnings (in `src-tauri`)
 - [ ] `cargo test --locked` (in `src-tauri`)
 
 ## Checklist

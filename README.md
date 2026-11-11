@@ -100,10 +100,10 @@ pnpm test:rust          # cargo test in src-tauri (nice -n 10, two jobs)
 pnpm tauri build        # bundle deb, rpm, AppImage and the Windows installers
 ```
 
-CI runs the same commands in `.github/workflows/ci.yml`, plus `cargo clippy -- -D warnings` and
-the full Rust test suite. The design and planning documents that used to live in `docs/` are kept
-outside this checkout; the repository only carries what is needed to build, test and release the
-app.
+CI runs the same commands in `.github/workflows/ci.yml`, plus `cargo clippy` (warnings are
+reported but not fatal yet) and the full Rust test suite. The design and planning documents that
+used to live in `docs/` are kept outside this checkout; the repository only carries what is
+needed to build, test and release the app.
 
 ## Release
 

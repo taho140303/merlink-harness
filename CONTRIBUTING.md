@@ -29,14 +29,16 @@ pnpm lint                 # eslint + packaging contract checks
 pnpm build                # react-router build -> build/client
 
 cd src-tauri
-cargo clippy --all-targets --locked -- -D warnings
+cargo clippy --all-targets --locked
 cargo test --locked
 cargo build --bundles deb # optional: verify the Tauri bundle locally
 ```
 
 The tree is not rustfmt-normalized yet: run `cargo fmt` on the modules you touch, but do not
 reformat unrelated files in the same pull request. Formatting is not a CI gate until that
-baseline cleanup happens.
+baseline cleanup happens. Clippy runs in CI without `-D warnings` for the same reason: the
+existing warning backlog has to be cleared before the gate can be tightened, so do not add new
+warnings.
 
 Two rules keep CI green:
 
@@ -115,7 +117,7 @@ Rules:
 A pull request is ready when:
 
 - [ ] `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build` pass locally
-- [ ] `cargo clippy -- -D warnings` and `cargo test` pass in `src-tauri`
+- [ ] `cargo clippy --all-targets --locked` reports no new warnings and `cargo test --locked` passes in `src-tauri`
 - [ ] new behaviour has a test, and the test fails without the change
 - [ ] the migration rules above are respected, if the schema or seed changed
 - [ ] user-visible copy exists in the i18n dictionary, not only in a component
