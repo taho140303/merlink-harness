@@ -1,6 +1,6 @@
 {
   "name": "merlink-harness",
-  "version": "0.0.5-preview",
+  "version": "0.0.5",
   "private": true,
   "description": "Local-first narrative harness for building a story with an AI agent",
   "license": "MIT",

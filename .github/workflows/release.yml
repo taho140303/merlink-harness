@@ -90,10 +90,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "Merlink Harness v__VERSION__"
+          tagName: ${{ github.ref_name }}
+          releaseName: "Merlink Harness ${{ github.ref_name }}"
           releaseBody: |
-            Desktop bundles for Merlink Harness v__VERSION__.
+            Desktop bundles for Merlink Harness ${{ github.ref_name }}.
 
             | Platform | Assets |
             | --- | --- |

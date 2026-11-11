@@ -52,8 +52,13 @@ for (const [label, value] of compares) {
 const tag = process.env.GITHUB_REF_NAME;
 if (tag && tag.startsWith("v")) {
   const expected = `v${compares[0][1]}`;
-  if (tag !== expected) {
-    problems.push(`git tag ${tag} does not match the package version ${expected}`);
+  // Preview builds keep the numeric bundle version (MSI rejects non-numeric
+  // pre-release identifiers and .deb rejects "-") but use a preview tag.
+  const previewTags = new Set([`${expected}_preview`, `${expected}-preview`]);
+  if (tag !== expected && !previewTags.has(tag)) {
+    problems.push(
+      `git tag ${tag} does not match the package version ${expected} or a preview alias`,
+    );
   }
 }
 
