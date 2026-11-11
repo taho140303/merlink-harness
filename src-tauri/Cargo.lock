@@ -2279,7 +2279,7 @@ dependencies = [
 
 [[package]]
 name = "merlink-harness"
-version = "0.1.0"
+version = "0.0.5-preview"
 dependencies = [
  "async-trait",
  "chrono",

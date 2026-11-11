@@ -1,6 +1,6 @@
 [package]
 name = "merlink-harness"
-version = "0.1.0"
+version = "0.0.5-preview"
 description = "Merlink Harness Tauri v2 Modular Monolith Backend"
 authors = ["Merlink Harness Team"]
 license = "MIT"
