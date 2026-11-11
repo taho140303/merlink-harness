@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # A manual dispatch must still target a tag; running it on a branch would retarget
+    # whatever release already exists for that ref.
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Build the Linux bundles on the old base image: glibc is forward-only, so an
+          # AppImage produced on 24.04 refuses to start on 22.04.
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Tauri v2 Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            curl \
+            file \
+            wget \
+            pkg-config \
+            libssl-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            patchelf \
+            rpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+          key: ${{ matrix.platform }}
+
+      - name: Install frontend dependencies from the frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify the tag matches the app version
+        run: pnpm version:check
+
+      - name: Build and upload the draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Merlink Harness v__VERSION__"
+          releaseBody: |
+            Desktop bundles for Merlink Harness v__VERSION__.
+
+            | Platform | Assets |
+            | --- | --- |
+            | Linux | `.deb`, `.rpm`, `.AppImage` |
+            | Windows | `.msi`, `-setup.exe` |
+
+            The application is local-first and stores projects in `~/.merlink`. Builds are
+            unsigned: Windows SmartScreen may warn on first launch until reputation accrues.
+          releaseDraft: true
+          prerelease: false
+          uploadUpdaterJson: false
+          args: ${{ matrix.args }}

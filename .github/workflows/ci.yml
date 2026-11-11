@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "impl/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Keep build output and test fixtures off the workspace so the packaging contract
+  # check (no local database, no app-data directory) stays meaningful.
+  CARGO_TARGET_DIR: /tmp/merlink-ci-target
+  MERLINK_TEST_TEMP_ROOT: /tmp/merlink-ci-temp
+  MERLINK_TEST_DB_PATH: /tmp/merlink-ci-temp/disposable-test.sqlite3
+
+jobs:
+  verify:
+    name: Frontend, packaging and Rust verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Prepare disposable test directories
+        run: |
+          set -euo pipefail
+          mkdir -p "$CARGO_TARGET_DIR" "$MERLINK_TEST_TEMP_ROOT"
+          chmod 0700 "$MERLINK_TEST_TEMP_ROOT"
+          test ! -e "app-data"
+          test ! -e "merlink.sqlite3"
+
+      - name: Install Tauri v2 Linux dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            curl \
+            file \
+            wget \
+            pkg-config \
+            libssl-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            patchelf
+          for pkg in pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev patchelf; do
+            dpkg -s "$pkg" >/dev/null 2>&1 || {
+              echo "missing required platform dependency: $pkg" >&2
+              exit 1
+            }
+          done
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install frontend dependencies from the frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify version sources agree
+        run: pnpm version:check
+
+      - name: Run frontend unit and contract tests
+        run: pnpm test
+
+      - name: Generate route types and typecheck
+        run: pnpm typecheck
+
+      - name: Lint and verify the packaging contract
+        run: pnpm lint
+
+      - name: Build the frontend bundle (required by tauri-build)
+        run: pnpm build
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+
+      - name: Run the Rust test suite
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
